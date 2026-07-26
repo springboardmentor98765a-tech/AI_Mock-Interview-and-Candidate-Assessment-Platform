@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - SmartHire AI</title>
+  <meta name="description" content="Access your SmartHire AI candidate, recruiter, or admin portal.">
+  <!-- Google Fonts & FontAwesome CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <span>SmartHire <span class="gradient-text">AI</span></span>
+      </a>
+      
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="candidate.html">Candidate</a>
+        <a href="recruiter.html">Recruiter</a>
+        <a href="admin.html">Admin</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="login.html" class="btn btn-primary btn-sm active">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Login Main Content Wrapper -->
+  <main class="login-page-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <a href="index.html" class="logo" style="margin-bottom: 1.25rem;">
+          <div class="logo-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+        </a>
+        <h2>Welcome Back</h2>
+        <p>Sign in to your SmartHire AI account</p>
+      </div>
+
+      <form onsubmit="return false;">
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required autocomplete="off">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="off">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full demo-btn" data-alert="SmartHire AI Demo: UI Demonstration Only. Clicking login does not authenticate or redirect.">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </button>
+      </form>
+
+      <div class="login-links">
+        <a href="#" data-alert="SmartHire AI Demo: Forgot Password link clicked.">Forgot Password?</a>
+        <span style="color: var(--text-muted);">
+          Don't have an account? <a href="#" data-alert="SmartHire AI Demo: Sign up link clicked.">Create Account</a>
+        </span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" style="margin-top: 0;">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 SmartHire AI. All rights reserved. Static UI demonstration.</p>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="index.html">Home</a>
+          <a href="candidate.html">Candidate</a>
+          <a href="recruiter.html">Recruiter</a>
+          <a href="admin.html">Admin</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Custom JavaScript -->
+  <script src="js/script.js"></script>
+</body>
+</html>
