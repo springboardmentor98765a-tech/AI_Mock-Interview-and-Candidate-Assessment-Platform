@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - SmartHire AI</title>
+  <meta name="description" content="Admin control panel for SmartHire AI user governance, system activity monitoring, AI model configuration, and platform analytics.">
+  <!-- Google Fonts & FontAwesome CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <span>SmartHire <span class="gradient-text">AI</span></span>
+      </a>
+      
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="candidate.html">Candidate</a>
+        <a href="recruiter.html">Recruiter</a>
+        <a href="admin.html" class="active">Admin</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="login.html" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Layout -->
+  <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li class="sidebar-item">
+          <a href="admin.html" class="active">
+            <i class="fa-solid fa-shield-halved"></i> Dashboard
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" data-alert="Navigating to User Management.">
+            <i class="fa-solid fa-users"></i> Users
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" data-alert="Navigating to Recruiter Management.">
+            <i class="fa-solid fa-building-user"></i> Recruiters
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" data-alert="Navigating to Platform Settings.">
+            <i class="fa-solid fa-sliders"></i> Platform
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" data-alert="Navigating to AI Model Configurations.">
+            <i class="fa-solid fa-microchip"></i> AI Settings
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" data-alert="Navigating to System Analytics.">
+            <i class="fa-solid fa-chart-line"></i> Analytics
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-main">
+      <!-- Header Title -->
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h1>Admin Command Center</h1>
+          <p>System governance, user administration, AI hyper-parameter tuning, and infrastructure logs.</p>
+        </div>
+        <button class="btn btn-primary btn-sm demo-btn" data-alert="SmartHire AI Demo: Triggered System Health Audit.">
+          <i class="fa-solid fa-arrows-rotate"></i> Run Audit
+        </button>
+      </div>
+
+      <!-- Dashboard Cards (Metrics Grid) -->
+      <div class="stats-cards-grid">
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper blue">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Total Users</h4>
+            <div class="value">3,850</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Active globally</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper purple">
+            <i class="fa-solid fa-briefcase"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Recruiters</h4>
+            <div class="value">310</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Verified orgs</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper cyan">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Candidates</h4>
+            <div class="value">3,540</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Registered jobseekers</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper amber">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Interviews</h4>
+            <div class="value">12,400</div>
+            <div class="trend up"><i class="fa-solid fa-check"></i> Total AI sessions</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Cards Grid (Admin Action Features) -->
+      <div class="dashboard-grid">
+
+        <!-- 1. Manage Users & Recruiters -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-users-gear"></i> Manage Users & Recruiters</h3>
+              <span class="badge-status success">Active</span>
+            </div>
+            <div class="dash-card-body">
+              Grant permissions, manage role access control, verify enterprise recruiter accounts, and handle user suspensions.
+              <div class="css-chart-box">
+                <div class="progress-bar-group">
+                  <div class="progress-label">
+                    <span>Verified Candidate Accounts</span>
+                    <span>92%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 92%;"></div>
+                  </div>
+                </div>
+                <div class="progress-bar-group" style="margin-bottom: 0;">
+                  <div class="progress-label">
+                    <span>Verified Recruiters</span>
+                    <span>98%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill secondary" style="width: 98%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full demo-btn" data-alert="SmartHire AI Demo: Opening User Management Directory.">
+            <i class="fa-solid fa-user-check"></i> Manage Access
+          </button>
+        </div>
+
+        <!-- 2. Configure Platform Settings -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-sliders"></i> Platform Settings</h3>
+              <span class="badge-status info">v2.4.0 Live</span>
+            </div>
+            <div class="dash-card-body">
+              Configure system themes, regional compliance policies, email notifications, webhooks, and third-party integrations.
+              <div class="css-chart-box" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Maintenance Mode</span>
+                <span class="badge-status warning">Disabled</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full demo-btn" data-alert="SmartHire AI Demo: Opening Platform Settings.">
+            <i class="fa-solid fa-gear"></i> Configure Platform
+          </button>
+        </div>
+
+        <!-- 3. Monitor System Activities -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-desktop"></i> Monitor System Activities</h3>
+              <span class="badge-status success">99.98% Uptime</span>
+            </div>
+            <div class="dash-card-body">
+              Real-time server telemetry, latency metrics, API response rates, error tracing, and active concurrent websocket sessions.
+              <div class="css-chart-box">
+                <div style="font-size: 0.825rem; display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                  <span>API Latency</span>
+                  <strong style="color: var(--primary);">42 ms</strong>
+                </div>
+                <div style="font-size: 0.825rem; display: flex; justify-content: space-between;">
+                  <span>Server CPU Load</span>
+                  <strong style="color: var(--accent);">18%</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full demo-btn" data-alert="SmartHire AI Demo: Opening System Telemetry Dashboard.">
+            <i class="fa-solid fa-chart-line"></i> View System Health
+          </button>
+        </div>
+
+        <!-- 4. Manage AI Configurations -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-microchip"></i> Manage AI Configurations</h3>
+              <span class="badge-status success">Tuned</span>
+            </div>
+            <div class="dash-card-body">
+              Fine-tune interview evaluation prompts, temperature settings, ATS parsing weights, and specialized technical domain models.
+              <div class="css-chart-box">
+                <div class="progress-bar-group" style="margin-bottom: 0.5rem;">
+                  <div class="progress-label">
+                    <span>ATS Matching Weight</span>
+                    <span>85%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 85%; background: var(--secondary);"></div>
+                  </div>
+                </div>
+                <div class="progress-bar-group" style="margin-bottom: 0;">
+                  <div class="progress-label">
+                    <span>Voice Evaluation Temperature</span>
+                    <span>0.7</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 70%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-accent btn-full demo-btn" data-alert="SmartHire AI Demo: Opening AI Model Tuning Parameters.">
+            <i class="fa-solid fa-sliders"></i> Configure AI Parameters
+          </button>
+        </div>
+
+        <!-- 5. Access Platform-Wide Analytics -->
+        <div class="dashboard-card" style="grid-column: span 2;">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-chart-pie"></i> Access Platform-Wide Analytics</h3>
+              <span class="badge-status info">Monthly Growth</span>
+            </div>
+            <div class="dash-card-body">
+              Global platform usage statistics, candidate retention rates, top searched tech skills, and enterprise recruiter subscription metrics.
+              <div class="bar-chart-visual" style="height: 90px;">
+                <div class="bar-column"><div class="bar-column-inner" style="height: 40%;"></div></div>
+                <div class="bar-column"><div class="bar-column-inner" style="height: 55%;"></div></div>
+                <div class="bar-column"><div class="bar-column-inner" style="height: 70%;"></div></div>
+                <div class="bar-column"><div class="bar-column-inner" style="height: 85%;"></div></div>
+                <div class="bar-column"><div class="bar-column-inner" style="height: 95%;"></div></div>
+                <div class="bar-column"><div class="bar-column-inner" style="height: 100%;"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full demo-btn" data-alert="SmartHire AI Demo: Opening Platform Analytics Suite.">
+            <i class="fa-solid fa-square-poll-vertical"></i> View Platform Analytics
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Activity Log Table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <h3>System Audit & Activity Log</h3>
+          <button class="btn btn-secondary btn-sm demo-btn" data-alert="SmartHire AI Demo: Exporting audit log.">
+            <i class="fa-solid fa-download"></i> Export Logs
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor / User</th>
+                <th>Action Description</th>
+                <th>IP Address</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Oct 25, 2026 - 09:42:10</td>
+                <td><strong>admin@smarthire.ai</strong></td>
+                <td>Updated AI Technical Question Prompt Weights</td>
+                <td>192.168.1.45</td>
+                <td><span class="badge-status success">Success</span></td>
+              </tr>
+              <tr>
+                <td>Oct 25, 2026 - 08:15:33</td>
+                <td><strong>sarah@nexusinc.com</strong></td>
+                <td>Recruiter Account Created & Verified</td>
+                <td>104.28.14.90</td>
+                <td><span class="badge-status success">Success</span></td>
+              </tr>
+              <tr>
+                <td>Oct 24, 2026 - 22:04:19</td>
+                <td><strong>alex.morgan@dev.io</strong></td>
+                <td>Submitted Resume for ATS Parsing</td>
+                <td>172.56.21.11</td>
+                <td><span class="badge-status success">Success</span></td>
+              </tr>
+              <tr>
+                <td>Oct 24, 2026 - 19:30:05</td>
+                <td><strong>System Task</strong></td>
+                <td>Automated AI Evaluation Index Refresh</td>
+                <td>127.0.0.1</td>
+                <td><span class="badge-status info">Completed</span></td>
+              </tr>
+              <tr>
+                <td>Oct 24, 2026 - 15:11:42</td>
+                <td><strong>david.chen@test.com</strong></td>
+                <td>Mock Interview Completed (Score: 89%)</td>
+                <td>198.51.100.8</td>
+                <td><span class="badge-status success">Success</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 SmartHire AI Admin Control Panel. UI demonstration frontend.</p>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="index.html">Home</a>
+          <a href="login.html">Login</a>
+          <a href="candidate.html">Candidate</a>
+          <a href="recruiter.html">Recruiter</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Custom JavaScript -->
+  <script src="js/script.js"></script>
+</body>
+</html>
