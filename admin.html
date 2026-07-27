@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartHireAI — Admin Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo" style="background:var(--amber-500)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+      </div>
+      <div><div class="name">SmartHireAI</div><div class="role">Admin Portal</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-link active" onclick="showSection(this,'overview')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg> Overview</button>
+      <button class="nav-link" onclick="showSection(this,'users')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Users</button>
+      <button class="nav-link" onclick="showSection(this,'recruiters')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Recruiters</button>
+      <button class="nav-link" onclick="showSection(this,'ai')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M20 15h2"/></svg> AI Config</button>
+      <button class="nav-link" onclick="showSection(this,'settings')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Settings</button>
+      <button class="nav-link" onclick="showSection(this,'activity')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Activity Log</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .5rem">
+        <img src="https://api.dicebear.com/7.x/initials/svg?seed=Admin&backgroundColor=f59e0b&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem" alt="Admin">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.875rem;font-weight:600;color:var(--ink-800)">System Admin</div>
+          <div style="font-size:.75rem;color:var(--ink-400)">admin@smarthireai.io</div>
+        </div>
+      </div>
+      <button class="nav-link" style="color:var(--rose-500);margin-top:.25rem" onclick="window.location.href='login.html'">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> Sign out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="field-row" style="flex:1;max-width:24rem">
+        <svg class="ic-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input" placeholder="Search...">
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" style="padding:.5rem;position:relative">
+        <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span style="position:absolute;top:6px;right:6px;height:8px;width:8px;border-radius:9999px;background:var(--rose-500)" class="pulse-soft"></span>
+      </button>
+      <span class="badge badge-amber" style="margin-left:.5rem">Admin</span>
+      <img src="https://api.dicebear.com/7.x/initials/svg?seed=Admin&backgroundColor=f59e0b&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem;margin-left:.5rem" alt="Admin">
+    </header>
+
+    <div class="content">
+      <div class="content-inner fade-in">
+
+        <!-- Overview -->
+        <div id="overview" class="section">
+          <div class="page-head">
+            <div><h1>Admin Control Center</h1><p>Platform-wide oversight of users, AI, and system health.</p></div>
+            <button class="btn btn-primary" onclick="alert('Opening invite dialog...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg> Invite user</button>
+          </div>
+          <div class="grid grid-4">
+            <div class="card stat"><div class="stat-label">Total Users</div><div class="stat-value">3,247</div><div class="stat-trend trend-up">▲ 142 this week</div></div>
+            <div class="card stat"><div class="stat-label">Active Recruiters</div><div class="stat-value">96</div><div class="stat-trend trend-up">▲ 4 new</div></div>
+            <div class="card stat"><div class="stat-label">AI Calls / Day</div><div class="stat-value">1,840</div><div class="stat-trend trend-up">▲ 12%</div></div>
+            <div class="card stat"><div class="stat-label">Uptime</div><div class="stat-value">99.9%</div><div class="stat-trend trend-up">All systems go</div></div>
+          </div>
+
+          <div class="grid grid-2 mt-6">
+            <div class="card" style="padding:1.25rem">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">User Distribution</h3>
+              <div style="display:flex;flex-direction:column;gap:.75rem">
+                <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>Candidates</span><span style="font-weight:600">2,894</span></div><div class="bar"><div class="bar-fill" style="width:89%;background:var(--brand-500)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>Recruiters</span><span style="font-weight:600">96</span></div><div class="bar"><div class="bar-fill" style="width:3%;background:var(--accent-500)"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>Admins</span><span style="font-weight:600">12</span></div><div class="bar"><div class="bar-fill" style="width:1%;background:var(--amber-500)"></div></div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">Recent Activity</h3>
+              <div style="display:flex;flex-direction:column;gap:.75rem">
+                <div style="display:flex;align-items:center;gap:.75rem;font-size:.875rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--accent-500)"></span><span style="flex:1">Nina Brooks logged in</span><span style="color:var(--ink-400)">2m</span></div>
+                <div style="display:flex;align-items:center;gap:.75rem;font-size:.875rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--brand-500)"></span><span style="flex:1">Aarav completed Technical interview</span><span style="color:var(--ink-400)">15m</span></div>
+                <div style="display:flex;align-items:center;gap:.75rem;font-size:.875rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--amber-500)"></span><span style="flex:1">AI config updated by admin</span><span style="color:var(--ink-400)">1h</span></div>
+                <div style="display:flex;align-items:center;gap:.75rem;font-size:.875rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--rose-500)"></span><span style="flex:1">Tom Becker account suspended</span><span style="color:var(--ink-400)">3h</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users -->
+        <div id="users" class="section" style="display:none">
+          <div class="page-head">
+            <div><h1>User Management</h1><p>Manage all candidate and admin accounts on the platform.</p></div>
+            <button class="btn btn-primary" onclick="alert('Opening add user dialog...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg> Add user</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Interviews</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600">Aarav Sharma</td><td>aarav@smarthireai.io</td><td><span class="badge badge-blue">Candidate</span></td><td>12</td><td><span class="badge badge-green">Active</span></td><td>Jun 03</td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Actions for Aarav')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Priya Patel</td><td>priya@smarthireai.io</td><td><span class="badge badge-blue">Candidate</span></td><td>15</td><td><span class="badge badge-green">Active</span></td><td>May 18</td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Actions for Priya')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Nina Brooks</td><td>nina@acme.co</td><td><span class="badge badge-green">Recruiter</span></td><td>42</td><td><span class="badge badge-green">Active</span></td><td>Apr 12</td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Actions for Nina')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Tom Becker</td><td>tom@cloudpeak.io</td><td><span class="badge badge-green">Recruiter</span></td><td>12</td><td><span class="badge badge-rose">Suspended</span></td><td>Mar 22</td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Actions for Tom')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recruiters -->
+        <div id="recruiters" class="section" style="display:none">
+          <div class="page-head">
+            <div><h1>Recruiter Management</h1><p>Oversee recruiter accounts, their activity, and performance.</p></div>
+            <button class="btn btn-primary" onclick="alert('Opening add recruiter dialog...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg> Add recruiter</button>
+          </div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.75rem"><img src="https://api.dicebear.com/7.x/initials/svg?seed=Nina%20Brooks&backgroundColor=10b981&textColor=ffffff" class="avatar" style="height:2.5rem;width:2.5rem"><div><div style="font-weight:700">Nina Brooks</div><div style="font-size:.75rem;color:var(--ink-400)">Acme Corp</div></div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:1rem"><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">42</div><div style="font-size:.75rem;color:var(--ink-400)">Candidates</div></div><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">79%</div><div style="font-size:.75rem;color:var(--ink-400)">Avg Score</div></div></div>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Viewing Nina Brooks...')">View</button><button class="btn btn-ghost" style="font-size:.875rem;padding:.5rem;color:var(--rose-600)" onclick="alert('Nina Brooks suspended.')">Suspend</button></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.75rem"><img src="https://api.dicebear.com/7.x/initials/svg?seed=David%20Kim&backgroundColor=10b981&textColor=ffffff" class="avatar" style="height:2.5rem;width:2.5rem"><div><div style="font-weight:700">David Kim</div><div style="font-size:.75rem;color:var(--ink-400)">TechFlow</div></div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:1rem"><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">28</div><div style="font-size:.75rem;color:var(--ink-400)">Candidates</div></div><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">75%</div><div style="font-size:.75rem;color:var(--ink-400)">Avg Score</div></div></div>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Viewing David Kim...')">View</button><button class="btn btn-ghost" style="font-size:.875rem;padding:.5rem;color:var(--rose-600)" onclick="alert('David Kim suspended.')">Suspend</button></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.75rem"><img src="https://api.dicebear.com/7.x/initials/svg?seed=Tom%20Becker&backgroundColor=f59e0b&textColor=ffffff" class="avatar" style="height:2.5rem;width:2.5rem"><div><div style="font-weight:700">Tom Becker</div><div style="font-size:.75rem;color:var(--ink-400)">CloudPeak</div></div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:1rem"><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">12</div><div style="font-size:.75rem;color:var(--ink-400)">Candidates</div></div><div style="text-align:center;background:var(--ink-50);border-radius:.5rem;padding:.75rem"><div style="font-weight:700;font-size:1.125rem">68%</div><div style="font-size:.75rem;color:var(--ink-400)">Avg Score</div></div></div>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Viewing Tom Becker...')">View</button><button class="btn btn-ghost" style="font-size:.875rem;padding:.5rem;color:var(--accent-600)" onclick="alert('Tom Becker reactivated.')">Activate</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Config -->
+        <div id="ai" class="section" style="display:none">
+          <div class="page-head"><div><h1>AI Configuration</h1><p>Tune the AI models that power interviews and feedback.</p></div><span class="badge badge-green">Model: smarthireai-interview-v3</span></div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem">
+              <div style="font-weight:600;margin-bottom:.5rem">Difficulty</div>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-bottom:.75rem">How hard questions should be</p>
+              <input type="range" min="0" max="1" step="0.01" value="0.7" class="w-full" style="accent-color:var(--brand-600)" oninput="showVal(this,'diffVal')">
+              <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--ink-400);margin-top:.25rem"><span>Easy</span><span id="diffVal" style="font-weight:600;color:var(--ink-700)">70%</span><span>Hard</span></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="font-weight:600;margin-bottom:.5rem">Feedback Detail</div>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-bottom:.75rem">Depth of AI feedback reports</p>
+              <input type="range" min="0" max="1" step="0.01" value="0.85" class="w-full" style="accent-color:var(--brand-600)" oninput="showVal(this,'fbVal')">
+              <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--ink-400);margin-top:.25rem"><span>Brief</span><span id="fbVal" style="font-weight:600;color:var(--ink-700)">85%</span><span>Detailed</span></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="font-weight:600;margin-bottom:.5rem">Adaptivity</div>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-bottom:.75rem">How fast questions adapt to answers</p>
+              <input type="range" min="0" max="1" step="0.01" value="0.6" class="w-full" style="accent-color:var(--brand-600)" oninput="showVal(this,'adVal')">
+              <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--ink-400);margin-top:.25rem"><span>Static</span><span id="adVal" style="font-weight:600;color:var(--ink-700)">60%</span><span>Adaptive</span></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:1rem">
+            <button class="btn btn-primary" onclick="alert('AI configuration saved.')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Save configuration</button>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings" class="section" style="display:none">
+          <div class="page-head"><div><h1>Platform Settings</h1><p>Configure global platform behavior and policies.</p></div></div>
+          <div class="grid grid-2">
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">Allow public registration</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Let candidates sign up without an invite.</div></div><button class="toggle" data-on="true" onclick="toggle(this,'Public registration')"><span></span></button></div>
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">Email verification required</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">New users must verify their email.</div></div><button class="toggle" data-on="true" onclick="toggle(this,'Email verification')"><span></span></button></div>
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">AI feedback auto-send</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Send AI feedback to candidates after each interview.</div></div><button class="toggle" data-on="true" onclick="toggle(this,'AI feedback auto-send')"><span></span></button></div>
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">Maintenance mode</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Temporarily disable user access during updates.</div></div><button class="toggle" data-on="false" onclick="toggle(this,'Maintenance mode')"><span></span></button></div>
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">Session recording</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Record video of all mock interviews.</div></div><button class="toggle" data-on="true" onclick="toggle(this,'Session recording')"><span></span></button></div>
+            <div class="card" style="padding:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem"><div><div style="font-weight:600">Two-factor authentication</div><div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Require 2FA for admin and recruiter accounts.</div></div><button class="toggle" data-on="false" onclick="toggle(this,'2FA')"><span></span></button></div>
+          </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div id="activity" class="section" style="display:none">
+          <div class="page-head"><div><h1>Activity Log</h1><p>Every action across the platform, most recent first.</p></div></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>User</th><th>Action</th><th>Type</th><th>Time</th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600">Nina Brooks</td><td>Logged in</td><td><span class="badge badge-blue">Login</span></td><td>2 min ago</td></tr>
+                  <tr><td style="font-weight:600">Aarav Sharma</td><td>Completed Technical interview (84%)</td><td><span class="badge badge-green">Interview</span></td><td>15 min ago</td></tr>
+                  <tr><td style="font-weight:600">System Admin</td><td>Updated AI configuration</td><td><span class="badge badge-amber">Config</span></td><td>1 hour ago</td></tr>
+                  <tr><td style="font-weight:600">System Admin</td><td>Suspended Tom Becker</td><td><span class="badge badge-rose">User</span></td><td>3 hours ago</td></tr>
+                  <tr><td style="font-weight:600">Priya Patel</td><td>Downloaded performance report</td><td><span class="badge badge-gray">Report</span></td><td>5 hours ago</td></tr>
+                  <tr><td style="font-weight:600">David Kim</td><td>Created new template "Backend Screening"</td><td><span class="badge badge-amber">Config</span></td><td>1 day ago</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .toggle{position:relative;width:2.75rem;height:1.5rem;border-radius:9999px;border:none;cursor:pointer;transition:background .2s;flex-shrink:0}
+  .toggle[data-on="true"]{background:var(--brand-600)}
+  .toggle[data-on="false"]{background:var(--ink-200)}
+  .toggle span{position:absolute;top:2px;left:2px;height:1.25rem;width:1.25rem;border-radius:9999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+  .toggle[data-on="true"] span{transform:translateX(1.25rem)}
+</style>
+
+<script>
+  function showSection(btn, id) {
+    document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+  }
+  function showVal(input, valId) {
+    document.getElementById(valId).textContent = Math.round(input.value * 100) + '%';
+  }
+  function toggle(btn, name) {
+    const on = btn.dataset.on === 'true';
+    btn.dataset.on = (!on).toString();
+    alert(name + ' ' + (!on ? 'enabled' : 'disabled') + '.');
+  }
+</script>
+</body>
+</html>

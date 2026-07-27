@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartHireAI — Recruiter Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo" style="background:var(--accent-600)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+      </div>
+      <div><div class="name">SmartHireAI</div><div class="role">Recruiter Portal</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-link active" onclick="showSection(this,'overview')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg> Overview</button>
+      <button class="nav-link" onclick="showSection(this,'analytics')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Analytics</button>
+      <button class="nav-link" onclick="showSection(this,'templates')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg> Templates</button>
+      <button class="nav-link" onclick="showSection(this,'sessions')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg> Live Sessions</button>
+      <button class="nav-link" onclick="showSection(this,'reports')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Reports</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .5rem">
+        <img src="https://api.dicebear.com/7.x/initials/svg?seed=Nina%20Brooks&backgroundColor=10b981&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem" alt="Nina">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.875rem;font-weight:600;color:var(--ink-800)">Nina Brooks</div>
+          <div style="font-size:.75rem;color:var(--ink-400)">nina@acme.co</div>
+        </div>
+      </div>
+      <button class="nav-link" style="color:var(--rose-500);margin-top:.25rem" onclick="window.location.href='login.html'">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> Sign out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="field-row" style="flex:1;max-width:24rem">
+        <svg class="ic-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input" placeholder="Search candidates...">
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" style="padding:.5rem;position:relative">
+        <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span style="position:absolute;top:6px;right:6px;height:8px;width:8px;border-radius:9999px;background:var(--rose-500)" class="pulse-soft"></span>
+      </button>
+      <span class="badge badge-green" style="margin-left:.5rem">Recruiter</span>
+      <img src="https://api.dicebear.com/7.x/initials/svg?seed=Nina%20Brooks&backgroundColor=10b981&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem;margin-left:.5rem" alt="Nina">
+    </header>
+
+    <div class="content">
+      <div class="content-inner fade-in">
+
+        <!-- Overview -->
+        <div id="overview" class="section">
+          <div class="page-head">
+            <div><h1>Recruiter Console</h1><p>Evaluate candidates, build templates, and monitor live sessions.</p></div>
+            <button class="btn btn-primary" onclick="goTo('templates')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg> New template</button>
+          </div>
+          <div class="grid grid-4">
+            <div class="card stat"><div class="stat-label">Active Candidates</div><div class="stat-value">42</div><div class="stat-trend trend-up">▲ 8 this week</div></div>
+            <div class="card stat"><div class="stat-label">Avg Score</div><div class="stat-value">79%</div><div class="stat-trend trend-up">▲ 3%</div></div>
+            <div class="card stat"><div class="stat-label">Live Sessions</div><div class="stat-value">3</div><div class="stat-trend trend-up">2 now</div></div>
+            <div class="card stat"><div class="stat-label">Templates</div><div class="stat-value">12</div><div class="stat-trend trend-up">▲ 2 new</div></div>
+          </div>
+
+          <div class="card mt-6" style="padding:1.25rem">
+            <div class="flex items-center justify-between mb-4">
+              <h3 style="font-size:1.125rem">Top Candidates</h3>
+              <button class="btn btn-ghost" style="font-size:.875rem;color:var(--brand-600)" onclick="goTo('analytics')">View all →</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Candidate</th><th>Role</th><th>Score</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600">Aarav Sharma</td><td>Frontend Engineer</td><td style="font-weight:700">84%</td><td>78%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Priya Patel</td><td>Backend Developer</td><td style="font-weight:700">88%</td><td>82%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Marcus Chen</td><td>Data Analyst</td><td style="font-weight:700">71%</td><td>65%</td><td><span class="badge badge-amber">In Progress</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics -->
+        <div id="analytics" class="section" style="display:none">
+          <div class="page-head"><div><h1>Candidate Analytics</h1><p>Compare scores, confidence, and interview activity across candidates.</p></div></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Candidate</th><th>Role</th><th>Score</th><th>Confidence</th><th>Interviews</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600">Aarav Sharma</td><td>Frontend Engineer</td><td style="font-weight:700">84%</td><td>78%</td><td>12</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Viewing Aarav Sharma...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Downloading report...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Priya Patel</td><td>Backend Developer</td><td style="font-weight:700">88%</td><td>82%</td><td>15</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Viewing Priya Patel...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Downloading report...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Marcus Chen</td><td>Data Analyst</td><td style="font-weight:700">71%</td><td>65%</td><td>8</td><td><span class="badge badge-amber">In Progress</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Viewing Marcus Chen...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Downloading report...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button></td></tr>
+                  <tr><td style="font-weight:600">Sofia Rivera</td><td>Product Manager</td><td style="font-weight:700">76%</td><td>72%</td><td>10</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Viewing Sofia Rivera...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="btn btn-ghost" style="padding:.5rem" onclick="alert('Downloading report...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Templates -->
+        <div id="templates" class="section" style="display:none">
+          <div class="page-head">
+            <div><h1>Interview Templates</h1><p>Reusable question sets you can assign to candidates.</p></div>
+            <button class="btn btn-primary" onclick="alert('Opening template editor...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg> Create template</button>
+          </div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span class="badge badge-blue">Technical</span><span style="font-size:.75rem;color:var(--ink-400)">42 uses</span></div>
+              <h3 style="font-size:1.0625rem;margin-top:.75rem">Frontend Engineer Screening</h3>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">15 questions · 45 min</p>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Editing template...')">Edit</button><button class="btn btn-primary" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Template assigned!')">Assign</button></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span class="badge badge-green">HR</span><span style="font-size:.75rem;color:var(--ink-400)">28 uses</span></div>
+              <h3 style="font-size:1.0625rem;margin-top:.75rem">Culture Fit Assessment</h3>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">10 questions · 30 min</p>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Editing template...')">Edit</button><button class="btn btn-primary" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Template assigned!')">Assign</button></div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span class="badge badge-amber">Behavioral</span><span style="font-size:.75rem;color:var(--ink-400)">19 uses</span></div>
+              <h3 style="font-size:1.0625rem;margin-top:.75rem">STAR Method Scenarios</h3>
+              <p style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">8 questions · 25 min</p>
+              <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-outline" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Editing template...')">Edit</button><button class="btn btn-primary" style="flex:1;font-size:.875rem;padding:.5rem" onclick="alert('Template assigned!')">Assign</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sessions -->
+        <div id="sessions" class="section" style="display:none">
+          <div class="page-head"><div><h1>Live Sessions</h1><p>Monitor ongoing and recent interview sessions.</p></div></div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--rose-500)" class="pulse-soft"></span><span class="badge badge-rose">Live</span></div>
+              <h3 style="font-size:1.0625rem">Aarav Sharma</h3>
+              <p style="font-size:.875rem;color:var(--ink-500)">Frontend Engineer · Technical</p>
+              <p style="font-size:.75rem;color:var(--ink-400);margin-top:.5rem">Started 12 min ago</p>
+              <button class="btn btn-outline w-full mt-6" style="font-size:.875rem" onclick="alert('Watching live session...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/></svg> Watch live</button>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem"><span class="badge badge-gray">Completed</span></div>
+              <h3 style="font-size:1.0625rem">Priya Patel</h3>
+              <p style="font-size:.875rem;color:var(--ink-500)">Backend Developer · Technical</p>
+              <p style="font-size:.75rem;color:var(--ink-400);margin-top:.5rem">2 hours ago · Score: 88%</p>
+              <button class="btn btn-outline w-full mt-6" style="font-size:.875rem" onclick="alert('Opening recording...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/></svg> View recording</button>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem"><span style="height:8px;width:8px;border-radius:9999px;background:var(--rose-500)" class="pulse-soft"></span><span class="badge badge-rose">Live</span></div>
+              <h3 style="font-size:1.0625rem">Marcus Chen</h3>
+              <p style="font-size:.875rem;color:var(--ink-500)">Data Analyst · Aptitude</p>
+              <p style="font-size:.75rem;color:var(--ink-400);margin-top:.5rem">Started 5 min ago</p>
+              <button class="btn btn-outline w-full mt-6" style="font-size:.875rem" onclick="alert('Watching live session...')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/></svg> Watch live</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports -->
+        <div id="reports" class="section" style="display:none">
+          <div class="page-head"><div><h1>Reports</h1><p>Download candidate interview reports.</p></div></div>
+          <div class="grid grid-2">
+            <div class="card card-hover" style="padding:1.25rem;display:flex;align-items:center;gap:1rem">
+              <div style="height:3rem;width:3rem;border-radius:.75rem;background:var(--rose-50);color:var(--rose-600);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem">PDF</div>
+              <div style="flex:1"><div style="font-weight:600">Aarav Sharma — Full Report</div><div style="font-size:.75rem;color:var(--ink-400)">Jul 24, 2026 · Score: 84%</div></div>
+              <div style="display:flex;gap:.5rem"><button class="btn btn-outline" style="padding:.5rem;font-size:.875rem" onclick="alert('Opening report...')">View</button><button class="btn btn-primary" style="padding:.5rem;font-size:.875rem" onclick="alert('Downloading...')">Download</button></div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;display:flex;align-items:center;gap:1rem">
+              <div style="height:3rem;width:3rem;border-radius:.75rem;background:var(--rose-50);color:var(--rose-600);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem">PDF</div>
+              <div style="flex:1"><div style="font-weight:600">Priya Patel — Full Report</div><div style="font-size:.75rem;color:var(--ink-400)">Jul 23, 2026 · Score: 88%</div></div>
+              <div style="display:flex;gap:.5rem"><button class="btn btn-outline" style="padding:.5rem;font-size:.875rem" onclick="alert('Opening report...')">View</button><button class="btn btn-primary" style="padding:.5rem;font-size:.875rem" onclick="alert('Downloading...')">Download</button></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showSection(btn, id) {
+    document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+  }
+  function goTo(id) {
+    const navBtn = [...document.querySelectorAll('.nav-link')].find(b => b.textContent.includes(id.charAt(0).toUpperCase() + id.slice(1)));
+    if (navBtn) showSection(navBtn, id);
+  }
+</script>
+</body>
+</html>

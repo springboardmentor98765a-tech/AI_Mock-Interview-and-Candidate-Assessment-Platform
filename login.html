@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartHireAI — Sign In</title>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<div class="login-wrap">
+  <!-- Left brand panel -->
+  <div class="login-left">
+    <div class="grad"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="z" style="display:flex;align-items:center;gap:.75rem">
+      <div style="height:2.75rem;width:2.75rem;border-radius:1rem;background:rgba(255,255,255,.15);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+      </div>
+      <div>
+        <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:1.25rem">SmartHireAI</div>
+        <div style="font-size:.75rem;opacity:.7;margin-top:.25rem">AI Mock Interview Platform</div>
+      </div>
+    </div>
+
+    <div class="z" style="max-width:28rem">
+      <h1 style="font-size:2.25rem;line-height:1.2">Interview smarter.<br>Land the offer.</h1>
+      <p style="margin-top:1rem;opacity:.8">AI-powered mock interviews with real-time speech analysis, confidence evaluation, and personalized feedback — built for candidates, recruiters, and teams.</p>
+      <div style="margin-top:2rem;display:flex;flex-direction:column;gap:.75rem">
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div style="height:2.25rem;width:2.25rem;border-radius:.5rem;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          </div>
+          <span style="font-size:.875rem;opacity:.9">Live speech & confidence analysis</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div style="height:2.25rem;width:2.25rem;border-radius:.5rem;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.99-.1 3 3 0 0 0 0 5.99A3 3 0 1 0 12 5Z"/><path d="M12 5a3 3 0 1 1 5.99-.1 3 3 0 0 1 0 5.99A3 3 0 1 1 12 5Z"/><path d="M17.5 13a3 3 0 1 0 3 3 3 3 0 0 0-3-3Z"/><path d="M6.5 13a3 3 0 1 0-3 3 3 3 0 0 0 3-3Z"/><path d="M12 19a3 3 0 0 0-3 3h6a3 3 0 0 0-3-3Z"/></svg>
+          </div>
+          <span style="font-size:.875rem;opacity:.9">Adaptive AI question generation</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div style="height:2.25rem;width:2.25rem;border-radius:.5rem;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </div>
+          <span style="font-size:.875rem;opacity:.9">Performance analytics & reports</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="z" style="display:flex;align-items:center;gap:1.5rem;font-size:.875rem;opacity:.7">
+      <span>Trusted by 3,200+ candidates</span>
+      <span style="height:.25rem;width:.25rem;border-radius:9999px;background:rgba(255,255,255,.4)"></span>
+      <span>96 active recruiters</span>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="login-right">
+    <div class="login-form fade-in">
+      <h2>Welcome back</h2>
+      <p class="sub">Choose your role and sign in to continue.</p>
+
+      <div style="margin-top:1.5rem">
+        <label class="label">I am signing in as</label>
+        <div class="role-grid">
+          <button class="role-card selected" onclick="selectRole(this,'candidate')">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg></div>
+            <div class="rl">Candidate</div>
+            <div class="rd">Practice & improve</div>
+          </button>
+          <button class="role-card" onclick="selectRole(this,'recruiter')">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="rl">Recruiter</div>
+            <div class="rd">Evaluate talent</div>
+          </button>
+          <button class="role-card" onclick="selectRole(this,'admin')">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div>
+            <div class="rl">Admin</div>
+            <div class="rd">Manage platform</div>
+          </button>
+        </div>
+      </div>
+
+      <form style="margin-top:1.5rem;display:flex;flex-direction:column;gap:1rem" onsubmit="handleSignIn(event)">
+        <div>
+          <label class="label" for="email">Email or Username</label>
+          <div class="field-row">
+            <svg class="ic-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <input id="email" type="text" required placeholder="you@example.com" class="input">
+          </div>
+        </div>
+        <div>
+          <label class="label" for="pwd">Password</label>
+          <div class="field-row">
+            <svg class="ic-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input id="pwd" type="password" required placeholder="••••••••" class="input with-right">
+            <button type="button" class="ic-right" onclick="togglePwd(this)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:.875rem">
+          <label style="display:flex;align-items:center;gap:.5rem;color:var(--ink-600);cursor:pointer">
+            <input type="checkbox"> Remember me
+          </label>
+          <a href="#" style="font-weight:600;color:var(--brand-600);text-decoration:none">Forgot password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="padding:.75rem">
+          Sign in as <span id="roleLabel">Candidate</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="12" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <div class="divider"><span>or continue with</span></div>
+
+      <div class="social-grid">
+        <button class="social-btn" onclick="socialLogin('Google')">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+          Google
+        </button>
+        <button class="social-btn linkedin" onclick="socialLogin('LinkedIn')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.8 0 0 .78 0 1.74v20.52C0 23.22.8 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.74V1.74C24 .78 23.2 0 22.22 0z"/></svg>
+          LinkedIn
+        </button>
+      </div>
+
+      <p class="text-center text-sm text-ink-500" style="margin-top:1.5rem">
+        New to SmartHireAI? <a href="#" style="font-weight:600;color:var(--brand-600);text-decoration:none">Create an account</a>
+      </p>
+      <p class="text-center text-xs text-ink-400" style="margin-top:1.5rem">
+        Demo mode — any email & password works. Try all three roles.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedRole = 'candidate';
+  const roleNames = { candidate: 'Candidate', recruiter: 'Recruiter', admin: 'Admin' };
+  const dashboards = { candidate: 'candidate.html', recruiter: 'recruiter.html', admin: 'admin.html' };
+
+  function selectRole(btn, role) {
+    document.querySelectorAll('.role-card').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedRole = role;
+    document.getElementById('roleLabel').textContent = roleNames[role];
+  }
+
+  function togglePwd(btn) {
+    const input = btn.parentElement.querySelector('input');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  function handleSignIn(e) {
+    e.preventDefault();
+    window.location.href = dashboards[selectedRole];
+  }
+
+  function socialLogin(provider) {
+    alert('Connecting to ' + provider + '...');
+    setTimeout(() => { window.location.href = dashboards[selectedRole]; }, 800);
+  }
+</script>
+</body>
+</html>

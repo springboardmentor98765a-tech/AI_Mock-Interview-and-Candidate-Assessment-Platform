@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartHireAI — Candidate Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo" style="background:var(--brand-600)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+      </div>
+      <div>
+        <div class="name">SmartHireAI</div>
+        <div class="role">Candidate Portal</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-link active" onclick="showSection(this,'overview')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg> Overview</button>
+      <button class="nav-link" onclick="showSection(this,'interview')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg> Mock Interview</button>
+      <button class="nav-link" onclick="showSection(this,'history')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 1 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> History</button>
+      <button class="nav-link" onclick="showSection(this,'analytics')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Analytics</button>
+      <button class="nav-link" onclick="showSection(this,'resume')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a4 4 0 0 0-4 4v12a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg> Resume</button>
+      <button class="nav-link" onclick="showSection(this,'reports')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Reports</button>
+      <button class="nav-link" onclick="showSection(this,'progress')"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Progress</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .5rem">
+        <img src="https://api.dicebear.com/7.x/initials/svg?seed=Aarav%20Sharma&backgroundColor=3366ff&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem" alt="Aarav">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.875rem;font-weight:600;color:var(--ink-800)">Aarav Sharma</div>
+          <div style="font-size:.75rem;color:var(--ink-400)">aarav@smarthireai.io</div>
+        </div>
+      </div>
+      <button class="nav-link" style="color:var(--rose-500);margin-top:.25rem" onclick="window.location.href='login.html'">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> Sign out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="field-row" style="flex:1;max-width:24rem">
+        <svg class="ic-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input" placeholder="Search...">
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" style="padding:.5rem;position:relative">
+        <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span style="position:absolute;top:6px;right:6px;height:8px;width:8px;border-radius:9999px;background:var(--rose-500)" class="pulse-soft"></span>
+      </button>
+      <span class="badge badge-blue" style="margin-left:.5rem">Candidate</span>
+      <img src="https://api.dicebear.com/7.x/initials/svg?seed=Aarav%20Sharma&backgroundColor=3366ff&textColor=ffffff" class="avatar" style="height:2.25rem;width:2.25rem;margin-left:.5rem" alt="Aarav">
+    </header>
+
+    <div class="content">
+      <div class="content-inner fade-in">
+        <!-- Overview section -->
+        <div id="overview" class="section">
+          <div class="page-head">
+            <div>
+              <h1>Welcome back, Aarav</h1>
+              <p>Here's your interview preparation summary.</p>
+            </div>
+            <button class="btn btn-primary" onclick="goTo('interview')">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg> Start mock interview
+            </button>
+          </div>
+
+          <div class="grid grid-4">
+            <div class="card stat">
+              <div class="stat-label">Avg Score</div>
+              <div class="stat-value">84%</div>
+              <div class="stat-trend trend-up">▲ 4% this week</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label">Confidence</div>
+              <div class="stat-value">76%</div>
+              <div class="stat-trend trend-up">▲ 6% this month</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label">Interviews Done</div>
+              <div class="stat-value">12</div>
+              <div class="stat-trend trend-up">▲ 3 this week</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label">Hours Practiced</div>
+              <div class="stat-value">6.5h</div>
+              <div class="stat-trend trend-up">▲ 1.2h this week</div>
+            </div>
+          </div>
+
+          <div class="grid grid-3 mt-6">
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="goTo('resume')">
+              <div style="height:2.5rem;width:2.5rem;border-radius:.75rem;background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;margin-bottom:.75rem">
+                <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              </div>
+              <div style="font-weight:700;color:var(--ink-900)">Upload resume</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Parse your resume to tailor interview questions.</div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="goTo('interview')">
+              <div style="height:2.5rem;width:2.5rem;border-radius:.75rem;background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;margin-bottom:.75rem">
+                <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              </div>
+              <div style="font-weight:700;color:var(--ink-900)">Start mock interview</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Technical, HR, behavioral, or aptitude — pick a track.</div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="goTo('reports')">
+              <div style="height:2.5rem;width:2.5rem;border-radius:.75rem;background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;margin-bottom:.75rem">
+                <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              </div>
+              <div style="font-weight:700;color:var(--ink-900)">Download report</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Get a detailed PDF of your latest performance.</div>
+            </div>
+          </div>
+
+          <div class="card mt-6" style="padding:1.25rem">
+            <div class="flex items-center justify-between mb-4">
+              <h3 style="font-size:1.125rem">Recent Interviews</h3>
+              <button class="btn btn-ghost" style="font-size:.875rem;color:var(--brand-600)" onclick="goTo('history')">View all →</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Role</th><th>Type</th><th>Date</th><th>Score</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600;color:var(--ink-800)">Frontend Engineer</td><td>Technical</td><td>Jul 24, 2026</td><td style="font-weight:700">84%</td><td>78%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                  <tr><td style="font-weight:600;color:var(--ink-800)">Product Manager</td><td>HR</td><td>Jul 22, 2026</td><td style="font-weight:700">76%</td><td>72%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                  <tr><td style="font-weight:600;color:var(--ink-800)">Data Analyst</td><td>Aptitude</td><td>Jul 26, 2026</td><td>—</td><td>—</td><td><span class="badge badge-amber">Scheduled</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interview section -->
+        <div id="interview" class="section" style="display:none">
+          <div class="page-head"><div><h1>Start Mock Interview</h1><p>Pick a track. AI will adapt questions to your level in real time.</p></div></div>
+          <div class="grid grid-4">
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="selectTrack(this,'Technical')">
+              <div style="font-size:1.875rem;margin-bottom:.75rem">⚙</div>
+              <div style="font-weight:700;color:var(--ink-900)">Technical</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Coding, system design, algorithms</div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="selectTrack(this,'HR')">
+              <div style="font-size:1.875rem;margin-bottom:.75rem">💬</div>
+              <div style="font-weight:700;color:var(--ink-900)">HR</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Self intro, culture fit, motivation</div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="selectTrack(this,'Behavioral')">
+              <div style="font-size:1.875rem;margin-bottom:.75rem">🧭</div>
+              <div style="font-weight:700;color:var(--ink-900)">Behavioral</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">STAR method scenarios</div>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;cursor:pointer" onclick="selectTrack(this,'Aptitude')">
+              <div style="font-size:1.875rem;margin-bottom:.75rem">🧮</div>
+              <div style="font-weight:700;color:var(--ink-900)">Aptitude</div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.25rem">Logical reasoning, quant</div>
+            </div>
+          </div>
+          <div id="trackDetail" style="display:none"></div>
+        </div>
+
+        <!-- History section -->
+        <div id="history" class="section" style="display:none">
+          <div class="page-head"><div><h1>Interview History</h1><p>All your past and upcoming mock interviews.</p></div></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Role</th><th>Type</th><th>Date</th><th>Score</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:600">Frontend Engineer</td><td>Technical</td><td>Jul 24</td><td style="font-weight:700">84%</td><td>78%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                  <tr><td style="font-weight:600">Product Manager</td><td>HR</td><td>Jul 22</td><td style="font-weight:700">76%</td><td>72%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                  <tr><td style="font-weight:600">Backend Developer</td><td>Behavioral</td><td>Jul 18</td><td style="font-weight:700">80%</td><td>74%</td><td><span class="badge badge-green">Completed</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                  <tr><td style="font-weight:600">Data Analyst</td><td>Aptitude</td><td>Jul 26</td><td>—</td><td>—</td><td><span class="badge badge-amber">Scheduled</span></td><td style="text-align:right"><a href="#" style="font-weight:600;color:var(--brand-600)">View</a></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics section -->
+        <div id="analytics" class="section" style="display:none">
+          <div class="page-head"><div><h1>Performance Analytics</h1><p>Deep dive into your interview performance.</p></div></div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem;grid-column:span 2">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">Weekly score trend</h3>
+              <div style="display:flex;align-items:flex-end;gap:.5rem;height:12rem;padding-top:1rem">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem"><div style="width:100%;background:var(--brand-200);border-radius:.5rem .5rem 0 0;height:55%"></div><span style="font-size:.75rem;color:var(--ink-400)">W1</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem"><div style="width:100%;background:var(--brand-300);border-radius:.5rem .5rem 0 0;height:62%"></div><span style="font-size:.75rem;color:var(--ink-400)">W2</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem"><div style="width:100%;background:var(--brand-400);border-radius:.5rem .5rem 0 0;height:70%"></div><span style="font-size:.75rem;color:var(--ink-400)">W3</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem"><div style="width:100%;background:var(--brand-500);border-radius:.5rem .5rem 0 0;height:78%"></div><span style="font-size:.75rem;color:var(--ink-400)">W4</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:.5rem"><div style="width:100%;background:var(--brand-600);border-radius:.5rem .5rem 0 0;height:84%"></div><span style="font-size:.75rem;color:var(--ink-400)">W5</span></div>
+              </div>
+            </div>
+            <div class="card" style="padding:1.25rem;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">Confidence</h3>
+              <div style="position:relative;width:8.75rem;height:8.75rem">
+                <svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="56" fill="none" stroke="var(--ink-100)" stroke-width="12"/><circle cx="70" cy="70" r="56" fill="none" stroke="var(--brand-500)" stroke-width="12" stroke-linecap="round" stroke-dasharray="351.86" stroke-dashoffset="84.4" transform="rotate(-90 70 70)"/></svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-family:'Sora';font-size:1.875rem;font-weight:700">76%</span><span style="font-size:.75rem;color:var(--ink-400)">this month</span></div>
+              </div>
+              <div style="font-size:.875rem;color:var(--ink-500);margin-top:.75rem">▲ 4% from last month</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resume section -->
+        <div id="resume" class="section" style="display:none">
+          <div class="page-head"><div><h1>Resume Upload</h1><p>Upload your resume to personalize interview questions.</p></div></div>
+          <div class="card" style="padding:2rem;max-width:42rem">
+            <div style="border:2px dashed var(--ink-300);border-radius:1rem;padding:3rem;text-align:center;cursor:pointer" onclick="uploadResume()">
+              <div style="height:4rem;width:4rem;border-radius:1rem;background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              </div>
+              <h3 style="font-size:1.125rem">Drop your resume here</h3>
+              <p style="color:var(--ink-500);margin-top:.25rem">PDF, DOC, or DOCX up to 5MB</p>
+              <button class="btn btn-primary mt-6">Browse files</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports section -->
+        <div id="reports" class="section" style="display:none">
+          <div class="page-head">
+            <div><h1>Download Reports</h1><p>Export detailed PDFs of your interview performance.</p></div>
+            <button class="btn btn-primary"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Download all</button>
+          </div>
+          <div class="grid grid-2">
+            <div class="card card-hover" style="padding:1.25rem;display:flex;align-items:center;gap:1rem">
+              <div style="height:3rem;width:3rem;border-radius:.75rem;background:var(--rose-50);color:var(--rose-600);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem">PDF</div>
+              <div style="flex:1"><div style="font-weight:600;color:var(--ink-800)">Weekly Performance Report</div><div style="font-size:.75rem;color:var(--ink-400)">Jul 24, 2026 · 1.2 MB</div></div>
+              <button class="btn btn-outline" style="padding:.5rem"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
+            </div>
+            <div class="card card-hover" style="padding:1.25rem;display:flex;align-items:center;gap:1rem">
+              <div style="height:3rem;width:3rem;border-radius:.75rem;background:var(--rose-50);color:var(--rose-600);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem">PDF</div>
+              <div style="flex:1"><div style="font-weight:600;color:var(--ink-800)">Technical Interview — Frontend</div><div style="font-size:.75rem;color:var(--ink-400)">Jul 22, 2026 · 0.8 MB</div></div>
+              <button class="btn btn-outline" style="padding:.5rem"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress section -->
+        <div id="progress" class="section" style="display:none">
+          <div class="page-head"><div><h1>Progress Tracker</h1><p>Track your milestones and improvement over time.</p></div></div>
+          <div class="grid grid-3">
+            <div class="card" style="padding:1.25rem;grid-column:span 2">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">Milestones</h3>
+              <div style="display:flex;flex-direction:column;gap:1.25rem">
+                <div style="display:flex;align-items:center;gap:.75rem"><span style="height:1.5rem;width:1.5rem;border-radius:9999px;background:var(--accent-500);color:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><div><div style="font-weight:600;font-size:.875rem">First mock interview</div><div style="font-size:.75rem;color:var(--ink-400)">Jun 03</div></div></div>
+                <div style="display:flex;align-items:center;gap:.75rem"><span style="height:1.5rem;width:1.5rem;border-radius:9999px;background:var(--accent-500);color:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><div><div style="font-weight:600;font-size:.875rem">Reach 70% avg score</div><div style="font-size:.75rem;color:var(--ink-400)">Jun 28</div></div></div>
+                <div style="display:flex;align-items:center;gap:.75rem"><span style="height:1.5rem;width:1.5rem;border-radius:9999px;background:var(--accent-500);color:#fff;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><div><div style="font-weight:600;font-size:.875rem">Complete 5 technical interviews</div><div style="font-size:.75rem;color:var(--ink-400)">Jul 12</div></div></div>
+                <div style="display:flex;align-items:center;gap:.75rem"><span style="height:1.5rem;width:1.5rem;border-radius:9999px;background:var(--ink-200);color:var(--ink-400);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><div><div style="font-weight:600;font-size:.875rem;color:var(--ink-500)">Hit 80% confidence</div><div style="font-size:.75rem;color:var(--ink-400)">In progress</div></div></div>
+                <div style="display:flex;align-items:center;gap:.75rem"><span style="height:1.5rem;width:1.5rem;border-radius:9999px;background:var(--ink-200);color:var(--ink-400);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><div><div style="font-weight:600;font-size:.875rem;color:var(--ink-500)">Top 10% percentile</div><div style="font-size:.75rem;color:var(--ink-400)">Goal</div></div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:1.25rem">
+              <h3 style="font-size:1.125rem;margin-bottom:1rem">Improvement</h3>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;text-align:center">
+                <div style="border-radius:.75rem;background:var(--ink-50);padding:.75rem"><div style="font-size:1.25rem;font-weight:700">58%</div><div style="font-size:.75rem;color:var(--ink-400)">Start</div></div>
+                <div style="border-radius:.75rem;background:var(--ink-50);padding:.75rem"><div style="font-size:1.25rem;font-weight:700">84%</div><div style="font-size:.75rem;color:var(--ink-400)">Current</div></div>
+                <div style="border-radius:.75rem;background:var(--accent-50);padding:.75rem"><div style="font-size:1.25rem;font-weight:700;color:var(--accent-600)">+26%</div><div style="font-size:.75rem;color:var(--ink-400)">Gain</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showSection(btn, id) {
+    document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+  }
+  function goTo(id) {
+    const navBtn = [...document.querySelectorAll('.nav-link')].find(b => b.textContent.includes(id.charAt(0).toUpperCase() + id.slice(1)));
+    if (navBtn) showSection(navBtn, id);
+  }
+  function selectTrack(btn, name) {
+    document.querySelectorAll('#interview .card').forEach(c => c.style.boxShadow = '');
+    btn.style.boxShadow = '0 0 0 2px var(--brand-500)';
+    const detail = document.getElementById('trackDetail');
+    detail.style.display = 'block';
+    detail.className = 'card fade-in';
+    detail.style.cssText = 'padding:1.5rem;margin-top:1.5rem';
+    detail.innerHTML = '<h3 style="font-size:1.125rem">'+name+' interview ready</h3><p style="color:var(--ink-500);margin-top:.25rem">10 adaptive questions · ~30 minutes · speech analysis enabled</p><div style="display:flex;gap:.75rem;margin-top:1rem"><span class="badge badge-gray">⏱ 30 min</span><span class="badge badge-gray">🎤 Voice + video</span><span class="badge badge-gray">🎯 Adaptive</span></div><button class="btn btn-primary mt-6" onclick="alert(\'Starting '+name+' mock interview...\')">▶ Begin '+name+' interview</button>';
+  }
+  function uploadResume() { alert('Resume upload dialog would open here.'); }
+</script>
+</body>
+</html>
