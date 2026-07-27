@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Dashboard</title>
+
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="header">
+    <h1>SmartHire AI</h1>
+    <p>Candidate Dashboard</p>
+</header>
+<nav class="navbar">
+    <a href="../index.html">🏠 Home</a>
+    <a href="candidate.html">👤 Candidate</a>
+    <a href="recruiter.html">💼 Recruiter</a>
+    <a href="admin.html">⚙ Admin</a>
+</nav>
+
+<main class="container">
+
+    <h2>Welcome Candidate 👋</h2>
+
+    <div class="card">
+    <h3>📄 Upload Resume</h3>
+
+    <input type="file" id="resumeFile">
+
+    <button onclick="uploadResume()">
+        Upload Resume
+    </button>
+
+    <p id="uploadMessage"></p>
+
+</div>
+
+        <div class="card">
+    <h3>🎤 Mock Interview</h3>
+
+    <p>Practice AI Mock Interview</p>
+
+    <button onclick="startInterview()">
+        Start Interview
+    </button>
+
+    <div id="questions"></div>
+
+</div>
+
+        <div class="card">
+    <h3>📜 Interview History</h3>
+
+    <table class="history-table">
+        <tr>
+            <th>Interview</th>
+            <th>Status</th>
+        </tr>
+
+        <tr>
+            <td>Frontend</td>
+            <td>Completed</td>
+        </tr>
+
+        <tr>
+            <td>Java</td>
+            <td>Pending</td>
+        </tr>
+
+        <tr>
+            <td>HR</td>
+            <td>Completed</td>
+        </tr>
+    </table>
+
+</div>
+
+        <div class="card">
+    <h3>📊 Performance Analytics</h3>
+
+    <p>Communication</p>
+    <div class="progress">
+        <div class="bar communication">80%</div>
+    </div>
+
+    <p>Technical Skills</p>
+    <div class="progress">
+        <div class="bar technical">75%</div>
+    </div>
+
+    <p>Confidence</p>
+    <div class="progress">
+        <div class="bar confidence">90%</div>
+    </div>
+</div>
+
+        <div class="card">
+    <h3>📄 Download Report</h3>
+
+    <p>Your latest interview report is available.</p>
+
+    <button onclick="showDemo('Download Report')">
+    Download PDF
+</button>
+</div>
+
+        <div class="card">
+    <h3>📈 Improvement Progress</h3>
+
+    <ul>
+        <li>✔ Communication Improved</li>
+        <li>✔ Technical Accuracy Increased</li>
+        <li>✔ Better Time Management</li>
+    </ul>
+</div>
+
+    </div>
+
+    <br>
+
+    <button onclick="window.location.href='../index.html'">
+        Logout
+    </button>
+
+</main>
+
+<script src="../js/script.js"></script>
+
+</body>
+</html>

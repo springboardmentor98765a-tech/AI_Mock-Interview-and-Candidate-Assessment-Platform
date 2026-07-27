@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiter Dashboard</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+<header class="header">
+    <h1>SmartHire AI</h1>
+    <p>Recruiter Dashboard</p>
+</header>
+<nav class="navbar">
+    <a href="../index.html">🏠 Home</a>
+    <a href="candidate.html">👤 Candidate</a>
+    <a href="recruiter.html">💼 Recruiter</a>
+    <a href="admin.html">⚙ Admin</a>
+</nav>
+
+<main class="container">
+
+    <h2>Welcome Recruiter 👋</h2>
+
+    <div class="cards">
+
+        <div class="card">
+            <h3>📊 Candidate Analytics</h3>
+            <p>Total Candidates : 120</p>
+            <p>Average Score : 82%</p>
+        </div>
+
+        <div class="card">
+            <h3>📄 Candidate Reports</h3>
+            <p>View and review candidate performance reports.</p>
+            <button onclick="showDemo('Candidate Reports')">
+    View Reports
+</button>
+        </div>
+
+        <div class="card">
+            <h3>⚖ Compare Candidate Performance</h3>
+            <table class="history-table">
+                <tr>
+                    <th>Candidate</th>
+                    <th>Score</th>
+                </tr>
+                <tr>
+                    <td>Rahul</td>
+                    <td>89%</td>
+                </tr>
+                <tr>
+                    <td>Anjali</td>
+                    <td>85%</td>
+                </tr>
+                <tr>
+                    <td>Priya</td>
+                    <td>92%</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>📝 Interview Templates</h3>
+            <ul>
+                <li>Frontend Developer</li>
+                <li>Java Developer</li>
+                <li>HR Interview</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🎥 Monitor Interview Sessions</h3>
+            <p>3 Interviews Running</p>
+            <button onclick="showDemo('Interview Sessions')">
+    View Sessions
+</button>
+        </div>
+
+    </div>
+
+    <br>
+
+    <button onclick="window.location.href='../index.html'">
+        Logout
+    </button>
+
+</main>
+
+<script src="../js/script.js"></script>
+
+</body>
+</html>

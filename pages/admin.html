@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+<header class="header">
+    <h1>SmartHire AI</h1>
+    <p>Admin Dashboard</p>
+</header>
+<nav class="navbar">
+    <a href="../index.html">🏠 Home</a>
+    <a href="candidate.html">👤 Candidate</a>
+    <a href="recruiter.html">💼 Recruiter</a>
+    <a href="admin.html">⚙ Admin</a>
+</nav>
+
+<main class="container">
+
+<h2>Welcome Admin 👋</h2>
+
+<div class="cards">
+
+    <div class="card">
+        <h3>👥 Manage Users</h3>
+        <p>Total Users : 120</p>
+        <button onclick="showDemo('Manage Users')">
+    View Users
+</button>
+    </div>
+
+    <div class="card">
+        <h3>💼 Manage Recruiters</h3>
+        <p>Total Recruiters : 15</p>
+        <button onclick="showDemo('Manage Recruiters')">
+    View Recruiters
+</button>
+    </div>
+
+    <div class="card">
+        <h3>⚙ Configure Platform Settings</h3>
+        <p>Manage application settings.</p>
+        <button onclick="showDemo('Platform Settings')">
+    Open Settings
+</button>
+    </div>
+
+    <div class="card">
+        <h3>🤖 Manage AI Configuration</h3>
+        <p>Configure AI interview settings.</p>
+        <button onclick="showDemo('AI Configuration')">
+    Configure AI
+</button>
+    </div>
+
+    <div class="card">
+        <h3>📊 Platform Analytics</h3>
+
+        <p>Total Interviews : 340</p>
+        <p>Active Candidates : 120</p>
+        <p>Recruiters : 15</p>
+
+    </div>
+
+    <div class="card">
+        <h3>📋 System Activities</h3>
+
+        <ul>
+            <li>User Login</li>
+            <li>Resume Uploaded</li>
+            <li>Interview Completed</li>
+        </ul>
+
+    </div>
+
+</div>
+
+<br>
+
+<button onclick="window.location.href='../index.html'">
+Logout
+</button>
+
+</main>
+
+<script src="../js/script.js"></script>
+
+</body>
+</html>
