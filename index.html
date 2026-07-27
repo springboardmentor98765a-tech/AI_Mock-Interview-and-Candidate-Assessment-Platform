@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartHire AI</title>
+    <title>SmartHire AI Platform</title>
 
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -11,84 +12,100 @@
 <body>
 
     <header class="header">
-    <h1>SmartHire AI</h1>
-    <p>AI-Powered Mock Interview & Candidate Assessment Platform</p>
-</header>
+        <div class="logo-container">
+            <img src="assets/images/logo.png" alt="SmartHire AI Logo" class="logo">
 
-<main class="container">
-
-    <section class="login-card">
-
-        <h2>Login</h2>
-
-        <form id="loginForm">
-
-            <label for="username">Username</label>
-            <input
-                type="text"
-                id="username"
-                placeholder="Enter Username"
-                required
-            >
-
-            <label for="role">Select Role</label>
-
-            <select id="role" required>
-                <option value="">-- Select Role --</option>
-                <option value="candidate">Candidate</option>
-                <option value="recruiter">Recruiter</option>
-                <option value="admin">Admin</option>
-            </select>
-
-            <button type="submit">
-                Login
-            </button>
-
-        </form>
-
-        <p class="info">
-            * Dummy Login (OAuth2 / JWT will be integrated in backend)
-        </p>
-
-    </section>
-    <section class="features">
-
-    <h2>Platform Features</h2>
-
-    <div class="cards">
-
-        <div class="card">
-            <h3>📄 Resume Upload</h3>
-
-            <p>• Upload Resume (PDF)</p>
-            <p>• AI Skill Extraction</p>
-            <p>• Resume Summary</p>
+            <div>
+                <h1>SmartHire AI Platform</h1>
+                <p>AI-Powered Mock Interview & Candidate Assessment Platform</p>
+            </div>
         </div>
+    </header>
 
-        <div class="card">
-            <h3>🎤 AI Mock Interview</h3>
+    <main class="container">
 
-            <p>• HR Interview</p>
-            <p>• Technical Interview</p>
-            <p>• Behavioral Interview</p>
-        </div>
+        <!-- Login Section -->
+        <section class="login-card">
 
-        <div class="card">
-            <h3>📊 Performance Analytics</h3>
+            <h2>Welcome Back</h2>
 
-            <p>• Communication Score</p>
-            <p>• Technical Score</p>
-            <p>• Overall Rating</p>
-        </div>
+            <form id="loginForm">
 
-    </div>
+                <label for="username">Username</label>
 
-</section>
+                <input
+                    type="text"
+                    id="username"
+                    placeholder="Enter your username"
+                    required>
 
-</main>
+                <label for="role">Select Role</label>
+
+                <select id="role" required>
+                    <option value="">-- Select Your Role --</option>
+                    <option value="candidate">Candidate</option>
+                    <option value="recruiter">Recruiter</option>
+                    <option value="admin">Administrator</option>
+                </select>
+
+                <button type="submit">
+                    Login
+                </button>
+
+            </form>
+
+            <p class="info">
+                Demo Login (Frontend Prototype)<br>
+                OAuth2 & JWT authentication will be integrated during backend development.
+            </p>
+
+        </section>
+
+        <!-- Platform Features -->
+
+        <section class="features">
+
+            <h2>Platform Features</h2>
+
+            <div class="cards">
+
+                <div class="card">
+                    <h3>📄 Resume Management</h3>
+
+                    <p>✔ Upload Resume (PDF)</p>
+                    <p>✔ AI Skill Extraction</p>
+                    <p>✔ Resume Summary</p>
+                </div>
+
+                <div class="card">
+                    <h3>🎤 AI Mock Interview</h3>
+
+                    <p>✔ HR Interview</p>
+                    <p>✔ Technical Interview</p>
+                    <p>✔ Behavioral Interview</p>
+                </div>
+
+                <div class="card">
+                    <h3>📊 Performance Analytics</h3>
+
+                    <p>✔ Communication Score</p>
+                    <p>✔ Technical Score</p>
+                    <p>✔ Overall Performance Report</p>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <p><strong>SmartHire AI Platform</strong> © 2026</p>
+        <p>Developed by <strong>Revanth Balam</strong></p>
+    </footer>
+
+    <script src="js/script.js"></script>
 
 </body>
-
-<script src="js/script.js"></script>
 
 </html>

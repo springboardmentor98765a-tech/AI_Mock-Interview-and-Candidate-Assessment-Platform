@@ -6,24 +6,32 @@
 }
 
 body{
-    background:#f5f7fb;
+    background:#0f172a;
+    color:#e5e7eb;
 }
 
+/* Header */
+
 .header{
-    background:#1d4ed8;
+    background:linear-gradient(135deg,#1e3a8a,#2563eb);
     color:white;
     text-align:center;
-    padding:30px;
+    padding:35px;
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
 }
 
 .header h1{
     font-size:40px;
+    letter-spacing:1px;
 }
 
 .header p{
     margin-top:10px;
     font-size:18px;
+    color:#dbeafe;
 }
+
+/* Container */
 
 .container{
     width:90%;
@@ -32,32 +40,48 @@ body{
     padding:40px 0;
 }
 
+/* Login Card */
+
 .login-card{
     width:400px;
     margin:auto;
-    background:white;
-    padding:30px;
-    border-radius:10px;
-    box-shadow:0 0 15px rgba(0,0,0,0.1);
+    background:#1e293b;
+    padding:35px;
+    border-radius:16px;
+    border:1px solid #334155;
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
 }
 
 .login-card h2{
     text-align:center;
     margin-bottom:20px;
+    color:#60a5fa;
 }
 
 .login-card label{
     display:block;
     margin-top:15px;
+    font-weight:bold;
+    color:#f1f5f9;
 }
 
 .login-card input,
 .login-card select{
     width:100%;
     padding:12px;
-    margin-top:5px;
-    border:1px solid #ccc;
-    border-radius:6px;
+    margin-top:6px;
+    background:#0f172a;
+    color:white;
+    border:1px solid #475569;
+    border-radius:8px;
+    outline:none;
+    transition:.3s;
+}
+
+.login-card input:focus,
+.login-card select:focus{
+    border-color:#3b82f6;
+    box-shadow:0 0 8px rgba(59,130,246,.5);
 }
 
 .login-card button{
@@ -68,50 +92,69 @@ body{
     background:#2563eb;
     color:white;
     font-size:16px;
-    border-radius:6px;
+    border-radius:10px;
     cursor:pointer;
+    transition:.3s;
 }
 
 .login-card button:hover{
-    background:#1e40af;
+    background:#1d4ed8;
+    transform:translateY(-2px);
 }
 
 .info{
     margin-top:15px;
     text-align:center;
-    color:gray;
+    color:#94a3b8;
     font-size:14px;
 }
+
+/* Features */
+
+.features{
+    margin-top:60px;
+}
+
+.features h2{
+    text-align:center;
+    margin-bottom:35px;
+    color:#60a5fa;
+}
+
 /* Dashboard Cards */
 
 .cards{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:20px;
+    gap:22px;
     margin-top:30px;
 }
 
 .card{
-    background:#ffffff;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 4px 10px rgba(0,0,0,0.1);
-    transition:0.3s;
+    background:#1e293b;
+    padding:22px;
+    border-radius:16px;
+    border-top:4px solid #3b82f6;
+    border:1px solid #334155;
+    box-shadow:0 8px 20px rgba(0,0,0,.3);
+    transition:.3s;
 }
 
 .card:hover{
-    transform:translateY(-5px);
+    transform:translateY(-8px);
+    box-shadow:0 15px 35px rgba(37,99,235,.25);
 }
 
 .card h3{
-    color:#1d4ed8;
+    color:#60a5fa;
     margin-bottom:15px;
 }
 
 .card p,
 .card li{
     margin:8px 0;
-    color:#444;
+    color:#cbd5e1;
+    line-height:1.6;
 }
 
 .card ul{
@@ -121,49 +164,56 @@ body{
 .card input[type="file"]{
     width:100%;
     margin:10px 0;
+    color:white;
 }
 
 .card button{
     width:100%;
-    padding:10px;
+    padding:11px;
     border:none;
-    border-radius:6px;
+    border-radius:10px;
     background:#2563eb;
     color:white;
     cursor:pointer;
-    margin-top:10px;
+    margin-top:12px;
+    transition:.3s;
 }
 
 .card button:hover{
-    background:#1e40af;
+    background:#1d4ed8;
 }
 
 /* Logout Button */
 
 main > button{
     margin-top:30px;
-    padding:12px 25px;
+    padding:12px 28px;
     border:none;
-    border-radius:6px;
+    border-radius:10px;
     background:#dc2626;
     color:white;
     cursor:pointer;
     font-size:16px;
+    transition:.3s;
 }
 
 main > button:hover{
     background:#b91c1c;
 }
+
+/* Tables */
+
 .history-table{
     width:100%;
     border-collapse:collapse;
-    margin-top:10px;
+    margin-top:15px;
+    overflow:hidden;
 }
 
 .history-table th,
 .history-table td{
-    border:1px solid #ddd;
-    padding:10px;
+    border:1px solid #334155;
+    padding:12px;
     text-align:center;
 }
 
@@ -171,9 +221,17 @@ main > button:hover{
     background:#2563eb;
     color:white;
 }
+
+.history-table td{
+    background:#1e293b;
+    color:#e5e7eb;
+}
+
+/* Progress Bars */
+
 .progress{
     width:100%;
-    background:#ddd;
+    background:#334155;
     border-radius:20px;
     overflow:hidden;
     margin-bottom:15px;
@@ -184,16 +242,17 @@ main > button:hover{
     text-align:center;
     padding:8px;
     font-size:14px;
+    font-weight:bold;
 }
 
 .communication{
     width:80%;
-    background:#2563eb;
+    background:#3b82f6;
 }
 
 .technical{
     width:75%;
-    background:#10b981;
+    background:#8b5cf6;
 }
 
 .confidence{
@@ -201,36 +260,79 @@ main > button:hover{
     background:#f59e0b;
 }
 
+/* Navigation */
+
 .navbar{
-    background:#1e3a8a;
+    background:#111827;
     display:flex;
     justify-content:center;
     gap:35px;
-    padding:15px;
+    padding:16px;
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
 }
 
 .navbar a{
-    color:white;
+    color:#e5e7eb;
     text-decoration:none;
     font-weight:bold;
-    transition:0.3s;
+    padding:8px 16px;
+    border-radius:8px;
+    transition:.3s;
 }
 
 .navbar a:hover{
-    color:#ffd700;
+    background:#2563eb;
+    color:white;
 }
-.features{
 
+.navbar .active{
+    background:#2563eb;
+    color:white;
+}
+
+/* Footer */
+
+.footer{
     margin-top:60px;
-
+    background:#111827;
+    color:#cbd5e1;
+    text-align:center;
+    padding:18px;
+    border-top:1px solid #334155;
+    font-size:15px;
 }
 
-.features h2{
+/* Responsive */
 
-    text-align:center;
+@media(max-width:768px){
 
-    margin-bottom:30px;
+    .login-card{
+        width:100%;
+    }
 
-    color:#1d4ed8;
+    .navbar{
+        flex-direction:column;
+        align-items:center;
+        gap:12px;
+    }
 
+    .header h1{
+        font-size:30px;
+    }
+
+    .header p{
+        font-size:16px;
+    }
+}
+.logo-container{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:15px;
+}
+
+.logo{
+    width:60px;
+    height:60px;
+    object-fit:contain;
 }
