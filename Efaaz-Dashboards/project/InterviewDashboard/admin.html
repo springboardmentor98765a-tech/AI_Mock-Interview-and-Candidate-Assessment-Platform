@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard · AI Interview Management Platform</title>
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-role="admin" data-name="David Martinez">
+
+  <div class="dash">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a href="index.html" class="sidebar-brand">
+        <img src="images/logo.svg" alt="Logo" />
+        Interview<span>AI</span>
+      </a>
+      <nav class="sidebar-menu">
+        <div class="nav-section">Administration</div>
+        <div class="nav-item active" data-page="page-dashboard"><span class="icon">🏠</span><span class="label">Dashboard</span></div>
+        <div class="nav-item" data-page="page-users"><span class="icon">👥</span><span class="label">Manage Users</span></div>
+        <div class="nav-item" data-page="page-recruiters"><span class="icon">🧑‍💼</span><span class="label">Recruiters</span></div>
+        <div class="nav-item" data-page="page-settings"><span class="icon">⚙️</span><span class="label">Platform Settings</span></div>
+        <div class="nav-item" data-page="page-ai"><span class="icon">🤖</span><span class="label">AI Configuration</span></div>
+        <div class="nav-item" data-page="page-activities"><span class="icon">📡</span><span class="label">System Activities</span></div>
+        <div class="nav-item" data-page="page-analytics"><span class="icon">📈</span><span class="label">Platform Analytics</span></div>
+        <div class="nav-section">Account</div>
+        <div class="nav-item" data-logout="true"><span class="icon">🚪</span><span class="label">Logout</span></div>
+      </nav>
+      <div class="sidebar-foot">© 2026 InterviewAI · Admin v1.0</div>
+    </aside>
+
+    <div class="backdrop"></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn" data-menu-toggle aria-label="Menu">☰</button>
+          <div>
+            <h2 data-topbar-title>Dashboard</h2>
+            <div class="subtitle">Platform-wide overview and controls.</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search users..." />
+          </div>
+          <button class="icon-btn" aria-label="Notifications">🔔<span class="dot"></span></button>
+          <div class="user-chip">
+            <div class="avatar" data-user-initials>DM</div>
+            <div>
+              <div class="name" data-user-name>David Martinez</div>
+              <div class="role" data-user-role>Admin</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <!-- Dashboard -->
+        <section class="page active" id="page-dashboard">
+          <div class="page-head">
+            <h3>Platform Overview</h3>
+            <p>Monitor the health and usage of the entire platform.</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon blue">👥</div><span class="badge success"><span class="dot"></span>Active</span></div>
+              <div class="stat-label">Total Users</div>
+              <div class="stat-value">4,820</div>
+              <div class="stat-trend up">↑ 312 this month</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon sky">🧑‍💼</div><span class="badge info"><span class="dot"></span>Online</span></div>
+              <div class="stat-label">Recruiters</div>
+              <div class="stat-value">186</div>
+              <div class="stat-trend up">↑ 24 new</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon amber">🤖</div><span class="badge warning"><span class="dot"></span>High load</span></div>
+              <div class="stat-label">AI Requests</div>
+              <div class="stat-value">128K</div>
+              <div class="stat-trend up">↑ 18% this week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon green">📋</div><span class="badge success"><span class="dot"></span>Generated</span></div>
+              <div class="stat-label">Reports</div>
+              <div class="stat-value">9,340</div>
+              <div class="stat-trend up">↑ 560 this week</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>System Activities</h4><a class="btn btn-ghost btn-sm" data-action="toast" data-message="Loading all activities">View all</a></div>
+              <div class="panel-body">
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead><tr><th>Activity</th><th>User</th><th>Time</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <tr><td>New recruiter registered</td><td>sarah.williams</td><td>2 min ago</td><td><span class="badge success"><span class="dot"></span>Success</span></td></tr>
+                      <tr><td>AI model updated to v2.4</td><td>system</td><td>18 min ago</td><td><span class="badge info"><span class="dot"></span>Info</span></td></tr>
+                      <tr><td>Bulk report export</td><td>david.martinez</td><td>1 hr ago</td><td><span class="badge success"><span class="dot"></span>Success</span></td></tr>
+                      <tr><td>Failed login attempts (3)</td><td>unknown</td><td>2 hr ago</td><td><span class="badge error"><span class="dot"></span>Blocked</span></td></tr>
+                      <tr><td>Platform settings changed</td><td>david.martinez</td><td>4 hr ago</td><td><span class="badge warning"><span class="dot"></span>Warning</span></td></tr>
+                      <tr><td>New candidate signup</td><td>alex.johnson</td><td>6 hr ago</td><td><span class="badge success"><span class="dot"></span>Success</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h4>Analytics</h4></div>
+              <div class="panel-body">
+                <div class="progress-list">
+                  <div class="progress-item"><div class="pi-head"><span class="label">Server Uptime</span><span class="val">99.9%</span></div><div class="progress-bar"><div class="fill" data-width="99%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">API Health</span><span class="val">96%</span></div><div class="progress-bar"><div class="fill" data-width="96%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">Storage Used</span><span class="val">72%</span></div><div class="progress-bar"><div class="fill" data-width="72%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">AI Quota Used</span><span class="val">58%</span></div><div class="progress-bar"><div class="fill" data-width="58%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">User Satisfaction</span><span class="val">92%</span></div><div class="progress-bar"><div class="fill" data-width="92%"></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h4>Platform Overview</h4></div>
+            <div class="panel-body chart-card">
+              <div class="bar-chart">
+                <div class="bar-col"><div class="bar" data-height="55%"><span class="bar-val">3.2K</span></div><div class="bar-label">Jan</div></div>
+                <div class="bar-col"><div class="bar" data-height="62%"><span class="bar-val">3.6K</span></div><div class="bar-label">Feb</div></div>
+                <div class="bar-col"><div class="bar" data-height="68%"><span class="bar-val">4.0K</span></div><div class="bar-label">Mar</div></div>
+                <div class="bar-col"><div class="bar" data-height="74%"><span class="bar-val">4.3K</span></div><div class="bar-label">Apr</div></div>
+                <div class="bar-col"><div class="bar" data-height="82%"><span class="bar-val">4.8K</span></div><div class="bar-label">May</div></div>
+                <div class="bar-col"><div class="bar" data-height="90%"><span class="bar-val">5.2K</span></div><div class="bar-label">Jun</div></div>
+                <div class="bar-col"><div class="bar" data-height="96%"><span class="bar-val">5.6K</span></div><div class="bar-label">Jul</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Manage Users -->
+        <section class="page" id="page-users">
+          <div class="page-head">
+            <h3>Manage Users</h3>
+            <p>All registered users on the platform.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Users</h4><a class="btn btn-primary btn-sm" data-action="toast" data-message="Opening add user form">+ Add User</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>User</th><th>Role</th><th>Email</th><th>Joined</th><th>Status</th><th>Action</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="cell-user"><div class="avatar">AJ</div><div class="info"><div class="name">Alex Johnson</div></div></div></td><td>Candidate</td><td>alex.johnson@email.com</td><td>Jan 2026</td><td><span class="badge success"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">SW</div><div class="info"><div class="name">Sarah Williams</div></div></div></td><td>Recruiter</td><td>sarah.williams@email.com</td><td>Dec 2025</td><td><span class="badge success"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">DM</div><div class="info"><div class="name">David Martinez</div></div></div></td><td>Admin</td><td>david.martinez@email.com</td><td>Nov 2025</td><td><span class="badge success"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">MB</div><div class="info"><div class="name">Maya Brown</div></div></div></td><td>Candidate</td><td>maya.brown@email.com</td><td>Feb 2026</td><td><span class="badge warning"><span class="dot"></span>Pending</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">RC</div><div class="info"><div class="name">Raj Chen</div></div></div></td><td>Candidate</td><td>raj.chen@email.com</td><td>Mar 2026</td><td><span class="badge success"><span class="dot"></span>Active</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">ED</div><div class="info"><div class="name">Emma Davis</div></div></div></td><td>Candidate</td><td>emma.davis@email.com</td><td>Apr 2026</td><td><span class="badge error"><span class="dot"></span>Suspended</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Editing user">Edit</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Recruiters -->
+        <section class="page" id="page-recruiters">
+          <div class="page-head">
+            <h3>Recruiters</h3>
+            <p>Manage recruiter accounts and permissions.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Recruiter List</h4><a class="btn btn-primary btn-sm" data-action="toast" data-message="Opening add recruiter form">+ Add Recruiter</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Recruiter</th><th>Company</th><th>Candidates</th><th>Interviews</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="cell-user"><div class="avatar">SW</div><div class="info"><div class="name">Sarah Williams</div><div class="sub">sarah.williams@email.com</div></div></div></td><td>Acme Corp</td><td>248</td><td>56</td><td><span class="badge success"><span class="dot"></span>Active</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">JL</div><div class="info"><div class="name">James Lee</div><div class="sub">james.lee@email.com</div></div></div></td><td>Globex</td><td>184</td><td>42</td><td><span class="badge success"><span class="dot"></span>Active</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">OP</div><div class="info"><div class="name">Olivia Park</div><div class="sub">olivia.park@email.com</div></div></div></td><td>Initech</td><td>132</td><td>28</td><td><span class="badge success"><span class="dot"></span>Active</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">TG</div><div class="info"><div class="name">Tom Green</div><div class="sub">tom.green@email.com</div></div></div></td><td>Umbrella</td><td>96</td><td>18</td><td><span class="badge warning"><span class="dot"></span>Inactive</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Platform Settings -->
+        <section class="page" id="page-settings">
+          <div class="page-head">
+            <h3>Platform Settings</h3>
+            <p>Configure global platform behavior and policies.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>General</h4></div>
+            <div class="panel-body">
+              <div class="settings-grid">
+                <div class="setting-row"><div><div class="s-label">Allow new registrations</div><div class="s-desc">Enable public sign-up for candidates</div></div><div class="toggle on"></div></div>
+                <div class="setting-row"><div><div class="s-label">Email notifications</div><div class="s-desc">Send system emails to users</div></div><div class="toggle on"></div></div>
+                <div class="setting-row"><div><div class="s-label">Maintenance mode</div><div class="s-desc">Temporarily restrict platform access</div></div><div class="toggle"></div></div>
+                <div class="setting-row"><div><div class="s-label">Two-factor authentication</div><div class="s-desc">Require 2FA for all admin accounts</div></div><div class="toggle on"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Storage & Limits</h4></div>
+            <div class="panel-body">
+              <div class="progress-list">
+                <div class="progress-item"><div class="pi-head"><span class="label">Storage Used (720 GB / 1 TB)</span><span class="val">72%</span></div><div class="progress-bar"><div class="fill" data-width="72%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Monthly AI Quota (580K / 1M)</span><span class="val">58%</span></div><div class="progress-bar"><div class="fill" data-width="58%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Concurrent Users (3.2K / 5K)</span><span class="val">64%</span></div><div class="progress-bar"><div class="fill" data-width="64%"></div></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Configuration -->
+        <section class="page" id="page-ai">
+          <div class="page-head">
+            <h3>AI Configuration</h3>
+            <p>Tune the AI models that power interview evaluation.</p>
+          </div>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>Model Settings</h4></div>
+              <div class="panel-body">
+                <div class="form-group"><label>Active Model</label><select class="form-control"><option>InterviewAI-Pro v2.4</option><option>InterviewAI-Standard v2.1</option><option>InterviewAI-Lite v1.9</option></select></div>
+                <div class="form-group"><label>Evaluation Strictness</label><select class="form-control"><option>Balanced</option><option>Strict</option><option>Lenient</option></select></div>
+                <div class="form-group"><label>Response Language</label><select class="form-control"><option>English</option><option>Spanish</option><option>French</option><option>German</option></select></div>
+                <button class="btn btn-primary btn-block" data-action="toast" data-message="AI configuration saved">Save Changes</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h4>Feature Toggles</h4></div>
+              <div class="panel-body">
+                <div class="setting-row"><div><div class="s-label">AI Mock Interviews</div><div class="s-desc">Enable AI-driven practice sessions</div></div><div class="toggle on"></div></div>
+                <div class="setting-row"><div><div class="s-label">Resume Scoring</div><div class="s-desc">AI-score uploaded resumes</div></div><div class="toggle on"></div></div>
+                <div class="setting-row"><div><div class="s-label">Auto Report Generation</div><div class="s-desc">Generate reports after each interview</div></div><div class="toggle on"></div></div>
+                <div class="setting-row"><div><div class="s-label">Sentiment Analysis</div><div class="s-desc">Analyze candidate sentiment in responses</div></div><div class="toggle"></div></div>
+                <div class="setting-row"><div><div class="s-label">Plagiarism Check</div><div class="s-desc">Detect copied answers in interviews</div></div><div class="toggle on"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- System Activities -->
+        <section class="page" id="page-activities">
+          <div class="page-head">
+            <h3>System Activities</h3>
+            <p>Audit log of all platform events.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Activity Log</h4><a class="btn btn-outline btn-sm" data-action="toast" data-message="Exporting activity log...">Export</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Event</th><th>Actor</th><th>IP Address</th><th>Timestamp</th><th>Severity</th></tr></thead>
+                  <tbody>
+                    <tr><td>User registration</td><td>alex.johnson</td><td>192.168.1.24</td><td>Jul 26, 2026 · 09:14</td><td><span class="badge info"><span class="dot"></span>Info</span></td></tr>
+                    <tr><td>AI model deployed (v2.4)</td><td>system</td><td>10.0.0.5</td><td>Jul 26, 2026 · 08:42</td><td><span class="badge success"><span class="dot"></span>Info</span></td></tr>
+                    <tr><td>Failed login (x3)</td><td>unknown</td><td>203.0.113.7</td><td>Jul 26, 2026 · 07:58</td><td><span class="badge error"><span class="dot"></span>Critical</span></td></tr>
+                    <tr><td>Settings updated</td><td>david.martinez</td><td>192.168.1.10</td><td>Jul 25, 2026 · 18:30</td><td><span class="badge warning"><span class="dot"></span>Warning</span></td></tr>
+                    <tr><td>Bulk report export</td><td>david.martinez</td><td>192.168.1.10</td><td>Jul 25, 2026 · 15:22</td><td><span class="badge info"><span class="dot"></span>Info</span></td></tr>
+                    <tr><td>Storage threshold reached (70%)</td><td>system</td><td>10.0.0.5</td><td>Jul 25, 2026 · 12:04</td><td><span class="badge warning"><span class="dot"></span>Warning</span></td></tr>
+                    <tr><td>Recruiter account created</td><td>sarah.williams</td><td>192.168.1.31</td><td>Jul 24, 2026 · 11:47</td><td><span class="badge success"><span class="dot"></span>Info</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Platform Analytics -->
+        <section class="page" id="page-analytics">
+          <div class="page-head">
+            <h3>Platform Analytics</h3>
+            <p>Growth and usage trends across the platform.</p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon blue">📈</div></div><div class="stat-label">Monthly Growth</div><div class="stat-value">+12.4%</div><div class="stat-trend up">↑ Above target</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon green">⚡</div></div><div class="stat-label">Avg. Response</div><div class="stat-value">142 ms</div><div class="stat-trend up">↑ 18ms faster</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon amber">🔄</div></div><div class="stat-label">Retention</div><div class="stat-value">88%</div><div class="stat-trend up">↑ +2%</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon sky">💎</div></div><div class="stat-label">MRR</div><div class="stat-value">$84K</div><div class="stat-trend up">↑ +9%</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>User Growth</h4></div>
+              <div class="panel-body chart-card">
+                <div class="bar-chart">
+                  <div class="bar-col"><div class="bar" data-height="45%"><span class="bar-val">3.2K</span></div><div class="bar-label">Jan</div></div>
+                  <div class="bar-col"><div class="bar" data-height="55%"><span class="bar-val">3.6K</span></div><div class="bar-label">Feb</div></div>
+                  <div class="bar-col"><div class="bar" data-height="62%"><span class="bar-val">4.0K</span></div><div class="bar-label">Mar</div></div>
+                  <div class="bar-col"><div class="bar" data-height="70%"><span class="bar-val">4.3K</span></div><div class="bar-label">Apr</div></div>
+                  <div class="bar-col"><div class="bar" data-height="80%"><span class="bar-val">4.8K</span></div><div class="bar-label">May</div></div>
+                  <div class="bar-col"><div class="bar" data-height="88%"><span class="bar-val">5.2K</span></div><div class="bar-label">Jun</div></div>
+                  <div class="bar-col"><div class="bar" data-height="95%"><span class="bar-val">5.6K</span></div><div class="bar-label">Jul</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h4>User Distribution</h4></div>
+              <div class="panel-body">
+                <div class="donut-wrap">
+                  <div class="donut" style="background:conic-gradient(var(--primary-600) 0 78%, var(--accent-500) 78% 96%, var(--warning-500) 96% 100%);"><div class="donut-val">4.8K</div></div>
+                  <div class="donut-legend">
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--primary-600)"></span>Candidates — 78%</div>
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--accent-500)"></span>Recruiters — 18%</div>
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--warning-500)"></span>Admins — 4%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

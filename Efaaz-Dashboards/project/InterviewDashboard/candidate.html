@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Dashboard · AI Interview Management Platform</title>
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-role="candidate" data-name="Alex Johnson">
+
+  <div class="dash">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a href="index.html" class="sidebar-brand">
+        <img src="images/logo.svg" alt="Logo" />
+        Interview<span>AI</span>
+      </a>
+      <nav class="sidebar-menu">
+        <div class="nav-section">Main</div>
+        <div class="nav-item active" data-page="page-dashboard"><span class="icon">🏠</span><span class="label">Dashboard</span></div>
+        <div class="nav-item" data-page="page-resume"><span class="icon">📄</span><span class="label">Upload Resume</span></div>
+        <div class="nav-item" data-page="page-mock"><span class="icon">🎤</span><span class="label">Mock Interviews</span></div>
+        <div class="nav-item" data-page="page-history"><span class="icon">🕘</span><span class="label">Interview History</span></div>
+        <div class="nav-item" data-page="page-analytics"><span class="icon">📊</span><span class="label">Performance Analytics</span></div>
+        <div class="nav-item" data-page="page-reports"><span class="icon">📥</span><span class="label">Download Reports</span></div>
+        <div class="nav-item" data-page="page-progress"><span class="icon">📈</span><span class="label">Improvement Progress</span></div>
+        <div class="nav-section">Account</div>
+        <div class="nav-item" data-logout="true"><span class="icon">🚪</span><span class="label">Logout</span></div>
+      </nav>
+      <div class="sidebar-foot">© 2026 InterviewAI · v1.0</div>
+    </aside>
+
+    <div class="backdrop"></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn" data-menu-toggle aria-label="Menu">☰</button>
+          <div>
+            <h2 data-topbar-title>Dashboard</h2>
+            <div class="subtitle">Welcome back, ready to ace your next interview?</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search..." />
+          </div>
+          <button class="icon-btn" aria-label="Notifications">🔔<span class="dot"></span></button>
+          <div class="user-chip">
+            <div class="avatar" data-user-initials>AJ</div>
+            <div>
+              <div class="name" data-user-name>Alex Johnson</div>
+              <div class="role" data-user-role>Candidate</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <!-- Dashboard -->
+        <section class="page active" id="page-dashboard">
+          <div class="page-head">
+            <h3>Dashboard Overview</h3>
+            <p>Your interview activity at a glance.</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon blue">📄</div>
+                <span class="badge success"><span class="dot"></span>Active</span>
+              </div>
+              <div class="stat-label">Uploaded Resume</div>
+              <div class="stat-value">1</div>
+              <div class="stat-trend up">↑ Last updated 2 days ago</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon amber">📅</div>
+                <span class="badge warning"><span class="dot"></span>Scheduled</span>
+              </div>
+              <div class="stat-label">Upcoming Interviews</div>
+              <div class="stat-value">3</div>
+              <div class="stat-trend up">↑ 2 this week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon green">✅</div>
+                <span class="badge success"><span class="dot"></span>Completed</span>
+              </div>
+              <div class="stat-label">Completed Interviews</div>
+              <div class="stat-value">12</div>
+              <div class="stat-trend up">↑ 4 this month</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon sky">⭐</div>
+                <span class="badge info"><span class="dot"></span>Top 10%</span>
+              </div>
+              <div class="stat-label">Performance Score</div>
+              <div class="stat-value">87</div>
+              <div class="stat-trend up">↑ +6 pts this month</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <h4>Recent Activities</h4>
+                <a class="btn btn-ghost btn-sm" data-action="toast" data-message="Loading all activities">View all</a>
+              </div>
+              <div class="panel-body">
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr><th>Activity</th><th>Type</th><th>Date</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Completed mock interview — Frontend</td><td>Mock</td><td>Jul 24, 2026</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                      <tr><td>Resume updated</td><td>Profile</td><td>Jul 22, 2026</td><td><span class="badge info"><span class="dot"></span>Updated</span></td></tr>
+                      <tr><td>Scheduled interview — Acme Corp</td><td>Interview</td><td>Jul 28, 2026</td><td><span class="badge warning"><span class="dot"></span>Upcoming</span></td></tr>
+                      <tr><td>Downloaded performance report</td><td>Report</td><td>Jul 20, 2026</td><td><span class="badge neutral"><span class="dot"></span>Done</span></td></tr>
+                      <tr><td>Completed mock interview — System Design</td><td>Mock</td><td>Jul 18, 2026</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h4>Progress</h4></div>
+              <div class="panel-body">
+                <div class="progress-list">
+                  <div class="progress-item">
+                    <div class="pi-head"><span class="label">Technical Skills</span><span class="val">82%</span></div>
+                    <div class="progress-bar"><div class="fill" data-width="82%"></div></div>
+                  </div>
+                  <div class="progress-item">
+                    <div class="pi-head"><span class="label">Communication</span><span class="val">90%</span></div>
+                    <div class="progress-bar"><div class="fill" data-width="90%"></div></div>
+                  </div>
+                  <div class="progress-item">
+                    <div class="pi-head"><span class="label">Problem Solving</span><span class="val">75%</span></div>
+                    <div class="progress-bar"><div class="fill" data-width="75%"></div></div>
+                  </div>
+                  <div class="progress-item">
+                    <div class="pi-head"><span class="label">System Design</span><span class="val">68%</span></div>
+                    <div class="progress-bar"><div class="fill" data-width="68%"></div></div>
+                  </div>
+                  <div class="progress-item">
+                    <div class="pi-head"><span class="label">Behavioral</span><span class="val">88%</span></div>
+                    <div class="progress-bar"><div class="fill" data-width="88%"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h4>Profile</h4><a class="btn btn-outline btn-sm" data-action="toast" data-message="Profile edit coming soon">Edit Profile</a></div>
+            <div class="panel-body">
+              <div class="profile-card" style="flex-direction:row; gap:28px; text-align:left; align-items:flex-start;">
+                <div class="profile-avatar" data-user-initials>AJ</div>
+                <div style="flex:1;">
+                  <div class="profile-name" data-user-name>Alex Johnson</div>
+                  <div class="profile-role" data-user-role>Candidate</div>
+                  <div class="profile-meta">
+                    <div class="meta-row"><span class="k">Email</span><span class="v">alex.johnson@email.com</span></div>
+                    <div class="meta-row"><span class="k">Target Role</span><span class="v">Frontend Engineer</span></div>
+                    <div class="meta-row"><span class="k">Experience</span><span class="v">3 years</span></div>
+                    <div class="meta-row"><span class="k">Location</span><span class="v">San Francisco, CA</span></div>
+                    <div class="meta-row"><span class="k">Member since</span><span class="v">Jan 2026</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Upload Resume -->
+        <section class="page" id="page-resume">
+          <div class="page-head">
+            <h3>Upload Resume</h3>
+            <p>Upload your latest resume so AI can match you with the best opportunities.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-body">
+              <div class="upload-zone" data-upload>
+                <input type="file" accept=".pdf,.doc,.docx" hidden />
+                <div class="up-icon">⬆️</div>
+                <h4>Drag & drop your resume here</h4>
+                <p>Supports PDF, DOC, DOCX up to 5MB</p>
+                <button class="btn btn-primary" type="button">Browse Files</button>
+              </div>
+              <div id="uploadPreview"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Resume Tips</h4></div>
+            <div class="panel-body">
+              <div class="activity-list">
+                <div class="activity-item"><div class="a-icon" style="background:var(--primary-50);color:var(--primary-600);">1</div><div class="a-body"><div class="a-title">Use a clean, single-column layout</div><div class="a-desc">ATS-friendly formats parse more reliably.</div></div></div>
+                <div class="activity-item"><div class="a-icon" style="background:var(--success-50);color:var(--success-500);">2</div><div class="a-body"><div class="a-title">Quantify your achievements</div><div class="a-desc">Numbers stand out to AI scoring models.</div></div></div>
+                <div class="activity-item"><div class="a-icon" style="background:var(--warning-50);color:var(--warning-500);">3</div><div class="a-body"><div class="a-title">Tailor keywords to the role</div><div class="a-desc">Match skills in the job description.</div></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Mock Interviews -->
+        <section class="page" id="page-mock">
+          <div class="page-head">
+            <h3>Mock Interviews</h3>
+            <p>Practice with AI-generated interviews tailored to your target role.</p>
+          </div>
+          <div class="mock-grid">
+            <div class="mock-card"><div class="m-icon">💻</div><h4>Frontend Technical</h4><p>JavaScript, React, CSS, and browser fundamentals.</p><div class="m-foot"><span class="badge info">30 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting Frontend mock interview...">Start</button></div></div>
+            <div class="mock-card"><div class="m-icon">🏗️</div><h4>System Design</h4><p>Scalability, architecture, and trade-off discussions.</p><div class="m-foot"><span class="badge warning">45 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting System Design mock interview...">Start</button></div></div>
+            <div class="mock-card"><div class="m-icon">🗣️</div><h4>Behavioral</h4><p>STAR-method questions on leadership and teamwork.</p><div class="m-foot"><span class="badge success">20 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting Behavioral mock interview...">Start</button></div></div>
+            <div class="mock-card"><div class="m-icon">🧩</div><h4>Algorithms</h4><p>DSA problems with live AI hints and complexity analysis.</p><div class="m-foot"><span class="badge info">40 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting Algorithms mock interview...">Start</button></div></div>
+            <div class="mock-card"><div class="m-icon">🗄️</div><h4>Database & SQL</h4><p>Schema design, queries, and optimization scenarios.</p><div class="m-foot"><span class="badge warning">35 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting SQL mock interview...">Start</button></div></div>
+            <div class="mock-card"><div class="m-icon">🎯</div><h4>Role-Specific</h4><p>Custom questions based on your uploaded resume.</p><div class="m-foot"><span class="badge success">25 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Starting role-specific mock interview...">Start</button></div></div>
+          </div>
+        </section>
+
+        <!-- Interview History -->
+        <section class="page" id="page-history">
+          <div class="page-head">
+            <h3>Interview History</h3>
+            <p>A complete log of your past interviews and mock sessions.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>All Interviews</h4><a class="btn btn-outline btn-sm" data-action="toast" data-message="Exporting history...">Export CSV</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Interview</th><th>Company</th><th>Date</th><th>Score</th><th>Result</th></tr></thead>
+                  <tbody>
+                    <tr><td>Frontend Engineer</td><td>Acme Corp</td><td>Jul 28, 2026</td><td>—</td><td><span class="badge warning"><span class="dot"></span>Upcoming</span></td></tr>
+                    <tr><td>Mock — System Design</td><td>InterviewAI</td><td>Jul 18, 2026</td><td>82</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                    <tr><td>Full Stack Engineer</td><td>Globex</td><td>Jul 10, 2026</td><td>79</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                    <tr><td>Mock — Frontend</td><td>InterviewAI</td><td>Jul 02, 2026</td><td>88</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                    <tr><td>React Developer</td><td>Initech</td><td>Jun 24, 2026</td><td>71</td><td><span class="badge warning"><span class="dot"></span>Borderline</span></td></tr>
+                    <tr><td>Mock — Behavioral</td><td>InterviewAI</td><td>Jun 15, 2026</td><td>90</td><td><span class="badge success"><span class="dot"></span>Passed</span></td></tr>
+                    <tr><td>UI Engineer</td><td>Umbrella</td><td>Jun 05, 2026</td><td>65</td><td><span class="badge error"><span class="dot"></span>Failed</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Performance Analytics -->
+        <section class="page" id="page-analytics">
+          <div class="page-head">
+            <h3>Performance Analytics</h3>
+            <p>Deep insights into your interview performance trends.</p>
+          </div>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>Monthly Performance</h4></div>
+              <div class="panel-body chart-card">
+                <div class="bar-chart">
+                  <div class="bar-col"><div class="bar" data-height="45%"><span class="bar-val">65</span></div><div class="bar-label">Feb</div></div>
+                  <div class="bar-col"><div class="bar" data-height="52%"><span class="bar-val">71</span></div><div class="bar-label">Mar</div></div>
+                  <div class="bar-col"><div class="bar" data-height="58%"><span class="bar-val">75</span></div><div class="bar-label">Apr</div></div>
+                  <div class="bar-col"><div class="bar" data-height="64%"><span class="bar-val">79</span></div><div class="bar-label">May</div></div>
+                  <div class="bar-col"><div class="bar" data-height="70%"><span class="bar-val">82</span></div><div class="bar-label">Jun</div></div>
+                  <div class="bar-col"><div class="bar" data-height="78%"><span class="bar-val">87</span></div><div class="bar-label">Jul</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h4>Score Breakdown</h4></div>
+              <div class="panel-body">
+                <div class="donut-wrap">
+                  <div class="donut"><div class="donut-val">87%</div></div>
+                  <div class="donut-legend">
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--primary-600)"></span>Technical — 62%</div>
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--primary-200)"></span>Soft skills — 38%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Skill-wise Scores</h4></div>
+            <div class="panel-body">
+              <div class="progress-list">
+                <div class="progress-item"><div class="pi-head"><span class="label">JavaScript</span><span class="val">92%</span></div><div class="progress-bar"><div class="fill" data-width="92%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">React</span><span class="val">88%</span></div><div class="progress-bar"><div class="fill" data-width="88%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">CSS & Design</span><span class="val">85%</span></div><div class="progress-bar"><div class="fill" data-width="85%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">System Design</span><span class="val">68%</span></div><div class="progress-bar"><div class="fill" data-width="68%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Algorithms</span><span class="val">74%</span></div><div class="progress-bar"><div class="fill" data-width="74%"></div></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Download Reports -->
+        <section class="page" id="page-reports">
+          <div class="page-head">
+            <h3>Download Reports</h3>
+            <p>Get detailed PDF reports of your interview performance.</p>
+          </div>
+          <div class="grid-3">
+            <div class="panel" style="margin-bottom:0;">
+              <div class="panel-body" style="text-align:center;">
+                <div class="feature-icon" style="margin:0 auto 14px;">📊</div>
+                <h4 style="margin-bottom:6px;">Monthly Report</h4>
+                <p class="muted" style="font-size:14px;margin-bottom:18px;">July 2026 performance summary</p>
+                <button class="btn btn-primary btn-block" data-action="toast" data-message="Downloading monthly report...">Download PDF</button>
+              </div>
+            </div>
+            <div class="panel" style="margin-bottom:0;">
+              <div class="panel-body" style="text-align:center;">
+                <div class="feature-icon" style="margin:0 auto 14px;">📋</div>
+                <h4 style="margin-bottom:6px;">Full History</h4>
+                <p class="muted" style="font-size:14px;margin-bottom:18px;">All interviews since you joined</p>
+                <button class="btn btn-primary btn-block" data-action="toast" data-message="Downloading full history...">Download PDF</button>
+              </div>
+            </div>
+            <div class="panel" style="margin-bottom:0;">
+              <div class="panel-body" style="text-align:center;">
+                <div class="feature-icon" style="margin:0 auto 14px;">🎯</div>
+                <h4 style="margin-bottom:6px;">Skill Report</h4>
+                <p class="muted" style="font-size:14px;margin-bottom:18px;">Detailed skill-wise breakdown</p>
+                <button class="btn btn-primary btn-block" data-action="toast" data-message="Downloading skill report...">Download PDF</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Improvement Progress -->
+        <section class="page" id="page-progress">
+          <div class="page-head">
+            <h3>Improvement Progress</h3>
+            <p>Track how your skills have grown over time.</p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon blue">📈</div></div><div class="stat-label">Overall Growth</div><div class="stat-value">+22%</div><div class="stat-trend up">↑ Since Feb 2026</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon green">🎯</div></div><div class="stat-label">Goals Achieved</div><div class="stat-value">8/10</div><div class="stat-trend up">↑ 2 this month</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon amber">🔥</div></div><div class="stat-label">Current Streak</div><div class="stat-value">14 days</div><div class="stat-trend up">↑ Personal best</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon sky">📚</div></div><div class="stat-label">Topics Covered</div><div class="stat-value">26</div><div class="stat-trend up">↑ 5 new</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Skill Improvement Over Time</h4></div>
+            <div class="panel-body">
+              <div class="progress-list">
+                <div class="progress-item"><div class="pi-head"><span class="label">Technical Skills (was 60%)</span><span class="val">82%</span></div><div class="progress-bar"><div class="fill" data-width="82%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Communication (was 75%)</span><span class="val">90%</span></div><div class="progress-bar"><div class="fill" data-width="90%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Problem Solving (was 55%)</span><span class="val">75%</span></div><div class="progress-bar"><div class="fill" data-width="75%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">System Design (was 40%)</span><span class="val">68%</span></div><div class="progress-bar"><div class="fill" data-width="68%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Behavioral (was 70%)</span><span class="val">88%</span></div><div class="progress-bar"><div class="fill" data-width="88%"></div></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

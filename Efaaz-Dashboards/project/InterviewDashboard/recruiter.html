@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recruiter Dashboard · AI Interview Management Platform</title>
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-role="recruiter" data-name="Sarah Williams">
+
+  <div class="dash">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a href="index.html" class="sidebar-brand">
+        <img src="images/logo.svg" alt="Logo" />
+        Interview<span>AI</span>
+      </a>
+      <nav class="sidebar-menu">
+        <div class="nav-section">Main</div>
+        <div class="nav-item active" data-page="page-dashboard"><span class="icon">🏠</span><span class="label">Dashboard</span></div>
+        <div class="nav-item" data-page="page-analytics"><span class="icon">📊</span><span class="label">Candidate Analytics</span></div>
+        <div class="nav-item" data-page="page-reports"><span class="icon">📋</span><span class="label">Candidate Reports</span></div>
+        <div class="nav-item" data-page="page-compare"><span class="icon">⚖️</span><span class="label">Compare Performance</span></div>
+        <div class="nav-item" data-page="page-templates"><span class="icon">🧩</span><span class="label">Interview Templates</span></div>
+        <div class="nav-item" data-page="page-sessions"><span class="icon">🎥</span><span class="label">Interview Sessions</span></div>
+        <div class="nav-section">Account</div>
+        <div class="nav-item" data-logout="true"><span class="icon">🚪</span><span class="label">Logout</span></div>
+      </nav>
+      <div class="sidebar-foot">© 2026 InterviewAI · v1.0</div>
+    </aside>
+
+    <div class="backdrop"></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn" data-menu-toggle aria-label="Menu">☰</button>
+          <div>
+            <h2 data-topbar-title>Dashboard</h2>
+            <div class="subtitle">Manage candidates and interviews efficiently.</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search candidates..." />
+          </div>
+          <button class="icon-btn" aria-label="Notifications">🔔<span class="dot"></span></button>
+          <div class="user-chip">
+            <div class="avatar" data-user-initials>SW</div>
+            <div>
+              <div class="name" data-user-name>Sarah Williams</div>
+              <div class="role" data-user-role>Recruiter</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <!-- Dashboard -->
+        <section class="page active" id="page-dashboard">
+          <div class="page-head">
+            <h3>Dashboard Overview</h3>
+            <p>Your recruitment pipeline at a glance.</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon blue">👥</div><span class="badge info"><span class="dot"></span>Active</span></div>
+              <div class="stat-label">Total Candidates</div>
+              <div class="stat-value">248</div>
+              <div class="stat-trend up">↑ 32 new this week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon amber">📅</div><span class="badge warning"><span class="dot"></span>Scheduled</span></div>
+              <div class="stat-label">Interviews Scheduled</div>
+              <div class="stat-value">56</div>
+              <div class="stat-trend up">↑ 12 this week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon green">📋</div><span class="badge success"><span class="dot"></span>Ready</span></div>
+              <div class="stat-label">Reports Generated</div>
+              <div class="stat-value">134</div>
+              <div class="stat-trend up">↑ 28 this week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><div class="stat-icon sky">📈</div><span class="badge success"><span class="dot"></span>On track</span></div>
+              <div class="stat-label">Hiring Progress</div>
+              <div class="stat-value">68%</div>
+              <div class="stat-trend up">↑ +8% this month</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h4>Candidate Pipeline</h4>
+              <a class="btn btn-primary btn-sm" data-action="toast" data-message="Opening add candidate form">+ Add Candidate</a>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Candidate</th><th>Role</th><th>Stage</th><th>Score</th><th>Status</th><th>Action</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">AJ</div><div class="info"><div class="name">Alex Johnson</div><div class="sub">alex.johnson@email.com</div></div></div></td>
+                      <td>Frontend Engineer</td><td>Technical</td><td>87</td><td><span class="badge success"><span class="dot"></span>Shortlisted</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Alex Johnson">View</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">MB</div><div class="info"><div class="name">Maya Brown</div><div class="sub">maya.brown@email.com</div></div></div></td>
+                      <td>Backend Engineer</td><td>HR Round</td><td>82</td><td><span class="badge warning"><span class="dot"></span>In Review</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Maya Brown">View</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">RC</div><div class="info"><div class="name">Raj Chen</div><div class="sub">raj.chen@email.com</div></div></div></td>
+                      <td>Full Stack Engineer</td><td>Final</td><td>91</td><td><span class="badge success"><span class="dot"></span>Offer</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Raj Chen">View</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">ED</div><div class="info"><div class="name">Emma Davis</div><div class="sub">emma.davis@email.com</div></div></div></td>
+                      <td>Product Designer</td><td>Technical</td><td>78</td><td><span class="badge warning"><span class="dot"></span>In Review</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Emma Davis">View</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">LK</div><div class="info"><div class="name">Liam Kim</div><div class="sub">liam.kim@email.com</div></div></div></td>
+                      <td>DevOps Engineer</td><td>Screening</td><td>—</td><td><span class="badge info"><span class="dot"></span>New</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Liam Kim">View</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-user"><div class="avatar">NP</div><div class="info"><div class="name">Noah Patel</div><div class="sub">noah.patel@email.com</div></div></div></td>
+                      <td>Data Scientist</td><td>Technical</td><td>84</td><td><span class="badge success"><span class="dot"></span>Shortlisted</span></td>
+                      <td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Viewing Noah Patel">View</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>Recent Interviews</h4><a class="btn btn-ghost btn-sm" data-action="toast" data-message="Loading all interviews">View all</a></div>
+              <div class="panel-body">
+                <div class="activity-list">
+                  <div class="activity-item"><div class="a-icon" style="background:var(--primary-50);color:var(--primary-600);">🎥</div><div class="a-body"><div class="a-title">Frontend Technical — Alex Johnson</div><div class="a-desc">Completed · Score 87</div></div><div class="a-time">2h ago</div></div>
+                  <div class="activity-item"><div class="a-icon" style="background:var(--success-50);color:var(--success-500);">✅</div><div class="a-body"><div class="a-title">HR Round — Maya Brown</div><div class="a-desc">Completed · Score 82</div></div><div class="a-time">Yesterday</div></div>
+                  <div class="activity-item"><div class="a-icon" style="background:var(--warning-50);color:var(--warning-500);">📅</div><div class="a-body"><div class="a-title">System Design — Raj Chen</div><div class="a-desc">Scheduled · Jul 29</div></div><div class="a-time">Tomorrow</div></div>
+                  <div class="activity-item"><div class="a-icon" style="background:var(--primary-50);color:var(--primary-600);">🎥</div><div class="a-body"><div class="a-title">Portfolio Review — Emma Davis</div><div class="a-desc">Completed · Score 78</div></div><div class="a-time">2 days ago</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h4>Analytics</h4></div>
+              <div class="panel-body">
+                <div class="progress-list">
+                  <div class="progress-item"><div class="pi-head"><span class="label">Open Roles Filled</span><span class="val">68%</span></div><div class="progress-bar"><div class="fill" data-width="68%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">Avg. Time to Hire</span><span class="val">72%</span></div><div class="progress-bar"><div class="fill" data-width="72%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">Offer Acceptance</span><span class="val">85%</span></div><div class="progress-bar"><div class="fill" data-width="85%"></div></div></div>
+                  <div class="progress-item"><div class="pi-head"><span class="label">Candidate Quality</span><span class="val">91%</span></div><div class="progress-bar"><div class="fill" data-width="91%"></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Candidate Analytics -->
+        <section class="page" id="page-analytics">
+          <div class="page-head">
+            <h3>Candidate Analytics</h3>
+            <p>Aggregate performance metrics across your candidate pool.</p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon blue">📊</div></div><div class="stat-label">Avg. Score</div><div class="stat-value">78.4</div><div class="stat-trend up">↑ +3.2</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon green">🎯</div></div><div class="stat-label">Pass Rate</div><div class="stat-value">64%</div><div class="stat-trend up">↑ +5%</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon amber">⏱️</div></div><div class="stat-label">Avg. Duration</div><div class="stat-value">38 min</div><div class="stat-trend down">↓ -2 min</div></div>
+            <div class="stat-card"><div class="stat-top"><div class="stat-icon sky">🏆</div></div><div class="stat-label">Top Score</div><div class="stat-value">96</div><div class="stat-trend up">↑ New high</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h4>Weekly Interview Volume</h4></div>
+              <div class="panel-body chart-card">
+                <div class="bar-chart">
+                  <div class="bar-col"><div class="bar" data-height="40%"><span class="bar-val">18</span></div><div class="bar-label">W1</div></div>
+                  <div class="bar-col"><div class="bar" data-height="55%"><span class="bar-val">24</span></div><div class="bar-label">W2</div></div>
+                  <div class="bar-col"><div class="bar" data-height="70%"><span class="bar-val">31</span></div><div class="bar-label">W3</div></div>
+                  <div class="bar-col"><div class="bar" data-height="62%"><span class="bar-val">28</span></div><div class="bar-label">W4</div></div>
+                  <div class="bar-col"><div class="bar" data-height="85%"><span class="bar-val">38</span></div><div class="bar-label">W5</div></div>
+                  <div class="bar-col"><div class="bar" data-height="92%"><span class="bar-val">42</span></div><div class="bar-label">W6</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h4>Score Distribution</h4></div>
+              <div class="panel-body">
+                <div class="donut-wrap">
+                  <div class="donut" style="background:conic-gradient(var(--success-500) 0 64%, var(--warning-500) 64% 85%, var(--error-500) 85% 100%);"><div class="donut-val">64%</div></div>
+                  <div class="donut-legend">
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--success-500)"></span>Passed — 64%</div>
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--warning-500)"></span>Borderline — 21%</div>
+                    <div class="lg-row"><span class="lg-dot" style="background:var(--error-500)"></span>Failed — 15%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Candidate Reports -->
+        <section class="page" id="page-reports">
+          <div class="page-head">
+            <h3>Candidate Reports</h3>
+            <p>AI-generated reports for each candidate's interview performance.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Generated Reports</h4><a class="btn btn-outline btn-sm" data-action="toast" data-message="Generating new report...">+ New Report</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Candidate</th><th>Role</th><th>Date</th><th>Score</th><th>Recommendation</th><th>Report</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="cell-user"><div class="avatar">AJ</div><div class="info"><div class="name">Alex Johnson</div></div></div></td><td>Frontend Engineer</td><td>Jul 24, 2026</td><td>87</td><td><span class="badge success"><span class="dot"></span>Strong Hire</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Downloading report...">PDF</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">MB</div><div class="info"><div class="name">Maya Brown</div></div></div></td><td>Backend Engineer</td><td>Jul 22, 2026</td><td>82</td><td><span class="badge success"><span class="dot"></span>Hire</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Downloading report...">PDF</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">RC</div><div class="info"><div class="name">Raj Chen</div></div></td><td>Full Stack Engineer</td><td>Jul 20, 2026</td><td>91</td><td><span class="badge success"><span class="dot"></span>Strong Hire</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Downloading report...">PDF</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">ED</div><div class="info"><div class="name">Emma Davis</div></div></td><td>Product Designer</td><td>Jul 18, 2026</td><td>78</td><td><span class="badge warning"><span class="dot"></span>Maybe</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Downloading report...">PDF</button></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">NP</div><div class="info"><div class="name">Noah Patel</div></div></td><td>Data Scientist</td><td>Jul 15, 2026</td><td>84</td><td><span class="badge success"><span class="dot"></span>Hire</span></td><td><button class="btn btn-ghost btn-sm" data-action="toast" data-message="Downloading report...">PDF</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Compare Performance -->
+        <section class="page" id="page-compare">
+          <div class="page-head">
+            <h3>Compare Performance</h3>
+            <p>Side-by-side comparison of shortlisted candidates.</p>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-card">
+              <div class="c-avatar">AJ</div>
+              <div class="c-name">Alex Johnson</div>
+              <div class="c-role">Frontend Engineer</div>
+              <div class="c-score">87</div>
+              <div class="c-score-label">Overall Score</div>
+              <div style="width:100%;margin-top:18px;">
+                <div class="progress-item"><div class="pi-head"><span class="label">Technical</span><span class="val">88%</span></div><div class="progress-bar"><div class="fill" data-width="88%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Communication</span><span class="val">90%</span></div><div class="progress-bar"><div class="fill" data-width="90%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Problem Solving</span><span class="val">82%</span></div><div class="progress-bar"><div class="fill" data-width="82%"></div></div></div>
+              </div>
+            </div>
+            <div class="compare-card">
+              <div class="c-avatar">RC</div>
+              <div class="c-name">Raj Chen</div>
+              <div class="c-role">Full Stack Engineer</div>
+              <div class="c-score">91</div>
+              <div class="c-score-label">Overall Score</div>
+              <div style="width:100%;margin-top:18px;">
+                <div class="progress-item"><div class="pi-head"><span class="label">Technical</span><span class="val">94%</span></div><div class="progress-bar"><div class="fill" data-width="94%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Communication</span><span class="val">85%</span></div><div class="progress-bar"><div class="fill" data-width="85%"></div></div></div>
+                <div class="progress-item"><div class="pi-head"><span class="label">Problem Solving</span><span class="val">93%</span></div><div class="progress-bar"><div class="fill" data-width="93%"></div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Recommendation</h4></div>
+            <div class="panel-body">
+              <p>Based on AI analysis, <strong>Raj Chen</strong> scores higher in technical and problem-solving domains, making them the stronger candidate for the Full Stack role. <strong>Alex Johnson</strong> excels in communication and is recommended for the Frontend role.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Interview Templates -->
+        <section class="page" id="page-templates">
+          <div class="page-head">
+            <h3>Interview Templates</h3>
+            <p>Reusable, structured interview kits for consistent evaluation.</p>
+          </div>
+          <div class="mock-grid">
+            <div class="mock-card"><div class="m-icon">💻</div><h4>Frontend Engineer</h4><p>12 questions · JS, React, CSS, performance</p><div class="m-foot"><span class="badge info">45 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template">Use</button></div></div>
+            <div class="mock-card"><div class="m-icon">🗄️</div><h4>Backend Engineer</h4><p>10 questions · APIs, DB, scaling, security</p><div class="m-foot"><span class="badge info">50 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template">Use</button></div></div>
+            <div class="mock-card"><div class="m-icon">🏗️</div><h4>System Design</h4><p>6 scenarios · architecture & trade-offs</p><div class="m-foot"><span class="badge warning">60 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template">Use</button></div></div>
+            <div class="mock-card"><div class="m-icon">🎨</div><h4>Product Designer</h4><p>8 questions · UX, portfolio, design thinking</p><div class="m-foot"><span class="badge info">40 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template">Use</button></div></div>
+            <div class="mock-card"><div class="m-icon">🧪</div><h4>QA Engineer</h4><p>10 questions · testing, automation, edge cases</p><div class="m-foot"><span class="badge info">45 min</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template">Use</button></div></div>
+            <div class="mock-card"><div class="m-icon">➕</div><h4>Create New</h4><p>Build a custom template from scratch</p><div class="m-foot"><span class="badge neutral">Custom</span><button class="btn btn-primary btn-sm" data-action="toast" data-message="Opening template builder">Create</button></div></div>
+          </div>
+        </section>
+
+        <!-- Interview Sessions -->
+        <section class="page" id="page-sessions">
+          <div class="page-head">
+            <h3>Interview Sessions</h3>
+            <p>Schedule and manage live interview sessions.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h4>Upcoming Sessions</h4><a class="btn btn-primary btn-sm" data-action="toast" data-message="Opening scheduler">+ Schedule</a></div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Candidate</th><th>Role</th><th>Type</th><th>Date & Time</th><th>Platform</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="cell-user"><div class="avatar">AJ</div><div class="info"><div class="name">Alex Johnson</div></div></div></td><td>Frontend Engineer</td><td>Technical</td><td>Jul 28, 2026 · 10:00 AM</td><td>Zoom</td><td><span class="badge warning"><span class="dot"></span>Upcoming</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">RC</div><div class="info"><div class="name">Raj Chen</div></div></div></td><td>Full Stack Engineer</td><td>System Design</td><td>Jul 29, 2026 · 2:00 PM</td><td>Google Meet</td><td><span class="badge warning"><span class="dot"></span>Upcoming</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">ED</div><div class="info"><div class="name">Emma Davis</div></div></td><td>Product Designer</td><td>Portfolio</td><td>Aug 01, 2026 · 11:00 AM</td><td>Zoom</td><td><span class="badge info"><span class="dot"></span>Scheduled</span></td></tr>
+                    <tr><td><div class="cell-user"><div class="avatar">NP</div><div class="info"><div class="name">Noah Patel</div></div></td><td>Data Scientist</td><td>Technical</td><td>Aug 03, 2026 · 3:30 PM</td><td>Teams</td><td><span class="badge info"><span class="dot"></span>Scheduled</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

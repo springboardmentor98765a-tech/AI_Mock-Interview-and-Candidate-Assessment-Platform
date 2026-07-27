@@ -1,0 +1,9 @@
+{
+  "name": "ai-interview-management-platform",
+  "version": "1.0.0",
+  "description": "Frontend-only AI Interview Management Platform built with HTML5, CSS3, and Vanilla JavaScript.",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/verify-build.js"
+  }
+}
