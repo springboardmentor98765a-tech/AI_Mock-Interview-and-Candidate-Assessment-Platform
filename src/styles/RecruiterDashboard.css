@@ -1,0 +1,236 @@
+/* Recruiter Dashboard Styles */
+.recruiter-dashboard {
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.recruiter-header {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.recruiter-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.recruiter-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.recruiter-stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.recruiter-stat-card .stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.recruiter-stat-card .stat-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.recruiter-stat-card .stat-change {
+  font-size: 0.75rem;
+  color: #059669;
+}
+
+/* Insight Cards */
+.insight-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.insight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.insight-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+}
+
+.insight-icon.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.insight-icon.green {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.insight-icon.purple {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.insight-icon.orange {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.insight-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.insight-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Template Cards */
+.template-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.template-card:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.1);
+}
+
+.template-card .template-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.template-card .template-questions {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Live Session */
+.live-session {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border-left: 4px solid #22c55e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.live-session .live-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Candidate Table */
+.candidate-table th {
+  background: #f8fafc;
+  border-bottom: 2px solid #e5e7eb;
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 12px;
+}
+
+.candidate-table td {
+  padding: 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.candidate-table tr:hover {
+  background: #f8fafc;
+}
+
+.candidate-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.match-score {
+  font-weight: 600;
+}
+
+.match-score.high {
+  color: #059669;
+}
+
+.match-score.medium {
+  color: #d97706;
+}
+
+.match-score.low {
+  color: #dc2626;
+}
+
+.status-badge.recruiter {
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge.shortlisted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.under-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.scheduled {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-badge.hired {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rejected {
+  background: #fce4ec;
+  color: #dc2626;
+}

@@ -1,0 +1,240 @@
+/* Admin Dashboard Styles */
+.admin-dashboard {
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.admin-header {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.admin-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* Admin Stats */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+.admin-stat-card.blue::before {
+  background: #2563eb;
+}
+
+.admin-stat-card.green::before {
+  background: #059669;
+}
+
+.admin-stat-card.purple::before {
+  background: #7c3aed;
+}
+
+.admin-stat-card.orange::before {
+  background: #d97706;
+}
+
+.admin-stat-card .stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.admin-stat-card .stat-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.admin-stat-card .stat-sub {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Manage Card */
+.manage-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  height: 100%;
+}
+
+.manage-card .manage-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+}
+
+.manage-card .manage-icon.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.manage-card .manage-icon.green {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.manage-card .manage-icon.purple {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.manage-card .manage-icon.orange {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.manage-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.manage-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.manage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.manage-badge.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.manage-badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* System Health */
+.health-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.health-metric {
+  text-align: center;
+  padding: 12px;
+}
+
+.health-metric .metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.health-metric .metric-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* AI Config */
+.ai-config {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.ai-config .config-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ai-config .config-row:last-child {
+  border-bottom: none;
+}
+
+.config-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.config-value {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* System Logs */
+.log-table th {
+  background: #f8fafc;
+  border-bottom: 2px solid #e5e7eb;
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 12px;
+}
+
+.log-table td {
+  padding: 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.875rem;
+}
+
+.log-table tr:hover {
+  background: #f8fafc;
+}
+
+.log-status {
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.log-status.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.log-status.completed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
