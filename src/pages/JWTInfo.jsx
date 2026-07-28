@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
+import { motion } from 'framer-motion'
 import '../styles/infopage.css'
 
 function JWTInfo() {
   return (
     <div className="info-page">
       <nav className="info-nav">
-        <Link to="/" className="back-link">← Back to Home</Link>
+        <Link to="/" className="back-link"><ArrowLeft size={16} /> Back to Home</Link>
         <div className="info-nav-links">
           <Link to="/oauth-info">OAuth Info</Link>
           <Link to="/login">Login</Link>
@@ -13,27 +15,27 @@ function JWTInfo() {
       </nav>
 
       <div className="info-container">
-        <h1>Understanding JWT (JSON Web Tokens)</h1>
+        <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>Understanding JWT (JSON Web Tokens)</motion.h1>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <h2>What is JWT?</h2>
           <p>JWT (JSON Web Token) is a compact, URL-safe token format used for securely transmitting information between parties as a JSON object. It is commonly used for authentication and authorization in web applications.</p>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <h2>Structure of JWT</h2>
           <p>A JWT consists of three parts separated by dots (.)</p>
           <div className="jwt-structure">
             <div className="jwt-part jwt-header">
               <h4>Header</h4>
               <p>Contains the token type (JWT) and the signing algorithm (e.g., HS256, RS256).</p>
-              <div className="jwt-example">{'{"alg": "HS256", "typ": "JWT"}'}</div>
+              <div className="jwt-example">{`{"alg": "HS256", "typ": "JWT"}`}</div>
             </div>
             <div className="jwt-dot">.</div>
             <div className="jwt-part jwt-payload">
               <h4>Payload</h4>
               <p>Contains claims - statements about the user and additional metadata.</p>
-              <div className="jwt-example">{'{"sub": "1234", "name": "John", "role": "admin"}'}</div>
+              <div className="jwt-example">{`{"sub": "1234", "name": "John", "role": "admin"}`}</div>
             </div>
             <div className="jwt-dot">.</div>
             <div className="jwt-part jwt-signature">
@@ -42,9 +44,9 @@ function JWTInfo() {
               <div className="jwt-example">HMACSHA256(base64(header) + "." + base64(payload), secret)</div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <h2>Authentication Flow with JWT</h2>
           <div className="flow-steps">
             <div className="flow-step">
@@ -57,63 +59,51 @@ function JWTInfo() {
             </div>
             <div className="flow-step">
               <span className="step-number">3</span>
-              <p>If valid, the server generates a JWT and sends it back to the client</p>
+              <p>If valid, the server generates a JWT token with user data</p>
             </div>
             <div className="flow-step">
               <span className="step-number">4</span>
-              <p>Client stores the JWT (in localStorage, sessionStorage, or cookies)</p>
+              <p>Token is sent back to the client and stored (localStorage or cookie)</p>
             </div>
             <div className="flow-step">
               <span className="step-number">5</span>
-              <p>For subsequent requests, the client sends the JWT in the Authorization header</p>
+              <p>Client includes the token in the Authorization header for subsequent requests</p>
             </div>
             <div className="flow-step">
               <span className="step-number">6</span>
-              <p>Server verifies the JWT signature and grants access if valid</p>
+              <p>Server validates the token and grants access to protected resources</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
-          <h2>Advantages of JWT</h2>
-          <ul>
-            <li>Stateless - the server doesn't need to store session data</li>
-            <li>Compact - small token size, easy to transmit</li>
-            <li>Self-contained - all necessary user info is in the token</li>
-            <li>Cross-domain support - works well with microservices</li>
-            <li>Scalable - no server-side session storage needed</li>
-          </ul>
-        </div>
-
-        <div className="info-card">
-          <h2>Storage Options</h2>
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <h2>Where to Store JWT?</h2>
           <div className="storage-options">
             <div className="storage-option">
               <h4>localStorage</h4>
-              <p>Persistent storage. Data survives page refreshes and browser restarts. Vulnerable to XSS attacks.</p>
+              <p>Easy to use but vulnerable to XSS attacks. Data persists across browser sessions.</p>
             </div>
             <div className="storage-option">
               <h4>sessionStorage</h4>
-              <p>Temporary storage. Data is cleared when the tab is closed. Also vulnerable to XSS.</p>
+              <p>Similar to localStorage but data is cleared when the browser tab closes.</p>
             </div>
             <div className="storage-option">
               <h4>HTTP-Only Cookies</h4>
-              <p>Most secure option. Not accessible via JavaScript. Protected from XSS. Recommended for production.</p>
+              <p>Most secure option. Not accessible via JavaScript, protecting against XSS.</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
-          <h2>Where JWT Would Be Used in This Project</h2>
-          <p>In a production version of this dashboard system, JWT would be used to:</p>
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <h2>Advantages of JWT</h2>
           <ul>
-            <li>Authenticate users after login by issuing a signed token</li>
-            <li>Store the user's role in the token payload for authorization checks</li>
-            <li>Protect API endpoints by verifying the token on each request</li>
-            <li>Implement token expiration and refresh mechanisms</li>
-            <li>Replace the current localStorage-based dummy authentication</li>
+            <li>Stateless - no server-side session storage needed</li>
+            <li>Self-contained - carries all necessary user information</li>
+            <li>Compact - small size makes it efficient for transmission</li>
+            <li>Secure - digitally signed to prevent tampering</li>
+            <li>Cross-domain - works across different domains and services</li>
           </ul>
-        </div>
+        </motion.div>
       </div>
     </div>
   )

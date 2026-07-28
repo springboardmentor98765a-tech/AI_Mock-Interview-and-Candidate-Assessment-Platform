@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom'
+import { Brain, Shield, BarChart3, Smartphone, Zap, Users, GraduationCap, Briefcase, ArrowRight, Key, Ticket } from 'lucide-react'
+import { motion } from 'framer-motion'
 import '../styles/home.css'
 
 function Home() {
   return (
     <div className="home-page">
       <nav className="home-nav">
-        <div className="nav-logo">Role-Based Dashboard System</div>
+        <div className="nav-logo">
+          <Brain size={24} />
+          <span>HireAI</span>
+        </div>
         <div className="nav-links">
           <Link to="/">Home</Link>
           <Link to="/oauth-info">OAuth</Link>
@@ -15,85 +20,97 @@ function Home() {
       </nav>
 
       <section className="hero-section">
-        <h1>Role-Based Dashboard System</h1>
-        <p className="hero-subtitle">A modern dashboard platform with role-based access control for Admin, Student, and Recruiter users.</p>
-        <Link to="/login" className="hero-btn">Get Started</Link>
+        <motion.div className="hero-content" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <span className="hero-badge">AI-Powered Recruitment Platform</span>
+          <h1>Smart Hiring Starts with <span className="gradient-text">HireAI</span></h1>
+          <p className="hero-subtitle">An intelligent recruitment platform with AI mock interviews, candidate ranking, resume analysis, and role-based dashboards for modern hiring teams.</p>
+          <div className="hero-buttons">
+            <Link to="/login" className="hero-btn primary">Get Started <ArrowRight size={18} /></Link>
+            <Link to="/oauth-info" className="hero-btn secondary">Learn More</Link>
+          </div>
+        </motion.div>
       </section>
 
       <section className="features-section">
-        <h2>Features</h2>
+        <h2>Platform Features</h2>
+        <p className="section-subtitle">Everything you need for intelligent hiring</p>
         <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">🔐</div>
+          <motion.div className="feature-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <div className="feature-icon-wrapper purple"><Shield size={24} /></div>
             <h3>Role-Based Access</h3>
-            <p>Different dashboards for different user roles with protected routes and access control.</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">📊</div>
-            <h3>Interactive Dashboards</h3>
-            <p>Each role gets a unique dashboard with relevant statistics, charts, and data views.</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">📱</div>
+            <p>Separate dashboards for Admin, Recruiter, and Candidate with protected routes.</p>
+          </motion.div>
+          <motion.div className="feature-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+            <div className="feature-icon-wrapper blue"><BarChart3 size={24} /></div>
+            <h3>AI Analytics</h3>
+            <p>Intelligent candidate scoring, ranking algorithms, and performance insights.</p>
+          </motion.div>
+          <motion.div className="feature-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+            <div className="feature-icon-wrapper green"><Smartphone size={24} /></div>
             <h3>Responsive Design</h3>
             <p>Works seamlessly across desktop, tablet, and mobile devices.</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">⚡</div>
-            <h3>Fast & Lightweight</h3>
-            <p>Built with React and Vite for blazing fast performance and smooth navigation.</p>
-          </div>
+          </motion.div>
+          <motion.div className="feature-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+            <div className="feature-icon-wrapper orange"><Zap size={24} /></div>
+            <h3>Mock Interviews</h3>
+            <p>AI-powered mock interviews with real-time feedback and integrity analysis.</p>
+          </motion.div>
         </div>
       </section>
 
       <section className="roles-section">
         <h2>Available Roles</h2>
+        <p className="section-subtitle">Three dashboards tailored for different users</p>
         <div className="roles-grid">
-          <div className="role-card">
-            <div className="role-icon">👨‍💼</div>
+          <motion.div className="role-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <div className="role-icon-wrapper"><Users size={32} /></div>
             <h3>Admin</h3>
-            <p>Manage users, view revenue, handle pending requests, and monitor system activity.</p>
-            <Link to="/login" className="role-btn">Login as Admin</Link>
-          </div>
-          <div className="role-card">
-            <div className="role-icon">🎓</div>
-            <h3>Student</h3>
-            <p>Track courses, assignments, attendance, grades, and upcoming deadlines.</p>
-            <Link to="/login" className="role-btn">Login as Student</Link>
-          </div>
-          <div className="role-card">
-            <div className="role-icon">💼</div>
+            <p>Manage users, monitor system health, configure AI settings, and view platform analytics.</p>
+            <Link to="/login" className="role-btn">Login as Admin <ArrowRight size={16} /></Link>
+          </motion.div>
+          <motion.div className="role-card featured" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+            <div className="role-icon-wrapper"><Briefcase size={32} /></div>
             <h3>Recruiter</h3>
-            <p>View candidates, manage job postings, schedule interviews, and track applications.</p>
-            <Link to="/login" className="role-btn">Login as Recruiter</Link>
-          </div>
+            <p>Rank candidates, schedule interviews, generate reports, and use AI assessment tools.</p>
+            <Link to="/login" className="role-btn">Login as Recruiter <ArrowRight size={16} /></Link>
+          </motion.div>
+          <motion.div className="role-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+            <div className="role-icon-wrapper"><GraduationCap size={32} /></div>
+            <h3>Candidate</h3>
+            <p>Take mock interviews, view AI feedback, track performance, and manage your resume.</p>
+            <Link to="/login" className="role-btn">Login as Candidate <ArrowRight size={16} /></Link>
+          </motion.div>
         </div>
       </section>
 
       <section className="future-auth-section">
         <h2>Future Authentication</h2>
-        <div className="future-auth-content">
-          <p>This project currently uses a dummy login system because backend implementation is outside the scope of this assignment. In a real-world application, the following authentication methods would be integrated:</p>
-          <div className="auth-methods">
-            <div className="auth-method">
-              <h4>🔑 OAuth 2.0</h4>
-              <p>Social login with Google, GitHub, and other providers for seamless user authentication.</p>
-              <Link to="/oauth-info" className="learn-more-link">Learn More →</Link>
-            </div>
-            <div className="auth-method">
-              <h4>🎫 JWT (JSON Web Tokens)</h4>
-              <p>Secure token-based authentication for stateless API communication with the backend.</p>
-              <Link to="/jwt-info" className="learn-more-link">Learn More →</Link>
-            </div>
+        <p className="section-subtitle">This project uses dummy login. In production, these methods would be integrated.</p>
+        <div className="auth-methods">
+          <div className="auth-method">
+            <div className="auth-icon"><Key size={24} /></div>
+            <h4>OAuth 2.0</h4>
+            <p>Social login with Google, GitHub, and other providers for seamless authentication.</p>
+            <Link to="/oauth-info" className="learn-more-link">Learn More <ArrowRight size={14} /></Link>
+          </div>
+          <div className="auth-method">
+            <div className="auth-icon"><Ticket size={24} /></div>
+            <h4>JWT Tokens</h4>
+            <p>Secure token-based authentication for stateless API communication with the backend.</p>
+            <Link to="/jwt-info" className="learn-more-link">Learn More <ArrowRight size={14} /></Link>
           </div>
         </div>
       </section>
 
       <footer className="home-footer">
-        <p>Internship Project by Hemanth M &copy; 2026</p>
+        <div className="footer-brand">
+          <Brain size={20} />
+          <span>HireAI</span>
+        </div>
+        <p>Role-Based Dashboard System - An Internship Project by Hemanth M &copy; 2026</p>
         <div className="footer-links">
-          <Link to="/oauth-info">OAuth Info</Link>
-          <Link to="/jwt-info">JWT Info</Link>
+          <Link to="/oauth-info">OAuth</Link>
+          <Link to="/jwt-info">JWT</Link>
           <Link to="/login">Login</Link>
         </div>
       </footer>

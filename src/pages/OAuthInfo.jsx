@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
+import { ArrowLeft, Shield, CheckCircle, ArrowRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import '../styles/infopage.css'
 
 function OAuthInfo() {
   return (
     <div className="info-page">
       <nav className="info-nav">
-        <Link to="/" className="back-link">← Back to Home</Link>
+        <Link to="/" className="back-link"><ArrowLeft size={16} /> Back to Home</Link>
         <div className="info-nav-links">
           <Link to="/jwt-info">JWT Info</Link>
           <Link to="/login">Login</Link>
@@ -13,14 +15,14 @@ function OAuthInfo() {
       </nav>
 
       <div className="info-container">
-        <h1>Understanding OAuth 2.0</h1>
+        <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>Understanding OAuth 2.0</motion.h1>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <h2>What is OAuth?</h2>
           <p>OAuth 2.0 is an authorization framework that allows third-party applications to access a user's resources without exposing their credentials. Instead of sharing passwords, users can grant limited access to their data through tokens.</p>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <h2>Why is OAuth Used?</h2>
           <ul>
             <li>Users don't have to share their passwords with third-party apps</li>
@@ -29,9 +31,9 @@ function OAuthInfo() {
             <li>It provides a standardized way to handle authorization</li>
             <li>Reduces the risk of credential theft</li>
           </ul>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <h2>Google Login Flow</h2>
           <div className="flow-steps">
             <div className="flow-step">
@@ -59,9 +61,9 @@ function OAuthInfo() {
               <p>Application uses the access token to fetch user data from Google</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <h2>GitHub Login Flow</h2>
           <p>GitHub OAuth follows the same pattern as Google OAuth. The application registers with GitHub, gets a client ID and secret, and follows the authorization code flow to authenticate users.</p>
           <div className="flow-steps">
@@ -86,9 +88,9 @@ function OAuthInfo() {
               <p>Use the token to access GitHub API endpoints</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
           <h2>Authorization Code Flow</h2>
           <div className="flow-diagram">
             <div className="flow-box">User</div>
@@ -102,9 +104,9 @@ function OAuthInfo() {
             <div className="flow-box">Resource Server</div>
           </div>
           <p>The authorization code flow is the most secure OAuth flow. The app never directly handles user credentials. Instead, it receives an authorization code which is exchanged server-side for tokens.</p>
-        </div>
+        </motion.div>
 
-        <div className="info-card">
+        <motion.div className="info-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
           <h2>Advantages of OAuth</h2>
           <ul>
             <li>Enhanced security - no password sharing</li>
@@ -113,7 +115,7 @@ function OAuthInfo() {
             <li>Widely adopted - supported by Google, GitHub, Facebook, etc.</li>
             <li>Token-based - easy to manage and revoke access</li>
           </ul>
-        </div>
+        </motion.div>
       </div>
     </div>
   )
