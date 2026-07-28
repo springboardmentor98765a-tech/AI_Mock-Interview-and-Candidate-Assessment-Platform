@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartHire AI - Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dashboard-page">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="logo">
+        <span class="logo-mark">SH</span>
+        <span class="logo-text">SmartHire <strong>AI</strong></span>
+      </a>
+      <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close sidebar">✕</button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="active" onclick="showSection('dashboard', this)">📊 Dashboard</a>
+      <a href="#" onclick="showSection('users', this)">👥 Manage Users</a>
+      <a href="#" onclick="showSection('recruiters', this)">🏢 Manage Recruiters</a>
+      <a href="#" onclick="showSection('settings', this)">⚙️ Platform Settings</a>
+      <a href="#" onclick="showSection('activity', this)">📡 System Activity</a>
+      <a href="#" onclick="showSection('ai', this)">🤖 AI Configuration</a>
+      <a href="#" onclick="showSection('analytics', this)">📈 Platform Analytics</a>
+      <a href="#" onclick="showSection('settings', this)">⚙️ Settings</a>
+      <a href="#" onclick="logoutUser()">🚪 Logout</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN AREA ============ -->
+  <div class="main-area" id="mainArea">
+    <header class="topbar">
+      <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-title">Admin Dashboard</div>
+      <div class="topbar-actions">
+        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light mode" aria-label="Toggle theme">
+          <span class="theme-icon-light">🌙</span>
+          <span class="theme-icon-dark">☀️</span>
+        </button>
+        <div class="user-chip" id="userChip">👤 Guest</div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- ====== DASHBOARD ====== -->
+      <section class="section active" id="dashboard">
+        <div class="welcome-card card">
+          <div>
+            <h1 id="welcomeName">Welcome, Guest 👋</h1>
+            <p>Platform health and user overview at a glance.</p>
+          </div>
+          <button class="btn btn-primary" onclick="showSection('ai', document.querySelector('.sidebar-nav a:nth-child(6)'))">AI Configuration</button>
+        </div>
+
+        <!-- ====== STATISTICS ====== -->
+        <div class="stats-grid">
+          <div class="card stat-card">
+            <div class="stat-icon">👥</div>
+            <div><div class="stat-value">1,248</div><div class="stat-label">Total Users</div></div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🎓</div>
+            <div><div class="stat-value">980</div><div class="stat-label">Candidates</div></div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🏢</div>
+            <div><div class="stat-value">230</div><div class="stat-label">Recruiters</div></div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🎥</div>
+            <div><div class="stat-value">38</div><div class="stat-label">Active Interviews</div></div>
+          </div>
+        </div>
+
+        <!-- ====== SYSTEM ACTIVITY ====== -->
+        <div class="card">
+          <h2 class="card-title">System Activity</h2>
+          <ul class="activity-list" id="activityList"></ul>
+        </div>
+
+        <!-- ====== AI CONFIG ====== -->
+        <div class="card">
+          <h2 class="card-title">AI Configuration</h2>
+          <div class="settings-card">
+            <label class="toggle-row">
+              <span>🤖 AI Interview Evaluation</span>
+              <input type="checkbox" checked />
+              <span class="switch"></span>
+            </label>
+            <label class="toggle-row">
+              <span>📄 Resume Analysis</span>
+              <input type="checkbox" checked />
+              <span class="switch"></span>
+            </label>
+            <label class="toggle-row">
+              <span>💬 Automated Feedback</span>
+              <input type="checkbox" checked />
+              <span class="switch"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== MANAGE USERS ====== -->
+      <section class="section" id="users">
+        <h1 class="section-title">Manage Users</h1>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="userTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== MANAGE RECRUITERS ====== -->
+      <section class="section" id="recruiters">
+        <h1 class="section-title">Manage Recruiters</h1>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="recruiterTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== SYSTEM ACTIVITY ====== -->
+      <section class="section" id="activity">
+        <h1 class="section-title">System Activity</h1>
+        <div class="card">
+          <ul class="activity-list" id="activityList2"></ul>
+        </div>
+      </section>
+
+      <!-- ====== AI CONFIGURATION ====== -->
+      <section class="section" id="ai">
+        <h1 class="section-title">AI Configuration</h1>
+        <div class="card settings-card">
+          <label class="toggle-row">
+            <span>🤖 AI Interview Evaluation</span>
+            <input type="checkbox" checked />
+            <span class="switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>📄 Resume Analysis</span>
+            <input type="checkbox" checked />
+            <span class="switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>💬 Automated Feedback</span>
+            <input type="checkbox" checked />
+            <span class="switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>🌙 Dark Mode</span>
+            <input type="checkbox" id="settingsThemeToggle" onchange="toggleTheme()" />
+            <span class="switch"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- ====== PLATFORM ANALYTICS ====== -->
+      <section class="section" id="analytics">
+        <h1 class="section-title">Platform Analytics</h1>
+        <div class="card">
+          <h2 class="card-title">User Distribution</h2>
+          <div class="progress-list" id="platformBars"></div>
+        </div>
+      </section>
+
+      <!-- ====== PLATFORM SETTINGS ====== -->
+      <section class="section" id="settings">
+        <h1 class="section-title">Platform Settings</h1>
+        <div class="card settings-card">
+          <label class="toggle-row">
+            <span>📧 Platform Email Alerts</span>
+            <input type="checkbox" checked />
+            <span class="switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>🔒 Maintenance Mode</span>
+            <input type="checkbox" />
+            <span class="switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>🌙 Dark Mode</span>
+            <input type="checkbox" id="settingsThemeToggle" onchange="toggleTheme()" />
+            <span class="switch"></span>
+          </label>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="/script.js"></script>
+</body>
+</html>
