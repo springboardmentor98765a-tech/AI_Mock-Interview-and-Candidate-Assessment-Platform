@@ -36,8 +36,8 @@ nav img{
     text-decoration: none; /*--removes underlines--*/
     font-size: 13px;
 }
-.nav-links ul li :hover{
-    background-color: aqua;
+.nav-links a:hover{
+    color: rgb(25, 0, 255);
 }
 .s1{
     color: #fff;
