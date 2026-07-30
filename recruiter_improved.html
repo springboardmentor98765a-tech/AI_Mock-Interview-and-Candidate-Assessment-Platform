@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartHire AI - Recruiter Dashboard</title>
+    <style>
+        /* Base Styles */
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --bg-color: #f3f4f6;
+            --text-color: #1f2937;
+            --sidebar-bg: #111827;
+            --card-bg: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Login Overlay */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-box {
+            background: var(--card-bg); padding: 30px; border-radius: 8px; width: 100%; max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .login-box h2 { margin-bottom: 20px; text-align: center; color: var(--primary-color); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; }
+        .btn { width: 100%; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn:hover { background: var(--secondary-color); }
+        .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 10px; display: none; }
+
+        /* Dashboard Layout */
+        #dashboard-container { display: none; width: 100%; height: 100%; }
+        
+        /* Sidebar */
+        .sidebar { width: 250px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid #374151; }
+        .sidebar-nav { flex: 1; padding: 20px 0; }
+        .nav-item { padding: 15px 20px; color: #d1d5db; text-decoration: none; display: block; transition: 0.3s; }
+        .nav-item:hover, .nav-item.active { background: #374151; color: white; border-left: 4px solid var(--primary-color); }
+        .sidebar-footer { padding: 20px; border-top: 1px solid #374151; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .topbar { background: var(--card-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .content-area { padding: 30px; }
+        
+        /* Dashboard Cards */
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { font-size: 1rem; color: #6b7280; margin-bottom: 10px; }
+        .card .value { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); }
+
+        /* Tables & Lists */
+        .section-title { margin-bottom: 15px; font-size: 1.25rem; }
+        .data-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .data-table th, .data-table td { padding: 15px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .data-table th { background: #f9fafb; font-weight: 600; color: #4b5563; }
+        
+        /* Action Buttons */
+        .btn-sm { padding: 6px 12px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+        .btn-outline { padding: 6px 12px; background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Simulation -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>SmartHire AI Login</h2>
+            <p style="font-size: 0.8rem; color: #6b7280; margin-bottom: 15px; text-align: center;">Recruiter Demo (User: admin, Pass: 1234)</p>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" placeholder="Enter username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Enter password">
+            </div>
+            <button class="btn" onclick="handleLogin()">Login</button>
+            <div id="login-error" class="error-msg">Invalid credentials. Please try again.</div>
+        </div>
+    </div>
+
+    <!-- Recruiter Dashboard -->
+    <div id="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">SmartHire AI</div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active">Dashboard</a>
+                <a href="#" class="nav-item">Candidate Analytics</a>
+                <a href="#" class="nav-item">Compare Candidates</a>
+                <a href="#" class="nav-item">Interview Templates</a>
+                <a href="#" class="nav-item">Live Sessions</a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-outline" style="width: 100%; color: white; border-color: white;" onclick="handleLogout()">Log Out</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h2 style="font-size: 1.2rem; font-weight: 500;">Welcome back, <span id="user-display-name">Recruiter</span></h2>
+                <div>
+                    <button class="btn-sm">Create Template</button>
+                    <button class="btn-sm" style="margin-left: 10px;">Invite Candidate</button>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <h2 class="section-title">Hiring Overview</h2>
+                
+                <!-- Metrics Grid -->
+                <div class="grid-cards">
+                    <div class="card">
+                        <h3>Total Candidates</h3>
+                        <div class="value" id="metric-total">--</div>
+                    </div>
+                    <div class="card">
+                        <h3>Interviews Conducted</h3>
+                        <div class="value" id="metric-interviews">--</div>
+                    </div>
+                    <div class="card">
+                        <h3>Average Score</h3>
+                        <div class="value" id="metric-avg">--%</div>
+                    </div>
+                    <div class="card">
+                        <h3>Pending Reviews</h3>
+                        <div class="value" id="metric-pending">--</div>
+                    </div>
+                </div>
+
+                <h2 class="section-title">Recent Candidate Reports</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Candidate Name</th>
+                            <th>Applied Role</th>
+                            <th>Interview Date</th>
+                            <th>Overall Score</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="candidate-list-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- 1. Fake Database ---
+        const fakeDB = {
+            users: [
+                { username: "admin", password: "1234", role: "recruiter", fullName: "Hiring Manager" }
+            ],
+            recruiterData: {
+                metrics: {
+                    totalCandidates: 142,
+                    interviewsConducted: 89,
+                    averageScore: 76,
+                    pendingReviews: 14
+                },
+                candidates: [
+                    { name: "Akilan", role: "Data Scientist", date: "2026-07-22", score: 87 },
+                    { name: "Jane Smith", role: "Frontend Developer", date: "2026-07-21", score: 92 },
+                    { name: "Michael Chen", role: "Backend Engineer", date: "2026-07-19", score: 65 },
+                    { name: "Sarah Johnson", role: "Product Manager", date: "2026-07-18", score: 81 }
+                ]
+            }
+        };
+
+        // --- 2. Authentication Logic ---
+        function checkAuth() {
+            const loggedInUser = JSON.parse(localStorage.getItem('smarthire_recruiter'));
+            if (loggedInUser && loggedInUser.role === 'recruiter') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('dashboard-container').style.display = 'flex';
+                loadDashboardData(loggedInUser);
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+                document.getElementById('dashboard-container').style.display = 'none';
+            }
+        }
+
+        function handleLogin() {
+            const userIn = document.getElementById('username').value;
+            const passIn = document.getElementById('password').value;
+            const errorMsg = document.getElementById('login-error');
+
+            const user = fakeDB.users.find(u => u.username.toLowerCase() === userIn.toLowerCase() && u.password === passIn);
+            
+            if (user && user.role === 'recruiter') {
+                localStorage.setItem('smarthire_recruiter', JSON.stringify(user));
+                errorMsg.style.display = 'none';
+                checkAuth();
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('smarthire_recruiter');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            checkAuth();
+        }
+
+        // --- 3. Populate Dashboard Data ---
+        function loadDashboardData(user) {
+            document.getElementById('user-display-name').innerText = user.fullName;
+            
+            // Load Metrics
+            document.getElementById('metric-total').innerText = fakeDB.recruiterData.metrics.totalCandidates;
+            document.getElementById('metric-interviews').innerText = fakeDB.recruiterData.metrics.interviewsConducted;
+            document.getElementById('metric-avg').innerText = fakeDB.recruiterData.metrics.averageScore + '%';
+            document.getElementById('metric-pending').innerText = fakeDB.recruiterData.metrics.pendingReviews;
+
+            // Load Candidate List Table
+            const tbody = document.getElementById('candidate-list-body');
+            tbody.innerHTML = '';
+            fakeDB.recruiterData.candidates.forEach(candidate => {
+                const row = `<tr>
+                    <td><strong>${candidate.name}</strong></td>
+                    <td>${candidate.role}</td>
+                    <td>${candidate.date}</td>
+                    <td><strong>${candidate.score}/100</strong></td>
+                    <td>
+                        <button class="btn-outline">View Report</button>
+                        <button class="btn-outline" style="margin-left: 5px;">Compare</button>
+                    </td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Initialize
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>

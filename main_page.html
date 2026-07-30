@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartHire AI - Central Login</title>
+    <style>
+        /* Base Professional Styles */
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --bg-color: #f3f4f6;
+            --text-color: #1f2937;
+            --card-bg: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        /* Login Container */
+        .login-container {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo-section { text-align: center; margin-bottom: 30px; }
+        .logo-section h1 { color: var(--primary-color); font-size: 2rem; margin-bottom: 5px; }
+        .logo-section p { color: #6b7280; font-size: 0.9rem; }
+
+        /* Form Elements */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            font-size: 1rem;
+            background-color: #f9fafb;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: #fff;
+        }
+
+        /* Buttons and Alerts */
+        .btn { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--primary-color); 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            transition: background 0.3s;
+        }
+        .btn:hover { background: var(--secondary-color); }
+        .error-msg { color: #dc2626; font-size: 0.875rem; margin-top: 15px; display: none; text-align: center; font-weight: 500; }
+        
+        /* Demo Credentials Note */
+        .demo-credentials {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #eff6ff;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #1e3a8a;
+        }
+        .demo-credentials ul { margin-left: 20px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="logo-section">
+            <h1>SmartHire AI</h1>
+            <p>Multifunctional Assessment Platform</p>
+        </div>
+
+        <div class="form-group">
+            <label for="role-select">Select Your Role</label>
+            <select id="role-select">
+                <option value="candidate">Candidate</option>
+                <option value="recruiter">Recruiter</option>
+                <option value="admin">System Admin</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="Enter username" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter password">
+        </div>
+
+        <button class="btn" onclick="authenticateUser()">Secure Login</button>
+        <div id="login-error" class="error-msg">Invalid credentials for the selected role.</div>
+
+        <div class="demo-credentials">
+            <strong>Demo Accounts:</strong>
+            <ul>
+                <li><strong>Candidate:</strong> akilan / 123</li>
+                <li><strong>Recruiter:</strong> admin / 0000</li>
+                <li><strong>Admin:</strong> superadmin / 1234</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Centralized Fake Database for Routing
+        const systemUsers = [
+            { username: "akilan", password: "123", role: "candidate", redirectPage: "candidate_improved.html" },
+            { username: "admin", password: "0000", role: "recruiter", redirectPage: "recruiter_improved.html" },
+            { username: "superadmin", password: "1234", role: "admin", redirectPage: "admin_improved.html" }
+        ];
+
+        function authenticateUser() {
+            const selectedRole = document.getElementById('role-select').value;
+            const userIn = document.getElementById('username').value.trim();
+            const passIn = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('login-error');
+
+            // Find matching user in the database
+            const matchedUser = systemUsers.find(u => 
+                u.username.toLowerCase() === userIn.toLowerCase() && 
+                u.password === passIn && 
+                u.role === selectedRole
+            );
+            
+            if (matchedUser) {
+                // Hide error
+                errorMsg.style.display = 'none';
+                
+                // Optional: You can store a session flag here if you want to bypass the login screens on the individual pages
+                localStorage.setItem(`smarthire_${matchedUser.role}`, JSON.stringify(matchedUser));
+                
+                // Redirect to the dedicated HTML file
+                window.location.href = matchedUser.redirectPage;
+            } else {
+                // Show error
+                errorMsg.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
