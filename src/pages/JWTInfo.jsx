@@ -35,7 +35,7 @@ function JWTInfo() {
             <div className="jwt-part jwt-payload">
               <h4>Payload</h4>
               <p>Contains claims - statements about the user and additional metadata.</p>
-              <div className="jwt-example">{`{"sub": "1234", "name": "John", "role": "admin"}`}</div>
+              <div className="jwt-example">{`{"id": 1, "email": "user@example.com", "role": "USER"}`}</div>
             </div>
             <div className="jwt-dot">.</div>
             <div className="jwt-part jwt-signature">

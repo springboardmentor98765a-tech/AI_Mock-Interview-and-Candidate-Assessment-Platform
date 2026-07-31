@@ -132,6 +132,59 @@
   border-radius: var(--radius-sm);
   font-size: 13px;
   margin-bottom: 18px;
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+.success-message {
+  background: var(--success-bg);
+  color: var(--success);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(16,185,129,0.2);
+}
+
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  margin-bottom: 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.google-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--text-muted);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 .form-group {
@@ -148,27 +201,45 @@
 
 .input-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.input-wrapper svg {
+.input-wrapper > svg:first-child {
   position: absolute;
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
   pointer-events: none;
+  z-index: 1;
+}
+
+.input-wrapper > button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
 }
 
 .input-wrapper input,
 .input-wrapper select {
   width: 100%;
-  padding: 10px 14px 10px 40px;
+  padding: 10px 38px 10px 40px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--text-primary);
   transition: all 0.2s;
   background: #fff;
+  flex: 1;
 }
 
 .input-wrapper input:focus,
@@ -189,10 +260,16 @@
   font-weight: 600;
   margin-top: 8px;
   transition: background 0.2s;
+  cursor: pointer;
 }
 
-.login-btn:hover {
+.login-btn:hover:not(:disabled) {
   background: var(--primary-dark);
+}
+
+.login-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .login-note {

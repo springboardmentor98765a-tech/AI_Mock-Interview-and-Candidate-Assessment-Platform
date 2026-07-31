@@ -84,19 +84,19 @@ function Home() {
       </section>
 
       <section className="future-auth-section">
-        <h2>Future Authentication</h2>
-        <p className="section-subtitle">This project uses dummy login. In production, these methods would be integrated.</p>
+        <h2>Secure Authentication</h2>
+        <p className="section-subtitle">Enterprise-grade authentication fully integrated into the platform</p>
         <div className="auth-methods">
           <div className="auth-method">
             <div className="auth-icon"><Key size={24} /></div>
-            <h4>OAuth 2.0</h4>
-            <p>Social login with Google, GitHub, and other providers for seamless authentication.</p>
+            <h4>OAuth 2.0 with Google</h4>
+            <p>Sign in with your Google account. Your profile, avatar, and email are securely fetched and stored automatically.</p>
             <Link to="/oauth-info" className="learn-more-link">Learn More <ArrowRight size={14} /></Link>
           </div>
           <div className="auth-method">
             <div className="auth-icon"><Ticket size={24} /></div>
-            <h4>JWT Tokens</h4>
-            <p>Secure token-based authentication for stateless API communication with the backend.</p>
+            <h4>JWT Authentication</h4>
+            <p>Every session is secured with a signed JWT token containing your ID, email, and role — valid for 7 days.</p>
             <Link to="/jwt-info" className="learn-more-link">Learn More <ArrowRight size={14} /></Link>
           </div>
         </div>

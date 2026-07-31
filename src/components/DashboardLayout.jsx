@@ -1,29 +1,32 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Bell, Settings, User, LogOut, Menu, X, Brain } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import '../styles/layout.css'
 
 function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
+  const { logout, user } = useAuth()
+  const [sidebarOpen, setSidebarOpen]  = useState(false)
+  const [profileOpen, setProfileOpen]  = useState(false)
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn')
-    localStorage.removeItem('role')
+  const displayName = user?.name || userName || 'User'
+  const roleLabels = { ADMIN: 'Admin', RECRUITER: 'Recruiter', USER: 'Candidate' }
+  const displayRole = user?.role ? (roleLabels[user.role] || user.role) : (role || 'User')
+  const initials    = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+
+  const handleLogout = async () => {
+    await logout()
     navigate('/login')
   }
 
-  const initials = userName ? userName.split(' ').map(n => n[0]).join('') : 'U'
-
   return (
     <div className="layout-container">
-      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
       <aside className={`layout-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon">
-            <Brain size={20} />
-          </div>
+          <div className="brand-icon"><Brain size={20} /></div>
           <div className="brand-text">
             <h2>HireAI</h2>
             <span>Recruitment Platform</span>
@@ -37,7 +40,7 @@ function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
           <div key={sIdx} className="sidebar-section">
             <div className="sidebar-section-title">{section.title || section.section}</div>
             <div className="sidebar-links">
-              {(section.items || section.links).map((item, iIdx) => (
+              {(section.items || section.links || []).map((item, iIdx) => (
                 <a
                   key={iIdx}
                   href="#"
@@ -56,13 +59,12 @@ function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
           <div className="sidebar-user">
             <div className="sidebar-avatar">{initials}</div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{userName}</div>
-              <div className="sidebar-user-role">{role}</div>
+              <div className="sidebar-user-name">{displayName}</div>
+              <div className="sidebar-user-role">{displayRole}</div>
             </div>
           </div>
           <button className="sidebar-logout-btn" onClick={handleLogout}>
-            <LogOut size={16} />
-            Logout
+            <LogOut size={16} /> Logout
           </button>
         </div>
       </aside>
@@ -90,14 +92,14 @@ function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
             <div className="navbar-profile">
               <button className="navbar-profile-btn" onClick={() => setProfileOpen(!profileOpen)}>
                 <div className="navbar-avatar">{initials}</div>
-                <span className="navbar-profile-name">{userName}</span>
+                <span className="navbar-profile-name">{displayName}</span>
               </button>
               {profileOpen && (
                 <div className="profile-dropdown">
-                  <a href="#" onClick={(e) => e.preventDefault()}>
+                  <Link to="/settings" onClick={() => setProfileOpen(false)}>
                     <User size={16} /> Profile
-                  </a>
-                  <Link to="/settings">
+                  </Link>
+                  <Link to="/settings" onClick={() => setProfileOpen(false)}>
                     <Settings size={16} /> Settings
                   </Link>
                   <button className="dropdown-danger" onClick={handleLogout}>

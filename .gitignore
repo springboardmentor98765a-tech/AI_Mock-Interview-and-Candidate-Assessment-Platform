@@ -8,9 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+backend/node_modules
 dist
 dist-ssr
 *.local
+
+# Environment variables - NEVER commit these
+backend/.env
+.env
 
 # Editor directories and files
 .vscode/*

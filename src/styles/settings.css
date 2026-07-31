@@ -252,3 +252,95 @@
     grid-template-columns: 1fr;
   }
 }
+
+.profile-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.profile-avatar-large {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-avatar-info h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.profile-avatar-info p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.success-message {
+  background: var(--success-bg);
+  color: var(--success);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(16,185,129,0.2);
+}
+
+.error-message {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+.form-field input[readonly] {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.form-field input:disabled,
+.form-field textarea:disabled {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge.purple { background: var(--primary-bg); color: var(--primary); }
+.badge.green  { background: var(--success-bg); color: var(--success); }
+.badge.gray   { background: #f1f5f9; color: var(--text-secondary); }
+.badge.blue   { background: rgba(14,165,233,0.1); color: #0284c7; }
+.badge.orange { background: var(--warning-bg); color: var(--warning); }
+.badge.red    { background: var(--danger-bg); color: var(--danger); }
+
