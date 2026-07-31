@@ -1,294 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartHire AI - AI-Powered Mock Interview Platform</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Portal</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="landing-page">
+<body>
 
-  <!-- ============ HEADER / NAVBAR ============ -->
-  <header class="navbar" id="navbar">
-    <div class="navbar-inner">
-      <a href="#home" class="logo">
-        <span class="logo-mark">SH</span>
-        <span class="logo-text">SmartHire <strong>AI</strong></span>
-      </a>
+    <nav class="navbar">
+        <div class="logo">Dashboard Portal</div>
+        <div class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#features">Features</a>
+            <a href="login.html" class="btn">Login</a>
+        </div>
+    </nav>
 
-      <nav class="nav-links" id="navLinks">
-        <a href="#home">Home</a>
-        <a href="#features">Features</a>
-        <a href="#how">How It Works</a>
-        <a href="#about">About</a>
-        <a href="#contact">Contact</a>
-      </nav>
-
-      <div class="nav-actions">
-        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light mode" aria-label="Toggle theme">
-          <span class="theme-icon-light">🌙</span>
-          <span class="theme-icon-dark">☀️</span>
-        </button>
-        <button class="btn btn-primary" onclick="openLoginModal()">Login</button>
-        <button class="btn btn-ghost" onclick="openLoginModal()">Get Started</button>
-        <button class="menu-toggle" id="menuToggle" aria-label="Open menu">
-          <span></span><span></span><span></span>
-        </button>
-      </div>
+    <div class="container" id="home">
+        <h1>Welcome to Role-Based Portal</h1>
+        <p style="margin-top: 10px;">Select your role and manage your workspace easily.</p>
+        <br>
+        <a href="login.html" class="btn">Get Started</a>
     </div>
-  </header>
 
-  <!-- ============ HERO SECTION ============ -->
-  <section class="hero" id="home">
-    <div class="hero-inner">
-      <div class="hero-text">
-        <span class="hero-badge">AI-Powered Interview Platform</span>
-        <h1>Hire Smarter.<br />Interview Better.</h1>
-        <p>
-          SmartHire AI is an AI-powered mock interview and candidate assessment
-          platform that helps candidates improve their interview skills and helps
-          recruiters make better hiring decisions.
-        </p>
-        <div class="hero-buttons">
-          <button class="btn btn-primary btn-lg" onclick="openLoginModal()">Get Started</button>
-          <a href="#features" class="btn btn-outline btn-lg">Explore Platform</a>
-        </div>
-        <div class="hero-stats">
-          <div><strong>1,248+</strong><span>Active Users</span></div>
-          <div><strong>10k+</strong><span>Mock Interviews</span></div>
-          <div><strong>96%</strong><span>Satisfaction</span></div>
-        </div>
-      </div>
-      <div class="hero-visual">
-        <!-- Floating mini stat cards -->
-        <div class="float-card float-card-1">
-          <span class="fc-icon">🎯</span>
-          <div><strong>92%</strong><span>Match Score</span></div>
-        </div>
-        <div class="float-card float-card-2">
-          <span class="fc-icon">⚡</span>
-          <div><strong>AI</strong><span>Live Feedback</span></div>
-        </div>
+    <div class="container" id="about">
+        <h2>About Section</h2>
+        <p style="margin-top: 10px;">This system allows seamless switching between Admin, Student, Doctor, and Recruiter dashboards with specific user access level.</p>
+    </div>
 
-        <!-- Main preview card -->
-        <div class="preview-card">
-          <div class="preview-head">
-            <span class="live-dot"></span>
-            <span class="preview-title">Mock Interview</span>
-            <span class="preview-tag">In Progress</span>
-          </div>
-
-          <div class="preview-body">
-            <!-- Score gauge -->
-            <div class="gauge">
-              <svg viewBox="0 0 120 120" class="gauge-svg">
-                <circle cx="60" cy="60" r="50" class="gauge-track" />
-                <circle cx="60" cy="60" r="50" class="gauge-fill" />
-              </svg>
-              <div class="gauge-center">
-                <strong>87</strong>
-                <span>Score</span>
-              </div>
+    <div class="container" id="features">
+        <h2>Key Features</h2>
+        <div class="card-grid">
+            <div class="card">
+                <h3>Secure Authentication</h3>
+                <p>Role authorization logic using localStorage.</p>
             </div>
-
-            <!-- Skill bars -->
-            <div class="skill-list">
-              <div class="skill-row">
-                <span>Technical</span>
-                <div class="bar"><i style="width:88%"></i></div>
-              </div>
-              <div class="skill-row">
-                <span>Communication</span>
-                <div class="bar"><i style="width:76%"></i></div>
-              </div>
-              <div class="skill-row">
-                <span>Confidence</span>
-                <div class="bar"><i style="width:92%"></i></div>
-              </div>
-              <div class="skill-row">
-                <span>Problem Solving</span>
-                <div class="bar"><i style="width:81%"></i></div>
-              </div>
+            <div class="card">
+                <h3>Dynamic Views</h3>
+                <p>Tailored interface for different roles.</p>
             </div>
-          </div>
-
-          <div class="preview-foot">
-            <span class="pf-label">Question 4 of 8</span>
-            <div class="pf-progress"><i style="width:50%"></i></div>
-          </div>
+            <div class="card">
+                <h3>Responsive Design</h3>
+                <p>Works smoothly across Mobile and Desktop screens.</p>
+            </div>
         </div>
-      </div>
     </div>
-  </section>
 
-  <!-- ============ FEATURES SECTION ============ -->
-  <section class="features" id="features">
-    <div class="section-head">
-      <span class="section-tag">Features</span>
-      <h2>Everything you need to ace interviews</h2>
-      <p>Powerful AI-driven tools built for both candidates and recruiters.</p>
-    </div>
-    <div class="feature-grid">
-      <div class="card feature-card">
-        <div class="feature-icon">🎯</div>
-        <h3>AI Mock Interviews</h3>
-        <p>Practice realistic interviews with AI-generated questions and instant feedback.</p>
-      </div>
-      <div class="card feature-card">
-        <div class="feature-icon">📄</div>
-        <h3>Resume Analysis</h3>
-        <p>Get instant insights on your resume strength and skill gaps.</p>
-      </div>
-      <div class="card feature-card">
-        <div class="feature-icon">📊</div>
-        <h3>Performance Analytics</h3>
-        <p>Visualize your progress with detailed score breakdowns and trends.</p>
-      </div>
-      <div class="card feature-card">
-        <div class="feature-icon">🧠</div>
-        <h3>Candidate Assessment</h3>
-        <p>Recruiters evaluate candidates on technical, communication, and behavioural skills.</p>
-      </div>
-      <div class="card feature-card">
-        <div class="feature-icon">📑</div>
-        <h3>Smart Reports</h3>
-        <p>Auto-generated interview reports you can download and share.</p>
-      </div>
-      <div class="card feature-card">
-        <div class="feature-icon">📈</div>
-        <h3>Improvement Tracking</h3>
-        <p>Track skill growth over time and keep your streak alive.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ HOW IT WORKS ============ -->
-  <section class="how" id="how">
-    <div class="section-head">
-      <span class="section-tag">How It Works</span>
-      <h2>From signup to success in four steps</h2>
-    </div>
-    <div class="steps-grid">
-      <div class="card step-card">
-        <div class="step-number">1</div>
-        <h3>Create Account</h3>
-        <p>Sign up as a Candidate, Recruiter, or Admin in seconds.</p>
-      </div>
-      <div class="card step-card">
-        <div class="step-number">2</div>
-        <h3>Attend Mock Interview</h3>
-        <p>Choose a role and start an AI-driven mock interview session.</p>
-      </div>
-      <div class="card step-card">
-        <div class="step-number">3</div>
-        <h3>Get AI-Powered Feedback</h3>
-        <p>Receive instant scores across technical, communication, and confidence.</p>
-      </div>
-      <div class="card step-card">
-        <div class="step-number">4</div>
-        <h3>Track Your Improvement</h3>
-        <p>Monitor your streaks and skill growth on your dashboard.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ ABOUT SECTION ============ -->
-  <section class="about" id="about">
-    <div class="section-head">
-      <span class="section-tag">About</span>
-      <h2>Built to make hiring fair and effective</h2>
-      <p>
-        SmartHire AI was created to bridge the gap between candidates and recruiters.
-        By combining AI-driven mock interviews with structured assessments, we help
-        candidates prepare with confidence and recruiters make data-backed decisions.
-      </p>
-    </div>
-  </section>
-
-  <!-- ============ CONTACT SECTION ============ -->
-  <section class="contact" id="contact">
-    <div class="section-head">
-      <span class="section-tag">Contact</span>
-      <h2>Get in touch with us</h2>
-    </div>
-    <div class="contact-grid">
-      <div class="contact-info">
-        <div class="contact-item"><span class="ci-icon">✉️</span><div><strong>Email</strong><p>hello@smarthire.ai</p></div></div>
-        <div class="contact-item"><span class="ci-icon">📞</span><div><strong>Phone</strong><p>+91 98765 43210</p></div></div>
-        <div class="contact-item"><span class="ci-icon">📍</span><div><strong>Location</strong><p>Bengaluru, India</p></div></div>
-      </div>
-      <form class="contact-form card" id="contactForm" onsubmit="return handleContactForm(event)">
-        <input type="text" placeholder="Your Name" required />
-        <input type="email" placeholder="Your Email" required />
-        <textarea rows="4" placeholder="Your Message" required></textarea>
-        <button type="submit" class="btn btn-primary">Send Message</button>
-        <p class="form-feedback" id="contactFeedback"></p>
-      </form>
-    </div>
-  </section>
-
-  <!-- ============ FOOTER ============ -->
-  <footer class="footer">
-    <div class="footer-grid">
-      <div>
-        <a href="#home" class="logo">
-          <span class="logo-mark">SH</span>
-          <span class="logo-text">SmartHire <strong>AI</strong></span>
-        </a>
-        <p class="footer-text">AI-powered mock interviews and candidate assessments for modern hiring.</p>
-      </div>
-      <div>
-        <h4>Quick Links</h4>
-        <a href="#home">Home</a>
-        <a href="#features">Features</a>
-        <a href="#how">How It Works</a>
-        <a href="#about">About</a>
-      </div>
-      <div>
-        <h4>Features</h4>
-        <a href="#features">AI Mock Interviews</a>
-        <a href="#features">Resume Analysis</a>
-        <a href="#features">Performance Analytics</a>
-        <a href="#features">Smart Reports</a>
-      </div>
-      <div>
-        <h4>Contact</h4>
-        <a href="mailto:hello@smarthire.ai">hello@smarthire.ai</a>
-        <a href="tel:+919876543210">+91 98765 43210</a>
-        <p>Bengaluru, India</p>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>© 2026 SmartHire AI. Built for Infosys Virtual Internship. All rights reserved.</p>
-    </div>
-  </footer>
-
-  <!-- ============ LOGIN MODAL ============ -->
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal card">
-      <button class="modal-close" onclick="closeLoginModal()" aria-label="Close">✕</button>
-      <h2>Welcome to SmartHire AI</h2>
-      <p class="modal-sub">Enter your details to choose a role and access your dashboard.</p>
-      <form id="loginForm" onsubmit="return loginUser(event)">
-        <label for="loginName">Name</label>
-        <input type="text" id="loginName" placeholder="e.g. Mohitha" required />
-
-        <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" placeholder="you@example.com" required />
-
-        <label for="loginRole">Role</label>
-        <select id="loginRole" required>
-          <option value="" disabled selected>Select your role</option>
-          <option value="candidate">Candidate</option>
-          <option value="recruiter">Recruiter</option>
-          <option value="admin">Admin</option>
-        </select>
-
-        <button type="submit" class="btn btn-primary btn-block">Login & Continue</button>
-      </form>
-    </div>
-  </div>
-
-  <script type="module" src="/script.js"></script>
 </body>
 </html>

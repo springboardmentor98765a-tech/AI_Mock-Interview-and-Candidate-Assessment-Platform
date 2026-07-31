@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Doctor Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Health Care Portal 🩺</div>
+        <button class="btn btn-danger" onclick="logoutUser()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <h1>Welcome, Dr. Smith!</h1>
+        <div class="card-grid">
+            <div class="card"><h3>Today's Appointments</h3><p>8 Patients scheduled.</p></div>
+            <div class="card"><h3>Patient Records</h3><p>Access EHR and prescriptions.</p></div>
+            <div class="card"><h3>Emergency Alerts</h3><p>No active emergencies.</p></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script> protectRoute('doctor'); </script>
+</body>
+</html>

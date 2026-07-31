@@ -1,223 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartHire AI - Recruiter Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+    <title>Recruiter Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="dashboard-page">
+<body>
+    <nav class="navbar">
+        <div class="logo">Talent Portal 💼</div>
+        <button class="btn btn-danger" onclick="logoutUser()">Logout</button>
+    </nav>
 
-  <!-- ============ SIDEBAR ============ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="logo">
-        <span class="logo-mark">SH</span>
-        <span class="logo-text">SmartHire <strong>AI</strong></span>
-      </a>
-      <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close sidebar">✕</button>
+    <div class="container">
+        <h1>Welcome, Hiring Manager!</h1>
+        <div class="card-grid">
+            <div class="card"><h3>Active Job Posts</h3><p>5 Open roles.</p></div>
+            <div class="card"><h3>Applicants</h3><p>42 New resumes submitted.</p></div>
+            <div class="card"><h3>Interviews</h3><p>3 Scheduled today.</p></div>
+        </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <a href="#" class="active" onclick="showSection('dashboard', this)">📊 Dashboard</a>
-      <a href="#" onclick="showSection('candidates', this)">👥 Candidates</a>
-      <a href="#" onclick="showSection('analytics', this)">📈 Candidate Analytics</a>
-      <a href="#" onclick="showSection('reports', this)">📑 Candidate Reports</a>
-      <a href="#" onclick="showSection('compare', this)">⚖️ Compare Candidates</a>
-      <a href="#" onclick="showSection('templates', this)">🗂️ Interview Templates</a>
-      <a href="#" onclick="showSection('sessions', this)">🎥 Interview Sessions</a>
-      <a href="#" onclick="showSection('settings', this)">⚙️ Settings</a>
-      <a href="#" onclick="logoutUser()">🚪 Logout</a>
-    </nav>
-  </aside>
-
-  <!-- ============ MAIN AREA ============ -->
-  <div class="main-area" id="mainArea">
-    <header class="topbar">
-      <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open sidebar">
-        <span></span><span></span><span></span>
-      </button>
-      <div class="topbar-title">Recruiter Dashboard</div>
-      <div class="topbar-actions">
-        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light mode" aria-label="Toggle theme">
-          <span class="theme-icon-light">🌙</span>
-          <span class="theme-icon-dark">☀️</span>
-        </button>
-        <div class="user-chip" id="userChip">👤 Guest</div>
-      </div>
-    </header>
-
-    <main class="content">
-
-      <!-- ====== DASHBOARD ====== -->
-      <section class="section active" id="dashboard">
-        <div class="welcome-card card">
-          <div>
-            <h1 id="welcomeName">Welcome, Guest 👋</h1>
-            <p>Here's your hiring overview for today.</p>
-          </div>
-          <button class="btn btn-primary" onclick="showSection('sessions', document.querySelector('.sidebar-nav a:nth-child(7)'))">View Sessions</button>
-        </div>
-
-        <!-- ====== STATISTICS ====== -->
-        <div class="stats-grid">
-          <div class="card stat-card">
-            <div class="stat-icon">👥</div>
-            <div><div class="stat-value">248</div><div class="stat-label">Total Candidates</div></div>
-          </div>
-          <div class="card stat-card">
-            <div class="stat-icon">✅</div>
-            <div><div class="stat-value">186</div><div class="stat-label">Interviews Completed</div></div>
-          </div>
-          <div class="card stat-card">
-            <div class="stat-icon">⭐</div>
-            <div><div class="stat-value">76%</div><div class="stat-label">Avg Candidate Score</div></div>
-          </div>
-          <div class="card stat-card">
-            <div class="stat-icon">⏳</div>
-            <div><div class="stat-value">18</div><div class="stat-label">Pending Reviews</div></div>
-          </div>
-        </div>
-
-        <!-- ====== CANDIDATE ANALYTICS ====== -->
-        <div class="card">
-          <h2 class="card-title">Candidate Analytics</h2>
-          <div class="progress-list" id="analyticsBars"></div>
-        </div>
-
-        <!-- ====== CANDIDATE TABLE ====== -->
-        <div class="card">
-          <h2 class="card-title">Candidates</h2>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr><th>Candidate</th><th>Role</th><th>Score</th><th>Interviews</th><th>Status</th><th>Action</th></tr>
-              </thead>
-              <tbody id="candidateTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====== CANDIDATES ====== -->
-      <section class="section" id="candidates">
-        <h1 class="section-title">Candidates</h1>
-        <div class="card">
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Candidate</th><th>Role</th><th>Score</th><th>Interviews</th><th>Status</th><th>Action</th></tr></thead>
-              <tbody id="candidateTable2"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====== ANALYTICS ====== -->
-      <section class="section" id="analytics">
-        <h1 class="section-title">Candidate Analytics</h1>
-        <div class="card">
-          <h2 class="card-title">Average Skill Scores Across Candidates</h2>
-          <div class="progress-list" id="analyticsBars2"></div>
-        </div>
-      </section>
-
-      <!-- ====== REPORTS ====== -->
-      <section class="section" id="reports">
-        <h1 class="section-title">Candidate Reports</h1>
-        <div class="card">
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>Candidate</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
-              <tbody id="reportTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====== COMPARE ====== -->
-      <section class="section" id="compare">
-        <h1 class="section-title">Compare Candidates</h1>
-        <div class="card">
-          <h2 class="card-title">Ananya vs Rahul — Skill Comparison</h2>
-          <div class="compare-grid" id="compareBars"></div>
-        </div>
-      </section>
-
-      <!-- ====== TEMPLATES ====== -->
-      <section class="section" id="templates">
-        <h1 class="section-title">Interview Templates</h1>
-        <div class="card-grid">
-          <div class="card mock-card">
-            <div class="feature-icon">💻</div>
-            <h3>Technical Interview</h3>
-            <p>Coding, data structures, system design. 45 mins.</p>
-            <button class="btn btn-primary" onclick="showToast('Technical template applied')">Use Template</button>
-          </div>
-          <div class="card mock-card">
-            <div class="feature-icon">🧠</div>
-            <h3>Behavioural Interview</h3>
-            <p>Situational and culture-fit questions. 30 mins.</p>
-            <button class="btn btn-primary" onclick="showToast('Behavioural template applied')">Use Template</button>
-          </div>
-          <div class="card mock-card">
-            <div class="feature-icon">📊</div>
-            <h3>Data Analyst Assessment</h3>
-            <p>SQL, statistics, case study. 40 mins.</p>
-            <button class="btn btn-primary" onclick="showToast('Data Analyst template applied')">Use Template</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====== SESSIONS ====== -->
-      <section class="section" id="sessions">
-        <h1 class="section-title">Interview Sessions</h1>
-        <div class="card-grid">
-          <div class="card session-card">
-            <span class="badge badge-live">● LIVE</span>
-            <h3>Python Developer — Round 2</h3>
-            <p>Candidate: Ananya Sharma</p>
-            <button class="btn btn-primary" onclick="showToast('Joining live session')">Monitor</button>
-          </div>
-          <div class="card session-card">
-            <span class="badge badge-warning">UPCOMING</span>
-            <h3>Full Stack — Round 1</h3>
-            <p>Candidate: Rahul Kumar</p>
-            <button class="btn btn-outline" onclick="showToast('Session reminder set')">Set Reminder</button>
-          </div>
-          <div class="card session-card">
-            <span class="badge badge-warning">UPCOMING</span>
-            <h3>Data Analyst — Round 1</h3>
-            <p>Candidate: Priya Singh</p>
-            <button class="btn btn-outline" onclick="showToast('Session reminder set')">Set Reminder</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====== SETTINGS ====== -->
-      <section class="section" id="settings">
-        <h1 class="section-title">Settings</h1>
-        <div class="card settings-card">
-          <label class="toggle-row">
-            <span>📧 New Candidate Alerts</span>
-            <input type="checkbox" checked />
-            <span class="switch"></span>
-          </label>
-          <label class="toggle-row">
-            <span>🔔 Interview Reminders</span>
-            <input type="checkbox" checked />
-            <span class="switch"></span>
-          </label>
-          <label class="toggle-row">
-            <span>🌙 Dark Mode</span>
-            <input type="checkbox" id="settingsThemeToggle" onchange="toggleTheme()" />
-            <span class="switch"></span>
-          </label>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
-  <script type="module" src="/script.js"></script>
+    <script src="script.js"></script>
+    <script> protectRoute('recruiter'); </script>
 </body>
 </html>
