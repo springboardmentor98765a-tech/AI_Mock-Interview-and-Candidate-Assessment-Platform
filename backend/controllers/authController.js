@@ -11,10 +11,12 @@ async function register(req, res, next) {
       return res.status(409).json({ success: false, message: 'Email already registered' })
     }
 
-    const allowedRoles = ['ADMIN', 'RECRUITER', 'USER']
-    const assignedRole = allowedRoles.includes((role || '').toUpperCase())
-      ? role.toUpperCase()
-      : 'USER'
+    const PUBLIC_ROLES = ['USER', 'RECRUITER']
+    const requestedRole = (role || '').toUpperCase()
+    if (!PUBLIC_ROLES.includes(requestedRole)) {
+      return res.status(400).json({ success: false, message: 'Invalid role selected.' })
+    }
+    const assignedRole = requestedRole
 
     const salt   = await bcrypt.genSalt(12)
     const hashed = await bcrypt.hash(password, salt)
@@ -57,10 +59,14 @@ async function login(req, res, next) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' })
     }
 
-    if (user.provider === 'GOOGLE') {
+    if (user.provider !== 'LOCAL') {
+      const providerMessages = {
+        GOOGLE: 'This account was created using Google. Please sign in with Google.',
+        GITHUB: 'This account was created using GitHub. Please sign in with GitHub.',
+      }
       return res.status(401).json({
         success: false,
-        message: 'This account uses Google login. Please sign in with Google.',
+        message: providerMessages[user.provider] || `This account uses ${user.provider} login. Please use the correct sign-in method.`,
       })
     }
 

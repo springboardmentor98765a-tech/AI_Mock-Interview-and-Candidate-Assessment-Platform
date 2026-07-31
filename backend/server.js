@@ -1,9 +1,10 @@
+// backend/server.js
+
 require('dotenv').config()
 
 const express     = require('express')
 const cors        = require('cors')
 const helmet      = require('helmet')
-const rateLimit   = require('express-rate-limit')
 const passport    = require('./config/passport')
 const authRoutes  = require('./routes/authRoutes')
 const { errorHandler } = require('./middleware/errorHandler')
@@ -21,23 +22,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max:      200,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { success: false, message: 'Too many requests, please try again later.' },
-})
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max:      20,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { success: false, message: 'Too many authentication attempts.' },
-})
-
-app.use(globalLimiter)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(passport.initialize())
@@ -46,7 +30,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'HireAI backend is running' })
 })
 
-app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/auth', authRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })

@@ -4,20 +4,26 @@ import { Search, Bell, Settings, User, LogOut, Menu, X, Brain } from 'lucide-rea
 import { useAuth } from '../context/AuthContext'
 import '../styles/layout.css'
 
-function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
+function DashboardLayout({ children, title, role, sidebarLinks, userName, activeSection, onSectionChange }) {
   const navigate = useNavigate()
   const { logout, user } = useAuth()
-  const [sidebarOpen, setSidebarOpen]  = useState(false)
-  const [profileOpen, setProfileOpen]  = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const displayName = user?.name || userName || 'User'
-  const roleLabels = { ADMIN: 'Admin', RECRUITER: 'Recruiter', USER: 'Candidate' }
+  const roleLabels  = { ADMIN: 'Admin', RECRUITER: 'Recruiter', USER: 'Candidate' }
   const displayRole = user?.role ? (roleLabels[user.role] || user.role) : (role || 'User')
   const initials    = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
+  }
+
+  const isItemActive = (item, sIdx, iIdx) => {
+    if (activeSection && item.section) return item.section === activeSection
+    if (!activeSection) return sIdx === 0 && iIdx === 0
+    return false
   }
 
   return (
@@ -44,8 +50,16 @@ function DashboardLayout({ children, title, role, sidebarLinks, userName }) {
                 <a
                   key={iIdx}
                   href="#"
-                  className={`sidebar-link ${iIdx === 0 && sIdx === 0 ? 'active' : ''}`}
-                  onClick={(e) => e.preventDefault()}
+                  className={`sidebar-link ${isItemActive(item, sIdx, iIdx) ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    if (item.onClick) {
+                      item.onClick()
+                    } else if (item.section && onSectionChange) {
+                      onSectionChange(item.section)
+                    }
+                    setSidebarOpen(false)
+                  }}
                 >
                   {typeof item.icon === 'function' ? <item.icon size={18} /> : item.icon}
                   <span>{item.label}</span>

@@ -99,7 +99,6 @@ function Register() {
                   <select id="reg-role" value={form.role} onChange={set('role')}>
                     <option value="USER">Candidate</option>
                     <option value="RECRUITER">Recruiter</option>
-                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
               </div>

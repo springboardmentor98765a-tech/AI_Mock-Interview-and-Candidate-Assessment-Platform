@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import {
   Users, Briefcase, FileText, Calendar, Video, Download,
   Eye, Star, Award, TrendingUp, TrendingDown, BarChart3,
-  Activity, Search, ChevronUp, ChevronDown, MessageSquare
+  Activity, Search, ChevronUp, ChevronDown, MessageSquare,
+  X, CheckCircle, Send, Plus
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -20,6 +22,31 @@ const ALL_CANDIDATES = [
   { rank: 5, name: 'Sanjay Das',   role: 'DevOps Engineer',    resumeScore: 70, interviewScore: 68, aiScore: 65, finalScore: 67.7, rec: 'Needs Review',       date: 'Jul 21, 2025' },
   { rank: 6, name: 'Pooja Mehta',  role: 'QA Engineer',        resumeScore: 62, interviewScore: 58, aiScore: 55, finalScore: 58.3, rec: 'Not Recommended',    date: 'Jul 20, 2025' },
   { rank: 7, name: 'Kiran Rao',    role: 'Data Engineer',      resumeScore: 74, interviewScore: 70, aiScore: 68, finalScore: 70.7, rec: 'Needs Review',       date: 'Jul 19, 2025' },
+]
+
+const SCHEDULED_INTERVIEWS = [
+  { candidate: 'Arjun Reddy',  role: 'Frontend Developer', date: 'Jul 30, 2025', time: '10:00 AM', type: 'Video Call',  status: 'Confirmed' },
+  { candidate: 'Kavya Nair',   role: 'Data Analyst',       date: 'Aug 1, 2025',  time: '2:00 PM',  type: 'Video Call',  status: 'Confirmed' },
+  { candidate: 'Rohan Joshi',  role: 'Backend Developer',  date: 'Aug 3, 2025',  time: '11:00 AM', type: 'In-Person',   status: 'Pending'   },
+  { candidate: 'Meera Iyer',   role: 'UI/UX Designer',     date: 'Aug 5, 2025',  time: '3:00 PM',  type: 'Phone',       status: 'Scheduled' },
+  { candidate: 'Sanjay Das',   role: 'DevOps Engineer',    date: 'Aug 7, 2025',  time: '9:00 AM',  type: 'Video Call',  status: 'Pending'   },
+]
+
+const JOB_POSTINGS = [
+  { id: 'JOB-001', title: 'Frontend Developer',  dept: 'Engineering',  applicants: 24, status: 'Active',   posted: 'Jul 15, 2025', deadline: 'Aug 15, 2025' },
+  { id: 'JOB-002', title: 'Data Analyst',         dept: 'Analytics',    applicants: 18, status: 'Active',   posted: 'Jul 18, 2025', deadline: 'Aug 18, 2025' },
+  { id: 'JOB-003', title: 'Backend Developer',    dept: 'Engineering',  applicants: 31, status: 'Active',   posted: 'Jul 20, 2025', deadline: 'Aug 20, 2025' },
+  { id: 'JOB-004', title: 'UI/UX Designer',       dept: 'Design',       applicants: 12, status: 'Paused',   posted: 'Jul 10, 2025', deadline: 'Aug 10, 2025' },
+  { id: 'JOB-005', title: 'DevOps Engineer',      dept: 'Operations',   applicants: 9,  status: 'Active',   posted: 'Jul 22, 2025', deadline: 'Aug 22, 2025' },
+]
+
+const ASSESSMENTS = [
+  { candidate: 'Arjun Reddy',  type: 'Technical',      score: 92, duration: '45 min', date: 'Jul 24, 2025', status: 'Completed' },
+  { candidate: 'Kavya Nair',   type: 'Aptitude',        score: 88, duration: '30 min', date: 'Jul 23, 2025', status: 'Completed' },
+  { candidate: 'Rohan Joshi',  type: 'Technical',      score: 85, duration: '45 min', date: 'Jul 22, 2025', status: 'Completed' },
+  { candidate: 'Meera Iyer',   type: 'Design Review',  score: 78, duration: '60 min', date: 'Jul 21, 2025', status: 'Completed' },
+  { candidate: 'Sanjay Das',   type: 'Technical',      score: 70, duration: '45 min', date: 'Jul 20, 2025', status: 'In Review' },
+  { candidate: 'Pooja Mehta',  type: 'Aptitude',        score: 62, duration: '30 min', date: 'Jul 19, 2025', status: 'Completed' },
 ]
 
 const skillsData = [
@@ -47,68 +74,95 @@ const scoreDistribution = [
 ]
 
 function RecBadge({ rec }) {
-  const map = {
-    'Highly Recommended': 'green',
-    'Recommended':        'blue',
-    'Needs Review':       'orange',
-    'Not Recommended':    'red',
-  }
+  const map = { 'Highly Recommended': 'green', 'Recommended': 'blue', 'Needs Review': 'orange', 'Not Recommended': 'red' }
   return <span className={`badge ${map[rec] || 'gray'}`}>{rec}</span>
 }
-
 function ScoreCell({ score }) {
   const c = score >= 85 ? '#10b981' : score >= 70 ? '#f59e0b' : '#ef4444'
   return <span style={{ fontWeight: 700, color: c }}>{score}</span>
 }
-
 function RankMedal({ rank }) {
   const cls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : 'default'
   return <div className={`rank-medal ${cls}`}>#{rank}</div>
 }
 
+function Toast({ msg, onClose }) {
+  return (
+    <AnimatePresence>
+      {msg && (
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+          style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 18px', boxShadow: 'var(--shadow-lg)', display: 'flex', alignItems: 'center', gap: 10, minWidth: 280, maxWidth: 400 }}>
+          <CheckCircle size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />
+          <span style={{ fontSize: 14, color: 'var(--text-primary)', flex: 1 }}>{msg}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={15} /></button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 480, boxShadow: 'var(--shadow-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>{title}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></button>
+        </div>
+        {children}
+      </motion.div>
+    </div>
+  )
+}
+
 function RecruiterDashboard() {
-  const [search, setSearch]     = useState('')
+  const navigate = useNavigate()
+  const [activeSection, setActiveSection] = useState('overview')
+  const [search, setSearch]       = useState('')
   const [sortField, setSortField] = useState('rank')
-  const [sortDir, setSortDir]   = useState('asc')
-  const [page, setPage]         = useState(1)
+  const [sortDir, setSortDir]     = useState('asc')
+  const [page, setPage]           = useState(1)
+  const [toast, setToast]         = useState('')
+  const [viewCandidate, setViewCandidate]   = useState(null)
+  const [scheduleOpen, setScheduleOpen]     = useState(false)
+  const [messageCandidate, setMessageCandidate] = useState(null)
+  const [scheduleForm, setScheduleForm] = useState({ candidate: '', date: '', time: '', type: 'Video Call', notes: '' })
+  const [msgText, setMsgText] = useState('')
   const PAGE_SIZE = 5
 
-  const sidebarLinks = [
-    {
-      title: 'Dashboard',
-      items: [
-        { icon: <BarChart3 size={18} />, label: 'Overview'   },
-        { icon: <Activity size={18} />,  label: 'Analytics'  },
-        { icon: <FileText size={18} />,  label: 'Reports'    },
-      ],
-    },
-    {
-      title: 'Recruitment',
-      items: [
-        { icon: <Users size={18} />,    label: 'Candidates'  },
-        { icon: <Calendar size={18} />, label: 'Interviews'  },
-        { icon: <Briefcase size={18} />, label: 'Job Postings' },
-      ],
-    },
-    {
-      title: 'AI Tools',
-      items: [
-        { icon: <Award size={18} />,   label: 'AI Ranking'   },
-        { icon: <Video size={18} />,   label: 'Mock Interview' },
-        { icon: <Star size={18} />,    label: 'Assessments'  },
-      ],
-    },
-  ]
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
+  const handleSectionChange = (section) => { setActiveSection(section); setSearch(''); setPage(1) }
+  const setSchField = (f) => (e) => setScheduleForm(p => ({ ...p, [f]: e.target.value }))
+
+  const handleExport = () => {
+    const headers = ['Rank','Name','Role','Resume','Interview','AI Score','Final','Recommendation']
+    const rows = ALL_CANDIDATES.map(c => [c.rank, c.name, c.role, c.resumeScore, c.interviewScore, c.aiScore, c.finalScore.toFixed(1), c.rec])
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'candidate_rankings.csv'; a.click()
+    URL.revokeObjectURL(url); showToast('Rankings exported as CSV')
+  }
+
+  const handleDownloadReport = (c) => {
+    const text = `CANDIDATE REPORT\n\nName: ${c.name}\nRole: ${c.role}\nDate: ${c.date}\n\nResume Score: ${c.resumeScore}/100\nInterview Score: ${c.interviewScore}/100\nAI Score: ${c.aiScore}/100\nFinal Score: ${c.finalScore.toFixed(1)}/100\n\nRecommendation: ${c.rec}`
+    const blob = new Blob([text], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `${c.name.replace(' ', '_')}_report.txt`; a.click()
+    URL.revokeObjectURL(url); showToast(`Report downloaded for ${c.name}`)
+  }
 
   const stats = [
-    { label: 'Total Candidates', value: '342',    trend: '+18.2%',  up: true,  icon: <Users size={22} />,    color: 'purple' },
-    { label: 'Open Positions',   value: '18',     trend: '+3 new',  up: true,  icon: <Briefcase size={22} />, color: 'blue'   },
-    { label: 'Interviews Done',  value: '127',    trend: '+12.5%',  up: true,  icon: <Calendar size={22} />,  color: 'green'  },
-    { label: 'Average Score',    value: '7.8/10', trend: '+0.4',    up: true,  icon: <Star size={22} />,      color: 'orange' },
+    { label: 'Total Candidates', value: '342',    trend: '+18.2%', up: true,  icon: <Users size={22} />,    color: 'purple' },
+    { label: 'Open Positions',   value: '18',     trend: '+3 new', up: true,  icon: <Briefcase size={22} />, color: 'blue'   },
+    { label: 'Interviews Done',  value: '127',    trend: '+12.5%', up: true,  icon: <Calendar size={22} />,  color: 'green'  },
+    { label: 'Average Score',    value: '7.8/10', trend: '+0.4',   up: true,  icon: <Star size={22} />,      color: 'orange' },
   ]
 
   const activities = [
-    { text: 'Interview completed: Arjun Reddy — React Developer', color: 'green',  time: '30 min ago'  },
+    { text: 'Interview completed: Arjun Reddy — React Developer', color: 'green',  time: '30 min ago' },
     { text: 'Report generated: Kavya Nair assessment',             color: 'blue',   time: '2 hours ago' },
     { text: 'New application: Sanjay Das — DevOps',                color: 'purple', time: '4 hours ago' },
     { text: 'Interview scheduled: Meera Iyer — UI/UX',            color: 'orange', time: '6 hours ago' },
@@ -119,18 +173,13 @@ function RecruiterDashboard() {
     else { setSortField(field); setSortDir('asc') }
     setPage(1)
   }
-
   const SortIcon = ({ field }) => {
     if (sortField !== field) return <ChevronUp size={12} style={{ opacity: 0.3 }} />
     return sortDir === 'asc' ? <ChevronUp size={12} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={12} style={{ color: 'var(--primary)' }} />
   }
 
   const filtered = useMemo(() => ALL_CANDIDATES
-    .filter(c =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.role.toLowerCase().includes(search.toLowerCase()) ||
-      c.rec.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.role.toLowerCase().includes(search.toLowerCase()) || c.rec.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       const va = a[sortField], vb = b[sortField]
       if (typeof va === 'number') return sortDir === 'asc' ? va - vb : vb - va
@@ -141,244 +190,460 @@ function RecruiterDashboard() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  return (
-    <DashboardLayout title="Recruiter Dashboard" role="Senior Recruiter" userName="HR Manager" sidebarLinks={sidebarLinks}>
+  const sidebarLinks = [
+    {
+      title: 'Dashboard',
+      items: [
+        { icon: <BarChart3 size={18} />, label: 'Overview',  section: 'overview'  },
+        { icon: <Activity size={18} />,  label: 'Analytics', section: 'analytics' },
+        { icon: <FileText size={18} />,  label: 'Reports',   section: 'reports'   },
+      ],
+    },
+    {
+      title: 'Recruitment',
+      items: [
+        { icon: <Users size={18} />,    label: 'Candidates',   section: 'candidates'   },
+        { icon: <Calendar size={18} />, label: 'Interviews',   section: 'interviews'   },
+        { icon: <Briefcase size={18} />, label: 'Job Postings', section: 'job-postings' },
+      ],
+    },
+    {
+      title: 'AI Tools',
+      items: [
+        { icon: <Award size={18} />, label: 'AI Ranking',    section: 'ai-ranking'   },
+        { icon: <Video size={18} />, label: 'Mock Interview', onClick: () => navigate('/mock-interview') },
+        { icon: <Star size={18} />,  label: 'Assessments',   section: 'assessments'  },
+      ],
+    },
+  ]
 
-      <div className="stats-row">
-        {stats.map((s, i) => (
-          <motion.div key={i} className="stat-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-            <div className={`stat-icon ${s.color}`}>{s.icon}</div>
-            <div className="stat-details">
-              <h3>{s.value}</h3>
-              <p>{s.label}</p>
-              <span className={`stat-trend ${s.up ? 'up' : 'down'}`}>
-                {s.up ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {s.trend}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="dashboard-grid">
-        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <div className="card-header">
-            <h2>Candidate Skills Radar</h2>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <span className="badge purple">Top Candidate</span>
-              <span className="badge blue">Average</span>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={260}>
-            <RadarChart data={skillsData}>
-              <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-              <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-              <Radar name="Average"       dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </motion.div>
-
-        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
-          <div className="card-header">
-            <h2>Weekly Interviews</h2>
-            <span className="badge green">↑ On Track</span>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={interviewData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="completed"  stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed"  />
-              <Line type="monotone" dataKey="scheduled"  stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} name="Scheduled"  strokeDasharray="5 5" />
-            </LineChart>
-          </ResponsiveContainer>
-          <div style={{ marginTop: 16 }}>
-            <div className="card-header" style={{ marginBottom: 8 }}>
-              <h2>Score Distribution</h2>
-            </div>
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={scoreDistribution} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="count" fill="#6366f1" radius={[4,4,0,0]} name="Candidates" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.49 }}>
-          <div className="card-header"><h2>Recent Activity</h2></div>
-          <div className="activity-list">
-            {activities.map((a, i) => (
-              <div key={i} className="activity-item">
-                <div className={`activity-dot ${a.color}`} />
-                <div className="activity-content">
-                  <div className="activity-text">{a.text}</div>
-                  <div className="activity-time">{a.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }}>
-          <div className="card-header"><h2>Quick Actions</h2></div>
-          <div className="quick-actions-grid">
-            <button className="quick-action-btn"><Calendar size={18} /> Schedule Interview</button>
-            <button className="quick-action-btn"><Users size={18} /> View All Candidates</button>
-            <button className="quick-action-btn"><FileText size={18} /> Generate Report</button>
-            <button className="quick-action-btn"><Video size={18} /> Start Live Session</button>
-          </div>
-        </motion.div>
-      </div>
-
-      <motion.div className="card" style={{ marginBottom: 20 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }}>
-        <div className="card-header">
-          <h2>AI Applicant Ranking</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="badge purple">{filtered.length} candidates</span>
-            <button className="btn btn-outline btn-sm"><Download size={13} /> Export</button>
-          </div>
+  const renderRankingTable = () => (
+    <>
+      <div className="table-search-wrapper">
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input className="table-search-bar" style={{ paddingLeft: 32 }} placeholder="Search candidates..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
-        <div className="table-search-wrapper">
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <input
-              className="table-search-bar"
-              style={{ paddingLeft: 32 }}
-              placeholder="Search candidates..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Auto-ranked by Final Score</span>
-          </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="badge purple">{filtered.length} candidates</span>
+          <button className="btn btn-outline btn-sm" onClick={handleExport}><Download size={13} /> Export CSV</button>
         </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th className="sortable-th" onClick={() => handleSort('name')}>
-                  <div className="th-inner">Candidate <SortIcon field="name" /></div>
-                </th>
-                <th>Role</th>
-                <th className="sortable-th" onClick={() => handleSort('resumeScore')}>
-                  <div className="th-inner">Resume <SortIcon field="resumeScore" /></div>
-                </th>
-                <th className="sortable-th" onClick={() => handleSort('interviewScore')}>
-                  <div className="th-inner">Interview <SortIcon field="interviewScore" /></div>
-                </th>
-                <th className="sortable-th" onClick={() => handleSort('aiScore')}>
-                  <div className="th-inner">AI Score <SortIcon field="aiScore" /></div>
-                </th>
-                <th className="sortable-th" onClick={() => handleSort('finalScore')}>
-                  <div className="th-inner">Final <SortIcon field="finalScore" /></div>
-                </th>
-                <th className="sortable-th" onClick={() => handleSort('rec')}>
-                  <div className="th-inner">Recommendation <SortIcon field="rec" /></div>
-                </th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No candidates found</td></tr>
-              ) : paginated.map((c, i) => (
+      </div>
+      <div className="table-responsive">
+        <table className="data-table">
+          <thead><tr>
+            <th>Rank</th>
+            <th className="sortable-th" onClick={() => handleSort('name')}><div className="th-inner">Candidate <SortIcon field="name" /></div></th>
+            <th>Role</th>
+            <th className="sortable-th" onClick={() => handleSort('resumeScore')}><div className="th-inner">Resume <SortIcon field="resumeScore" /></div></th>
+            <th className="sortable-th" onClick={() => handleSort('interviewScore')}><div className="th-inner">Interview <SortIcon field="interviewScore" /></div></th>
+            <th className="sortable-th" onClick={() => handleSort('aiScore')}><div className="th-inner">AI Score <SortIcon field="aiScore" /></div></th>
+            <th className="sortable-th" onClick={() => handleSort('finalScore')}><div className="th-inner">Final <SortIcon field="finalScore" /></div></th>
+            <th className="sortable-th" onClick={() => handleSort('rec')}><div className="th-inner">Recommendation <SortIcon field="rec" /></div></th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody>
+            {paginated.length === 0
+              ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No candidates found</td></tr>
+              : paginated.map((c, i) => (
                 <tr key={i}>
                   <td><RankMedal rank={c.rank} /></td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div className="user-avatar">{c.name.charAt(0)}</div>
-                      <span style={{ fontWeight: 500 }}>{c.name}</span>
-                    </div>
-                  </td>
+                  <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{c.name.charAt(0)}</div><span style={{ fontWeight: 500 }}>{c.name}</span></div></td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{c.role}</td>
                   <td><ScoreCell score={c.resumeScore} /></td>
                   <td><ScoreCell score={c.interviewScore} /></td>
                   <td><ScoreCell score={c.aiScore} /></td>
-                  <td>
-                    <span style={{ fontWeight: 800, fontSize: 15, color: c.finalScore >= 85 ? '#10b981' : c.finalScore >= 70 ? '#f59e0b' : '#ef4444' }}>
-                      {c.finalScore.toFixed(1)}
-                    </span>
-                  </td>
+                  <td><span style={{ fontWeight: 800, fontSize: 15, color: c.finalScore >= 85 ? '#10b981' : c.finalScore >= 70 ? '#f59e0b' : '#ef4444' }}>{c.finalScore.toFixed(1)}</span></td>
                   <td><RecBadge rec={c.rec} /></td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn btn-ghost btn-sm"><Eye size={14} /></button>
-                      <button className="btn btn-ghost btn-sm"><Download size={14} /></button>
-                      <button className="btn btn-ghost btn-sm"><MessageSquare size={14} /></button>
+                      <button className="btn btn-ghost btn-sm" title="View Profile" onClick={() => setViewCandidate(c)}><Eye size={14} /></button>
+                      <button className="btn btn-ghost btn-sm" title="Download Report" onClick={() => handleDownloadReport(c)}><Download size={14} /></button>
+                      <button className="btn btn-ghost btn-sm" title="Send Message" onClick={() => setMessageCandidate(c)}><MessageSquare size={14} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+          </tbody>
+        </table>
+      </div>
+      <div className="pagination">
+        <span className="pagination-info">Showing {Math.min((page-1)*PAGE_SIZE+1, filtered.length)}–{Math.min(page*PAGE_SIZE, filtered.length)} of {filtered.length}</span>
+        <div className="pagination-btns">
+          <button className={`page-btn ${page===1?'disabled':''}`} onClick={() => setPage(p => Math.max(1,p-1))}>← Prev</button>
+          {Array.from({ length: totalPages }, (_, i) => <button key={i} className={`page-btn ${page===i+1?'active':''}`} onClick={() => setPage(i+1)}>{i+1}</button>)}
+          <button className={`page-btn ${page===totalPages?'disabled':''}`} onClick={() => setPage(p => Math.min(totalPages,p+1))}>Next →</button>
         </div>
-        <div className="pagination">
-          <span className="pagination-info">
-            Showing {Math.min((page-1)*PAGE_SIZE+1, filtered.length)}–{Math.min(page*PAGE_SIZE, filtered.length)} of {filtered.length} candidates
-          </span>
-          <div className="pagination-btns">
-            <button className={`page-btn ${page===1?'disabled':''}`} onClick={() => setPage(p => Math.max(1,p-1))}>← Prev</button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i} className={`page-btn ${page===i+1?'active':''}`} onClick={() => setPage(i+1)}>{i+1}</button>
-            ))}
-            <button className={`page-btn ${page===totalPages?'disabled':''}`} onClick={() => setPage(p => Math.min(totalPages,p+1))}>Next →</button>
+      </div>
+    </>
+  )
+
+  const renderSection = () => {
+    switch (activeSection) {
+
+      case 'overview':
+        return (
+          <>
+            <div className="stats-row">
+              {stats.map((s, i) => (
+                <motion.div key={i} className="stat-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                  <div className={`stat-icon ${s.color}`}>{s.icon}</div>
+                  <div className="stat-details"><h3>{s.value}</h3><p>{s.label}</p>
+                    <span className={`stat-trend ${s.up ? 'up' : 'down'}`}>{s.up ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {s.trend}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="dashboard-grid">
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                <div className="card-header"><h2>Candidate Skills Radar</h2><div style={{ display: 'flex', gap: 8 }}><span className="badge purple">Top Candidate</span><span className="badge blue">Average</span></div></div>
+                <ResponsiveContainer width="100%" height={260}>
+                  <RadarChart data={skillsData}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                    <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                    <Radar name="Average"       dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </motion.div>
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
+                <div className="card-header"><h2>Weekly Interviews</h2><span className="badge green">↑ On Track</span></div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={interviewData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
+                    <Line type="monotone" dataKey="scheduled" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} name="Scheduled" strokeDasharray="5 5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </motion.div>
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.49 }}>
+                <div className="card-header"><h2>Recent Activity</h2></div>
+                <div className="activity-list">
+                  {activities.map((a, i) => (
+                    <div key={i} className="activity-item">
+                      <div className={`activity-dot ${a.color}`} />
+                      <div className="activity-content"><div className="activity-text">{a.text}</div><div className="activity-time">{a.time}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }}>
+                <div className="card-header"><h2>Quick Actions</h2></div>
+                <div className="quick-actions-grid">
+                  <button className="quick-action-btn" onClick={() => setScheduleOpen(true)}><Calendar size={18} /> Schedule Interview</button>
+                  <button className="quick-action-btn" onClick={() => handleSectionChange('candidates')}><Users size={18} /> View All Candidates</button>
+                  <button className="quick-action-btn" onClick={handleExport}><FileText size={18} /> Generate Report</button>
+                  <button className="quick-action-btn" onClick={() => navigate('/mock-interview')}><Video size={18} /> Start Live Session</button>
+                </div>
+              </motion.div>
+            </div>
+            <motion.div className="card" style={{ marginTop: 20 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }}>
+              <div className="card-header"><h2>AI Applicant Ranking</h2></div>
+              {renderRankingTable()}
+            </motion.div>
+          </>
+        )
+
+      case 'analytics':
+        return (
+          <>
+            <div className="stats-row" style={{ marginBottom: 20 }}>
+              {stats.map((s, i) => (
+                <motion.div key={i} className="stat-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+                  <div className={`stat-icon ${s.color}`}>{s.icon}</div>
+                  <div className="stat-details"><h3>{s.value}</h3><p>{s.label}</p>
+                    <span className={`stat-trend ${s.up ? 'up' : 'down'}`}>{s.up ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {s.trend}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="dashboard-grid">
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="card-header"><h2>Candidate Skills Radar</h2><div style={{ display: 'flex', gap: 8 }}><span className="badge purple">Top Candidate</span><span className="badge blue">Average</span></div></div>
+                <ResponsiveContainer width="100%" height={260}>
+                  <RadarChart data={skillsData}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                    <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                    <Radar name="Average"       dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </motion.div>
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                <div className="card-header"><h2>Weekly Interview Trend</h2></div>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={interviewData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
+                    <Line type="monotone" dataKey="scheduled" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} name="Scheduled" strokeDasharray="5 5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </motion.div>
+              <motion.div className="card full-width" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                <div className="card-header"><h2>Score Distribution</h2><span className="badge gray">All Candidates</span></div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={scoreDistribution} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="count" fill="#6366f1" radius={[4,4,0,0]} name="Candidates" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </motion.div>
+            </div>
+          </>
+        )
+
+      case 'reports':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header">
+              <div><h2>Candidate Reports</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Assessment reports for all candidates</p></div>
+              <button className="btn btn-outline btn-sm" onClick={handleExport}><Download size={13} /> Export All</button>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead><tr>
+                  <th>Candidate</th><th>Role</th><th>Final Score</th><th>Date</th><th>Recommendation</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {ALL_CANDIDATES.map((c, i) => (
+                    <tr key={i}>
+                      <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{c.name.charAt(0)}</div><span style={{ fontWeight: 500 }}>{c.name}</span></div></td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{c.role}</td>
+                      <td><ScoreCell score={c.finalScore} /></td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{c.date}</td>
+                      <td><RecBadge rec={c.rec} /></td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="btn btn-outline btn-sm" onClick={() => setViewCandidate(c)}><Eye size={13} /> View</button>
+                          <button className="btn btn-primary btn-sm" onClick={() => handleDownloadReport(c)}><Download size={13} /> Download</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )
+
+      case 'candidates':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header"><h2>AI Applicant Ranking</h2><span className="badge purple">Auto-ranked by AI</span></div>
+            {renderRankingTable()}
+          </motion.div>
+        )
+
+      case 'interviews':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header">
+              <div><h2>Interview Schedule</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Upcoming and scheduled interviews</p></div>
+              <button className="btn btn-primary btn-sm" onClick={() => setScheduleOpen(true)}><Plus size={14} /> Schedule New</button>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead><tr>
+                  <th>Candidate</th><th>Role</th><th>Date</th><th>Time</th><th>Type</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {SCHEDULED_INTERVIEWS.map((iv, i) => (
+                    <tr key={i}>
+                      <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{iv.candidate.charAt(0)}</div><span style={{ fontWeight: 500 }}>{iv.candidate}</span></div></td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{iv.role}</td>
+                      <td style={{ fontSize: 13 }}>{iv.date}</td>
+                      <td style={{ fontSize: 13 }}>{iv.time}</td>
+                      <td><span className="badge gray" style={{ fontSize: 11 }}>{iv.type}</span></td>
+                      <td><span className={`badge ${iv.status === 'Confirmed' ? 'green' : iv.status === 'Pending' ? 'orange' : 'blue'}`}>{iv.status}</span></td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="btn btn-outline btn-sm" onClick={() => showToast(`Interview details: ${iv.candidate} on ${iv.date} at ${iv.time}`)}><Eye size={13} /> View</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => {
+                            const c = ALL_CANDIDATES.find(x => x.name === iv.candidate)
+                            if (c) setMessageCandidate(c)
+                          }}><MessageSquare size={13} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )
+
+      case 'job-postings':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header">
+              <div><h2>Job Postings</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{JOB_POSTINGS.filter(j => j.status === 'Active').length} active · {JOB_POSTINGS.length} total</p></div>
+              <button className="btn btn-primary btn-sm" onClick={() => showToast('Create job posting: feature coming soon')}><Plus size={14} /> New Posting</button>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead><tr>
+                  <th>Job ID</th><th>Title</th><th>Department</th><th>Applicants</th><th>Posted</th><th>Deadline</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {JOB_POSTINGS.map((j, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{j.id}</td>
+                      <td style={{ fontWeight: 500 }}>{j.title}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{j.dept}</td>
+                      <td><span className="badge blue" style={{ fontSize: 12 }}>{j.applicants}</span></td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{j.posted}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{j.deadline}</td>
+                      <td><span className={`badge ${j.status === 'Active' ? 'green' : 'orange'}`}>{j.status}</span></td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="btn btn-outline btn-sm" onClick={() => showToast(`Viewing applicants for: ${j.title}`)}><Eye size={13} /> View</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => showToast(`${j.title} posting ${j.status === 'Active' ? 'paused' : 'activated'}`)}>
+                            {j.status === 'Active' ? 'Pause' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )
+
+      case 'ai-ranking':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header">
+              <div><h2>AI Applicant Ranking</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Automatically ranked by composite AI score (Resume + Interview + AI)</p></div>
+            </div>
+            {renderRankingTable()}
+          </motion.div>
+        )
+
+      case 'assessments':
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header">
+              <div><h2>Candidate Assessments</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>AI-powered technical and aptitude assessments</p></div>
+              <span className="badge green">{ASSESSMENTS.filter(a => a.status === 'Completed').length} Completed</span>
+            </div>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead><tr>
+                  <th>Candidate</th><th>Assessment Type</th><th>Score</th><th>Duration</th><th>Date</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {ASSESSMENTS.map((a, i) => (
+                    <tr key={i}>
+                      <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{a.candidate.charAt(0)}</div><span style={{ fontWeight: 500 }}>{a.candidate}</span></div></td>
+                      <td><span className="badge gray" style={{ fontSize: 11 }}>{a.type}</span></td>
+                      <td><span style={{ fontWeight: 700, color: a.score >= 85 ? '#10b981' : a.score >= 70 ? '#f59e0b' : '#ef4444' }}>{a.score}</span></td>
+                      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{a.duration}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{a.date}</td>
+                      <td><span className={`badge ${a.status === 'Completed' ? 'green' : 'orange'}`}>{a.status}</span></td>
+                      <td>
+                        <div className="table-actions">
+                          <button className="btn btn-outline btn-sm" onClick={() => {
+                            const c = ALL_CANDIDATES.find(x => x.name === a.candidate)
+                            if (c) setViewCandidate(c)
+                          }}><Eye size={13} /> View</button>
+                          <button className="btn btn-primary btn-sm" onClick={() => {
+                            const c = ALL_CANDIDATES.find(x => x.name === a.candidate)
+                            if (c) handleDownloadReport(c)
+                          }}><Download size={13} /> Report</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )
+
+      default: return null
+    }
+  }
+
+  return (
+    <DashboardLayout
+      title="Recruiter Dashboard" role="Senior Recruiter" userName="HR Manager"
+      sidebarLinks={sidebarLinks} activeSection={activeSection} onSectionChange={handleSectionChange}
+    >
+      <Toast msg={toast} onClose={() => setToast('')} />
+
+      {viewCandidate && (
+        <Modal title="Candidate Profile" onClose={() => setViewCandidate(null)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700 }}>{viewCandidate.name.charAt(0)}</div>
+            <div><div style={{ fontWeight: 700, fontSize: 16 }}>{viewCandidate.name}</div><div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{viewCandidate.role}</div></div>
+            <div style={{ marginLeft: 'auto' }}><RankMedal rank={viewCandidate.rank} /></div>
           </div>
-        </div>
-      </motion.div>
+          {[['Resume Score', `${viewCandidate.resumeScore}/100`],['Interview Score', `${viewCandidate.interviewScore}/100`],['AI Score', `${viewCandidate.aiScore}/100`],['Final Score', `${viewCandidate.finalScore.toFixed(1)}/100`],['Recommendation', viewCandidate.rec],['Report Date', viewCandidate.date]].map(([k,v]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setViewCandidate(null)}>Close</button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { handleDownloadReport(viewCandidate); setViewCandidate(null) }}><Download size={14} /> Download Report</button>
+          </div>
+        </Modal>
+      )}
 
-      <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.70 }}>
-        <div className="card-header">
-          <h2>Candidate Reports</h2>
-          <button className="card-header-action">View All</button>
-        </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Role</th>
-                <th>Final Score</th>
-                <th>Date</th>
-                <th>Recommendation</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ALL_CANDIDATES.slice(0, 5).map((c, i) => (
-                <tr key={i}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div className="user-avatar">{c.name.charAt(0)}</div>
-                      <span style={{ fontWeight: 500 }}>{c.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{c.role}</td>
-                  <td><ScoreCell score={c.finalScore} /></td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{c.date}</td>
-                  <td><RecBadge rec={c.rec} /></td>
-                  <td>
-                    <div className="table-actions">
-                      <button className="btn btn-outline btn-sm"><Eye size={13} /> View</button>
-                      <button className="btn btn-primary btn-sm"><Download size={13} /> Download</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+      {scheduleOpen && (
+        <Modal title="Schedule Interview" onClose={() => setScheduleOpen(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-field"><label>Candidate Name</label><input type="text" placeholder="Enter candidate name" value={scheduleForm.candidate} onChange={setSchField('candidate')} /></div>
+            <div className="form-field"><label>Date</label><input type="date" value={scheduleForm.date} onChange={setSchField('date')} /></div>
+            <div className="form-field"><label>Time</label><input type="time" value={scheduleForm.time} onChange={setSchField('time')} /></div>
+            <div className="form-field"><label>Interview Type</label>
+              <select value={scheduleForm.type} onChange={setSchField('type')}><option>Video Call</option><option>In-Person</option><option>Phone</option></select>
+            </div>
+            <div className="form-field"><label>Notes</label><input type="text" placeholder="Optional notes..." value={scheduleForm.notes} onChange={setSchField('notes')} /></div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button className="btn btn-outline" onClick={() => setScheduleOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={() => { setScheduleOpen(false); showToast(`Interview scheduled for ${scheduleForm.candidate || 'candidate'} on ${scheduleForm.date || 'selected date'}`) }}>
+              <Calendar size={14} /> Schedule
+            </button>
+          </div>
+        </Modal>
+      )}
 
+      {messageCandidate && (
+        <Modal title={`Message ${messageCandidate.name}`} onClose={() => setMessageCandidate(null)}>
+          <div className="form-field">
+            <label>Message</label>
+            <textarea rows={4} placeholder={`Write a message to ${messageCandidate.name}...`} value={msgText} onChange={e => setMsgText(e.target.value)}
+              style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 14, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+            <button className="btn btn-outline" onClick={() => setMessageCandidate(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={!msgText.trim()} onClick={() => { setMessageCandidate(null); setMsgText(''); showToast(`Message sent to ${messageCandidate.name}`) }}>
+              <Send size={14} /> Send
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {renderSection()}
     </DashboardLayout>
   )
 }

@@ -16,7 +16,7 @@ function Login() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(
     searchParams.get('error') === 'oauth_failed'
-      ? 'Google sign-in failed. Please try again.'
+      ? 'Sign-in failed. Please try again or use email and password.'
       : ''
   )
 
