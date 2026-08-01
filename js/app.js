@@ -9,10 +9,13 @@ function render() {
   if (state.page === 'login') {
     app.innerHTML = renderLoginPage();
     bindLoginEvents();
+    initGoogleSignIn();
     return;
   }
 
-  var navItems, content, username, avatar;
+  var navItems, content;
+  var username = state.user ? state.user.name : 'User';
+  var avatar = username.split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().slice(0, 2);
 
   if (state.page === 'candidate') {
     navItems = [
@@ -34,8 +37,6 @@ function render() {
       settings: function() { return placeholderSection('Settings', 'Manage your account preferences, notifications, and privacy settings.', icon('settings', 32)); },
     };
     content = (sections[state.section] || sections.overview)();
-    username = 'Aradhya Ray';
-    avatar = 'AO';
   } else if (state.page === 'recruiter') {
     navItems = [
       { key: 'overview', label: 'Overview', icon: icon('layout') },
@@ -54,8 +55,6 @@ function render() {
       settings: function() { return placeholderSection('Settings', 'Configure your recruiter preferences and notification settings.', icon('settings', 32)); },
     };
     content = (rSections[state.section] || rSections.overview)();
-    username = 'Ravi Verma';
-    avatar = 'BU';
   } else if (state.page === 'admin') {
     navItems = [
       { key: 'overview', label: 'Overview', icon: icon('layout') },
@@ -74,8 +73,6 @@ function render() {
       settings: function() { return placeholderSection('Platform Settings', 'Configure global platform behaviour, integrations, and security policies.', icon('settings', 32)); },
     };
     content = (aSections[state.section] || aSections.overview)();
-    username = 'Kalyan Rai';
-    avatar = 'KE';
   }
 
   app.innerHTML = renderDashboardLayout(navItems, content, username, avatar);
@@ -83,11 +80,60 @@ function render() {
   drawCharts();
 }
 
+/* ── Auth helpers ── */
+function handleAuthSuccess(data) {
+  localStorage.setItem('smarthire_token', data.token);
+  state.token = data.token;
+  state.user = data.user;
+  state.page = data.user.role;
+  state.section = 'overview';
+  state.authError = '';
+  state.email = '';
+  state.password = '';
+  state.name = '';
+  state.org = '';
+  render();
+}
+
+function handleLogout() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    google.accounts.id.cancel();
+    google.accounts.id.disableAutoSelect();
+  }
+  localStorage.removeItem('smarthire_token');
+  state.token = null;
+  state.user = null;
+  state.page = 'login';
+  state.section = 'overview';
+  state.authError = '';
+  render();
+}
+
+async function checkAuth() {
+  var token = localStorage.getItem('smarthire_token');
+  if (!token) {
+    render();
+    return;
+  }
+  try {
+    var data = await api.getMe();
+    state.token = token;
+    state.user = data.user;
+    state.page = data.user.role;
+    state.section = 'overview';
+    render();
+  } catch (e) {
+    localStorage.removeItem('smarthire_token');
+    render();
+  }
+}
+
 /* ── Event binding: Login ── */
 function bindLoginEvents() {
   document.querySelectorAll('.auth-toggle-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       state.authMode = this.dataset.mode;
+      state.authError = '';
       render();
     });
   });
@@ -101,15 +147,33 @@ function bindLoginEvents() {
   if (toggleAuth) {
     toggleAuth.addEventListener('click', function() {
       state.authMode = state.authMode === 'login' ? 'signup' : 'login';
+      state.authError = '';
       render();
     });
   }
   var btnAuth = document.getElementById('btn-auth');
   if (btnAuth) {
-    btnAuth.addEventListener('click', function() {
-      state.page = state.role;
-      state.section = 'overview';
-      render();
+    btnAuth.addEventListener('click', async function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Please wait...';
+      state.authError = '';
+      try {
+        var data;
+        if (state.authMode === 'login') {
+          data = await api.login(state.email, state.password);
+        } else {
+          data = await api.register(state.name, state.email, state.password, state.role);
+        }
+        handleAuthSuccess(data);
+      } catch (err) {
+        state.authError = err.message;
+        btn.disabled = false;
+        btn.textContent = state.authMode === 'login' ? 'Sign In' : 'Create Account';
+        var errEl = document.querySelector('.auth-error');
+        if (!errEl) render();
+        else errEl.textContent = err.message;
+      }
     });
   }
   var inpEmail = document.getElementById('inp-email');
@@ -120,6 +184,17 @@ function bindLoginEvents() {
   if (inpName) inpName.addEventListener('input', function() { state.name = this.value; });
   var inpOrg = document.getElementById('inp-org');
   if (inpOrg) inpOrg.addEventListener('input', function() { state.org = this.value; });
+  var togglePass = document.getElementById('toggle-pass');
+  if (togglePass && inpPass) {
+    togglePass.addEventListener('click', function() {
+      state.showPassword = !state.showPassword;
+      inpPass.type = state.showPassword ? 'text' : 'password';
+      togglePass.innerHTML = state.showPassword ? icon('eyeOff') : icon('eye');
+      togglePass.setAttribute('aria-label', state.showPassword ? 'Hide password' : 'Show password');
+      togglePass.setAttribute('title', state.showPassword ? 'Hide password' : 'Show password');
+      inpPass.focus();
+    });
+  }
 }
 
 /* ── Event binding: Dashboard ── */
@@ -133,9 +208,7 @@ function bindDashboardEvents() {
   var logoutBtn = document.getElementById('btn-logout');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function() {
-      state.page = 'login';
-      state.section = 'overview';
-      render();
+      handleLogout();
     });
   }
   var searchInput = document.getElementById('inp-search');
@@ -215,4 +288,4 @@ function drawCharts() {
 }
 
 /* ── Initialize ── */
-render();
+checkAuth();

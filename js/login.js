@@ -1,9 +1,59 @@
+var GOOGLE_CLIENT_ID = '319418471257-p38pt2u09403hv57u75dg1ti5tcu1h21.apps.googleusercontent.com';
+var googleInitialized = false;
+
+function initGoogleSignIn() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    setTimeout(initGoogleSignIn, 500);
+    return;
+  }
+  try {
+    if (!googleInitialized) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false,
+      });
+      googleInitialized = true;
+    }
+
+    var container = document.getElementById('google-signin-button');
+    if (container) {
+      container.innerHTML = '';
+      google.accounts.id.renderButton(container, {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: container.offsetWidth || 180,
+      });
+    }
+  } catch (e) {
+    console.error('Google init error:', e);
+  }
+}
+
+function handleGoogleCredential(response) {
+  var container = document.getElementById('google-signin-button');
+  if (container) {
+    container.style.pointerEvents = 'none';
+    container.style.opacity = '0.65';
+  }
+  api.googleLogin(response.credential).then(function(data) {
+    handleAuthSuccess(data);
+  }).catch(function(err) {
+    state.authError = err.message;
+    render();
+  });
+}
+
 function renderLoginPage() {
   var roles = [
     { key: 'candidate', label: 'Candidate', desc: 'Practice & get assessed', icon: icon('user', 18), color: INDIGO },
     { key: 'recruiter', label: 'Recruiter', desc: 'Evaluate & compare talent', icon: icon('briefcase', 18), color: CYAN },
     { key: 'admin', label: 'Admin', desc: 'Manage the platform', icon: icon('shield', 18), color: EMERALD },
   ];
+
+  var errorMsg = state.authError ? `<div class="auth-error">${state.authError}</div>` : '';
 
   return `<div class="flex min-h-screen" style="background:#06070f">
     <div class="login-left hidden lg:flex flex-col justify-between p-12 relative overflow-hidden">
@@ -48,6 +98,7 @@ function renderLoginPage() {
           <h2 class="text-2xl font-bold text-white mb-1" style="font-family:'Outfit',sans-serif">${state.authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
           <p class="text-white/40 text-sm">${state.authMode === 'login' ? 'Sign in to your account to continue' : 'Get started with AI-powered interviews'}</p>
         </div>
+        ${errorMsg}
         <div class="auth-toggle flex rounded-lg p-1 mb-6" style="background:#141627">
           <button class="auth-toggle-btn flex-1 py-2 rounded-md text-sm font-medium transition-all ${state.authMode === 'login' ? 'active' : ''}" data-mode="login" style="${state.authMode === 'login' ? 'background:' + INDIGO + ';color:#fff' : 'color:rgba(255,255,255,0.4)'}">Sign In</button>
           <button class="auth-toggle-btn flex-1 py-2 rounded-md text-sm font-medium transition-all ${state.authMode === 'signup' ? 'active' : ''}" data-mode="signup" style="${state.authMode === 'signup' ? 'background:' + INDIGO + ';color:#fff' : 'color:rgba(255,255,255,0.4)'}">Sign Up</button>
@@ -80,15 +131,15 @@ function renderLoginPage() {
           </div>
           <div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Password</label>
-            <div class="input-wrap">${icon('lock', 15)}<input id="inp-pass" type="password" value="${state.password}" placeholder="••••••••" class="form-input" /></div>
+            <div class="input-wrap">${icon('lock', 15)}<input id="inp-pass" type="${state.showPassword ? 'text' : 'password'}" value="${state.password}" placeholder="••••••••" class="form-input" style="padding-right:2.5rem" /><button type="button" id="toggle-pass" class="pass-toggle-btn" aria-label="${state.showPassword ? 'Hide password' : 'Show password'}" title="${state.showPassword ? 'Hide password' : 'Show password'}">${state.showPassword ? icon('eyeOff') : icon('eye')}</button></div>
           </div>
         </div>
         ${state.authMode === 'login' ? `<div class="flex justify-end mb-4"><button class="text-xs font-medium" style="color:${INDIGO}">Forgot password?</button></div>` : ''}
         <button id="btn-auth" class="auth-btn w-full py-3 rounded-lg text-white text-sm font-semibold mb-4">${state.authMode === 'login' ? 'Sign In' : 'Create Account'}</button>
+        <div id="auth-loading" class="text-center text-xs text-white/40 mb-4" style="display:none">Please wait...</div>
         <div class="relative flex items-center gap-3 mb-4"><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div><span class="text-xs text-white/30">or continue with</span><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div></div>
-        <div class="grid grid-cols-2 gap-3 mb-6">
-          <button class="oauth-btn py-2.5 rounded-lg border text-sm font-medium">Google</button>
-          <button class="oauth-btn py-2.5 rounded-lg border text-sm font-medium">GitHub</button>
+        <div class="grid grid-cols-1 gap-3 mb-6">
+          <div id="google-signin-button" class="min-h-10 flex items-center justify-center"></div>
         </div>
         <p class="text-center text-xs text-white/30">
           ${state.authMode === 'login' ? "Don't have an account? " : "Already have an account? "}

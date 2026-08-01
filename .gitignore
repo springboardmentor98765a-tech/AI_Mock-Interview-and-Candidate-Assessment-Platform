@@ -1,0 +1,57 @@
+# ── Environment & Secrets ──
+.env
+.env.local
+.env.production
+server/.env
+*.pem
+*.key
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# ── Database ──
+server/data/
+*.db
+*.sqlite3
+
+# ── Node.js ──
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── OS ──
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ── Logs ──
+*.log
+logs/
+
+# ── Coverage ──
+htmlcov/
+.coverage
+.pytest_cache/

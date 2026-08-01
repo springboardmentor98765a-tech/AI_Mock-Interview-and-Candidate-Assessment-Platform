@@ -1,0 +1,55 @@
+/* ── API Utility ── */
+const API_BASE = '/api';
+
+async function apiRequest(endpoint, options) {
+  var config = {
+    headers: { 'Content-Type': 'application/json' },
+  };
+  var token = localStorage.getItem('smarthire_token');
+  if (token) {
+    config.headers['Authorization'] = 'Bearer ' + token;
+  }
+  Object.assign(config, options);
+  if (config.body && typeof config.body === 'object') {
+    config.body = JSON.stringify(config.body);
+  }
+  var response = await fetch(API_BASE + endpoint, config);
+  var data;
+  try {
+    data = await response.json();
+  } catch (_) {
+    throw new Error('The server returned an invalid response. Make sure the SmartHire server is running.');
+  }
+  if (!response.ok) {
+    throw new Error(data.detail || data.error || data.message || 'Request failed.');
+  }
+  return data;
+}
+
+var api = {
+  register: function(name, email, password, role) {
+    return apiRequest('/auth/register', { method: 'POST', body: { name, email, password, role } });
+  },
+  login: function(email, password) {
+    return apiRequest('/auth/login', { method: 'POST', body: { email, password } });
+  },
+  googleLogin: function(credential) {
+    return apiRequest('/auth/google', { method: 'POST', body: { credential } });
+  },
+  getMe: function() {
+    return apiRequest('/auth/me');
+  },
+  updateProfile: function(fields) {
+    return apiRequest('/auth/profile', { method: 'PUT', body: fields });
+  },
+  changePassword: function(currentPassword, newPassword) {
+    return apiRequest('/auth/password', { method: 'PUT', body: { currentPassword, newPassword } });
+  },
+  getUsers: function(params) {
+    var qs = new URLSearchParams(params || {}).toString();
+    return apiRequest('/users' + (qs ? '?' + qs : ''));
+  },
+  getUserStats: function() {
+    return apiRequest('/users/stats');
+  },
+};

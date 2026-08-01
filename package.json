@@ -1,0 +1,11 @@
+{
+  "name": "smarthire-ai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SmartHire AI: AI-Powered Mock Interview and Candidate Assessment Platform",
+  "scripts": {
+    "start": "cd server && python main.py",
+    "dev": "cd server && python main.py",
+    "install-server": "cd server && pip install -r requirements.txt"
+  }
+}

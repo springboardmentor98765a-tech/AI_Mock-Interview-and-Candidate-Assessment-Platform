@@ -63,6 +63,10 @@ const state = {
   org: '',
   search: '',
   temp: 0.7,
+  authError: '',
+  showPassword: false,
+  user: null,
+  token: null,
 };
 
 let charts = {};
