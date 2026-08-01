@@ -1,16 +1,12 @@
-# React + Vite
+# SmartHire frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The login page uses the Python/FastAPI service in `backend-python/`. It supports email/password registration and login, JWT storage, Google OAuth redirect, profile lookup, and role-based dashboard routing.
 
-Currently, two official plugins are available:
+## Start locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Use Python 3.10 or newer. PostgreSQL stores the data; Python runs the API.
+2. In pgAdmin, run [`backend-python/database/setup.sql`](backend-python/database/setup.sql) while connected to the `postgres` database.
+3. Follow the commands in [`backend-python/README.md`](backend-python/README.md) to install dependencies and start the API on port 8000.
+4. Start the React app with `npm.cmd run dev`.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+The Python service creates the `users` table automatically on first startup. Configure PostgreSQL credentials and a strong JWT secret before running it; do not commit real credentials.

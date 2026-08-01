@@ -1,230 +1,104 @@
-import { useState } from 'react'
-import {
-  Users, Calendar, CheckSquare, Clock, Star, Filter,
-  Download, ChevronRight, Eye, MessageSquare, TrendingUp, BarChart3, Plus
-} from 'lucide-react'
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Cell, LineChart, Line
-} from 'recharts'
+import { useEffect, useState } from 'react'
+import { BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, MapPin, Plus, Users, X } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Topbar from '../components/Topbar'
+import { useAuth } from '../auth/AuthContext'
+import { recruiterApi } from '../auth/api'
 
-const STATS = [
-  { label: 'Total Candidates', value: '142',  change: '+8 this week',  color: '#6366f1', icon: Users,       grad: 'linear-gradient(135deg,#6366f1,#a855f7)' },
-  { label: 'Scheduled',        value: '28',   change: '5 today',       color: '#06b6d4', icon: Calendar,    grad: 'linear-gradient(135deg,#06b6d4,#3b82f6)' },
-  { label: 'Completed',        value: '89',   change: '+12 this week', color: '#22c55e', icon: CheckSquare, grad: 'linear-gradient(135deg,#22c55e,#06b6d4)'  },
-  { label: 'Pending Review',   value: '25',   change: '3 urgent',      color: '#f59e0b', icon: Clock,       grad: 'linear-gradient(135deg,#f59e0b,#ef4444)'  },
-]
+const EMPTY_JOB = { title: '', company: '', location: '', employment_type: 'Full-time', description: '' }
 
-const CANDIDATES = [
-  { name: 'Arjun Sharma',   role: 'Backend Dev',      score: 88, status: 'Shortlisted', date: 'Jul 24', initials: 'AS', color: '#6366f1' },
-  { name: 'Priya Patel',    role: 'Frontend Dev',     score: 82, status: 'In Review',   date: 'Jul 23', initials: 'PP', color: '#a855f7' },
-  { name: 'Rahul Gupta',    role: 'Full Stack',       score: 79, status: 'Pending',     date: 'Jul 22', initials: 'RG', color: '#22c55e' },
-  { name: 'Sneha Reddy',    role: 'Data Scientist',   score: 91, status: 'Shortlisted', date: 'Jul 22', initials: 'SR', color: '#f59e0b' },
-  { name: 'Vikram Singh',   role: 'DevOps Engineer',  score: 74, status: 'Rejected',    date: 'Jul 21', initials: 'VS', color: '#ef4444' },
-  { name: 'Anjali Mehra',   role: 'ML Engineer',      score: 86, status: 'Scheduled',   date: 'Jul 20', initials: 'AM', color: '#06b6d4' },
-]
-
-const AVG_SCORES = [
-  { role: 'Backend',   avg: 81 },
-  { role: 'Frontend',  avg: 76 },
-  { role: 'Full Stack',avg: 78 },
-  { role: 'Data Sci',  avg: 84 },
-  { role: 'DevOps',    avg: 72 },
-  { role: 'ML',        avg: 88 },
-]
-
-const SCHEDULE = [
-  { candidate: 'Priya Patel',  role: 'Frontend Dev',    time: '10:00 AM', status: 'Upcoming', color: '#6366f1' },
-  { candidate: 'Rahul Gupta',  role: 'Full Stack',      time: '11:30 AM', status: 'Upcoming', color: '#a855f7' },
-  { candidate: 'Neha Shah',    role: 'UI/UX Designer',  time: '2:00 PM',  status: 'Upcoming', color: '#22c55e' },
-  { candidate: 'Karan Modi',   role: 'DevOps',          time: '3:30 PM',  status: 'Confirmed',color: '#f59e0b' },
-]
-
-const STATUS_BADGE = {
-  Shortlisted: 'badge-success',
-  'In Review': 'badge-primary',
-  Pending:     'badge-warning',
-  Rejected:    'badge-danger',
-  Scheduled:   'badge-accent',
+function PostJobModal({ onClose, onCreated }) {
+  const [job, setJob] = useState(EMPTY_JOB)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const update = (field) => (event) => setJob({ ...job, [field]: event.target.value })
+  const submit = async (event) => {
+    event.preventDefault(); setError(''); setSaving(true)
+    try { onCreated(await recruiterApi.createJob(job)); onClose() } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+  return <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(6px)' }}>
+    <form onSubmit={submit} className="glass-strong" style={{ width: '100%', maxWidth: 620, maxHeight: '90vh', overflowY: 'auto', borderRadius: 20, padding: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}><div><h2 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Post a job</h2><p style={{ color: '#a0a0c0', fontSize: '.82rem', marginTop: 4 }}>This job will be saved in PostgreSQL.</p></div><button type="button" onClick={onClose} style={{ color: '#a0a0c0', background: 'transparent' }}><X /></button></div>
+      <div style={{ display: 'grid', gap: 15 }}>
+        <label className="form-group"><span className="form-label">Job title</span><input className="form-input" required value={job.title} onChange={update('title')} placeholder="e.g. Backend Developer" /></label>
+        <div className="grid-cols-2" style={{ gap: 15 }}><label className="form-group"><span className="form-label">Company</span><input className="form-input" required value={job.company} onChange={update('company')} placeholder="Company name" /></label><label className="form-group"><span className="form-label">Location</span><input className="form-input" required value={job.location} onChange={update('location')} placeholder="e.g. Bengaluru / Remote" /></label></div>
+        <label className="form-group"><span className="form-label">Employment type</span><select className="form-input" value={job.employment_type} onChange={update('employment_type')}><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option></select></label>
+        <label className="form-group"><span className="form-label">Description</span><textarea className="form-input" required minLength="10" rows="5" value={job.description} onChange={update('description')} placeholder="Describe the role, skills, and responsibilities." /></label>
+        {error && <p role="alert" style={{ color: '#f87171', fontSize: '.82rem' }}>{error}</p>}
+        <button className="btn btn-primary" style={{ justifyContent: 'center', padding: 13 }} disabled={saving}>{saving ? 'Posting...' : 'Post job'}</button>
+      </div>
+    </form>
+  </div>
 }
 
-const BAR_COLORS = ['#6366f1','#a855f7','#06b6d4','#22c55e','#f59e0b','#ef4444']
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload?.length) {
-    return (
-      <div className="custom-tooltip">
-        <p style={{ color: '#a0a0c0', marginBottom: 4 }}>{label}</p>
-        <p style={{ color: '#6366f1', fontWeight: 700 }}>Avg: {payload[0].value}</p>
-      </div>
-    )
+function ScheduleInterviewModal({ application, onClose, onScheduled }) {
+  const hasRequestedTime = Boolean(application.preferred_interview_at)
+  const [choice, setChoice] = useState(hasRequestedTime ? 'requested' : 'custom')
+  const [customTime, setCustomTime] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const submit = async (event) => {
+    event.preventDefault()
+    const interviewAt = choice === 'requested' ? application.preferred_interview_at : customTime ? new Date(customTime).toISOString() : ''
+    if (!interviewAt) { setError('Choose an interview date and time.'); return }
+    setSaving(true); setError('')
+    try { await onScheduled(interviewAt); onClose() } catch (err) { setError(err.message) } finally { setSaving(false) }
   }
-  return null
+  return <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(6px)' }}>
+    <form onSubmit={submit} className="glass-strong" style={{ width: '100%', maxWidth: 500, borderRadius: 20, padding: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}><div><h2 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Schedule interview</h2><p style={{ color: '#a0a0c0', fontSize: '.82rem', marginTop: 4 }}>{application.candidate_name} · {application.job_title}</p></div><button type="button" onClick={onClose} style={{ color: '#a0a0c0', background: 'transparent' }}><X /></button></div>
+      {hasRequestedTime && <label style={{ display: 'flex', gap: 10, padding: 14, border: `1px solid ${choice === 'requested' ? 'rgba(99,102,241,.55)' : 'rgba(255,255,255,.1)'}`, borderRadius: 12, cursor: 'pointer', marginBottom: 12, background: choice === 'requested' ? 'rgba(99,102,241,.1)' : 'transparent' }}><input type="radio" name="schedule" checked={choice === 'requested'} onChange={() => setChoice('requested')} /><span><strong style={{ color: '#f0f0ff', fontSize: '.86rem' }}>Use candidate’s requested time</strong><span style={{ display: 'block', color: '#a0a0c0', fontSize: '.78rem', marginTop: 3 }}>{new Date(application.preferred_interview_at).toLocaleString()}</span></span></label>}
+      <label style={{ display: 'block', padding: 14, border: `1px solid ${choice === 'custom' ? 'rgba(99,102,241,.55)' : 'rgba(255,255,255,.1)'}`, borderRadius: 12, cursor: 'pointer', background: choice === 'custom' ? 'rgba(99,102,241,.1)' : 'transparent' }}><span style={{ display: 'flex', gap: 10 }}><input type="radio" name="schedule" checked={choice === 'custom'} onChange={() => setChoice('custom')} /><strong style={{ color: '#f0f0ff', fontSize: '.86rem' }}>Choose a different time</strong></span>{choice === 'custom' && <input className="form-input" style={{ marginTop: 12 }} type="datetime-local" required value={customTime} onChange={(event) => setCustomTime(event.target.value)} />}</label>
+      {error && <p style={{ color: '#f87171', fontSize: '.82rem', marginTop: 12 }}>{error}</p>}<button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 20 }} disabled={saving}>{saving ? 'Scheduling...' : 'Confirm interview'}</button>
+    </form>
+  </div>
 }
 
 export default function RecruiterDashboard() {
-  const [filterStatus, setFilterStatus] = useState('All')
-  const statuses = ['All', 'Shortlisted', 'In Review', 'Pending', 'Rejected', 'Scheduled']
+  const { user } = useAuth()
+  const displayName = user?.name || 'Recruiter'
+  const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+  const [jobs, setJobs] = useState([])
+  const [applications, setApplications] = useState([])
+  const [analytics, setAnalytics] = useState({ total_jobs: 0, open_jobs: 0, closed_jobs: 0, candidates: 0 })
+  const [showPostJob, setShowPostJob] = useState(false)
+  const [scheduleApplication, setScheduleApplication] = useState(null)
+  const [error, setError] = useState('')
 
-  const filtered = filterStatus === 'All' ? CANDIDATES : CANDIDATES.filter(c => c.status === filterStatus)
+  useEffect(() => {
+    Promise.all([recruiterApi.jobs(), recruiterApi.analytics(), recruiterApi.applications()]).then(([jobList, data, applicationList]) => { setJobs(jobList); setAnalytics(data); setApplications(applicationList) }).catch((err) => setError(err.message))
+  }, [])
+  const addJob = (job) => { setJobs((current) => [job, ...current]); setAnalytics((current) => ({ ...current, total_jobs: current.total_jobs + 1, open_jobs: current.open_jobs + 1 })) }
+  const schedule = async (interviewAt) => {
+    try { const updated = await recruiterApi.scheduleInterview(scheduleApplication.id, interviewAt); setApplications((items) => items.map((item) => item.id === updated.id ? updated : item)) } catch (err) { setError(err.message); throw err }
+  }
+  const handleRecruiterNavigation = (label) => {
+    const targets = { Dashboard: 'recruiter-dashboard-top', Candidates: 'recruiter-applications', Schedule: 'recruiter-applications', Reports: 'recruiter-jobs', Analytics: 'recruiter-analytics' }
+    const cards = document.querySelectorAll('.dashboard-content > .card')
+    const section = label === 'Candidates' || label === 'Schedule' ? cards[1] : label === 'Reports' ? cards[0] : document.getElementById(targets[label])
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const stats = [
+    { label: 'Total Job Posts', value: analytics.total_jobs, icon: BriefcaseBusiness, color: '#6366f1' },
+    { label: 'Open Jobs', value: analytics.open_jobs, icon: CheckCircle2, color: '#22c55e' },
+    { label: 'Closed Jobs', value: analytics.closed_jobs, icon: Clock3, color: '#f59e0b' },
+    { label: 'Registered Candidates', value: analytics.candidates, icon: Users, color: '#06b6d4' },
+  ]
 
-  return (
-    <div className="dashboard-layout">
-      <Sidebar role="recruiter" />
-      <div className="dashboard-main">
-        <Topbar
-          title="Recruiter Dashboard"
-          subtitle="Manage candidates, schedules, and hiring pipeline"
-          userName="Neha Joshi"
-          userInitials="NJ"
-          roleBadge="Recruiter"
-        />
-        <div className="dashboard-content">
-
-          {/* Stats */}
-          <div className="grid-cols-4" style={{ marginBottom: 32 }}>
-            {STATS.map((s, i) => {
-              const Icon = s.icon
-              return (
-                <div key={i} className="stat-card">
-                  <div className="stat-card-icon" style={{ background: `${s.color}18` }}>
-                    <Icon size={20} color={s.color} />
-                  </div>
-                  <div className="stat-card-value" style={{ background: s.grad, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{s.value}</div>
-                  <div className="stat-card-label">{s.label}</div>
-                  <div className="stat-card-change" style={{ color: '#22c55e' }}>
-                    <TrendingUp size={11} /> {s.change}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Charts row */}
-          <div className="grid-cols-2" style={{ marginBottom: 32 }}>
-            {/* Average Scores */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Average Scores by Role</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>Current hiring round performance</p>
-                </div>
-                <span className="badge badge-primary"><BarChart3 size={10} /> Analytics</span>
-              </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={AVG_SCORES} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="role" tick={{ fill: '#606080', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[60, 100]} tick={{ fill: '#606080', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
-                    {AVG_SCORES.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Today's Schedule */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Today's Schedule</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>Jul 27, 2026 — 4 interviews</p>
-                </div>
-                <button className="btn btn-outline btn-sm"><Plus size={13} /> Add</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {SCHEDULE.map((s, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px',
-                    background: `${s.color}0a`, border: `1px solid ${s.color}18`,
-                    borderRadius: 10, borderLeft: `3px solid ${s.color}`,
-                  }}>
-                    <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '0.875rem', color: s.color, minWidth: 60 }}>{s.time}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: '#f0f0ff', fontSize: '0.85rem' }}>{s.candidate}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#606080' }}>{s.role}</div>
-                    </div>
-                    <span className={`badge ${s.status === 'Confirmed' ? 'badge-success' : 'badge-accent'}`}>{s.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Candidate List */}
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Candidate Pipeline</h3>
-                <p style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>{filtered.length} candidates shown</p>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {statuses.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setFilterStatus(s)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-                      background: filterStatus === s ? 'linear-gradient(135deg,#6366f1,#a855f7)' : 'rgba(255,255,255,0.05)',
-                      border: filterStatus === s ? '1px solid transparent' : '1px solid rgba(255,255,255,0.08)',
-                      color: filterStatus === s ? 'white' : '#a0a0c0',
-                      transition: 'all 0.2s',
-                    }}
-                  >{s}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Candidate</th>
-                    <th>Role</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((c, i) => (
-                    <tr key={i}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${c.color}, ${c.color}88)` }}>{c.initials}</div>
-                          <span style={{ fontWeight: 500, color: '#f0f0ff' }}>{c.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ color: '#a0a0c0', fontSize: '0.82rem' }}>{c.role}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 60, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${c.score}%`, background: c.score >= 85 ? '#22c55e' : c.score >= 75 ? '#6366f1' : '#f59e0b', borderRadius: 3 }} />
-                          </div>
-                          <span style={{ fontFamily: 'Outfit', fontWeight: 700, color: '#f0f0ff', fontSize: '0.875rem' }}>{c.score}</span>
-                        </div>
-                      </td>
-                      <td><span className={`badge ${STATUS_BADGE[c.status]}`}>{c.status}</span></td>
-                      <td style={{ color: '#606080', fontSize: '0.78rem' }}>{c.date}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn btn-outline btn-sm" style={{ padding: '5px 10px' }}><Eye size={12} /></button>
-                          <button className="btn btn-outline btn-sm" style={{ padding: '5px 10px' }}><MessageSquare size={12} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      </div>
+  return <div className="dashboard-layout" id="recruiter-dashboard-top">
+    <Sidebar role="recruiter" onNavigate={handleRecruiterNavigation} />
+    <div className="dashboard-main"><Topbar title="Recruiter Dashboard" subtitle="Post and manage your real job listings" userName={displayName} userInitials={initials} roleBadge="Recruiter" />
+      <main className="dashboard-content">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 28 }}><div><h2 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Your job posts</h2><p style={{ color: '#a0a0c0', fontSize: '.85rem', marginTop: 5 }}>All values below come from your PostgreSQL database.</p></div><button className="btn btn-primary" onClick={() => setShowPostJob(true)}><Plus size={16} /> Post a job</button></div>
+        {error && <p role="alert" style={{ color: '#f87171', marginBottom: 20 }}>{error}</p>}
+        <div className="grid-cols-4" id="recruiter-analytics" style={{ marginBottom: 32 }}>{stats.map(({ label, value, icon: Icon, color }) => <div className="stat-card" key={label}><div className="stat-card-icon" style={{ background: `${color}18` }}><Icon size={20} color={color} /></div><div className="stat-card-value" style={{ color }}>{value}</div><div className="stat-card-label">{label}</div></div>)}</div>
+        <section className="card"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}><div><h3 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Posted jobs</h3><p style={{ color: '#606080', fontSize: '.78rem', marginTop: 3 }}>{jobs.length} job{jobs.length === 1 ? '' : 's'} posted by you</p></div></div>
+          {jobs.length === 0 ? <div style={{ padding: '42px 12px', textAlign: 'center', color: '#a0a0c0' }}><BriefcaseBusiness size={34} color="#6366f1" style={{ marginBottom: 12 }} /><p>No jobs posted yet.</p><button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowPostJob(true)}><Plus size={16} /> Create your first job</button></div> : <div style={{ overflowX: 'auto' }}><table className="data-table"><thead><tr><th>Job</th><th>Location</th><th>Type</th><th>Posted</th><th>Status</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><div style={{ color: '#f0f0ff', fontWeight: 600 }}>{job.title}</div><div style={{ color: '#606080', fontSize: '.78rem', marginTop: 2 }}>{job.company}</div></td><td style={{ color: '#a0a0c0', fontSize: '.82rem' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MapPin size={13} />{job.location}</span></td><td style={{ color: '#a0a0c0', fontSize: '.82rem' }}>{job.employment_type}</td><td style={{ color: '#a0a0c0', fontSize: '.78rem' }}>{new Date(job.created_at).toLocaleDateString()}</td><td><span className={`badge ${job.status === 'OPEN' ? 'badge-success' : 'badge-warning'}`}>{job.status}</span></td></tr>)}</tbody></table></div>}
+        </section>
+        <section className="card" style={{ marginTop: 28 }}><h3 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Candidate applications</h3><p style={{ color: '#606080', fontSize: '.78rem', margin: '3px 0 18px' }}>Review candidates who applied to your jobs and confirm requested interviews.</p>{applications.length === 0 ? <p style={{ color: '#a0a0c0', padding: '18px 0' }}>No candidate applications yet.</p> : <div style={{ overflowX: 'auto' }}><table className="data-table"><thead><tr><th>Candidate</th><th>Job</th><th>Requested time</th><th>Status</th><th>Action</th></tr></thead><tbody>{applications.map((application) => <tr key={application.id}><td><div style={{ color: '#f0f0ff', fontWeight: 600 }}>{application.candidate_name}</div><div style={{ color: '#606080', fontSize: '.76rem' }}>{application.candidate_email}</div></td><td style={{ color: '#a0a0c0' }}>{application.job_title}<div style={{ color: '#606080', fontSize: '.76rem' }}>{application.company}</div></td><td style={{ color: '#a0a0c0', fontSize: '.78rem' }}>{application.preferred_interview_at ? new Date(application.preferred_interview_at).toLocaleString() : 'Not requested'}</td><td><span className={`badge ${application.status === 'INTERVIEW_SCHEDULED' ? 'badge-success' : application.status === 'INTERVIEW_REQUESTED' ? 'badge-warning' : 'badge-primary'}`}>{application.status.replaceAll('_', ' ')}</span></td><td>{application.status === 'INTERVIEW_REQUESTED' ? <button className="btn btn-primary btn-sm" onClick={() => setScheduleApplication(application)}><CalendarDays size={13} /> Schedule</button> : application.scheduled_interview_at ? <span style={{ color: '#4ade80', fontSize: '.78rem' }}>{new Date(application.scheduled_interview_at).toLocaleString()}</span> : '—'}</td></tr>)}</tbody></table></div>}</section>
+      </main>
     </div>
-  )
+    {showPostJob && <PostJobModal onClose={() => setShowPostJob(false)} onCreated={addJob} />}
+    {scheduleApplication && <ScheduleInterviewModal application={scheduleApplication} onClose={() => setScheduleApplication(null)} onScheduled={schedule} />}
+  </div>
 }

@@ -47,7 +47,7 @@ const NAV_CONFIG = {
 
 const ROLE_ICONS = { candidate: User, recruiter: Users, admin: Shield }
 
-export default function Sidebar({ role }) {
+export default function Sidebar({ role, onNavigate }) {
   const navigate = useNavigate()
   const config = NAV_CONFIG[role] || NAV_CONFIG.candidate
   const RoleIcon = ROLE_ICONS[role] || User
@@ -60,11 +60,13 @@ export default function Sidebar({ role }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+            background: 'rgba(255,255,255,0.06)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(99,102,241,0.4)'
+            boxShadow: '0 4px 12px rgba(99,102,241,0.2)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.08)'
           }}>
-            <Brain size={20} color="white" />
+            <img src="/favicon.svg" alt="SmartHire AI logo" width="24" height="24" style={{ display: 'block' }} />
           </div>
           <div>
             <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.05rem', color: '#f0f0ff', lineHeight: 1.1 }}>SmartHire</div>
@@ -103,7 +105,11 @@ export default function Sidebar({ role }) {
             <button
               key={idx}
               className={`sidebar-nav-item ${active === idx ? 'active' : ''}`}
-              onClick={() => setActive(idx)}
+              onClick={() => {
+                setActive(idx)
+                if (onNavigate) onNavigate(item.label)
+                else navigate(item.path)
+              }}
             >
               <Icon size={17} />
               {item.label}

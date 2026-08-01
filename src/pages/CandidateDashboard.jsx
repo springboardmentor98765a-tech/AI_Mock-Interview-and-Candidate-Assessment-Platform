@@ -1,236 +1,42 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  Mic, Upload, FileText, TrendingUp, Award, Clock, CheckCircle2,
-  AlertCircle, Play, ChevronRight, Star, Target, Zap, BarChart3
-} from 'lucide-react'
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart
-} from 'recharts'
+import { useEffect, useRef, useState } from 'react'
+import { BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, FileText, MapPin, Mic, Play, Send, TrendingUp, Upload, X } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Topbar from '../components/Topbar'
-import ScoreRing from '../components/ScoreRing'
+import { useAuth } from '../auth/AuthContext'
+import { candidateApi } from '../auth/api'
 
-const SCORES = [
-  { label: 'Resume Score',        value: 82, color: '#6366f1' },
-  { label: 'Communication',       value: 74, color: '#06b6d4' },
-  { label: 'Confidence',          value: 68, color: '#a855f7' },
-]
-
-const RADAR_DATA = [
-  { subject: 'Communication', score: 74 },
-  { subject: 'Technical',     score: 80 },
-  { subject: 'Confidence',    score: 68 },
-  { subject: 'Clarity',       score: 77 },
-  { subject: 'Leadership',    score: 60 },
-  { subject: 'Problem-Solving', score: 85 },
-]
-
-const TREND_DATA = [
-  { session: 'S1', score: 58 },
-  { session: 'S2', score: 63 },
-  { session: 'S3', score: 68 },
-  { session: 'S4', score: 72 },
-  { session: 'S5', score: 74 },
-  { session: 'S6', score: 80 },
-]
-
-const ACTIVITIES = [
-  { dot: '#22c55e', title: 'Interview completed', sub: 'Software Engineer – Round 2',  time: '2 hours ago' },
-  { dot: '#6366f1', title: 'Resume uploaded',     sub: 'resume_v3_final.pdf',           time: '1 day ago'  },
-  { dot: '#f59e0b', title: 'Report generated',    sub: 'Communication Analysis',        time: '2 days ago' },
-  { dot: '#06b6d4', title: 'Practice session',    sub: 'Behavioral Interview Set',      time: '4 days ago' },
-]
-
-const HISTORY = [
-  { role: 'SWE Intern',         company: 'TechCorp',  score: 80, status: 'Passed',    date: 'Jul 24' },
-  { role: 'Backend Developer',  company: 'DataFlow',  score: 74, status: 'Pending',   date: 'Jul 22' },
-  { role: 'Full Stack Dev',     company: 'CloudX',    score: 68, status: 'In Review', date: 'Jul 18' },
-  { role: 'React Developer',    company: 'StartupY',  score: 91, status: 'Passed',    date: 'Jul 15' },
-]
-
-const STATUS_BADGE = {
-  Passed:    'badge-success',
-  Pending:   'badge-warning',
-  'In Review': 'badge-primary',
-  Failed:    'badge-danger',
-}
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload?.length) {
-    return (
-      <div className="custom-tooltip">
-        <p style={{ color: '#a0a0c0', marginBottom: 4 }}>{label}</p>
-        <p style={{ color: '#6366f1', fontWeight: 700 }}>Score: {payload[0].value}</p>
-      </div>
-    )
-  }
-  return null
+function InterviewModal({ job, onClose, onSaved }) {
+  const [interviewAt, setInterviewAt] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const submit = async (event) => { event.preventDefault(); setSaving(true); setError(''); try { onSaved(await candidateApi.requestInterview(job.application_id, new Date(interviewAt).toISOString())); onClose() } catch (err) { setError(err.message) } finally { setSaving(false) } }
+  return <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(6px)' }}><form onSubmit={submit} className="glass-strong" style={{ width: '100%', maxWidth: 480, borderRadius: 20, padding: 28 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18 }}><div><h2 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Request interview</h2><p style={{ color: '#a0a0c0', fontSize: '.82rem', marginTop: 4 }}>{job.title} · {job.company}</p></div><button type="button" onClick={onClose} style={{ background: 'transparent', color: '#a0a0c0' }}><X /></button></div><label className="form-group"><span className="form-label">Preferred date and time</span><input className="form-input" type="datetime-local" value={interviewAt} onChange={(event) => setInterviewAt(event.target.value)} required /></label>{error && <p style={{ color: '#f87171', fontSize: '.82rem', marginTop: 12 }}>{error}</p>}<button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 18 }} disabled={saving}>{saving ? 'Sending...' : 'Send request'}</button></form></div>
 }
 
 export default function CandidateDashboard() {
-  const navigate = useNavigate()
-  const [uploadHover, setUploadHover] = useState(false)
-
-  return (
-    <div className="dashboard-layout">
-      <Sidebar role="candidate" />
-      <div className="dashboard-main">
-        <Topbar
-          title="Candidate Dashboard"
-          subtitle="Track your interview performance and career progress"
-          userName="Arjun Sharma"
-          userInitials="AS"
-          roleBadge="Candidate"
-        />
-        <div className="dashboard-content">
-
-          {/* Welcome Banner */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.1))',
-            border: '1px solid rgba(99,102,241,0.2)', borderRadius: 20,
-            padding: '28px 32px', marginBottom: 32, display: 'flex',
-            justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20,
-            position: 'relative', overflow: 'hidden',
-          }}>
-            <div className="orb orb-indigo" style={{ width: 200, height: 200, right: 0, top: -80, opacity: 0.2 }} />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Star size={14} color="#f59e0b" fill="#f59e0b" />
-                <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Welcome back</span>
-              </div>
-              <h2 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.6rem', color: '#f0f0ff', marginBottom: 6 }}>
-                Good afternoon, Arjun! 👋
-              </h2>
-              <p style={{ color: '#a0a0c0', fontSize: '0.875rem' }}>
-                Your overall performance has improved by <span style={{ color: '#22c55e', fontWeight: 700 }}>+12%</span> this week. Keep it up!
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" id="start-interview-btn" onClick={() => {}}>
-                <Play size={16} /> Start Interview
-              </button>
-              <button className="btn btn-outline" id="upload-resume-btn">
-                <Upload size={16} /> Upload Resume
-              </button>
-            </div>
-          </div>
-
-          {/* Score Rings */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 32 }}>
-            {SCORES.map((s, i) => (
-              <div key={i} className="card" style={{ textAlign: 'center', padding: '32px 24px' }}>
-                <ScoreRing score={s.value} label={s.label} color={s.color} size={130} strokeWidth={11} />
-                <div style={{ marginTop: 16, fontSize: '0.78rem', color: '#a0a0c0' }}>
-                  {s.value >= 80 ? '🟢 Excellent' : s.value >= 60 ? '🟡 Good — Room to improve' : '🔴 Needs work'}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Charts row */}
-          <div className="grid-cols-2" style={{ marginBottom: 32 }}>
-            {/* Skill Radar */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Skill Breakdown</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>Multi-dimensional performance</p>
-                </div>
-                <span className="badge badge-primary"><Target size={10} /> Radar</span>
-              </div>
-              <ResponsiveContainer width="100%" height={240}>
-                <RadarChart data={RADAR_DATA}>
-                  <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#606080', fontSize: 11 }} />
-                  <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} dot={{ fill: '#6366f1', r: 3 }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Score Trend */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Score Trend</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>Progress across sessions</p>
-                </div>
-                <span className="badge badge-success"><TrendingUp size={10} /> +12%</span>
-              </div>
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={TREND_DATA}>
-                  <defs>
-                    <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="session" tick={{ fill: '#606080', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[40, 100]} tick={{ fill: '#606080', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2.5} fill="url(#scoreGrad)" dot={{ fill: '#6366f1', r: 4 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Bottom row: Activity + History */}
-          <div className="grid-cols-2">
-            {/* Activity Feed */}
-            <div className="card">
-              <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff', marginBottom: 18 }}>Recent Activity</h3>
-              {ACTIVITIES.map((a, i) => (
-                <div key={i} className="activity-item">
-                  <div className="activity-dot" style={{ background: a.dot, boxShadow: `0 0 8px ${a.dot}80` }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.875rem', color: '#f0f0ff', fontWeight: 500 }}>{a.title}</div>
-                    <div style={{ fontSize: '0.78rem', color: '#606080', marginTop: 2 }}>{a.sub}</div>
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#404060', whiteSpace: 'nowrap' }}>{a.time}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Interview History */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1rem', color: '#f0f0ff' }}>Interview History</h3>
-                <button className="btn btn-outline btn-sm"><FileText size={13} /> View All</button>
-              </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Role</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {HISTORY.map((h, i) => (
-                    <tr key={i}>
-                      <td>
-                        <div style={{ fontWeight: 500, color: '#f0f0ff', fontSize: '0.825rem' }}>{h.role}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#606080' }}>{h.company}</div>
-                      </td>
-                      <td>
-                        <span style={{ fontFamily: 'Outfit', fontWeight: 700, color: h.score >= 80 ? '#22c55e' : h.score >= 70 ? '#f59e0b' : '#ef4444' }}>
-                          {h.score}
-                        </span>
-                      </td>
-                      <td><span className={`badge ${STATUS_BADGE[h.status]}`}>{h.status}</span></td>
-                      <td style={{ color: '#606080', fontSize: '0.78rem' }}>{h.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  )
+  const { user } = useAuth()
+  const displayName = user?.name || 'Candidate'
+  const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+  const [jobs, setJobs] = useState([])
+  const [error, setError] = useState('')
+  const [busyJob, setBusyJob] = useState(null)
+  const [requestJob, setRequestJob] = useState(null)
+  const [resumeName, setResumeName] = useState('')
+  const [activeTool, setActiveTool] = useState('')
+  const resumeInput = useRef(null)
+  useEffect(() => { candidateApi.jobs().then(setJobs).catch((err) => setError(err.message)) }, [])
+  const apply = async (job) => { setBusyJob(job.id); try { const application = await candidateApi.apply(job.id); setJobs((items) => items.map((item) => item.id === job.id ? { ...item, application_id: application.id, application_status: application.status } : item)) } catch (err) { setError(err.message) } finally { setBusyJob(null) } }
+  const requestInterview = (updated) => setJobs((items) => items.map((item) => item.application_id === updated.id ? { ...item, application_status: updated.status } : item))
+  const applied = jobs.filter((job) => job.application_id)
+  const scheduled = jobs.filter((job) => job.application_status === 'INTERVIEW_SCHEDULED').length
+  const handleCandidateNavigation = (label) => {
+    const targets = { Dashboard: 'candidate-dashboard-top', 'Start Interview': 'candidate-tools', 'Upload Resume': 'candidate-tools', 'My Reports': 'candidate-tools', History: 'candidate-jobs' }
+    if (label === 'Start Interview') setActiveTool('Mock interview ready: Tell me about yourself.')
+    if (label === 'My Reports') setActiveTool('Performance analysis is ready for your next completed mock interview.')
+    if (label === 'Upload Resume') resumeInput.current?.click()
+    document.getElementById(targets[label])?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  return <div className="dashboard-layout" id="candidate-dashboard-top"><Sidebar role="candidate" onNavigate={handleCandidateNavigation} /><div className="dashboard-main"><Topbar title="Candidate Dashboard" subtitle="Develop your skills and find your next opportunity" userName={displayName} userInitials={initials} roleBadge="Candidate" /><main className="dashboard-content"><div style={{ marginBottom: 28 }}><h2 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Your career workspace</h2><p style={{ color: '#a0a0c0', marginTop: 5, fontSize: '.85rem' }}>Practice, prepare your resume, and apply to live opportunities.</p></div>{error && <p role="alert" style={{ color: '#f87171', marginBottom: 16 }}>{error}</p>}<div className="grid-cols-3" style={{ marginBottom: 32 }}><div className="stat-card"><div className="stat-card-icon" style={{ background: '#6366f118' }}><BriefcaseBusiness color="#6366f1" /></div><div className="stat-card-value" style={{ color: '#818cf8' }}>{jobs.length}</div><div className="stat-card-label">Open jobs</div></div><div className="stat-card"><div className="stat-card-icon" style={{ background: '#06b6d418' }}><Send color="#06b6d4" /></div><div className="stat-card-value" style={{ color: '#67e8f9' }}>{applied.length}</div><div className="stat-card-label">Applications</div></div><div className="stat-card"><div className="stat-card-icon" style={{ background: '#22c55e18' }}><CalendarDays color="#22c55e" /></div><div className="stat-card-value" style={{ color: '#4ade80' }}>{scheduled}</div><div className="stat-card-label">Interviews scheduled</div></div></div>
+        <section className="card" id="candidate-tools" style={{ marginBottom: 32 }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}><div><h3 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>Career preparation</h3><p style={{ color: '#606080', fontSize: '.78rem', marginTop: 3 }}>Tools from your original candidate dashboard.</p></div>{activeTool && <span className="badge badge-success">{activeTool}</span>}</div><div className="grid-cols-3" style={{ gap: 16 }}><button onClick={() => resumeInput.current?.click()} style={{ textAlign: 'left', padding: 18, borderRadius: 14, background: 'rgba(99,102,241,.09)', border: '1px solid rgba(99,102,241,.22)', color: 'inherit' }}><Upload size={20} color="#818cf8" /><h4 style={{ color: '#f0f0ff', marginTop: 12 }}>Upload resume</h4><p style={{ color: '#a0a0c0', fontSize: '.78rem', marginTop: 5 }}>{resumeName ? `Selected: ${resumeName}` : 'Choose a PDF or DOCX file for review.'}</p></button><input ref={resumeInput} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={(event) => { const file = event.target.files?.[0]; if (file) { setResumeName(file.name); setActiveTool('Resume selected') } }} /><button onClick={() => setActiveTool('Mock interview ready: Tell me about yourself.')} style={{ textAlign: 'left', padding: 18, borderRadius: 14, background: 'rgba(6,182,212,.09)', border: '1px solid rgba(6,182,212,.22)', color: 'inherit' }}><Mic size={20} color="#67e8f9" /><h4 style={{ color: '#f0f0ff', marginTop: 12 }}>Mock interview</h4><p style={{ color: '#a0a0c0', fontSize: '.78rem', marginTop: 5 }}>Practice common interview questions.</p><span style={{ color: '#67e8f9', fontSize: '.78rem', display: 'inline-flex', gap: 5, marginTop: 10 }}><Play size={13} /> Start practice</span></button><button onClick={() => setActiveTool('Performance analysis is ready for your next completed mock interview.')} style={{ textAlign: 'left', padding: 18, borderRadius: 14, background: 'rgba(34,197,94,.09)', border: '1px solid rgba(34,197,94,.22)', color: 'inherit' }}><TrendingUp size={20} color="#4ade80" /><h4 style={{ color: '#f0f0ff', marginTop: 12 }}>Performance analysis</h4><p style={{ color: '#a0a0c0', fontSize: '.78rem', marginTop: 5 }}>Review interview feedback and growth.</p><span style={{ color: '#4ade80', fontSize: '.78rem', display: 'inline-flex', gap: 5, marginTop: 10 }}><FileText size={13} /> View insights</span></button></div></section>
+        <section className="card" id="candidate-jobs"><h3 style={{ color: '#f0f0ff', fontFamily: 'Outfit', marginBottom: 4 }}>Available jobs</h3><p style={{ color: '#606080', fontSize: '.78rem', marginBottom: 18 }}>Apply to an open job, then request a preferred interview time.</p>{jobs.length === 0 ? <div style={{ padding: '35px 10px', color: '#a0a0c0', textAlign: 'center' }}>No open jobs have been posted yet.</div> : <div style={{ display: 'grid', gap: 14 }}>{jobs.map((job) => <article key={job.id} style={{ padding: 18, border: '1px solid rgba(255,255,255,.08)', borderRadius: 14, background: 'rgba(255,255,255,.025)' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}><div><h4 style={{ color: '#f0f0ff', fontSize: '1rem' }}>{job.title}</h4><p style={{ color: '#818cf8', fontSize: '.84rem', marginTop: 3 }}>{job.company}</p><p style={{ color: '#a0a0c0', fontSize: '.78rem', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}><MapPin size={13} />{job.location} · {job.employment_type}</p></div><div>{!job.application_id ? <button className="btn btn-primary" disabled={busyJob === job.id} onClick={() => apply(job)}>{busyJob === job.id ? 'Applying...' : 'Apply now'}</button> : job.application_status === 'INTERVIEW_SCHEDULED' ? <span className="badge badge-success"><CheckCircle2 size={12} /> Interview scheduled</span> : job.application_status === 'INTERVIEW_REQUESTED' ? <span className="badge badge-warning"><Clock3 size={12} /> Request sent</span> : <button className="btn btn-outline" onClick={() => setRequestJob(job)}><CalendarDays size={15} /> Request interview</button>}</div></div><p style={{ color: '#a0a0c0', fontSize: '.82rem', lineHeight: 1.6, marginTop: 13 }}>{job.description}</p></article>)}</div>}</section></main></div>{requestJob && <InterviewModal job={requestJob} onClose={() => setRequestJob(null)} onSaved={requestInterview} />}</div>
 }

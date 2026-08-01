@@ -70,11 +70,13 @@ export default function HomePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 12,
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+            background: 'rgba(255,255,255,0.06)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(99,102,241,0.5)',
+            boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            overflow: 'hidden',
           }}>
-            <Brain size={22} color="white" />
+            <img src="/favicon.svg" alt="SmartHire AI logo" width="24" height="24" style={{ display: 'block' }} />
           </div>
           <div>
             <span style={{ fontFamily: 'Outfit', fontWeight: 900, fontSize: '1.2rem', color: '#f0f0ff' }}>SmartHire</span>
@@ -255,8 +257,8 @@ export default function HomePage() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#6366f1,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Brain size={16} color="white" />
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <img src="/favicon.svg" alt="SmartHire AI logo" width="18" height="18" style={{ display: 'block' }} />
           </div>
           <span style={{ fontFamily: 'Outfit', fontWeight: 800, color: '#f0f0ff', fontSize: '1rem' }}>SmartHire AI</span>
         </div>
