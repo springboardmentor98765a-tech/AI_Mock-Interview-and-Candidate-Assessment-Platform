@@ -1,139 +1,1146 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Dashboard</title>
 
-    <link rel="stylesheet" href="../css/style.css">
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Candidate Dashboard | SmartHire AI</title>
+
+<link rel="stylesheet" href="../css/style.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
 </head>
+
 <body>
 
-<header class="header">
-    <div class="logo-container">
-        <img src="../assets/images/logo.png" alt="SmartHire AI Logo" class="logo">
+<!-- ===========================
+        SIDEBAR
+============================ -->
 
-        <div>
-            <h1>SmartHire AI Platform</h1>
-            <p>AI-Powered Mock Interview & Candidate Assessment Platform</p>
-        </div>
-    </div>
+<aside class="sidebar">
+
+<div class="sidebar-logo">
+
+<i class="fa-solid fa-brain"></i>
+
+<h2>SmartHire</h2>
+
+</div>
+
+<ul>
+
+<li class="active">
+
+<i class="fa-solid fa-house"></i>
+
+<span>Dashboard</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-user"></i>
+
+<span>My Profile</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-file"></i>
+
+<span>Resume</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-robot"></i>
+
+<span>ATS Analysis</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-video"></i>
+
+<span>Mock Interview</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-chart-line"></i>
+
+<span>Analytics</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-calendar"></i>
+
+<span>Calendar</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-file-lines"></i>
+
+<span>Reports</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-gear"></i>
+
+<span>Settings</span>
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-right-from-bracket"></i>
+
+<span>Logout</span>
+
+</li>
+
+</ul>
+
+</aside>
+
+<!-- ===========================
+        MAIN
+============================ -->
+
+<div class="dashboard">
+
+<header class="topbar">
+
+<div class="search-box">
+
+<i class="fa-solid fa-magnifying-glass"></i>
+
+<input type="text" placeholder="Search...">
+
+</div>
+
+<div class="top-icons">
+
+<i class="fa-regular fa-bell"></i>
+
+<i class="fa-regular fa-envelope"></i>
+
+<div class="profile">
+
+<img src="https://i.pravatar.cc/45?img=12">
+
+<div>
+
+<h4>John Doe</h4>
+
+<p>Candidate</p>
+
+</div>
+
+</div>
+
+</div>
+
 </header>
-<nav class="navbar">
-    <a href="../index.html">🏠 Home</a>
-    <a href="candidate.html" class="active">Candidate</a>
-    <a href="recruiter.html">💼 Recruiter</a>
-    <a href="admin.html">⚙ Admin</a>
-</nav>
 
-<main class="container">
+<section class="dashboard-header">
 
-    <h2>Welcome Candidate 👋</h2>
+<h1>Welcome Back 👋</h1>
 
-    <div class="card">
-    <h3>📄 Upload Resume</h3>
+<p>
 
-    <input type="file" id="resumeFile">
+Track your interview preparation and placement progress.
 
-    <button onclick="uploadResume()">
-        Upload Resume
-    </button>
+</p>
 
-    <p id="uploadMessage"></p>
+</section>
 
-</div>
+<section class="dashboard-header">
+    <!--=========================================
+            DASHBOARD CARDS
+==========================================-->
 
-        <div class="card">
-    <h3>🎤 Mock Interview</h3>
+<section class="dashboard-cards">
 
-    <p>Practice AI Mock Interview</p>
+    <div class="dashboard-card resume">
 
-    <button onclick="startInterview()">
-        Start Interview
-    </button>
+        <div class="card-icon">
+            <i class="fa-solid fa-file-lines"></i>
+        </div>
 
-    <div id="questions"></div>
+        <div class="card-content">
+            <h4>Resume Score</h4>
+            <h2><span class="counter" data-target="92">0</span>%</h2>
+            <span>+5% This Week</span>
+        </div>
 
-</div>
-
-        <div class="card">
-    <h3>📜 Interview History</h3>
-
-    <table class="history-table">
-        <tr>
-            <th>Interview</th>
-            <th>Status</th>
-        </tr>
-
-        <tr>
-            <td>Frontend</td>
-            <td>Completed</td>
-        </tr>
-
-        <tr>
-            <td>Java</td>
-            <td>Pending</td>
-        </tr>
-
-        <tr>
-            <td>HR</td>
-            <td>Completed</td>
-        </tr>
-    </table>
-
-</div>
-
-        <div class="card">
-    <h3>📊 Performance Analytics</h3>
-
-    <p>Communication</p>
-    <div class="progress">
-        <div class="bar communication">80%</div>
     </div>
 
-    <p>Technical Skills</p>
-    <div class="progress">
-        <div class="bar technical">75%</div>
+    <div class="dashboard-card ats">
+
+        <div class="card-icon">
+            <i class="fa-solid fa-robot"></i>
+        </div>
+
+        <div class="card-content">
+            <h4>ATS Score</h4>
+            <h2><span class="counter" data-target="94">0</span>%</h2>
+            <span>Excellent</span>
+        </div>
+
     </div>
 
-    <p>Confidence</p>
-    <div class="progress">
-        <div class="bar confidence">90%</div>
+    <div class="dashboard-card interview">
+
+        <div class="card-icon">
+            <i class="fa-solid fa-video"></i>
+        </div>
+
+        <div class="card-content">
+            <h4>Mock Interviews</h4>
+            <h2><span class="counter" data-target="18">0</span></h2>
+            <span>Completed</span>
+        </div>
+
     </div>
+
+    <div class="dashboard-card rating">
+
+        <div class="card-icon">
+            <i class="fa-solid fa-star"></i>
+        </div>
+
+        <div class="card-content">
+            <h4>AI Rating</h4>
+            <h2>4.9</h2>
+            <span>Outstanding</span>
+        </div>
+
+    </div>
+
+    <div class="dashboard-card placement">
+
+        <div class="card-icon">
+            <i class="fa-solid fa-award"></i>
+        </div>
+
+        <div class="card-content">
+            <h4>Placement Ready</h4>
+            <h2><span class="counter" data-target="89">0</span>%</h2>
+            <span>Keep Improving</span>
+        </div>
+
+    </div>
+
+    <div class="dashboard-card overall">
+
+        <div class="card-icon">
+            <i class="fa-solid fa-chart-line"></i>
+        </div>
+
+        <div class="card-content">
+            <h4>Overall Performance</h4>
+            <h2><span class="counter" data-target="91">0</span>%</h2>
+            <span>Excellent Progress</span>
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+        ANALYTICS SECTION
+==========================================-->
+
+<section class="analytics-section">
+
+    <!-- Skill Progress -->
+
+    <div class="analytics-card">
+
+        <h2>Performance Analytics</h2>
+
+        <div class="skill">
+
+            <div class="skill-title">
+                <span>Technical Skills</span>
+                <span>90%</span>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress technical"></div>
+            </div>
+
+        </div>
+
+        <div class="skill">
+
+            <div class="skill-title">
+                <span>Communication</span>
+                <span>85%</span>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress communication"></div>
+            </div>
+
+        </div>
+
+        <div class="skill">
+
+            <div class="skill-title">
+                <span>Problem Solving</span>
+                <span>88%</span>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress problem"></div>
+            </div>
+
+        </div>
+
+        <div class="skill">
+
+            <div class="skill-title">
+                <span>Confidence</span>
+                <span>92%</span>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress confidence"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- AI Insights -->
+
+    <div class="analytics-card ai-card">
+
+        <h2>🤖 AI Insights</h2>
+
+        <div class="insight success">
+            ✅ ATS Score is excellent.
+        </div>
+
+        <div class="insight">
+            💡 Add more project keywords.
+        </div>
+
+        <div class="insight">
+            🎤 Practice HR interview questions.
+        </div>
+
+        <div class="insight">
+            📄 Resume formatting is recruiter-friendly.
+        </div>
+
+        <button class="primary-btn">
+
+            View Full AI Report
+
+        </button>
+
+    </div>
+
+    <!-- Upcoming Interview -->
+
+    <div class="analytics-card interview-card">
+
+        <h2>📅 Upcoming Interview</h2>
+
+        <h3>Frontend Developer</h3>
+
+        <p><strong>Company:</strong> Infosys</p>
+
+        <p><strong>Date:</strong> 15 August 2026</p>
+
+        <p><strong>Time:</strong> 10:00 AM</p>
+
+        <button class="primary-btn">
+
+            Join Mock Interview
+
+        </button>
+
+    </div>
+
+</section>
+<!--=========================================
+            RESUME SECTION
+==========================================-->
+
+<section class="resume-section">
+
+    <!-- Resume Upload -->
+
+    <div class="resume-card">
+
+        <h2><i class="fa-solid fa-file-arrow-up"></i> Resume Management</h2>
+
+        <div class="upload-box">
+
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+
+            <h3>Upload Your Resume</h3>
+
+            <p>Supported formats: PDF, DOCX</p>
+
+            <button class="primary-btn">
+
+                Upload Resume
+
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- Resume Preview -->
+
+    <div class="resume-card">
+
+        <h2><i class="fa-solid fa-file-lines"></i> Resume Preview</h2>
+
+        <div class="resume-preview">
+
+            <i class="fa-solid fa-file-pdf pdf-icon"></i>
+
+            <h3>Revanth_Resume.pdf</h3>
+
+            <p>Last Updated : 10 Aug 2026</p>
+
+            <div class="resume-buttons">
+
+                <button class="secondary-btn">
+
+                    Preview
+
+                </button>
+
+                <button class="primary-btn">
+
+                    Download
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+            ATS REPORT
+==========================================-->
+
+<section class="ats-report">
+
+    <div class="analytics-card">
+
+        <h2>🤖 ATS Resume Analysis</h2>
+
+        <table class="ats-table">
+
+            <tr>
+
+                <td>Formatting</td>
+
+                <td><span class="badge-success">Excellent</span></td>
+
+            </tr>
+
+            <tr>
+
+                <td>Keywords</td>
+
+                <td><span class="badge-warning">Needs Improvement</span></td>
+
+            </tr>
+
+            <tr>
+
+                <td>Skills Match</td>
+
+                <td><span class="badge-success">94%</span></td>
+
+            </tr>
+
+            <tr>
+
+                <td>Experience Match</td>
+
+                <td><span class="badge-success">91%</span></td>
+
+            </tr>
+
+        </table>
+
+    </div>
+
+    <div class="analytics-card">
+
+        <h2>💡 AI Suggestions</h2>
+
+        <ul class="suggestion-list">
+
+            <li>✔ Add React.js to Technical Skills</li>
+
+            <li>✔ Include more measurable achievements</li>
+
+            <li>✔ Add internship projects</li>
+
+            <li>✔ Improve summary section</li>
+
+            <li>✔ Include GitHub profile</li>
+
+        </ul>
+
+        <button class="primary-btn">
+
+            Improve Resume
+
+        </button>
+
+    </div>
+
+</section>
+<!--=========================================
+        INTERVIEW CENTER
+==========================================-->
+
+<section class="interview-section">
+
+    <!-- Upcoming Interview -->
+
+    <div class="interview-box">
+
+        <h2><i class="fa-solid fa-calendar-check"></i> Upcoming Interview</h2>
+
+        <div class="interview-details">
+
+            <h3>Frontend Developer</h3>
+
+            <p><strong>Company:</strong> Infosys</p>
+
+            <p><strong>Date:</strong> 15 August 2026</p>
+
+            <p><strong>Time:</strong> 10:00 AM</p>
+
+            <p><strong>Mode:</strong> Online</p>
+
+            <button class="primary-btn">
+
+                Join Interview
+
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- AI Feedback -->
+
+    <div class="interview-box">
+
+        <h2><i class="fa-solid fa-robot"></i> AI Interview Feedback</h2>
+
+        <div class="feedback-list">
+
+            <div class="feedback-item success">
+
+                ✅ Excellent communication skills.
+
+            </div>
+
+            <div class="feedback-item warning">
+
+                ⚠ Improve confidence while answering.
+
+            </div>
+
+            <div class="feedback-item success">
+
+                ✅ Technical answers are accurate.
+
+            </div>
+
+            <div class="feedback-item info">
+
+                💡 Practice HR behavioral questions.
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        INTERVIEW HISTORY
+==========================================-->
+
+<section class="history-section">
+
+<div class="analytics-card">
+
+<h2>Interview History</h2>
+
+<table class="history-table">
+
+<thead>
+
+<tr>
+
+<th>Company</th>
+
+<th>Role</th>
+
+<th>Score</th>
+
+<th>Status</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td>TCS</td>
+
+<td>Java Developer</td>
+
+<td>89%</td>
+
+<td><span class="badge-success">Completed</span></td>
+
+</tr>
+
+<tr>
+
+<td>Infosys</td>
+
+<td>Frontend Developer</td>
+
+<td>92%</td>
+
+<td><span class="badge-success">Completed</span></td>
+
+</tr>
+
+<tr>
+
+<td>Accenture</td>
+
+<td>Full Stack</td>
+
+<td>84%</td>
+
+<td><span class="badge-warning">Pending</span></td>
+
+</tr>
+
+</tbody>
+
+</table>
+
 </div>
 
-        <div class="card">
-    <h3>📄 Download Report</h3>
+</section>
+<!--=========================================
+        ACHIEVEMENTS & DAILY GOALS
+==========================================-->
 
-    <p>Your latest interview report is available.</p>
+<section class="achievement-section">
 
-    <button onclick="showDemo('Download Report')">
-    Download PDF
+    <!-- Achievement Badges -->
+
+    <div class="achievement-card">
+
+        <h2><i class="fa-solid fa-trophy"></i> Achievements</h2>
+
+        <div class="badge-container">
+
+            <div class="badge-box">
+                🥇
+                <h4>Top Performer</h4>
+            </div>
+
+            <div class="badge-box">
+                🎯
+                <h4>ATS Expert</h4>
+            </div>
+
+            <div class="badge-box">
+                🚀
+                <h4>Interview Pro</h4>
+            </div>
+
+            <div class="badge-box">
+                💻
+                <h4>Coding Star</h4>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Daily Goals -->
+
+    <div class="goal-card">
+
+        <h2><i class="fa-solid fa-bullseye"></i> Daily Goals</h2>
+
+        <div class="goal-item">
+
+            <p>Practice 2 Mock Interviews</p>
+
+            <progress value="1" max="2"></progress>
+
+        </div>
+
+        <div class="goal-item">
+
+            <p>Improve Resume</p>
+
+            <progress value="80" max="100"></progress>
+
+        </div>
+
+        <div class="goal-item">
+
+            <p>Complete Coding Challenge</p>
+
+            <progress value="50" max="100"></progress>
+
+        </div>
+
+        <div class="goal-item">
+
+            <p>Read Interview Tips</p>
+
+            <progress value="100" max="100"></progress>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        RECOMMENDED COURSES
+==========================================-->
+
+<section class="courses-section">
+
+    <div class="analytics-card">
+
+        <h2>📚 Recommended Learning</h2>
+
+        <div class="course-grid">
+
+            <div class="course-card">
+
+                <i class="fa-brands fa-html5"></i>
+
+                <h3>HTML & CSS Mastery</h3>
+
+                <p>Improve Frontend Skills</p>
+
+                <button class="primary-btn">
+
+                    Start Learning
+
+                </button>
+
+            </div>
+
+            <div class="course-card">
+
+                <i class="fa-brands fa-js"></i>
+
+                <h3>JavaScript Essentials</h3>
+
+                <p>Interview Preparation</p>
+
+                <button class="primary-btn">
+
+                    Continue
+
+                </button>
+
+            </div>
+
+            <div class="course-card">
+
+                <i class="fa-solid fa-database"></i>
+
+                <h3>SQL Practice</h3>
+
+                <p>Database Interview Questions</p>
+
+                <button class="primary-btn">
+
+                    Practice
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+        PRODUCTIVITY SECTION
+==========================================-->
+
+<section class="productivity-section">
+
+    <!-- Calendar -->
+
+    <div class="productivity-card">
+
+        <h2><i class="fa-solid fa-calendar-days"></i> Interview Calendar</h2>
+
+        <table class="calendar-table">
+
+            <tr>
+                <th>Sun</th>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+                <th>Sat</th>
+            </tr>
+
+            <tr>
+                <td></td>
+                <td></td>
+                <td>1</td>
+                <td>2</td>
+                <td>3</td>
+                <td>4</td>
+                <td>5</td>
+            </tr>
+
+            <tr>
+                <td>6</td>
+                <td>7</td>
+                <td>8</td>
+                <td class="today">9</td>
+                <td>10</td>
+                <td>11</td>
+                <td>12</td>
+            </tr>
+
+            <tr>
+                <td>13</td>
+                <td>14</td>
+                <td class="event">15</td>
+                <td>16</td>
+                <td>17</td>
+                <td>18</td>
+                <td>19</td>
+            </tr>
+
+        </table>
+
+    </div>
+
+    <!-- Notifications -->
+
+    <div class="productivity-card">
+
+        <h2><i class="fa-solid fa-bell"></i> Notifications</h2>
+
+        <div class="notify-box success">
+            ✅ Resume analyzed successfully
+        </div>
+
+        <div class="notify-box info">
+            📅 Interview scheduled for 15 Aug
+        </div>
+
+        <div class="notify-box warning">
+            ⚠ Resume update recommended
+        </div>
+
+        <div class="notify-box success">
+            🎉 ATS Score improved to 94%
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        RECENT ACTIVITY
+==========================================-->
+
+<section class="activity-section">
+
+    <div class="analytics-card">
+
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h2>
+
+        <div class="timeline">
+
+            <div class="timeline-item">
+                <h4>Resume Uploaded</h4>
+                <p>2 Hours Ago</p>
+            </div>
+
+            <div class="timeline-item">
+                <h4>Mock Interview Completed</h4>
+                <p>Yesterday</p>
+            </div>
+
+            <div class="timeline-item">
+                <h4>ATS Score Updated</h4>
+                <p>2 Days Ago</p>
+            </div>
+
+            <div class="timeline-item">
+                <h4>AI Feedback Generated</h4>
+                <p>3 Days Ago</p>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        QUICK ACTIONS
+==========================================-->
+
+<section class="quick-action-section">
+
+    <div class="analytics-card">
+
+        <h2><i class="fa-solid fa-bolt"></i> Quick Actions</h2>
+
+        <div class="quick-grid">
+
+            <button class="primary-btn">Upload Resume</button>
+
+            <button class="primary-btn">Start Mock Interview</button>
+
+            <button class="primary-btn">Download Report</button>
+
+            <button class="primary-btn">View Analytics</button>
+
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+        PROFILE & SETTINGS
+==========================================-->
+
+<section class="settings-section">
+
+    <!-- Profile Card -->
+
+    <div class="settings-card">
+
+        <h2><i class="fa-solid fa-user"></i> Profile Summary</h2>
+
+        <div class="profile-summary">
+
+            <img src="https://i.pravatar.cc/120?img=12" alt="Profile">
+
+            <h3>John Doe</h3>
+
+            <p>Computer Science Student</p>
+
+            <span>SRM University AP</span>
+
+        </div>
+
+        <div class="profile-info">
+
+            <p><strong>Email:</strong> john@example.com</p>
+
+            <p><strong>Phone:</strong> +91 9876543210</p>
+
+            <p><strong>Location:</strong> Andhra Pradesh</p>
+
+        </div>
+
+    </div>
+
+    <!-- Settings -->
+
+    <div class="settings-card">
+
+        <h2><i class="fa-solid fa-gear"></i> Settings</h2>
+
+        <div class="setting-item">
+
+            <span>Dark Mode</span>
+
+            <input type="checkbox">
+
+        </div>
+
+        <div class="setting-item">
+
+            <span>Email Notifications</span>
+
+            <input type="checkbox" checked>
+
+        </div>
+
+        <div class="setting-item">
+
+            <span>Interview Reminders</span>
+
+            <input type="checkbox" checked>
+
+        </div>
+
+        <div class="setting-item">
+
+            <span>Auto Resume Analysis</span>
+
+            <input type="checkbox">
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        REPORTS
+==========================================-->
+
+<section class="report-section">
+
+<div class="analytics-card">
+
+<h2><i class="fa-solid fa-chart-pie"></i> Reports</h2>
+
+<div class="report-grid">
+
+<button class="primary-btn">
+
+Download Resume Report
+
 </button>
+
+<button class="primary-btn">
+
+Download ATS Report
+
+</button>
+
+<button class="primary-btn">
+
+Interview Report
+
+</button>
+
+<button class="primary-btn">
+
+Performance Report
+
+</button>
+
 </div>
 
-        <div class="card">
-    <h3>📈 Improvement Progress</h3>
-
-    <ul>
-        <li>✔ Communication Improved</li>
-        <li>✔ Technical Accuracy Increased</li>
-        <li>✔ Better Time Management</li>
-    </ul>
 </div>
 
-    </div>
+</section>
 
-    <br>
+<!--=========================================
+        PLACEMENT STATUS
+==========================================-->
 
-    <button onclick="window.location.href='../index.html'">
-        Logout
-    </button>
+<section class="placement-section">
 
-</main>
-<footer class="footer">
-    <p>SmartHire AI © 2026 | Developed by Revanth Balam</p>
-</footer>
+<div class="analytics-card">
+
+<h2><i class="fa-solid fa-briefcase"></i> Placement Status</h2>
+
+<div class="placement-box">
+
+<h1>91%</h1>
+
+<p>Placement Readiness</p>
+
+<progress value="91" max="100"></progress>
+
+</div>
+
+</div>
+
+</section>
+
+<!--=========================================
+        LOGOUT POPUP
+==========================================-->
+
+<div class="logout-modal" id="logoutModal">
+
+<div class="logout-box">
+
+<h2>Logout?</h2>
+
+<p>Are you sure you want to logout?</p>
+
+<div class="logout-buttons">
+
+<button class="secondary-btn" id="cancelLogout">
+
+Cancel
+
+</button>
+
+<button class="primary-btn" id="confirmLogout">
+
+Logout
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+</div>
 
 <script src="../js/script.js"></script>
 

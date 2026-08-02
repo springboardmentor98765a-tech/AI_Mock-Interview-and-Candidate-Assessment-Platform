@@ -2,110 +2,1205 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartHire AI Platform</title>
 
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>SmartHire AI | AI Powered Recruitment Platform</title>
+
+<link rel="stylesheet"
+href="css/style.css">
+
+<link rel="preconnect"
+href="https://fonts.googleapis.com">
+
+<link rel="preconnect"
+href="https://fonts.gstatic.com"
+crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+rel="stylesheet">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
 </head>
 
 <body>
 
-    <header class="header">
-        <div class="logo-container">
-            <img src="assets/images/logo.png" alt="SmartHire AI Logo" class="logo">
+<!-- =======================================
+      NAVBAR
+======================================== -->
 
-            <div>
-                <h1>SmartHire AI Platform</h1>
-                <p>AI-Powered Mock Interview & Candidate Assessment Platform</p>
+<header class="navbar">
+
+<div class="logo">
+
+<i class="fa-solid fa-brain"></i>
+
+<h2>SmartHire AI</h2>
+
+</div>
+
+<nav>
+
+<ul>
+
+<li><a href="#">Home</a></li>
+
+<li><a href="#features">Features</a></li>
+
+<li><a href="#about">About</a></li>
+
+<li><a href="#contact">Contact</a></li>
+
+<li><a href="#">Pricing</a></li>
+
+</ul>
+
+</nav>
+
+<div class="nav-buttons">
+
+<button class="login-btn" id="openLogin">
+
+Login
+
+</button>
+
+<button class="start-btn">
+
+Get Started
+
+</button>
+
+</div>
+
+</header>
+
+<!-- =======================================
+      HERO SECTION
+======================================== -->
+
+<section class="hero">
+
+<div class="hero-left">
+
+<span class="badge">
+
+✨ AI Powered Recruitment Platform
+
+</span>
+
+<h1>
+
+Hire Smarter.
+
+<br>
+
+Recruit Faster.
+
+<br>
+
+With Artificial Intelligence.
+
+</h1>
+
+<p>
+
+SmartHire AI helps recruiters evaluate resumes,
+conduct AI-powered mock interviews,
+measure ATS compatibility,
+and identify top candidates using intelligent insights.
+
+</p>
+
+<div class="hero-buttons">
+
+<button class="primary-btn">
+
+<i class="fa-solid fa-rocket"></i>
+
+Start Hiring
+
+</button>
+
+<button class="secondary-btn">
+
+<i class="fa-solid fa-circle-play"></i>
+
+Watch Demo
+
+</button>
+
+</div>
+
+<div class="hero-stats">
+
+<div>
+
+<h2>50K+</h2>
+
+<p>Candidates</p>
+
+</div>
+
+<div>
+
+<h2>250+</h2>
+
+<p>Companies</p>
+
+</div>
+
+<div>
+
+<h2>95%</h2>
+
+<p>ATS Accuracy</p>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="hero-right">
+
+<div class="hero-card">
+
+<div class="ai-header">
+
+<h3>
+
+🤖 AI Candidate Analysis
+
+</h3>
+
+</div>
+
+<div class="score">
+
+<h1>
+
+94%
+
+</h1>
+
+<p>
+
+ATS Compatibility Score
+
+</p>
+
+</div>
+
+<div class="progress-box">
+
+<label>Resume Quality</label>
+
+<progress value="94" max="100"></progress>
+
+<label>Technical Skills</label>
+
+<progress value="90" max="100"></progress>
+
+<label>Communication</label>
+
+<progress value="88" max="100"></progress>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- =======================================
+      TRUSTED BY
+======================================== -->
+
+<section class="companies">
+
+<h3>
+
+Trusted by Future Professionals
+
+</h3>
+
+<div class="company-list">
+
+<span>Google</span>
+
+<span>Microsoft</span>
+
+<span>Amazon</span>
+
+<span>TCS</span>
+
+<span>Infosys</span>
+
+<span>Accenture</span>
+
+<span>Wipro</span>
+
+</div>
+
+</section>
+<!-- =======================================
+        FEATURES SECTION
+======================================== -->
+
+<section class="features" id="features">
+
+    <div class="section-title">
+
+        <span>OUR FEATURES</span>
+
+        <h2>Everything You Need For Smart Recruitment</h2>
+
+        <p>
+            SmartHire AI combines Artificial Intelligence,
+            ATS Resume Screening,
+            Mock Interviews,
+            Analytics,
+            and Recruiter Management
+            into one modern platform.
+        </p>
+
+    </div>
+
+    <div class="feature-grid">
+
+        <!-- Feature 1 -->
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+
+                <i class="fa-solid fa-file-circle-check"></i>
+
             </div>
-        </div>
-    </header>
 
-    <main class="container">
+            <h3>ATS Resume Screening</h3>
 
-        <!-- Login Section -->
-        <section class="login-card">
+            <p>
 
-            <h2>Welcome Back</h2>
+                Instantly analyze resumes,
+                calculate ATS score,
+                and identify missing keywords.
 
-            <form id="loginForm">
-
-                <label for="username">Username</label>
-
-                <input
-                    type="text"
-                    id="username"
-                    placeholder="Enter your username"
-                    required>
-
-                <label for="role">Select Role</label>
-
-                <select id="role" required>
-                    <option value="">-- Select Your Role --</option>
-                    <option value="candidate">Candidate</option>
-                    <option value="recruiter">Recruiter</option>
-                    <option value="admin">Administrator</option>
-                </select>
-
-                <button type="submit">
-                    Login
-                </button>
-
-            </form>
-
-            <p class="info">
-                Demo Login (Frontend Prototype)<br>
-                OAuth2 & JWT authentication will be integrated during backend development.
             </p>
 
-        </section>
+            <a href="#">Learn More →</a>
 
-        <!-- Platform Features -->
+        </div>
 
-        <section class="features">
+        <!-- Feature 2 -->
 
-            <h2>Platform Features</h2>
+        <div class="feature-card">
 
-            <div class="cards">
+            <div class="feature-icon">
 
-                <div class="card">
-                    <h3>📄 Resume Management</h3>
-
-                    <p>✔ Upload Resume (PDF)</p>
-                    <p>✔ AI Skill Extraction</p>
-                    <p>✔ Resume Summary</p>
-                </div>
-
-                <div class="card">
-                    <h3>🎤 AI Mock Interview</h3>
-
-                    <p>✔ HR Interview</p>
-                    <p>✔ Technical Interview</p>
-                    <p>✔ Behavioral Interview</p>
-                </div>
-
-                <div class="card">
-                    <h3>📊 Performance Analytics</h3>
-
-                    <p>✔ Communication Score</p>
-                    <p>✔ Technical Score</p>
-                    <p>✔ Overall Performance Report</p>
-                </div>
+                <i class="fa-solid fa-microphone-lines"></i>
 
             </div>
 
-        </section>
+            <h3>AI Mock Interview</h3>
 
-    </main>
+            <p>
 
-    <footer class="footer">
-        <p><strong>SmartHire AI Platform</strong> © 2026</p>
-        <p>Developed by <strong>Revanth Balam</strong></p>
-    </footer>
+                Practice technical,
+                HR and aptitude interviews
+                with AI-powered feedback.
 
-    <script src="js/script.js"></script>
+            </p>
+
+            <a href="#">Learn More →</a>
+
+        </div>
+
+        <!-- Feature 3 -->
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+
+                <i class="fa-solid fa-chart-line"></i>
+
+            </div>
+
+            <h3>Performance Analytics</h3>
+
+            <p>
+
+                Track interview performance,
+                communication,
+                coding and overall progress.
+
+            </p>
+
+            <a href="#">Learn More →</a>
+
+        </div>
+
+        <!-- Feature 4 -->
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+
+                <i class="fa-solid fa-user-group"></i>
+
+            </div>
+
+            <h3>Recruiter Dashboard</h3>
+
+            <p>
+
+                Manage candidates,
+                compare profiles,
+                shortlist applicants
+                and schedule interviews.
+
+            </p>
+
+            <a href="#">Learn More →</a>
+
+        </div>
+
+        <!-- Feature 5 -->
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+
+                <i class="fa-solid fa-brain"></i>
+
+            </div>
+
+            <h3>AI Candidate Ranking</h3>
+
+            <p>
+
+                AI intelligently ranks
+                candidates based on
+                skills and job requirements.
+
+            </p>
+
+            <a href="#">Learn More →</a>
+
+        </div>
+
+        <!-- Feature 6 -->
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+
+                <i class="fa-solid fa-shield-halved"></i>
+
+            </div>
+
+            <h3>Admin Control Panel</h3>
+
+            <p>
+
+                Manage recruiters,
+                candidates,
+                system settings,
+                reports and analytics.
+
+            </p>
+
+            <a href="#">Learn More →</a>
+
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+        STATISTICS SECTION
+==========================================-->
+
+<section class="stats">
+
+    <div class="section-title">
+
+        <span>OUR IMPACT</span>
+
+        <h2>Trusted By Students & Recruiters</h2>
+
+        <p>
+            SmartHire AI helps thousands of candidates prepare for interviews
+            and enables recruiters to hire the right talent faster.
+        </p>
+
+    </div>
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <i class="fa-solid fa-users"></i>
+            <h2 class="counter" data-target="50000">0</h2>
+            <p>Registered Candidates</p>
+        </div>
+
+        <div class="stat-card">
+            <i class="fa-solid fa-building"></i>
+            <h2 class="counter" data-target="250">0</h2>
+            <p>Partner Companies</p>
+        </div>
+
+        <div class="stat-card">
+            <i class="fa-solid fa-chart-simple"></i>
+            <h2 class="counter" data-target="95">0</h2>
+            <p>ATS Accuracy (%)</p>
+        </div>
+
+        <div class="stat-card">
+            <i class="fa-solid fa-award"></i>
+            <h2 class="counter" data-target="1000000">0</h2>
+            <p>AI Assessments</p>
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        WHY CHOOSE US
+==========================================-->
+
+<section class="why-us" id="about">
+
+    <div class="why-left">
+
+        <span>WHY CHOOSE US</span>
+
+        <h2>Smarter Recruitment Starts With AI</h2>
+
+        <p>
+
+            SmartHire AI combines ATS Resume Analysis,
+            AI Mock Interviews,
+            Candidate Ranking,
+            Performance Analytics
+            and Recruiter Management into one intelligent platform.
+
+        </p>
+
+        <div class="why-list">
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                AI Powered Resume Screening
+
+            </div>
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                Real-Time Interview Analytics
+
+            </div>
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                Smart Candidate Ranking
+
+            </div>
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                Recruiter Dashboard
+
+            </div>
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                Admin Management Panel
+
+            </div>
+
+            <div>
+
+                <i class="fa-solid fa-circle-check"></i>
+
+                Placement Ready Reports
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="why-right">
+
+        <div class="why-card">
+
+            <div class="mini-card">
+
+                <i class="fa-solid fa-file-circle-check"></i>
+
+                <h3>ATS Analysis</h3>
+
+                <p>Resume Compatibility</p>
+
+            </div>
+
+            <div class="mini-card">
+
+                <i class="fa-solid fa-robot"></i>
+
+                <h3>AI Interview</h3>
+
+                <p>Mock Assessment</p>
+
+            </div>
+
+            <div class="mini-card">
+
+                <i class="fa-solid fa-chart-pie"></i>
+
+                <h3>Analytics</h3>
+
+                <p>Performance Reports</p>
+
+            </div>
+
+            <div class="mini-card">
+
+                <i class="fa-solid fa-user-tie"></i>
+
+                <h3>Recruitment</h3>
+
+                <p>Hiring Dashboard</p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+        TESTIMONIALS
+==========================================-->
+
+<section class="testimonials">
+
+    <div class="section-title">
+
+        <span>SUCCESS STORIES</span>
+
+        <h2>What Our Users Say</h2>
+
+        <p>
+
+            Thousands of students and recruiters trust
+            SmartHire AI to improve hiring and interview preparation.
+
+        </p>
+
+    </div>
+
+    <div class="testimonial-grid">
+
+        <div class="testimonial-card">
+
+            <img src="https://i.pravatar.cc/120?img=11" alt="">
+
+            <h3>Rahul Sharma</h3>
+
+            <span>Software Engineer - Infosys</span>
+
+            <p>
+
+                "The AI Mock Interview and ATS Score helped me
+                prepare confidently and improve my resume."
+
+            </p>
+
+            <div class="stars">
+
+                ★★★★★
+
+            </div>
+
+        </div>
+
+        <div class="testimonial-card">
+
+            <img src="https://i.pravatar.cc/120?img=25" alt="">
+
+            <h3>Sneha Reddy</h3>
+
+            <span>Recruiter - TCS</span>
+
+            <p>
+
+                "Managing candidates became much easier with
+                AI analytics and recruiter dashboard."
+
+            </p>
+
+            <div class="stars">
+
+                ★★★★★
+
+            </div>
+
+        </div>
+
+        <div class="testimonial-card">
+
+            <img src="https://i.pravatar.cc/120?img=32" alt="">
+
+            <h3>Arjun Kumar</h3>
+
+            <span>Student</span>
+
+            <p>
+
+                "The interview feedback and performance reports
+                improved my confidence."
+
+            </p>
+
+            <div class="stars">
+
+                ★★★★★
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+        AI WORKFLOW
+==========================================-->
+
+<section class="workflow">
+
+    <div class="section-title">
+
+        <span>HOW IT WORKS</span>
+
+        <h2>AI Recruitment Process</h2>
+
+        <p>
+
+            Complete your hiring journey in just a few smart steps.
+
+        </p>
+
+    </div>
+
+    <div class="workflow-grid">
+
+        <div class="workflow-card">
+
+            <div class="step">1</div>
+
+            <i class="fa-solid fa-file-arrow-up"></i>
+
+            <h3>Upload Resume</h3>
+
+            <p>
+
+                Upload your resume for ATS analysis.
+
+            </p>
+
+        </div>
+
+        <div class="workflow-card">
+
+            <div class="step">2</div>
+
+            <i class="fa-solid fa-brain"></i>
+
+            <h3>AI Analysis</h3>
+
+            <p>
+
+                AI evaluates skills and ATS compatibility.
+
+            </p>
+
+        </div>
+
+        <div class="workflow-card">
+
+            <div class="step">3</div>
+
+            <i class="fa-solid fa-video"></i>
+
+            <h3>Mock Interview</h3>
+
+            <p>
+
+                Practice interviews with AI feedback.
+
+            </p>
+
+        </div>
+
+        <div class="workflow-card">
+
+            <div class="step">4</div>
+
+            <i class="fa-solid fa-award"></i>
+
+            <h3>Placement Ready</h3>
+
+            <p>
+
+                Improve your skills and get hired faster.
+
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+<!--=========================================
+            PRICING SECTION
+==========================================-->
+
+<section class="pricing" id="pricing">
+
+    <div class="section-title">
+
+        <span>PRICING</span>
+
+        <h2>Choose Your Perfect Plan</h2>
+
+        <p>
+            Flexible plans for students, recruiters and enterprises.
+        </p>
+
+    </div>
+
+    <div class="pricing-grid">
+
+        <!-- FREE -->
+
+        <div class="price-card">
+
+            <h3>Free</h3>
+
+            <h1>₹0</h1>
+
+            <p>Perfect for Students</p>
+
+            <ul>
+
+                <li>✔ Resume Upload</li>
+                <li>✔ ATS Score</li>
+                <li>✔ 5 Mock Interviews</li>
+                <li>✔ Basic Analytics</li>
+
+            </ul>
+
+            <button>Get Started</button>
+
+        </div>
+
+        <!-- PRO -->
+
+        <div class="price-card featured">
+
+            <span class="popular">Most Popular</span>
+
+            <h3>Professional</h3>
+
+            <h1>₹499</h1>
+
+            <p>Per Month</p>
+
+            <ul>
+
+                <li>✔ Unlimited Interviews</li>
+                <li>✔ AI Feedback</li>
+                <li>✔ Resume Optimization</li>
+                <li>✔ Recruiter Dashboard</li>
+                <li>✔ Performance Reports</li>
+
+            </ul>
+
+            <button>Start Free Trial</button>
+
+        </div>
+
+        <!-- ENTERPRISE -->
+
+        <div class="price-card">
+
+            <h3>Enterprise</h3>
+
+            <h1>Custom</h1>
+
+            <p>For Companies</p>
+
+            <ul>
+
+                <li>✔ Unlimited Recruiters</li>
+                <li>✔ AI Hiring</li>
+                <li>✔ Team Analytics</li>
+                <li>✔ Admin Dashboard</li>
+                <li>✔ Priority Support</li>
+
+            </ul>
+
+            <button>Contact Sales</button>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!--=========================================
+                FAQ
+==========================================-->
+
+<section class="faq">
+
+    <div class="section-title">
+
+        <span>FAQ</span>
+
+        <h2>Frequently Asked Questions</h2>
+
+    </div>
+
+    <div class="faq-box">
+
+        <details>
+            <summary>What is SmartHire AI?</summary>
+            <p>
+                SmartHire AI is an AI-powered recruitment platform that
+                provides ATS analysis, mock interviews and recruiter tools.
+            </p>
+        </details>
+
+        <details>
+            <summary>Is ATS Resume Score accurate?</summary>
+            <p>
+                It analyzes keywords, formatting and skills to provide
+                an estimated ATS compatibility score.
+            </p>
+        </details>
+
+        <details>
+            <summary>Can recruiters compare candidates?</summary>
+            <p>
+                Yes. Recruiters can compare resumes, interview scores
+                and AI-generated rankings.
+            </p>
+        </details>
+
+        <details>
+            <summary>Is SmartHire AI free?</summary>
+            <p>
+                Yes. A free plan is available with limited features.
+            </p>
+        </details>
+
+    </div>
+
+</section>
+
+<!--=========================================
+            CALL TO ACTION
+==========================================-->
+
+<section class="cta">
+
+    <h2>Ready To Transform Your Hiring Process?</h2>
+
+    <p>
+
+        Join thousands of recruiters and students
+        using SmartHire AI every day.
+
+    </p>
+
+    <button>
+
+        Get Started Today
+
+    </button>
+
+</section>
+<!--=========================================
+                CONTACT
+==========================================-->
+
+<section class="contact" id="contact">
+
+    <div class="section-title">
+
+        <span>CONTACT US</span>
+
+        <h2>Let's Build The Future Of Hiring Together</h2>
+
+        <p>
+
+            Have questions? We'd love to hear from you.
+
+        </p>
+
+    </div>
+
+    <div class="contact-container">
+
+        <div class="contact-info">
+
+            <h3>Get In Touch</h3>
+
+            <p><i class="fa-solid fa-location-dot"></i> Andhra Pradesh, India</p>
+
+            <p><i class="fa-solid fa-envelope"></i> support@smarthireai.com</p>
+
+            <p><i class="fa-solid fa-phone"></i> +91 98765 43210</p>
+
+        </div>
+
+        <form class="contact-form">
+
+            <input type="text" placeholder="Full Name">
+
+            <input type="email" placeholder="Email Address">
+
+            <textarea rows="6" placeholder="Write your message..."></textarea>
+
+            <button type="submit">
+
+                Send Message
+
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
+<!--=========================================
+            NEWSLETTER
+==========================================-->
+
+<section class="newsletter">
+
+    <h2>Subscribe To Our Newsletter</h2>
+
+    <p>
+
+        Get interview tips, AI updates and placement news.
+
+    </p>
+
+    <div class="newsletter-box">
+
+        <input
+        type="email"
+        placeholder="Enter your email">
+
+        <button>
+
+            Subscribe
+
+        </button>
+
+    </div>
+
+</section>
+
+<!--=========================================
+            FOOTER
+==========================================-->
+
+<footer class="footer">
+
+<div class="footer-grid">
+
+<div>
+
+<h3>SmartHire AI</h3>
+
+<p>
+
+AI Powered Mock Interview &
+Candidate Assessment Platform.
+
+</p>
+
+</div>
+
+<div>
+
+<h3>Quick Links</h3>
+
+<ul>
+
+<li><a href="#">Home</a></li>
+
+<li><a href="#">Features</a></li>
+
+<li><a href="#">About</a></li>
+
+<li><a href="#">Contact</a></li>
+
+</ul>
+
+</div>
+
+<div>
+
+<h3>Resources</h3>
+
+<ul>
+
+<li><a href="#">Documentation</a></li>
+
+<li><a href="#">Privacy Policy</a></li>
+
+<li><a href="#">Terms</a></li>
+
+<li><a href="#">Support</a></li>
+
+</ul>
+
+</div>
+
+<div>
+
+<h3>Follow Us</h3>
+
+<div class="social-icons">
+
+<i class="fab fa-linkedin"></i>
+
+<i class="fab fa-github"></i>
+
+<i class="fab fa-twitter"></i>
+
+<i class="fab fa-instagram"></i>
+
+</div>
+
+</div>
+
+</div>
+
+<hr>
+
+<p class="copyright">
+
+© 2026 SmartHire AI.
+All Rights Reserved.
+
+</p>
+
+</footer>
+
+<!--=========================================
+            LOGIN POPUP
+==========================================-->
+<div class="login-modal" id="loginModal">
+
+    <div class="login-box">
+
+        <span class="close-btn">&times;</span>
+
+        <h2>Welcome Back</h2>
+
+        <input
+            type="email"
+            id="email"
+            placeholder="Email"
+        >
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Password"
+        >
+
+        <select id="roleSelect">
+
+            <option value="">Select Role</option>
+
+            <option value="candidate">Candidate</option>
+
+            <option value="recruiter">Recruiter</option>
+
+            <option value="admin">Admin</option>
+
+        </select>
+
+        <button id="loginSubmit">
+
+            Login
+
+        </button>
+
+    </div>
+
+</div>
+<!-- Toast -->
+<div class="toast" id="toast">
+    Login Successful!
+</div>
+
+<!-- Loading -->
+<div class="loader" id="loader">
+    <div class="spinner"></div>
+</div>
+
+<!-- Back To Top -->
+<button id="topBtn">
+    <i class="fa-solid fa-arrow-up"></i>
+</button>
+
+<!-- Notification -->
+<button id="notificationBtn">
+    <i class="fa-solid fa-bell"></i>
+    <span class="notification-count">3</span>
+</button>
+
+<!-- AI Assistant -->
+<button id="aiAssistant">
+    🤖
+</button>
+
+<!-- Theme Toggle -->
+<button id="themeToggle">
+    🌙
+</button>
+
+<script src="js/script.js"></script>
 
 </body>
-
 </html>
