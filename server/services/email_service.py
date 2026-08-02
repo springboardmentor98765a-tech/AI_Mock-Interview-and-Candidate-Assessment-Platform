@@ -6,7 +6,7 @@ from html import escape
 from config import RESEND_API_KEY, RESEND_FROM_EMAIL
 
 
-def send_password_reset_email(recipient: str, reset_url: str) -> None:
+def send_password_reset_email(recipient: str, reset_url: str, expires_in_minutes: int) -> None:
     if not RESEND_API_KEY or not RESEND_FROM_EMAIL:
         raise RuntimeError("Email is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL in server/.env.")
 
@@ -20,7 +20,7 @@ def send_password_reset_email(recipient: str, reset_url: str) -> None:
               <h2>Reset your password</h2>
               <p>We received a request to reset your SmartHire AI password.</p>
               <p><a href="{safe_url}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none">Reset password</a></p>
-              <p>This link expires in 30 minutes and can be used only once. If you did not request it, you can safely ignore this email.</p>
+              <p>This link expires in {expires_in_minutes} minutes and can be used only once. If you did not request it, you can safely ignore this email.</p>
             </div>
         """,
     }).encode("utf-8")

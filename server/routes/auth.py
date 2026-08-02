@@ -204,7 +204,7 @@ def forgot_password(req: PasswordResetRequest):
 
     reset_url = f"{APP_BASE_URL}/?reset_token={token}"
     try:
-        send_password_reset_email(user["email"], reset_url)
+        send_password_reset_email(user["email"], reset_url, PASSWORD_RESET_TOKEN_EXPIRES_MINUTES)
     except RuntimeError as error:
         # Do not leave a usable reset token behind if the email was not delivered.
         conn = get_db()
