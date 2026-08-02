@@ -1,0 +1,41 @@
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment / Secret Files
+.env
+.env.*
+*.env.bak*
+!.env.example
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Backend
+backend/.venv/
+backend/venv/
+backend/ENV/
+backend/env/
+backend/__pycache__/
+backend/*.py[cod]
+backend/*.db
+backend/*.sqlite3
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+
