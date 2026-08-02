@@ -44,3 +44,14 @@ def require_role(*roles: str):
             raise HTTPException(status_code=403, detail="Access denied.")
         return user
     return checker
+
+
+def require_super_admin(user: dict = Depends(get_current_user)) -> dict:
+    from database import get_db
+
+    conn = get_db()
+    row = conn.execute("SELECT is_super_admin FROM users WHERE id = ?", (user["id"],)).fetchone()
+    conn.close()
+    if not row or not row["is_super_admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super-admin access required.")
+    return user

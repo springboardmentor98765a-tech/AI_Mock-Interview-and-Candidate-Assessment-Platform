@@ -33,8 +33,8 @@ def row_to_user(row) -> dict:
 
 @router.post("/register")
 def register(req: RegisterRequest):
-    if req.role not in ("candidate", "recruiter", "admin"):
-        raise HTTPException(400, "Role must be candidate, recruiter, or admin.")
+    if req.role not in ("candidate", "recruiter"):
+        raise HTTPException(400, "Public registration is available only for candidate or recruiter accounts.")
 
     conn = get_db()
     existing = conn.execute("SELECT id FROM users WHERE email = ?", (req.email,)).fetchone()

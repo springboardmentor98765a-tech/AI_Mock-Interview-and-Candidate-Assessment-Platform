@@ -53,7 +53,7 @@ function renderLoginPage() {
   var roles = [
     { key: 'candidate', label: 'Candidate', desc: 'Practice & get assessed', icon: icon('user', 18), color: INDIGO },
     { key: 'recruiter', label: 'Recruiter', desc: 'Evaluate & compare talent', icon: icon('briefcase', 18), color: CYAN },
-    { key: 'admin', label: 'Admin', desc: 'Manage the platform', icon: icon('shield', 18), color: EMERALD },
+    { key: 'admin', label: 'Admin', desc: 'Restricted access', icon: icon('shield', 18), color: EMERALD },
   ];
 
   var errorMsg = state.authError ? `<div class="auth-error">${state.authError}</div>` : '';
@@ -106,8 +106,8 @@ function renderLoginPage() {
           <button class="auth-toggle-btn flex-1 py-2 rounded-md text-sm font-medium transition-all ${state.authMode === 'login' ? 'active' : ''}" data-mode="login" style="${state.authMode === 'login' ? 'background:' + INDIGO + ';color:#fff' : 'color:rgba(255,255,255,0.4)'}">Sign In</button>
           <button class="auth-toggle-btn flex-1 py-2 rounded-md text-sm font-medium transition-all ${state.authMode === 'signup' ? 'active' : ''}" data-mode="signup" style="${state.authMode === 'signup' ? 'background:' + INDIGO + ';color:#fff' : 'color:rgba(255,255,255,0.4)'}">Sign Up</button>
         </div>
-        <div class="mb-5">
-          <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Continue as</p>
+        ${state.authMode === 'signup' ? `<div class="mb-5">
+          <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Create account as</p>
           <div class="grid grid-cols-3 gap-2">
             ${roles.map(function(r) {
               var sel = state.role === r.key;
@@ -118,7 +118,7 @@ function renderLoginPage() {
               </button>`;
             }).join('')}
           </div>
-        </div>
+        </div>` : ''}
         <div class="space-y-3 mb-5">
           ${state.authMode === 'signup' ? `<div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Full Name</label>
@@ -141,8 +141,9 @@ function renderLoginPage() {
         <button id="btn-auth" class="auth-btn w-full py-3 rounded-lg text-white text-sm font-semibold mb-4">${state.authMode === 'login' ? 'Sign In' : 'Create Account'}</button>
         <div id="auth-loading" class="text-center text-xs text-white/40 mb-4" style="display:none">Please wait...</div>
         <div class="relative flex items-center gap-3 mb-4"><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div><span class="text-xs text-white/30">or continue with</span><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div></div>
-        <div class="grid grid-cols-1 gap-3 mb-6">
+        <div class="grid grid-cols-1 gap-2 mb-6">
           <div id="google-signin-button" class="min-h-10 flex items-center justify-center"></div>
+          ${state.authMode === 'signup' ? `<p class="text-center text-xs text-white/30">Google accounts use their saved role; new Google accounts start as Candidate.</p>` : ''}
         </div>
         <p class="text-center text-xs text-white/30">
           ${state.authMode === 'login' ? "Don't have an account? " : "Already have an account? "}

@@ -283,64 +283,7 @@ function bindDashboardEvents() {
 
 /* ── Chart drawing after render ── */
 function drawCharts() {
-  var labels = perfData.map(function(d) { return d.week; });
-
-  if (document.getElementById('chart-perf-area')) {
-    drawAreaChart('chart-perf-area', [
-      { label: 'Confidence', data: perfData.map(function(d) { return d.confidence; }), color: INDIGO },
-      { label: 'Fluency', data: perfData.map(function(d) { return d.fluency; }), color: CYAN },
-      { label: 'Technical', data: perfData.map(function(d) { return d.technical; }), color: EMERALD },
-    ], labels);
-  }
-
-  if (document.getElementById('chart-cat-bar')) {
-    var scoreData = [
-      { name: 'Technical', score: 79 }, { name: 'HR', score: 84 }, { name: 'Behavioural', score: 72 }, { name: 'Aptitude', score: 91 },
-    ];
-    drawBarChart('chart-cat-bar', scoreData.map(function(d) { return d.score; }), scoreData.map(function(d) { return d.name; }), [INDIGO, CYAN, EMERALD, AMBER]);
-  }
-
-  if (document.getElementById('chart-weekly-line')) {
-    drawLineChart('chart-weekly-line', [
-      { label: 'Confidence', data: perfData.map(function(d) { return d.confidence; }), color: INDIGO },
-      { label: 'Fluency', data: perfData.map(function(d) { return d.fluency; }), color: CYAN },
-    ], labels);
-  }
-
-  if (document.getElementById('chart-funnel')) {
-    drawHorizontalBarChart('chart-funnel', funnelData.map(function(d) { return d.count; }), funnelData.map(function(d) { return d.stage; }), CYAN);
-  }
-
-  if (document.getElementById('chart-compare')) {
-    var compareData = [
-      { metric: 'Technical', Emeka: 88, Amina: 82, Ngozi: 79 },
-      { metric: 'Communication', Emeka: 75, Amina: 91, Ngozi: 83 },
-      { metric: 'Confidence', Emeka: 80, Amina: 88, Ngozi: 76 },
-      { metric: 'Aptitude', Emeka: 85, Amina: 78, Ngozi: 90 },
-      { metric: 'Behavioural', Emeka: 72, Amina: 94, Ngozi: 81 },
-    ];
-    drawGroupedBarChart('chart-compare', [
-      { label: 'Emeka', data: compareData.map(function(d) { return d.Emeka; }), color: CYAN },
-      { label: 'Amina', data: compareData.map(function(d) { return d.Amina; }), color: EMERALD },
-      { label: 'Ngozi', data: compareData.map(function(d) { return d.Ngozi; }), color: INDIGO },
-    ], compareData.map(function(d) { return d.metric; }));
-  }
-
-  if (document.getElementById('chart-growth')) {
-    drawAreaChart('chart-growth', [
-      { label: 'Users', data: platformData.map(function(d) { return d.users; }), color: EMERALD },
-      { label: 'Sessions', data: platformData.map(function(d) { return d.sessions; }), color: INDIGO },
-      { label: 'Reports', data: platformData.map(function(d) { return d.reports; }), color: CYAN },
-    ], platformData.map(function(d) { return d.month; }));
-  }
-
-  if (document.getElementById('chart-monthly-sessions')) {
-    drawBarChart('chart-monthly-sessions', platformData.map(function(d) { return d.sessions; }), platformData.map(function(d) { return d.month; }), [INDIGO]);
-  }
-
-  if (document.getElementById('chart-pie')) {
-    drawPieChart('chart-pie', [2340, 84, 12], ['Candidates', 'Recruiters', 'Admins'], [EMERALD, CYAN, INDIGO]);
-  }
+  // Charts will be populated from API data in future implementation
 }
 
 /* ── Initialize ── */

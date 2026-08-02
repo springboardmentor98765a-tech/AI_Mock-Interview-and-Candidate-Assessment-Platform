@@ -44,6 +44,9 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
     """)
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if "is_super_admin" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
 

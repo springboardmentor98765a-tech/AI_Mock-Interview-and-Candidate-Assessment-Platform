@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from database import get_db
 from models import UpdateUserAdminRequest, UserResponse
-from auth import require_role
+from auth import require_role, require_super_admin
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -76,7 +76,7 @@ def get_user(user_id: int, user: dict = Depends(require_role("admin"))):
 @router.put("/{user_id}")
 def update_user(user_id: int, req: UpdateUserAdminRequest, user: dict = Depends(require_role("admin"))):
     conn = get_db()
-    row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    row = conn.execute("SELECT id, is_super_admin FROM users WHERE id = ?", (user_id,)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "User not found.")
@@ -89,10 +89,20 @@ def update_user(user_id: int, req: UpdateUserAdminRequest, user: dict = Depends(
     if req.email:
         updates.append("email = ?")
         values.append(req.email)
+    if row["is_super_admin"] and user_id != user["id"]:
+        conn.close()
+        raise HTTPException(403, "Only the super admin can modify the super-admin account.")
+
     if req.role:
         if req.role not in ("candidate", "recruiter", "admin"):
             conn.close()
             raise HTTPException(400, "Invalid role.")
+        if req.role == "admin":
+            try:
+                require_super_admin(user)
+            except HTTPException:
+                conn.close()
+                raise
         updates.append("role = ?")
         values.append(req.role)
 
@@ -112,7 +122,7 @@ def delete_user(user_id: int, user: dict = Depends(require_role("admin"))):
     if user_id == user["id"]:
         raise HTTPException(400, "Cannot delete your own account.")
     conn = get_db()
-    row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    row = conn.execute("SELECT id, is_super_admin FROM users WHERE id = ?", (user_id,)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "User not found.")
