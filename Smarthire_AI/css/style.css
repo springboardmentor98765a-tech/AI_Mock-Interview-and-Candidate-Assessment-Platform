@@ -1,0 +1,492 @@
+/* Google Font */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+
+body{
+
+    background:linear-gradient(135deg,#fff0f7,#eee5ff);
+    color:#5b3a70;
+    overflow-x:hidden;
+
+}
+
+
+/* Navigation */
+
+header{
+
+    width:100%;
+    padding:20px 8%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    background:rgba(255,255,255,0.45);
+    backdrop-filter:blur(15px);
+
+    position:fixed;
+    top:0;
+    z-index:1000;
+
+}
+
+
+.logo{
+
+    font-size:26px;
+    font-weight:700;
+    color:#b04acb;
+
+}
+
+
+
+nav{
+
+    display:flex;
+    gap:30px;
+
+}
+
+
+
+nav a{
+
+    text-decoration:none;
+    color:#5b3a70;
+    font-weight:500;
+    transition:0.3s;
+
+}
+
+
+nav a:hover{
+
+    color:#d66ba0;
+
+}
+
+
+
+.login-btn{
+
+    background:linear-gradient(45deg,#f7a8c4,#c8b6ff);
+    padding:10px 25px;
+    border-radius:30px;
+    color:white !important;
+
+}
+
+
+
+/* Hero Section */
+
+
+.hero{
+
+    min-height:100vh;
+    padding:140px 8% 50px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+}
+
+
+
+/* Hero Text */
+
+
+.hero-text{
+
+    width:50%;
+
+}
+
+
+
+.hero-text h1{
+
+    font-size:55px;
+    line-height:1.2;
+
+}
+
+
+.hero-text span{
+
+    background:linear-gradient(
+        45deg,
+        #e75480,
+        #8f6bff
+    );
+
+    -webkit-background-clip:text;
+    color:transparent;
+
+}
+
+
+
+.hero-text p{
+
+    margin:25px 0;
+    font-size:18px;
+    line-height:1.7;
+
+}
+
+
+
+/* Buttons */
+
+
+.buttons{
+
+    display:flex;
+    gap:20px;
+
+}
+
+
+
+.buttons button,
+.buttons a{
+
+    padding:14px 35px;
+    border:none;
+    border-radius:35px;
+
+    background:linear-gradient(
+        45deg,
+        #ffb6d9,
+        #c8b6ff
+    );
+
+    color:white;
+    text-decoration:none;
+
+    font-size:16px;
+    cursor:pointer;
+
+}
+
+
+
+
+/* AI BOX */
+
+
+.ai-box{
+
+    width:350px;
+    padding:40px;
+
+    background:
+    rgba(255,255,255,0.5);
+
+    backdrop-filter:blur(20px);
+
+    border-radius:30px;
+
+    text-align:center;
+
+    box-shadow:
+    0 20px 40px rgba(180,120,220,0.2);
+
+
+}
+
+
+
+.circle{
+
+
+    width:150px;
+    height:150px;
+
+    margin:auto;
+
+    border-radius:50%;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    font-size:70px;
+
+    background:
+    linear-gradient(
+        45deg,
+        #ffc1df,
+        #c8b6ff
+    );
+
+
+    animation:pulse 3s infinite;
+
+
+}
+
+
+
+@keyframes pulse{
+
+
+    0%{
+
+        transform:scale(1);
+
+    }
+
+
+    50%{
+
+        transform:scale(1.1);
+
+    }
+
+
+    100%{
+
+        transform:scale(1);
+
+    }
+
+
+}
+
+
+
+/* Statistics */
+
+
+.stats{
+
+    display:flex;
+    justify-content:center;
+    gap:30px;
+    padding:60px 8%;
+
+}
+
+
+
+.stats div{
+
+    width:220px;
+
+    padding:30px;
+
+    text-align:center;
+
+    border-radius:25px;
+
+    background:white;
+
+    box-shadow:
+    0 10px 25px rgba(200,150,220,0.2);
+
+}
+
+
+
+.stats h2{
+
+    color:#d66ba0;
+    font-size:35px;
+
+}
+
+
+
+
+/* Features */
+
+
+#features{
+
+    padding:70px 8%;
+    text-align:center;
+
+}
+
+
+
+#features h1{
+
+    font-size:40px;
+    margin-bottom:40px;
+
+}
+
+
+
+
+.cards{
+
+    display:flex;
+    justify-content:center;
+    gap:30px;
+
+}
+
+
+
+
+.card{
+
+    width:300px;
+
+    padding:35px;
+
+    background:
+    rgba(255,255,255,0.6);
+
+    border-radius:30px;
+
+    transition:0.4s;
+
+}
+
+
+
+.card:hover{
+
+    transform:translateY(-15px);
+
+    box-shadow:
+    0 20px 40px rgba(200,150,220,0.3);
+
+}
+
+
+
+.card h2{
+
+    margin-bottom:20px;
+
+}
+
+
+
+/* Footer */
+
+
+footer{
+
+    padding:30px;
+    text-align:center;
+
+    background:#f8d9eb;
+
+}
+
+
+
+/* Responsive Design */
+
+
+@media(max-width:900px){
+
+
+.hero{
+
+    flex-direction:column;
+
+}
+
+
+.hero-text{
+
+    width:100%;
+
+}
+
+
+.ai-box{
+
+    margin-top:40px;
+
+}
+
+
+.cards{
+
+    flex-direction:column;
+    align-items:center;
+
+}
+
+
+.stats{
+
+    flex-direction:column;
+    align-items:center;
+
+}
+
+}
+/* AI Floating Particles */
+
+
+.particle{
+
+    position:fixed;
+
+    width:8px;
+    height:8px;
+
+    background:#e9b7ff;
+
+    border-radius:50%;
+
+    opacity:0.5;
+
+    z-index:-1;
+
+    animation:floatParticle infinite ease-in-out;
+
+
+}
+
+
+
+@keyframes floatParticle{
+
+
+    0%{
+
+        transform:
+        translateY(0px);
+
+    }
+
+
+    50%{
+
+        transform:
+        translateY(-80px);
+
+    }
+
+
+    100%{
+
+        transform:
+        translateY(0px);
+
+    }
+
+
+}

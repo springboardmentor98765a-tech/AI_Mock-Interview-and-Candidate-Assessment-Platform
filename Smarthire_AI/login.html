@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SmartHire AI Login</title>
+
+<link rel="stylesheet" href="css/login.css">
+
+</head>
+
+
+<body>
+
+
+<div class="login-container">
+
+
+<div class="logo">
+
+🌸 SmartHire AI
+
+</div>
+
+
+
+<h1>
+Welcome Back
+</h1>
+
+<p>
+Login to continue your AI recruitment journey
+</p>
+
+
+
+
+<div class="roles">
+
+
+<div class="role active" onclick="selectRole('admin',this)">
+
+👑
+
+<h3>Admin</h3>
+
+<p>Manage Platform</p>
+
+</div>
+
+
+
+<div class="role" onclick="selectRole('recruiter',this)">
+
+💼
+
+<h3>Recruiter</h3>
+
+<p>Find Talent</p>
+
+</div>
+
+
+
+
+<div class="role" onclick="selectRole('candidate',this)">
+
+🎓
+
+<h3>Candidate</h3>
+
+<p>Find Jobs</p>
+
+</div>
+
+
+</div>
+
+
+
+
+<input 
+type="email"
+id="email"
+placeholder="Enter Email">
+
+
+
+<input 
+type="password"
+id="password"
+placeholder="Enter Password">
+
+
+
+<div class="strength">
+
+Password Strength:
+
+<span id="strengthText">
+Weak
+</span>
+
+</div>
+
+
+
+<button onclick="login()">
+
+Login
+
+</button>
+
+
+<p class="demo">
+
+Demo Login:<br>
+
+Admin:
+admin@gmail.com / admin123
+
+<br>
+
+Recruiter:
+recruiter@gmail.com / recruiter123
+
+<br>
+
+Candidate:
+candidate@gmail.com / candidate123
+
+</p>
+
+
+
+</div>
+
+
+
+<script src="js/login.js"></script>
+
+
+</body>
+
+</html>
