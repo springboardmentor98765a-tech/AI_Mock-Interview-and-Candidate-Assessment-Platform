@@ -47,6 +47,9 @@ function handleGoogleCredential(response) {
 }
 
 function renderLoginPage() {
+  if (state.authMode === 'forgot' || state.authMode === 'reset') {
+    return renderPasswordRecoveryPage();
+  }
   var roles = [
     { key: 'candidate', label: 'Candidate', desc: 'Practice & get assessed', icon: icon('user', 18), color: INDIGO },
     { key: 'recruiter', label: 'Recruiter', desc: 'Evaluate & compare talent', icon: icon('briefcase', 18), color: CYAN },
@@ -119,22 +122,22 @@ function renderLoginPage() {
         <div class="space-y-3 mb-5">
           ${state.authMode === 'signup' ? `<div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Full Name</label>
-            <div class="input-wrap">${icon('user', 15)}<input id="inp-name" value="${state.name}" placeholder="John Doe" class="form-input" /></div>
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('user', 15)}</span><input id="inp-name" value="${state.name}" placeholder="John Doe" class="form-input" /></div>
           </div>` : ''}
           ${state.authMode === 'signup' && state.role !== 'candidate' ? `<div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Organization</label>
-            <div class="input-wrap">${icon('building', 15)}<input id="inp-org" value="${state.org}" placeholder="Company / Institution" class="form-input" /></div>
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('building', 15)}</span><input id="inp-org" value="${state.org}" placeholder="Company / Institution" class="form-input" /></div>
           </div>` : ''}
           <div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Email</label>
-            <div class="input-wrap">${icon('mail', 15)}<input id="inp-email" value="${state.email}" placeholder="you@example.com" class="form-input" /></div>
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('mail', 15)}</span><input id="inp-email" value="${state.email}" placeholder="you@example.com" class="form-input" /></div>
           </div>
           <div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Password</label>
             <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('lock', 15)}</span><input id="inp-pass" type="${state.showPassword ? 'text' : 'password'}" value="${state.password}" placeholder="••••••••" class="form-input password-input" /><button type="button" id="toggle-pass" class="pass-toggle-btn" aria-label="${state.showPassword ? 'Hide password' : 'Show password'}" aria-pressed="${state.showPassword}" title="${state.showPassword ? 'Hide password' : 'Show password'}">${state.showPassword ? icon('eyeOff') : icon('eye')}</button></div>
           </div>
         </div>
-        ${state.authMode === 'login' ? `<div class="flex justify-end mb-4"><button class="text-xs font-medium" style="color:${INDIGO}">Forgot password?</button></div>` : ''}
+        ${state.authMode === 'login' ? `<div class="flex justify-end mb-4"><button type="button" id="forgot-password" class="text-xs font-medium" style="color:${INDIGO}">Forgot password?</button></div>` : ''}
         <button id="btn-auth" class="auth-btn w-full py-3 rounded-lg text-white text-sm font-semibold mb-4">${state.authMode === 'login' ? 'Sign In' : 'Create Account'}</button>
         <div id="auth-loading" class="text-center text-xs text-white/40 mb-4" style="display:none">Please wait...</div>
         <div class="relative flex items-center gap-3 mb-4"><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div><span class="text-xs text-white/30">or continue with</span><div class="flex-1 h-px" style="background:rgba(255,255,255,0.08)"></div></div>
@@ -145,6 +148,41 @@ function renderLoginPage() {
           ${state.authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
           <button id="toggle-auth" class="font-semibold" style="color:${INDIGO}">${state.authMode === 'login' ? 'Sign up' : 'Sign in'}</button>
         </p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPasswordRecoveryPage() {
+  var isReset = state.authMode === 'reset';
+  var title = isReset ? 'Set a new password' : 'Reset your password';
+  var subtitle = isReset ? 'Choose a new password for your account.' : 'Enter your email and we will send a reset link.';
+  var message = state.authMessage ? `<div class="auth-success">${state.authMessage}</div>` : '';
+  var error = state.authError ? `<div class="auth-error">${state.authError}</div>` : '';
+  var fields = isReset ? `
+    <div class="space-y-3 mb-5">
+      <div>
+        <label class="block text-xs text-white/40 mb-1.5 font-medium">New Password</label>
+        <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('lock', 15)}</span><input id="inp-pass" type="${state.showPassword ? 'text' : 'password'}" value="${state.password}" placeholder="••••••••" class="form-input password-input" /><button type="button" id="toggle-pass" class="pass-toggle-btn" aria-label="${state.showPassword ? 'Hide password' : 'Show password'}" aria-pressed="${state.showPassword}" title="${state.showPassword ? 'Hide password' : 'Show password'}">${state.showPassword ? icon('eyeOff') : icon('eye')}</button></div>
+      </div>
+      <div>
+        <label class="block text-xs text-white/40 mb-1.5 font-medium">Confirm New Password</label>
+        <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('lock', 15)}</span><input id="inp-pass-confirm" type="password" value="${state.resetPasswordConfirmation}" placeholder="••••••••" class="form-input password-input" /></div>
+      </div>
+    </div>` : `
+    <div class="mb-5">
+      <label class="block text-xs text-white/40 mb-1.5 font-medium">Email</label>
+      <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('mail', 15)}</span><input id="inp-email" type="email" value="${state.email}" placeholder="you@example.com" class="form-input" /></div>
+    </div>`;
+
+  return `<div class="flex min-h-screen" style="background:#09091a">
+    <div class="flex-1 flex items-center justify-center p-8">
+      <div class="w-full max-w-md">
+        <div class="flex items-center gap-2 mb-8">${icon('brain', 20)}<span class="logo-text">SmartHire AI</span></div>
+        <div class="mb-8"><h2 class="text-2xl font-bold text-white mb-1" style="font-family:'Outfit',sans-serif">${title}</h2><p class="text-white/40 text-sm">${subtitle}</p></div>
+        ${message}${error}${fields}
+        <button id="btn-auth" class="auth-btn w-full py-3 rounded-lg text-white text-sm font-semibold mb-4">${isReset ? 'Reset Password' : 'Send Reset Link'}</button>
+        <p class="text-center text-xs text-white/30"><button type="button" id="back-to-login" class="font-semibold" style="color:${INDIGO}">Back to sign in</button></p>
       </div>
     </div>
   </div>`;

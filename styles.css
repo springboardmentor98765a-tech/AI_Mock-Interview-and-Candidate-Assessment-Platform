@@ -972,3 +972,13 @@ h1, h2, h3, h4, h5, h6 {
 .password-input {
   padding-right: 3rem;
 }
+
+.auth-success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  margin-bottom: 1rem;
+}

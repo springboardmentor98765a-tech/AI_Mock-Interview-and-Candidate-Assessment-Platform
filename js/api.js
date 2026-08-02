@@ -33,6 +33,12 @@ var api = {
   login: function(email, password) {
     return apiRequest('/auth/login', { method: 'POST', body: { email, password } });
   },
+  requestPasswordReset: function(email) {
+    return apiRequest('/auth/forgot-password', { method: 'POST', body: { email } });
+  },
+  resetPassword: function(token, newPassword) {
+    return apiRequest('/auth/reset-password', { method: 'POST', body: { token: token, new_password: newPassword } });
+  },
   googleLogin: function(credential) {
     return apiRequest('/auth/google', { method: 'POST', body: { credential } });
   },

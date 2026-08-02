@@ -51,3 +51,12 @@ class UpdateUserAdminRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[str] = None
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)

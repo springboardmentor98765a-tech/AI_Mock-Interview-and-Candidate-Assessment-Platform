@@ -1,11 +1,18 @@
+from datetime import datetime, timedelta, timezone
+import hashlib
+import secrets
+
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
 from models import (
     RegisterRequest, LoginRequest, GoogleLoginRequest,
     UpdateProfileRequest, ChangePasswordRequest,
+    PasswordResetRequest, PasswordResetConfirmRequest,
     AuthResponse, UserResponse,
 )
 from auth import hash_password, verify_password, create_token, get_current_user
+from config import APP_BASE_URL, PASSWORD_RESET_TOKEN_EXPIRES_MINUTES
+from services.email_service import send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -172,3 +179,58 @@ def change_password(req: ChangePasswordRequest, user: dict = Depends(get_current
     conn.commit()
     conn.close()
     return {"message": "Password updated successfully."}
+
+
+@router.post("/forgot-password")
+def forgot_password(req: PasswordResetRequest):
+    # Always return the same response so email addresses cannot be enumerated.
+    response = {"message": "If an account exists for that email, we sent a password reset link."}
+    conn = get_db()
+    user = conn.execute("SELECT id, email FROM users WHERE email = ?", (req.email,)).fetchone()
+    if not user:
+        conn.close()
+        return response
+
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRES_MINUTES)).isoformat()
+    conn.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user["id"],))
+    conn.execute(
+        "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+        (user["id"], token_hash, expires_at),
+    )
+    conn.commit()
+    conn.close()
+
+    reset_url = f"{APP_BASE_URL}/?reset_token={token}"
+    try:
+        send_password_reset_email(user["email"], reset_url)
+    except RuntimeError as error:
+        # Do not leave a usable reset token behind if the email was not delivered.
+        conn = get_db()
+        conn.execute("DELETE FROM password_reset_tokens WHERE token_hash = ?", (token_hash,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(503, str(error))
+    return response
+
+
+@router.post("/reset-password")
+def reset_password(req: PasswordResetConfirmRequest):
+    token_hash = hashlib.sha256(req.token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    reset = conn.execute(
+        "SELECT user_id FROM password_reset_tokens WHERE token_hash = ? AND expires_at > ?",
+        (token_hash, now),
+    ).fetchone()
+    if not reset:
+        conn.close()
+        raise HTTPException(400, "This password reset link is invalid or has expired.")
+
+    hashed = hash_password(req.new_password)
+    conn.execute("UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (hashed, reset["user_id"]))
+    conn.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (reset["user_id"],))
+    conn.commit()
+    conn.close()
+    return {"message": "Password reset successfully. You can now sign in."}

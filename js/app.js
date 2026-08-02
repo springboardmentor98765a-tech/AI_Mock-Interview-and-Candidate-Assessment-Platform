@@ -110,6 +110,15 @@ function handleLogout() {
 }
 
 async function checkAuth() {
+  var resetToken = new URLSearchParams(window.location.search).get('reset_token');
+  if (resetToken) {
+    state.authMode = 'reset';
+    state.resetToken = resetToken;
+    state.authError = '';
+    state.authMessage = '';
+    render();
+    return;
+  }
   var token = localStorage.getItem('smarthire_token');
   if (!token) {
     render();
@@ -134,6 +143,7 @@ function bindLoginEvents() {
     btn.addEventListener('click', function() {
       state.authMode = this.dataset.mode;
       state.authError = '';
+      state.authMessage = '';
       render();
     });
   });
@@ -148,6 +158,29 @@ function bindLoginEvents() {
     toggleAuth.addEventListener('click', function() {
       state.authMode = state.authMode === 'login' ? 'signup' : 'login';
       state.authError = '';
+      state.authMessage = '';
+      render();
+    });
+  }
+  var forgotPassword = document.getElementById('forgot-password');
+  if (forgotPassword) {
+    forgotPassword.addEventListener('click', function() {
+      state.authMode = 'forgot';
+      state.authError = '';
+      state.authMessage = '';
+      render();
+    });
+  }
+  var backToLogin = document.getElementById('back-to-login');
+  if (backToLogin) {
+    backToLogin.addEventListener('click', function() {
+      state.authMode = 'login';
+      state.authError = '';
+      state.authMessage = '';
+      state.password = '';
+      state.resetPasswordConfirmation = '';
+      state.resetToken = '';
+      window.history.replaceState({}, '', window.location.pathname);
       render();
     });
   }
@@ -160,6 +193,26 @@ function bindLoginEvents() {
       state.authError = '';
       try {
         var data;
+        if (state.authMode === 'forgot') {
+          data = await api.requestPasswordReset(state.email);
+          state.authMessage = data.message;
+          render();
+          return;
+        }
+        if (state.authMode === 'reset') {
+          if (state.password !== state.resetPasswordConfirmation) {
+            throw new Error('The passwords do not match.');
+          }
+          data = await api.resetPassword(state.resetToken, state.password);
+          state.authMode = 'login';
+          state.authMessage = data.message;
+          state.password = '';
+          state.resetPasswordConfirmation = '';
+          state.resetToken = '';
+          window.history.replaceState({}, '', window.location.pathname);
+          render();
+          return;
+        }
         if (state.authMode === 'login') {
           data = await api.login(state.email, state.password);
         } else {
@@ -180,6 +233,8 @@ function bindLoginEvents() {
   if (inpEmail) inpEmail.addEventListener('input', function() { state.email = this.value; });
   var inpPass = document.getElementById('inp-pass');
   if (inpPass) inpPass.addEventListener('input', function() { state.password = this.value; });
+  var inpPassConfirm = document.getElementById('inp-pass-confirm');
+  if (inpPassConfirm) inpPassConfirm.addEventListener('input', function() { state.resetPasswordConfirmation = this.value; });
   var inpName = document.getElementById('inp-name');
   if (inpName) inpName.addEventListener('input', function() { state.name = this.value; });
   var inpOrg = document.getElementById('inp-org');
