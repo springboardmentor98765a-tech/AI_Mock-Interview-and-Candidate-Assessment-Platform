@@ -191,6 +191,7 @@ function bindLoginEvents() {
       inpPass.type = state.showPassword ? 'text' : 'password';
       togglePass.innerHTML = state.showPassword ? icon('eyeOff') : icon('eye');
       togglePass.setAttribute('aria-label', state.showPassword ? 'Hide password' : 'Show password');
+      togglePass.setAttribute('aria-pressed', String(state.showPassword));
       togglePass.setAttribute('title', state.showPassword ? 'Hide password' : 'Show password');
       inpPass.focus();
     });

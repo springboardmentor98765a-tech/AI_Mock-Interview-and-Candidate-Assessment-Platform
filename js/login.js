@@ -131,7 +131,7 @@ function renderLoginPage() {
           </div>
           <div>
             <label class="block text-xs text-white/40 mb-1.5 font-medium">Password</label>
-            <div class="input-wrap">${icon('lock', 15)}<input id="inp-pass" type="${state.showPassword ? 'text' : 'password'}" value="${state.password}" placeholder="••••••••" class="form-input" style="padding-right:2.5rem" /><button type="button" id="toggle-pass" class="pass-toggle-btn" aria-label="${state.showPassword ? 'Hide password' : 'Show password'}" title="${state.showPassword ? 'Hide password' : 'Show password'}">${state.showPassword ? icon('eyeOff') : icon('eye')}</button></div>
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true">${icon('lock', 15)}</span><input id="inp-pass" type="${state.showPassword ? 'text' : 'password'}" value="${state.password}" placeholder="••••••••" class="form-input password-input" /><button type="button" id="toggle-pass" class="pass-toggle-btn" aria-label="${state.showPassword ? 'Hide password' : 'Show password'}" aria-pressed="${state.showPassword}" title="${state.showPassword ? 'Hide password' : 'Show password'}">${state.showPassword ? icon('eyeOff') : icon('eye')}</button></div>
           </div>
         </div>
         ${state.authMode === 'login' ? `<div class="flex justify-end mb-4"><button class="text-xs font-medium" style="color:${INDIGO}">Forgot password?</button></div>` : ''}
