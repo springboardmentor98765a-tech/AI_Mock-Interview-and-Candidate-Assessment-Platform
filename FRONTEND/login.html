@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - SmartHire AI</title>
+  <meta name="description" content="Access your SmartHire AI candidate, recruiter, or admin portal.">
+  <!-- Google Fonts & FontAwesome CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <span>SmartHire <span class="gradient-text">AI</span></span>
+      </a>
+      
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="candidate.html">Candidate</a>
+        <a href="recruiter.html">Recruiter</a>
+        <a href="admin.html">Admin</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="login.html" class="btn btn-primary btn-sm active">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Login Main Content Wrapper -->
+  <main class="login-page-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <a href="index.html" class="logo" style="margin-bottom: 1.5rem; display: inline-flex; align-items: center; gap: 0.75rem;">
+          <div class="logo-icon">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <span style="font-size: 1.5rem; font-weight: 800;">SmartHire <span class="gradient-text">AI</span></span>
+        </a>
+        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">Welcome Back</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">Sign in to access your SmartHire AI candidate, recruiter, or admin portal</p>
+      </div>
+
+      <form onsubmit="return false;">
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="login-email" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Email Address</label>
+          <div class="input-icon-wrapper" style="position: relative;">
+            <i class="fa-solid fa-envelope" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+            <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required autocomplete="off" style="padding-left: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="login-password" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Password</label>
+          <div class="input-icon-wrapper" style="position: relative;">
+            <i class="fa-solid fa-lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+            <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="off" style="padding-left: 2.75rem; padding-right: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
+            <i class="fa-solid fa-eye" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);"></i>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.875rem;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+            <input type="checkbox" id="remember-me" checked style="width: 16px; height: 16px; accent-color: var(--primary);"> Remember Me
+          </label>
+          <a href="#" onclick="showDemoToast('Password reset link sent to your registered email.', 'info'); return false;" style="color: var(--primary); font-weight: 600; text-decoration: none;">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" style="height: 48px; font-size: 1rem; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <i class="fa-solid fa-right-to-bracket"></i> Login to Dashboard
+        </button>
+      </form>
+
+      <div class="login-links" style="margin-top: 1.5rem; text-align: center; font-size: 0.9rem;">
+        <span style="color: var(--text-muted);">
+          Don't have an account? <a href="#" onclick="switchAuthTab('register'); return false;" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create Account</a>
+        </span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" style="margin-top: 0;">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 SmartHire AI. All rights reserved. Module 1 PostgreSQL & FastAPI Integration.</p>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="index.html">Home</a>
+          <a href="candidate.html">Candidate</a>
+          <a href="recruiter.html">Recruiter</a>
+          <a href="admin.html">Admin</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+ <!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Custom JavaScript -->
+<script src="js/script.js"></script>
+</body>
+</html>

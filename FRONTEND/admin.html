@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - SmartHire AI</title>
+  <meta name="description" content="Admin control panel for SmartHire AI user governance, system activity monitoring, AI model configuration, and platform analytics.">
+  <!-- Google Fonts & FontAwesome CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <span>SmartHire <span class="gradient-text">AI</span></span>
+      </a>
+      
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="candidate.html">Candidate</a>
+        <a href="recruiter.html">Recruiter</a>
+        <a href="admin.html" class="active">Admin</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="login.html" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Layout -->
+  <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li class="sidebar-item">
+          <a href="admin.html" class="active">
+            <i class="fa-solid fa-shield-halved"></i> Dashboard
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="document.getElementById('admin-user-management-section').scrollIntoView({behavior: 'smooth'}); return false;">
+            <i class="fa-solid fa-users"></i> Users Governance
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="document.getElementById('admin-user-management-section').scrollIntoView({behavior: 'smooth'}); return false;">
+            <i class="fa-solid fa-building-user"></i> Recruiters
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openPlatformSettingsModal(); return false;">
+            <i class="fa-solid fa-sliders"></i> Platform Settings
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openPlatformSettingsModal(); return false;">
+            <i class="fa-solid fa-microchip"></i> AI Settings
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="document.getElementById('admin-reports-section').scrollIntoView({behavior: 'smooth'}); return false;">
+            <i class="fa-solid fa-flag"></i> Report Management
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-main">
+      <!-- Header Title -->
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h1>Admin Command Center</h1>
+          <p>System governance, user administration, AI hyper-parameter tuning, and infrastructure logs.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showDemoToast('System health audit passed 100% cleanly.', 'success')">
+          <i class="fa-solid fa-arrows-rotate"></i> Run System Audit
+        </button>
+      </div>
+
+      <!-- Dashboard Cards (6 Live Metrics Grid) -->
+      <div class="stats-cards-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper blue">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Total Users</h4>
+            <div class="value">5</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Active in PostgreSQL</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper cyan">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Total Candidates</h4>
+            <div class="value">3</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Registered jobseekers</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper purple">
+            <i class="fa-solid fa-briefcase"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Total Recruiters</h4>
+            <div class="value">1</div>
+            <div class="trend up"><i class="fa-solid fa-check"></i> Verified orgs</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper amber" style="background: #FEF3C7; color: #D97706;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Total Reports</h4>
+            <div class="value">3</div>
+            <div class="trend down" style="color: #D97706;"><i class="fa-solid fa-clock"></i> 2 pending review</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper blue" style="background: #ECFDF5; color: #059669;">
+            <i class="fa-solid fa-signal"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Active Users</h4>
+            <div class="value">4</div>
+            <div class="trend up"><i class="fa-solid fa-bolt"></i> Live concurrent</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper purple">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+          <div class="stat-info">
+            <h4>New Registrations</h4>
+            <div class="value">+2</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Last 24 hours</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Cards Grid (Admin Action Features) -->
+      <div class="dashboard-grid">
+
+        <!-- 1. Manage Users & Recruiters -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-users-gear"></i> Manage Users & Recruiters</h3>
+              <span class="badge-status success">Active</span>
+            </div>
+            <div class="dash-card-body">
+              Grant permissions, manage role access control, verify recruiter accounts, suspend or activate users, and delete accounts in PostgreSQL.
+              <div class="css-chart-box">
+                <div class="progress-bar-group">
+                  <div class="progress-label">
+                    <span>Verified Candidate Accounts</span>
+                    <span>92%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 92%;"></div>
+                  </div>
+                </div>
+                <div class="progress-bar-group" style="margin-bottom: 0;">
+                  <div class="progress-label">
+                    <span>Verified Recruiters</span>
+                    <span>100%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill secondary" style="width: 100%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="document.getElementById('admin-user-management-section').scrollIntoView({behavior: 'smooth'});">
+            <i class="fa-solid fa-user-check"></i> Manage Access & Roles
+          </button>
+        </div>
+
+        <!-- 2. Configure Platform Settings -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-sliders"></i> Platform Settings</h3>
+              <span class="badge-status info">v2.4.0 Live</span>
+            </div>
+            <div class="dash-card-body">
+              Configure maintenance mode, security parameters, AI scoring weights, webhooks, and third-party integrations.
+              <div class="css-chart-box" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Maintenance Mode</span>
+                <span class="badge-status warning" id="maint-mode-badge">Disabled</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="openPlatformSettingsModal()">
+            <i class="fa-solid fa-gear"></i> Configure Platform Settings
+          </button>
+        </div>
+
+        <!-- 3. Report Management -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i> Report Management</h3>
+              <span class="badge-status warning">Governance</span>
+            </div>
+            <div class="dash-card-body">
+              Review and resolve incident reports submitted by candidates and recruiters saved into PostgreSQL `reports` table.
+              <div class="css-chart-box" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fa-solid fa-flag" style="font-size: 1.8rem; color: #EF4444;"></i>
+                <div style="font-size: 0.85rem;">
+                  <strong>Incident Tickets Active</strong>
+                  <div style="color: var(--text-muted);">Mark Pending / Resolved / Delete</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="document.getElementById('admin-reports-section').scrollIntoView({behavior: 'smooth'});">
+            <i class="fa-solid fa-shield-halved"></i> Review Reports Table
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Admin User Governance Section -->
+      <div id="admin-user-management-section" class="table-card" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div class="table-card-header">
+          <h3><i class="fa-solid fa-users-gear" style="color: var(--primary);"></i> User & Recruiter Account Governance (PostgreSQL)</h3>
+          <span class="badge-status success">Active Controls</span>
+        </div>
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="admin-user-search" class="form-control" placeholder="Search by name, email, or role..." oninput="filterAdminUsers()">
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted);">Role Filter:</label>
+            <select id="admin-user-filter" class="form-control" style="width: 150px;" onchange="filterAdminUsers()">
+              <option value="ALL">All Roles</option>
+              <option value="CANDIDATE">Candidates</option>
+              <option value="RECRUITER">Recruiters</option>
+              <option value="ADMIN">Admins</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User Name & Email</th>
+                <th>System Role</th>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-table-body">
+              <!-- Dynamically populated by script.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Admin Report Governance Management Section -->
+      <div id="admin-reports-section" class="table-card" style="margin-bottom: 2rem;">
+        <div class="table-card-header">
+          <h3><i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i> Candidate & Recruiter Report Governance (`reports` table)</h3>
+          <span class="badge-status warning">PostgreSQL DB</span>
+        </div>
+        
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="admin-report-search" class="form-control" placeholder="Search reports by ticket ID, user, or category..." oninput="filterAdminReports()">
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted);">Status Filter:</label>
+            <select id="admin-report-filter" class="form-control" style="width: 150px;" onchange="filterAdminReports()">
+              <option value="ALL">All Reports</option>
+              <option value="PENDING">Pending Only</option>
+              <option value="RESOLVED">Resolved Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Reporter / Role</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reports-table-body">
+              <!-- Dynamically populated by script.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 SmartHire AI Admin Control Panel. Connected with Module 1 Authentication.</p>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="index.html">Home</a>
+          <a href="login.html">Login</a>
+          <a href="candidate.html">Candidate</a>
+          <a href="recruiter.html">Recruiter</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Custom JavaScript -->
+  <script src="js/script.js"></script>
+</body>
+</html>

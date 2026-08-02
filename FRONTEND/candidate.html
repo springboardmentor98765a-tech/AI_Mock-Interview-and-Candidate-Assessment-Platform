@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Candidate Dashboard - SmartHire AI</title>
+  <meta name="description" content="Candidate portal for resume uploads, mock interview practice, performance analytics, and improvement tracking.">
+  <!-- Google Fonts & FontAwesome CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <span>SmartHire <span class="gradient-text">AI</span></span>
+      </a>
+      
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="candidate.html" class="active">Candidate</a>
+        <a href="recruiter.html">Recruiter</a>
+        <a href="admin.html">Admin</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="login.html" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </a>
+        <button class="mobile-toggle" aria-label="Toggle navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Layout -->
+  <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li class="sidebar-item">
+          <a href="candidate.html" class="active">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openRankingModal(); return false;">
+            <i class="fa-solid fa-trophy"></i> Ranking System
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openResumeUploadModal(); return false;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Resume Upload
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openPerformanceAnalyticsModal(); return false;">
+            <i class="fa-solid fa-chart-pie"></i> Performance Analytics
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="document.querySelector('.table-card').scrollIntoView({behavior: 'smooth'}); return false;">
+            <i class="fa-solid fa-clock-rotate-left"></i> Interview History
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="downloadCandidateReportPDF(); return false;">
+            <i class="fa-solid fa-file-invoice"></i> Download Reports
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openImprovementProgressModal(); return false;">
+            <i class="fa-solid fa-arrow-trend-up"></i> Track Progress
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="#" onclick="openReportIssueModal('CANDIDATE'); return false;">
+            <i class="fa-solid fa-triangle-exclamation"></i> Report Issue
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-main">
+      <!-- Header Title -->
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h1>Candidate Dashboard</h1>
+          <p>Track your interview readiness, ATS resume score, and skill growth timeline.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openResumeUploadModal()">
+          <i class="fa-solid fa-upload"></i> Upload CV / Resume
+        </button>
+      </div>
+
+      <!-- Welcome Banner Card -->
+      <div class="welcome-card">
+        <div class="welcome-text">
+          <h2>Welcome back, Alex Morgan! 👋</h2>
+          <p>Your ATS resume score increased by 18% this week. You're in the top 5% of candidates for Senior Frontend Developer roles.</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openPerformanceAnalyticsModal()" style="color: var(--primary);">
+          View Analytics
+        </button>
+      </div>
+
+      <!-- Quick Stats Cards Grid -->
+      <div class="stats-cards-grid">
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper blue">
+            <i class="fa-solid fa-file-lines"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Resume ATS Score</h4>
+            <div class="value">88/100</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> +6 pts vs last ATS check</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper purple">
+            <i class="fa-solid fa-headset"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Interview Score</h4>
+            <div class="value">92%</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> +12% performance</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper cyan">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Completed Interviews</h4>
+            <div class="value">14</div>
+            <div class="trend up"><i class="fa-solid fa-check"></i> 4 completed this month</div>
+          </div>
+        </div>
+
+        <div class="dash-stat-card">
+          <div class="stat-icon-wrapper amber">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+          </div>
+          <div class="stat-info">
+            <h4>Improvement %</h4>
+            <div class="value">+24%</div>
+            <div class="trend up"><i class="fa-solid fa-arrow-up"></i> Consistent growth</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Cards Grid (Candidate Action Features) -->
+      <div class="dashboard-grid">
+
+        <!-- 1. Upload Resume -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload Resumes</h3>
+              <span class="badge-status info">ATS Ready</span>
+            </div>
+            <div class="dash-card-body">
+              Upload your latest CV in PDF, DOC, or DOCX format to receive instant ATS scoring, keyword matching, and targeted improvements.
+              <div class="css-chart-box">
+                <div class="progress-bar-group">
+                  <div class="progress-label">
+                    <span>Keyword Match</span>
+                    <span>94%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 94%;"></div>
+                  </div>
+                </div>
+                <div class="progress-bar-group" style="margin-bottom: 0;">
+                  <div class="progress-label">
+                    <span>ATS Formatting</span>
+                    <span>88%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill secondary" style="width: 88%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="openResumeUploadModal()">
+            <i class="fa-solid fa-upload"></i> Upload New Resume
+          </button>
+        </div>
+
+        <!-- 2. Attend Mock Interviews -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-headset"></i> Attend Mock Interviews</h3>
+              <span class="badge-status success">AI Active</span>
+            </div>
+            <div class="dash-card-body">
+              Participate in adaptive voice and text AI mock interview sessions customized for Technical, Behavioral, and System Design rounds.
+              <div class="css-chart-box" style="text-align: center; padding: 1.5rem 0.5rem;">
+                <i class="fa-solid fa-microphone-lines" style="font-size: 2.2rem; color: var(--secondary); margin-bottom: 0.5rem;"></i>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">Real-time AI Voice Engine Active</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-accent btn-full" onclick="showDemoToast('Mock Interview Engine session ready. Prepare microphone and start.', 'info')">
+            <i class="fa-solid fa-play"></i> Start Mock Interview
+          </button>
+        </div>
+
+        <!-- 3. View Interview History -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-clock-rotate-left"></i> View Interview History</h3>
+              <span class="badge-status info">14 Sessions</span>
+            </div>
+            <div class="dash-card-body">
+              Review transcripts, recorded answers, ATS critique notes, and historical scores for all your completed practice sessions.
+              <div class="css-chart-box">
+                <div style="font-size: 0.85rem; display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                  <span>React Senior Dev Round</span>
+                  <strong style="color: var(--primary);">94% Score</strong>
+                </div>
+                <div style="font-size: 0.85rem; display: flex; justify-content: space-between;">
+                  <span>Behavioral Leadership</span>
+                  <strong style="color: var(--secondary);">89% Score</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="document.querySelector('.table-card').scrollIntoView({behavior: 'smooth'})">
+            <i class="fa-solid fa-list-ul"></i> View Full History Log
+          </button>
+        </div>
+
+        <!-- 4. Access Performance Analytics -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-chart-line"></i> Performance Analytics</h3>
+              <span class="badge-status success">+18% Weekly</span>
+            </div>
+            <div class="dash-card-body">
+              Explore deep analytics on response velocity, technical accuracy, confidence metrics, and clarity scoring across domains.
+              <div class="bar-chart-visual">
+                <div class="bar-column" title="Session 1"><div class="bar-column-inner" style="height: 55%;"></div></div>
+                <div class="bar-column" title="Session 2"><div class="bar-column-inner" style="height: 70%;"></div></div>
+                <div class="bar-column" title="Session 3"><div class="bar-column-inner" style="height: 65%;"></div></div>
+                <div class="bar-column" title="Session 4"><div class="bar-column-inner" style="height: 85%;"></div></div>
+                <div class="bar-column" title="Session 5"><div class="bar-column-inner" style="height: 92%;"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="openPerformanceAnalyticsModal()">
+            <i class="fa-solid fa-chart-pie"></i> Explore Analytics
+          </button>
+        </div>
+
+        <!-- 5. Download Reports -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-file-pdf"></i> Download Reports</h3>
+              <span class="badge-status info">PDF Ready</span>
+            </div>
+            <div class="dash-card-body">
+              Generate and download recruiter-ready evaluation reports summarizing your technical strengths and interview readiness.
+              <div class="css-chart-box" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fa-solid fa-file-pdf" style="font-size: 2rem; color: #EF4444;"></i>
+                <div style="font-size: 0.85rem;">
+                  <strong>Candidate_ATS_Evaluation_Report.pdf</strong>
+                  <div style="color: var(--text-muted);">Generated 2 hours ago • 2.4 MB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="downloadCandidateReportPDF()">
+            <i class="fa-solid fa-download"></i> Download Report PDF
+          </button>
+        </div>
+
+        <!-- 6. Track Improvement Progress -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-arrow-trend-up"></i> Track Progress</h3>
+              <span class="badge-status warning">On Track</span>
+            </div>
+            <div class="dash-card-body">
+              Monitor your skill milestone progression, weak spots resolution rate, and personalized practice recommendations.
+              <div class="css-chart-box">
+                <div class="progress-bar-group" style="margin-bottom: 0.5rem;">
+                  <div class="progress-label">
+                    <span>System Architecture</span>
+                    <span>78%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 78%; background: var(--accent);"></div>
+                  </div>
+                </div>
+                <div class="progress-bar-group" style="margin-bottom: 0;">
+                  <div class="progress-label">
+                    <span>Algorithms & Data Struct.</span>
+                    <span>91%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" style="width: 91%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="openImprovementProgressModal()">
+            <i class="fa-solid fa-bullseye"></i> View Growth Roadmap
+          </button>
+        </div>
+
+        <!-- 7. Ranking System & Leaderboard -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-trophy" style="color: #F59E0B;"></i> Candidate Ranking System</h3>
+              <span class="badge-status success">Top 2%</span>
+            </div>
+            <div class="dash-card-body">
+              View your Overall Rank (#14), College Rank (#3), and Global Rank (#142) alongside unlocked achievement badges.
+              <div class="css-chart-box" style="display: flex; justify-content: space-around; text-align: center;">
+                <div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">#14</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Overall</div>
+                </div>
+                <div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--secondary);">#3</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">College</div>
+                </div>
+                <div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent);">#142</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Global</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="openRankingModal()">
+            <i class="fa-solid fa-medal"></i> View Leaderboard & Badges
+          </button>
+        </div>
+
+        <!-- 8. Report Issue -->
+        <div class="dashboard-card">
+          <div>
+            <div class="dash-card-header">
+              <h3><i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i> Report Incident / Conduct Issue</h3>
+              <span class="badge-status warning">Support Active</span>
+            </div>
+            <div class="dash-card-body">
+              Report illegal interview questions, recruiter misconduct, fake job postings, technical glitches, or platform abuse.
+              <div class="css-chart-box" style="font-size: 0.85rem; color: var(--text-muted);">
+                <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Reports are saved into PostgreSQL and reviewed by admins.
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="openReportIssueModal('CANDIDATE')">
+            <i class="fa-solid fa-flag"></i> Submit Issue Report
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Candidate Interview History Log Table -->
+      <div class="table-card" style="margin-top: 2rem;">
+        <div class="table-card-header">
+          <h3><i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> Recent Mock Interview History</h3>
+          <button class="btn btn-secondary btn-sm" onclick="exportInterviewHistoryCSV()">
+            <i class="fa-solid fa-file-export"></i> Export CSV
+          </button>
+        </div>
+
+        <!-- Search, Filter & Sort Controls -->
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="cand-hist-search" class="form-control" placeholder="Search sessions by role or topic..." oninput="filterCandidateHistoryTable()">
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <label style="font-weight: 600; font-size: 0.8rem; color: var(--text-muted);">Status:</label>
+              <select id="cand-hist-status" class="form-control" style="width: 140px;" onchange="filterCandidateHistoryTable()">
+                <option value="ALL">All Statuses</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="SCHEDULED">Scheduled</option>
+                <option value="IN_PROGRESS">In Progress</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <label style="font-weight: 600; font-size: 0.8rem; color: var(--text-muted);">Sort By:</label>
+              <select id="cand-hist-sort" class="form-control" style="width: 160px;" onchange="filterCandidateHistoryTable()">
+                <option value="DATE_DESC">Newest First</option>
+                <option value="DATE_ASC">Oldest First</option>
+                <option value="SCORE_DESC">Highest ATS Score</option>
+                <option value="SCORE_ASC">Lowest ATS Score</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Target Role</th>
+                <th>Session Type</th>
+                <th>Duration</th>
+                <th>ATS Score</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-history-table-body">
+              <!-- Dynamically rendered by script.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem;">
+          <span style="color: var(--text-muted);" id="cand-hist-showing">Showing 1-3 of 3 interview sessions</span>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="changeCandidateHistoryPage(-1)"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <button class="btn btn-secondary btn-sm" onclick="changeCandidateHistoryPage(1)">Next <i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <p>&copy; 2026 SmartHire AI Candidate Portal. Connected with Module 1 Authentication.</p>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="index.html">Home</a>
+          <a href="login.html">Login</a>
+          <a href="recruiter.html">Recruiter</a>
+          <a href="admin.html">Admin</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Custom JavaScript -->
+  <script src="js/script.js"></script>
+</body>
+</html>
