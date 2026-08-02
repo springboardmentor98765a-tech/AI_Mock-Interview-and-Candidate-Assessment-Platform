@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>SmartHire AI - Candidate Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <h1>
+        👩‍💻 Candidate Dashboard
+    </h1>
+
+    <div class="dashboard-card">
+
+        <h2>Welcome to SmartHire AI</h2>
+
+        <p>
+            Manage your profile, upload resume and explore job opportunities.
+        </p>
+
+        <button onclick="logout()">
+            Logout
+        </button>
+
+    </div>
+
+
+    <div class="dashboard-grid">
+
+        <div class="feature-card">
+            <h3>📄 Resume</h3>
+            <p>Upload and manage your resume.</p>
+        </div>
+
+
+        <div class="feature-card">
+            <h3>🎯 Job Matching</h3>
+            <p>AI based job recommendations.</p>
+        </div>
+
+
+        <div class="feature-card">
+            <h3>📊 Profile Score</h3>
+            <p>Improve your hiring chances.</p>
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+function logout(){
+
+localStorage.clear();
+
+window.location.href="login.html";
+
+}
+
+</script>
+
+
+</body>
+
+</html>

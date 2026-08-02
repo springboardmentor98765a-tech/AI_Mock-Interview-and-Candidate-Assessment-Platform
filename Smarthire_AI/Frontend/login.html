@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SmartHire AI - Login</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+
+<body>
+
+
+<div class="auth-container">
+
+
+    <div class="auth-card">
+
+
+        <h1>
+            SmartHire <span>AI</span>
+        </h1>
+
+        <p class="subtitle">
+            Login to continue your smart hiring journey
+        </p>
+
+
+
+        <!-- Login Form -->
+
+        <form id="loginForm">
+
+
+            <input 
+            type="email"
+            id="loginEmail"
+            placeholder="Email Address"
+            required>
+
+
+            <input 
+            type="password"
+            id="loginPassword"
+            placeholder="Password"
+            required>
+
+
+            <button type="submit">
+                Login
+            </button>
+
+
+        </form>
+
+
+
+        <div class="divider">
+            OR
+        </div>
+
+
+
+        <!-- Google Login -->
+
+        <button class="google-btn"
+        onclick="googleLogin()">
+
+            🔵 Continue with Google
+
+        </button>
+
+
+
+        <p class="switch">
+
+            Don't have an account?
+
+            <a href="#" onclick="showRegister()">
+                Register
+            </a>
+
+        </p>
+
+
+
+    </div>
+
+
+
+    <!-- Registration Card -->
+
+
+    <div class="auth-card register-card"
+    id="registerBox">
+
+
+        <h2>
+            Create Account
+        </h2>
+
+
+        <form id="registerForm">
+
+
+            <input
+            type="text"
+            id="registerName"
+            placeholder="Full Name"
+            required>
+
+
+
+            <input
+            type="email"
+            id="registerEmail"
+            placeholder="Email"
+            required>
+
+
+
+            <input
+            type="password"
+            id="registerPassword"
+            placeholder="Password"
+            required>
+
+
+
+            <select id="registerRole">
+
+                <option value="USER">
+                    Candidate
+                </option>
+
+
+                <option value="RECRUITER">
+                    Recruiter
+                </option>
+
+
+                <option value="ADMIN">
+                    Admin
+                </option>
+
+
+            </select>
+
+
+
+            <button type="submit">
+                Register
+            </button>
+
+
+        </form>
+
+
+    </div>
+
+
+</div>
+
+
+
+<script src="js/script.js"></script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<title>SmartHire AI - Admin Dashboard</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+
+<body>
+
+
+<div class="dashboard">
+
+
+<h1>
+⚙️ Admin Dashboard
+</h1>
+
+
+
+<div class="dashboard-card">
+
+
+<h2>
+System Administration
+</h2>
+
+
+<p>
+Manage users, roles and platform security.
+</p>
+
+
+<button onclick="logout()">
+Logout
+</button>
+
+
+</div>
+
+
+
+
+<div class="dashboard-grid">
+
+
+<div class="feature-card">
+
+<h3>
+👤 Users
+</h3>
+
+<p>
+Manage registered users.
+</p>
+
+</div>
+
+
+
+<div class="feature-card">
+
+<h3>
+🔐 Security
+</h3>
+
+<p>
+Monitor authentication.
+</p>
+
+</div>
+
+
+
+<div class="feature-card">
+
+<h3>
+📈 Analytics
+</h3>
+
+<p>
+View platform statistics.
+</p>
+
+</div>
+
+
+
+</div>
+
+
+</div>
+
+
+
+<script>
+
+function logout(){
+
+localStorage.clear();
+
+window.location.href="login.html";
+
+}
+
+</script>
+
+
+</body>
+
+</html>
