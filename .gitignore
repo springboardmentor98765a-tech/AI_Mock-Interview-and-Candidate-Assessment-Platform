@@ -8,6 +8,8 @@ ehthumbs.db
 Thumbs.db
 
 # Environment / Secret Files
+# Covers variants too (.env.local, .env.bak-*, .env.production) — an exact
+# ".env" rule alone would let those through.
 .env
 .env.*
 *.env.bak*
@@ -18,8 +20,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/.env
-frontend/.env.*
-!frontend/.env.example
 
 # Backend
 backend/.venv/
@@ -31,11 +31,8 @@ backend/*.py[cod]
 backend/*.db
 backend/*.sqlite3
 backend/.env
-backend/.env.*
-!backend/.env.example
 
 # IDE / Editors
 .vscode/
 .idea/
 *.swp
-
