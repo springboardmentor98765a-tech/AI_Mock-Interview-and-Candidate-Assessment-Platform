@@ -1134,37 +1134,101 @@ All Rights Reserved.
 
         <span class="close-btn">&times;</span>
 
-        <h2>Welcome Back</h2>
+        <div id="loginFormSection">
 
-        <input
-            type="email"
-            id="email"
-            placeholder="Email"
-        >
+            <h2>Welcome Back</h2>
 
-        <input
-            type="password"
-            id="password"
-            placeholder="Password"
-        >
+            <input
+                type="email"
+                id="email"
+                placeholder="Email"
+            >
 
-        <select id="roleSelect">
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+            >
 
-            <option value="">Select Role</option>
+            <select id="roleSelect">
 
-            <option value="candidate">Candidate</option>
+                <option value="">Select Role</option>
 
-            <option value="recruiter">Recruiter</option>
+                <option value="candidate">Candidate</option>
 
-            <option value="admin">Admin</option>
+                <option value="recruiter">Recruiter</option>
 
-        </select>
+                <option value="admin">Admin</option>
 
-        <button id="loginSubmit">
+            </select>
 
-            Login
+            <p id="loginAuthMessage" style="display:none; font-size:14px; margin:10px 0 0; color:#16a34a;"></p>
 
-        </button>
+            <button id="loginSubmit" type="button">
+
+                Login
+
+            </button>
+
+            <p style="margin-top:14px; font-size:14px; color:#64748b;">
+                Need an account?
+                <button type="button" id="showRegister" class="login-btn" style="padding:6px 10px; margin-left:6px; font-size:13px;">
+                    Register
+                </button>
+            </p>
+
+        </div>
+
+        <div id="registerFormSection" style="display:none;">
+
+            <h2>Create Account</h2>
+
+            <input
+                type="text"
+                id="registerName"
+                placeholder="Full Name"
+            >
+
+            <input
+                type="email"
+                id="registerEmail"
+                placeholder="Email"
+            >
+
+            <input
+                type="password"
+                id="registerPassword"
+                placeholder="Password"
+            >
+
+            <select id="registerRoleSelect">
+
+                <option value="">Select Role</option>
+
+                <option value="candidate">Candidate</option>
+
+                <option value="recruiter">Recruiter</option>
+
+                <option value="admin">Admin</option>
+
+            </select>
+
+            <p id="registerAuthMessage" style="display:none; font-size:14px; margin:10px 0 0; color:#16a34a;"></p>
+
+            <button id="registerSubmit" type="button">
+
+                Register
+
+            </button>
+
+            <p style="margin-top:14px; font-size:14px; color:#64748b;">
+                Already have an account?
+                <button type="button" id="showLogin" class="login-btn" style="padding:6px 10px; margin-left:6px; font-size:13px;">
+                    Login
+                </button>
+            </p>
+
+        </div>
 
     </div>
 
@@ -1201,6 +1265,7 @@ All Rights Reserved.
 </button>
 
 <script src="js/script.js"></script>
+<script src="js/auth.js"></script>
 
 </body>
 </html>

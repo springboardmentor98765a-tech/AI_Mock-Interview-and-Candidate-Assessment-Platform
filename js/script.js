@@ -76,23 +76,13 @@ window.addEventListener("click", (event)=>{
 // LOGIN BUTTON
 // =============================
 
-const loginSubmit = document.querySelector(".login-box button");
+const loginSubmit = document.getElementById("loginSubmit");
 
 if(loginSubmit){
 
-    loginSubmit.addEventListener("click",()=>{
+    loginSubmit.addEventListener("click",(event)=>{
 
-        loginModal.style.display="none";
-
-        toast.innerHTML="✅ Login Successful!";
-
-        toast.style.display="block";
-
-        setTimeout(()=>{
-
-            toast.style.display="none";
-
-        },3000);
+        event.stopPropagation();
 
     });
 
@@ -408,27 +398,17 @@ window.addEventListener("load",()=>{
    SAVE USER ROLE
 ========================================== */
 
-const roleSelect=document.querySelector(".login-box select");
+const roleSelect=document.getElementById("roleSelect");
 
-if(loginSubmit){
+if(roleSelect){
 
-loginSubmit.addEventListener("click",()=>{
+    const savedRole=localStorage.getItem("userRole");
 
-    if(roleSelect){
+    if(savedRole){
 
-        localStorage.setItem("userRole",roleSelect.value);
+        roleSelect.value=savedRole;
 
     }
-
-});
-
-}
-
-const savedRole=localStorage.getItem("userRole");
-
-if(savedRole && roleSelect){
-
-    roleSelect.value=savedRole;
 
 }
 /* ==========================================
@@ -1368,54 +1348,5 @@ window.location.href="../index.html";
 }
 
 });
-
-}
-/*=========================================
-ROLE BASED LOGIN
-=========================================*/
-
-
-
-if(loginSubmit){
-
-    loginSubmit.addEventListener("click",()=>{
-
-        const role = roleSelect.value;
-
-        if(role===""){
-
-            showToast("⚠ Please select a role.");
-
-            return;
-
-        }
-
-        localStorage.setItem("userRole",role);
-
-        showToast("✅ Login Successful!");
-
-        setTimeout(()=>{
-
-            if(role==="candidate"){
-
-                window.location.href="pages/candidate.html";
-
-            }
-
-            else if(role==="recruiter"){
-
-                window.location.href="pages/recruiter.html";
-
-            }
-
-            else if(role==="admin"){
-
-                window.location.href="pages/admin.html";
-
-            }
-
-        },1000);
-
-    });
 
 }
