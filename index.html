@@ -1130,103 +1130,147 @@ All Rights Reserved.
 ==========================================-->
 <div class="login-modal" id="loginModal">
 
-    <div class="login-box">
+    <div class="auth-modal">
 
-        <span class="close-btn">&times;</span>
+        <button class="close-btn" type="button" aria-label="Close dialog">&times;</button>
 
-        <div id="loginFormSection">
+        <div class="auth-panel">
 
-            <h2>Welcome Back</h2>
+            <div class="auth-brand">
+                <div class="auth-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h2>Welcome to SmartHire AI</h2>
+                    <p>Secure access for candidates, recruiters, and admins</p>
+                </div>
+            </div>
 
-            <input
-                type="email"
-                id="email"
-                placeholder="Email"
-            >
+            <div class="auth-switch" role="tablist">
+                <button type="button" class="auth-switch-btn active" id="showLoginTab">Login</button>
+                <button type="button" class="auth-switch-btn" id="showRegisterTab">Register</button>
+            </div>
 
-            <input
-                type="password"
-                id="password"
-                placeholder="Password"
-            >
+            <div id="loginFormSection" class="auth-form">
 
-            <select id="roleSelect">
+                <form id="loginForm" novalidate>
 
-                <option value="">Select Role</option>
+                    <div class="input-group">
+                        <label for="email">Email Address</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-envelope"></i>
+                            <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+                        </div>
+                        <p class="field-error" data-error-for="email"></p>
+                    </div>
 
-                <option value="candidate">Candidate</option>
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+                            <button type="button" class="password-toggle" data-target="password" aria-label="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                        <p class="field-error" data-error-for="password"></p>
+                    </div>
 
-                <option value="recruiter">Recruiter</option>
+                    <div class="input-group">
+                        <label for="roleSelect">Role</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-user-tag"></i>
+                            <select id="roleSelect">
+                                <option value="">Select Role</option>
+                                <option value="candidate">Candidate</option>
+                                <option value="recruiter">Recruiter</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <p class="field-error" data-error-for="roleSelect"></p>
+                    </div>
 
-                <option value="admin">Admin</option>
+                    <div class="form-row">
+                        <button type="button" class="text-link" id="forgotPassword">Forgot password?</button>
+                    </div>
 
-            </select>
+                    <button id="loginSubmit" type="submit" class="auth-submit">
+                        <span class="btn-label">Login</span>
+                    </button>
 
-            <p id="loginAuthMessage" style="display:none; font-size:14px; margin:10px 0 0; color:#16a34a;"></p>
+                    <p id="loginAuthMessage" class="auth-message" role="status"></p>
+                </form>
 
-            <button id="loginSubmit" type="button">
+            </div>
 
-                Login
+            <div id="registerFormSection" class="auth-form" style="display:none;">
 
-            </button>
+                <form id="registerForm" novalidate>
 
-            <p style="margin-top:14px; font-size:14px; color:#64748b;">
-                Need an account?
-                <button type="button" id="showRegister" class="login-btn" style="padding:6px 10px; margin-left:6px; font-size:13px;">
-                    Register
-                </button>
-            </p>
+                    <div class="input-group">
+                        <label for="registerName">Full Name</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="registerName" placeholder="Enter your full name" autocomplete="name">
+                        </div>
+                        <p class="field-error" data-error-for="registerName"></p>
+                    </div>
 
-        </div>
+                    <div class="input-group">
+                        <label for="registerEmail">Email Address</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-envelope"></i>
+                            <input type="email" id="registerEmail" placeholder="you@example.com" autocomplete="email">
+                        </div>
+                        <p class="field-error" data-error-for="registerEmail"></p>
+                    </div>
 
-        <div id="registerFormSection" style="display:none;">
+                    <div class="input-group">
+                        <label for="registerPassword">Password</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="registerPassword" placeholder="Create a strong password" autocomplete="new-password">
+                            <button type="button" class="password-toggle" data-target="registerPassword" aria-label="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                        <p class="field-error" data-error-for="registerPassword"></p>
+                    </div>
 
-            <h2>Create Account</h2>
+                    <div class="input-group">
+                        <label for="registerConfirmPassword">Confirm Password</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="registerConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+                            <button type="button" class="password-toggle" data-target="registerConfirmPassword" aria-label="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                        <p class="field-error" data-error-for="registerConfirmPassword"></p>
+                    </div>
 
-            <input
-                type="text"
-                id="registerName"
-                placeholder="Full Name"
-            >
+                    <div class="input-group">
+                        <label for="registerRoleSelect">Role</label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-user-tag"></i>
+                            <select id="registerRoleSelect">
+                                <option value="">Select Role</option>
+                                <option value="candidate">Candidate</option>
+                                <option value="recruiter">Recruiter</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <p class="field-error" data-error-for="registerRoleSelect"></p>
+                    </div>
 
-            <input
-                type="email"
-                id="registerEmail"
-                placeholder="Email"
-            >
+                    <button id="registerSubmit" type="submit" class="auth-submit">
+                        <span class="btn-label">Create Account</span>
+                    </button>
 
-            <input
-                type="password"
-                id="registerPassword"
-                placeholder="Password"
-            >
+                    <p id="registerAuthMessage" class="auth-message" role="status"></p>
+                </form>
 
-            <select id="registerRoleSelect">
-
-                <option value="">Select Role</option>
-
-                <option value="candidate">Candidate</option>
-
-                <option value="recruiter">Recruiter</option>
-
-                <option value="admin">Admin</option>
-
-            </select>
-
-            <p id="registerAuthMessage" style="display:none; font-size:14px; margin:10px 0 0; color:#16a34a;"></p>
-
-            <button id="registerSubmit" type="button">
-
-                Register
-
-            </button>
-
-            <p style="margin-top:14px; font-size:14px; color:#64748b;">
-                Already have an account?
-                <button type="button" id="showLogin" class="login-btn" style="padding:6px 10px; margin-left:6px; font-size:13px;">
-                    Login
-                </button>
-            </p>
+            </div>
 
         </div>
 
@@ -1234,9 +1278,7 @@ All Rights Reserved.
 
 </div>
 <!-- Toast -->
-<div class="toast" id="toast">
-    Login Successful!
-</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Loading -->
 <div class="loader" id="loader">

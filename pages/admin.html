@@ -128,9 +128,9 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <div>
 
-<h4>Admin</h4>
+<h4 id="dashboardUserName">Admin</h4>
 
-<p>System Administrator</p>
+<p id="dashboardUserRole">System Administrator</p>
 
 </div>
 
@@ -142,9 +142,9 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <section class="dashboard-header">
 
-<h1>Admin Dashboard ⚙️</h1>
+<h1 id="welcomeHeading">Admin Dashboard ⚙️</h1>
 
-<p>
+<p id="welcomeSubtitle">
 
 Manage users, recruiters, AI modules, reports, and monitor the complete SmartHire AI platform.
 
@@ -452,6 +452,46 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 </div> <!-- dashboard -->
 
 <script src="../js/script.js"></script>
+<script>
+(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    const name = localStorage.getItem("userName") || "Admin";
+    const email = localStorage.getItem("userEmail") || "";
+
+    if (!token) {
+        window.location.href = "../index.html";
+        return;
+    }
+
+    if (role !== "admin") {
+        window.location.href = role === "candidate" ? "candidate.html" : role === "recruiter" ? "recruiter.html" : "../index.html";
+        return;
+    }
+
+    const userNameEl = document.getElementById("dashboardUserName");
+    const userRoleEl = document.getElementById("dashboardUserRole");
+    const welcomeHeading = document.getElementById("welcomeHeading");
+    const welcomeSubtitle = document.getElementById("welcomeSubtitle");
+
+    if (userNameEl) userNameEl.textContent = name;
+    if (userRoleEl) userRoleEl.textContent = "Administrator";
+    if (welcomeHeading) welcomeHeading.textContent = `Welcome ${name} ⚙️`;
+    if (welcomeSubtitle) welcomeSubtitle.textContent = `Hello ${name}${email ? ` (${email})` : ""}. Monitor your platform and keep hiring operations running smoothly.`;
+
+    document.querySelectorAll("li").forEach((item) => {
+        if (item.textContent.includes("Logout")) {
+            item.addEventListener("click", () => {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("userRole");
+                localStorage.removeItem("userEmail");
+                localStorage.removeItem("userName");
+                window.location.href = "../index.html";
+            });
+        }
+    });
+})();
+</script>
 
 </body>
 

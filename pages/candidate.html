@@ -152,9 +152,9 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <div>
 
-<h4>John Doe</h4>
+<h4 id="dashboardUserName">John Doe</h4>
 
-<p>Candidate</p>
+<p id="dashboardUserRole">Candidate</p>
 
 </div>
 
@@ -166,9 +166,9 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <section class="dashboard-header">
 
-<h1>Welcome Back 👋</h1>
+<h1 id="welcomeHeading">Welcome Back 👋</h1>
 
-<p>
+<p id="welcomeSubtitle">
 
 Track your interview preparation and placement progress.
 
@@ -1143,6 +1143,46 @@ Logout
 </div>
 
 <script src="../js/script.js"></script>
+<script>
+(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    const name = localStorage.getItem("userName") || "User";
+    const email = localStorage.getItem("userEmail") || "";
+
+    if (!token) {
+        window.location.href = "../index.html";
+        return;
+    }
+
+    if (role !== "candidate") {
+        window.location.href = role === "recruiter" ? "recruiter.html" : role === "admin" ? "admin.html" : "../index.html";
+        return;
+    }
+
+    const userNameEl = document.getElementById("dashboardUserName");
+    const userRoleEl = document.getElementById("dashboardUserRole");
+    const welcomeHeading = document.getElementById("welcomeHeading");
+    const welcomeSubtitle = document.getElementById("welcomeSubtitle");
+
+    if (userNameEl) userNameEl.textContent = name;
+    if (userRoleEl) userRoleEl.textContent = "Candidate";
+    if (welcomeHeading) welcomeHeading.textContent = `Welcome ${name} 👋`;
+    if (welcomeSubtitle) welcomeSubtitle.textContent = `Hello ${name}${email ? ` (${email})` : ""}. Track your interview preparation and placement progress.`;
+
+    document.querySelectorAll("li").forEach((item) => {
+        if (item.textContent.includes("Logout")) {
+            item.addEventListener("click", () => {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("userRole");
+                localStorage.removeItem("userEmail");
+                localStorage.removeItem("userName");
+                window.location.href = "../index.html";
+            });
+        }
+    });
+})();
+</script>
 
 </body>
 </html>

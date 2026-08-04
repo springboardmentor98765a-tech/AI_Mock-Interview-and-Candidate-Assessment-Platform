@@ -127,9 +127,9 @@
 
 <div>
 
-<h4>Sarah Johnson</h4>
+<h4 id="dashboardUserName">Sarah Johnson</h4>
 
-<p>Senior Recruiter</p>
+<p id="dashboardUserRole">Senior Recruiter</p>
 
 </div>
 
@@ -141,9 +141,9 @@
 
 <section class="dashboard-header">
 
-<h1>Recruiter Dashboard 👋</h1>
+<h1 id="welcomeHeading">Recruiter Dashboard 👋</h1>
 
-<p>
+<p id="welcomeSubtitle">
 
 Manage job postings, review candidates, schedule interviews, and hire top talent using AI-powered insights.
 
@@ -595,6 +595,46 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 </div>
 
 <script src="../js/script.js"></script>
+<script>
+(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    const name = localStorage.getItem("userName") || "User";
+    const email = localStorage.getItem("userEmail") || "";
+
+    if (!token) {
+        window.location.href = "../index.html";
+        return;
+    }
+
+    if (role !== "recruiter") {
+        window.location.href = role === "candidate" ? "candidate.html" : role === "admin" ? "admin.html" : "../index.html";
+        return;
+    }
+
+    const userNameEl = document.getElementById("dashboardUserName");
+    const userRoleEl = document.getElementById("dashboardUserRole");
+    const welcomeHeading = document.getElementById("welcomeHeading");
+    const welcomeSubtitle = document.getElementById("welcomeSubtitle");
+
+    if (userNameEl) userNameEl.textContent = name;
+    if (userRoleEl) userRoleEl.textContent = "Recruiter";
+    if (welcomeHeading) welcomeHeading.textContent = `Welcome ${name} 👋`;
+    if (welcomeSubtitle) welcomeSubtitle.textContent = `Hello ${name}${email ? ` (${email})` : ""}. Manage candidates and hiring pipelines with confidence.`;
+
+    document.querySelectorAll("li").forEach((item) => {
+        if (item.textContent.includes("Logout")) {
+            item.addEventListener("click", () => {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("userRole");
+                localStorage.removeItem("userEmail");
+                localStorage.removeItem("userName");
+                window.location.href = "../index.html";
+            });
+        }
+    });
+})();
+</script>
 
 </body>
 </html>
