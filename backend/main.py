@@ -10,6 +10,10 @@ from models.recruiter import RecruiterProfile
 from security.password import hash_password
 from routers import auth_router, candidate_router, recruiter_router, admin_router
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException, RequestValidationError
+
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
 
@@ -18,6 +22,41 @@ app = FastAPI(
     description="Module 1: Authentication, Database Integration & User Management",
     version="1.0.0"
 )
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": str(exc.detail),
+            "detail": str(exc.detail),
+            "details": None
+        }
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "message": "Input validation error.",
+            "details": exc.errors()
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "message": f"Server Error: {str(exc)}",
+            "details": None
+        }
+    )
 
 # CORS middleware for REST API integration with Frontend
 app.add_middleware(
@@ -38,6 +77,7 @@ app.include_router(auth_router)
 app.include_router(candidate_router)
 app.include_router(recruiter_router)
 app.include_router(admin_router)
+
 
 def seed_database():
     """Seed initial Admin user and demonstration data into PostgreSQL."""

@@ -1,6 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from main import app
+from database import SessionLocal
+from models.user import User
 
 client = TestClient(app)
 
@@ -11,6 +13,13 @@ def test_root_endpoint():
 
 def test_candidate_registration():
     email = "test.candidate.unit@dev.io"
+    db = SessionLocal()
+    u = db.query(User).filter(User.email == email).first()
+    if u:
+        db.delete(u)
+        db.commit()
+    db.close()
+
     response = client.post("/api/auth/register/candidate", json={
         "name": "Unit Candidate",
         "email": email,
@@ -68,6 +77,13 @@ def test_google_login_flow():
 
     # New user email test (requires role choice)
     new_email = "new.google.user@gmail.com"
+    db = SessionLocal()
+    u2 = db.query(User).filter(User.email == new_email).first()
+    if u2:
+        db.delete(u2)
+        db.commit()
+    db.close()
+
     response = client.post("/api/auth/google", json={
         "token": "mock-token",
         "email": new_email,
@@ -85,3 +101,5 @@ def test_google_login_flow():
     assert response_complete.status_code == 200
     assert response_complete.json()["role"] == "CANDIDATE"
     assert response_complete.json()["provider"] == "GOOGLE"
+
+

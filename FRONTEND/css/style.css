@@ -1662,4 +1662,289 @@ img, svg {
   to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   MODULE 1 ENHANCEMENTS: AUTH MODAL, SIMULATOR, TRACK PROGRESS & AUDIT
+   ========================================================================== */
+
+/* 1. Professional Auth Required Modal */
+.auth-security-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  margin: 0 auto 1.25rem auto;
+  border: 2px solid rgba(79, 70, 229, 0.2);
+}
+
+.auth-redirect-timer {
+  width: 100%;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1.25rem;
+}
+
+.auth-redirect-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width 3s linear;
+}
+
+/* 2. Drag & Drop Upload Zone */
+.drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 2.25rem 1.5rem;
+  text-align: center;
+  background: var(--bg-surface);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  margin-bottom: 1.25rem;
+}
+
+.drop-zone.dragover, .drop-zone:hover {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.drop-zone i {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}
+
+.upload-progress-container {
+  margin-top: 1rem;
+  background: var(--bg-main);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+}
+
+.upload-progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: #E2E8F0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3B82F6, #10B981);
+  transition: width 0.3s ease;
+}
+
+/* 3. Mock Interview Simulator */
+.simulator-container {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.simulator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.simulator-timer {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.option-box {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.option-box:hover {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.03);
+}
+
+.option-box.selected {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.08);
+  font-weight: 600;
+}
+
+.option-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.option-box.selected .option-radio {
+  border-color: var(--primary);
+  background: var(--primary);
+  box-shadow: inset 0 0 0 3px #FFFFFF;
+}
+
+/* 4. Track Progress & Badges */
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  color: #FFFFFF;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.achievement-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+}
+
+.achievement-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.65rem auto;
+}
+
+.skill-bar-wrap {
+  margin-bottom: 0.85rem;
+}
+
+.skill-bar-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.skill-bar-track {
+  height: 8px;
+  background: var(--bg-main);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.skill-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 4px;
+}
+
+/* 5. Recruiter Candidate Comparison Matrix */
+.compare-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compare-matrix-table th, .compare-matrix-table td {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.compare-matrix-table th {
+  background: var(--primary-light);
+  font-weight: 700;
+}
+
+/* 6. System Audit Indicators */
+.audit-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.audit-item-row:last-child {
+  border-bottom: none;
+}
+
+.status-badge-passed {
+  background: #D1FAE5;
+  color: #059669;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-badge-warning {
+  background: #FEF3C7;
+  color: #D97706;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-badge-failed {
+  background: #FEE2E2;
+  color: #DC2626;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+
 

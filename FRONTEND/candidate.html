@@ -463,7 +463,196 @@
     </div>
   </footer>
 
+  <!-- Dynamic Modals for Candidate Dashboard -->
+
+  <!-- 1. Auth Required Modal -->
+  <div class="smarthire-modal-backdrop" id="authRequiredModal">
+    <div class="smarthire-modal" style="max-width: 480px; text-align: center;">
+      <div class="smarthire-modal-header" style="justify-content: center; background: transparent;">
+        <h3><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Security Guard</h3>
+      </div>
+      <div class="smarthire-modal-body">
+        <div class="auth-security-icon">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 style="font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main);">Authentication Required</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem;">You must login to continue accessing this page.</p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+          <a href="login.html" class="btn btn-primary btn-sm"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+          <a href="index.html" class="btn btn-secondary btn-sm"><i class="fa-solid fa-house"></i> Go Home</a>
+        </div>
+        <div class="auth-redirect-timer">
+          <div class="auth-redirect-bar" id="authRedirectBar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Resume Upload Modal -->
+  <div class="smarthire-modal-backdrop" id="resumeUploadModal">
+    <div class="smarthire-modal" style="max-width: 560px;">
+      <div class="smarthire-modal-header">
+        <h3><i class="fa-solid fa-cloud-arrow-up"></i> Upload Candidate Resume</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('resumeUploadModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body">
+        <div class="drop-zone" id="resumeDropZone" onclick="document.getElementById('resumeFileInput').click()">
+          <i class="fa-solid fa-file-arrow-up"></i>
+          <h4 style="font-weight: 700; margin-bottom: 0.35rem;">Drag & Drop your resume here</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Supports PDF, DOCX (Max 5MB)</p>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Browse Files</button>
+          <input type="file" id="resumeFileInput" accept=".pdf,.doc,.docx" style="display: none;" onchange="handleResumeFileSelect(this.files)">
+        </div>
+
+        <div class="upload-progress-container" id="resumeUploadProgress" style="display: none;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600;">
+            <span id="uploadFileName">Uploading file...</span>
+            <span id="uploadPercentage">0%</span>
+          </div>
+          <div class="upload-progress-bar-wrap">
+            <div class="upload-progress-fill" id="uploadProgressFill"></div>
+          </div>
+        </div>
+
+        <div id="resumeStatusCard" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--primary-light); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong id="activeResumeName" style="color: var(--text-main); font-size: 0.9rem;">No resume uploaded</strong>
+              <div id="activeResumeTime" style="font-size: 0.75rem; color: var(--text-muted);">Uploaded: --</div>
+            </div>
+            <span class="badge-resolved"><i class="fa-solid fa-check"></i> Active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Mock Interview Simulator Modal -->
+  <div class="smarthire-modal-backdrop" id="mockInterviewModal">
+    <div class="smarthire-modal" style="max-width: 720px;">
+      <div class="smarthire-modal-header">
+        <h3 id="simulatorModalTitle"><i class="fa-solid fa-laptop-code"></i> Mock Interview Simulator</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('mockInterviewModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body">
+        <!-- Category Selection Screen -->
+        <div id="simulatorCategoryScreen">
+          <p style="color: var(--text-muted); margin-bottom: 1.25rem;">Select an interview domain to load predefined mock questions from backend database:</p>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <button class="btn btn-secondary" onclick="startMockSimulator('Technical')" style="padding: 1.5rem 1rem; flex-direction: column; gap: 0.5rem;">
+              <i class="fa-solid fa-code" style="font-size: 1.5rem; color: var(--primary);"></i>
+              <strong>Technical</strong>
+              <span style="font-size: 0.75rem; opacity: 0.8;">React, SQL, BST, JWT</span>
+            </button>
+            <button class="btn btn-secondary" onclick="startMockSimulator('HR')" style="padding: 1.5rem 1rem; flex-direction: column; gap: 0.5rem;">
+              <i class="fa-solid fa-users-gear" style="font-size: 1.5rem; color: #10B981;"></i>
+              <strong>HR Round</strong>
+              <span style="font-size: 0.75rem; opacity: 0.8;">Career goals & team fit</span>
+            </button>
+            <button class="btn btn-secondary" onclick="startMockSimulator('Behavioral')" style="padding: 1.5rem 1rem; flex-direction: column; gap: 0.5rem;">
+              <i class="fa-solid fa-comments" style="font-size: 1.5rem; color: #F59E0B;"></i>
+              <strong>Behavioral</strong>
+              <span style="font-size: 0.75rem; opacity: 0.8;">STAR method scenarios</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Question Screen -->
+        <div id="simulatorQuestionScreen" style="display: none;">
+          <div class="simulator-header">
+            <div>
+              <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary);" id="simCategoryTag">TECHNICAL ROUND</span>
+              <h4 id="simQuestionCounter" style="font-weight: 700; margin: 0.2rem 0;">Question 1 of 5</h4>
+            </div>
+            <div class="simulator-timer">
+              <i class="fa-solid fa-clock"></i> <span id="simTimerDisplay">00:00</span>
+            </div>
+          </div>
+
+          <div style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text-main);" id="simQuestionText">
+            Loading question...
+          </div>
+
+          <div id="simOptionsContainer">
+            <!-- Rendered by script.js -->
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <button class="btn btn-secondary btn-sm" id="simPrevBtn" onclick="navigateSimQuestion(-1)"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary btn-sm" onclick="skipSimQuestion()">Skip Question</button>
+              <button class="btn btn-primary btn-sm" id="simNextBtn" onclick="navigateSimQuestion(1)">Next Question <i class="fa-solid fa-chevron-right"></i></button>
+              <button class="btn btn-primary btn-sm" id="simSubmitBtn" onclick="submitSimInterview()" style="display: none; background: #10B981;"><i class="fa-solid fa-paper-plane"></i> Submit Interview</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="simulatorResultScreen" style="display: none; text-align: center; padding: 1rem 0;">
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: #D1FAE5; color: #059669; font-size: 2rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+          <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.25rem;">Interview Completed!</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Your interview score has been generated deterministically and saved to PostgreSQL.</p>
+          <div style="background: var(--primary-light); padding: 1.25rem; border-radius: var(--radius-md); margin: 1.25rem 0; border: 1px solid var(--border-color);">
+            <div style="font-size: 2.25rem; font-weight: 800; color: var(--primary);" id="simFinalScore">0.0%</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" id="simFinalMeta">Answered 5 of 5 questions in 2m 15s</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('mockInterviewModal')">Done & Return to Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Detailed History Report Modal -->
+  <div class="smarthire-modal-backdrop" id="interviewDetailModal">
+    <div class="smarthire-modal" style="max-width: 650px;">
+      <div class="smarthire-modal-header">
+        <h3><i class="fa-solid fa-file-invoice"></i> Detailed Interview Report</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('interviewDetailModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body" id="interviewDetailBody">
+        <!-- Rendered dynamically by script.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Track Progress Modal -->
+  <div class="smarthire-modal-backdrop" id="trackProgressModal">
+    <div class="smarthire-modal" style="max-width: 700px;">
+      <div class="smarthire-modal-header">
+        <h3><i class="fa-solid fa-arrow-trend-up"></i> Track Candidate Progress</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('trackProgressModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; background: var(--primary-light); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div>
+            <div style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted);">Current Mastery Status</div>
+            <div class="level-badge" id="candProgressLevel" style="margin-top: 0.35rem;">
+              <i class="fa-solid fa-award"></i> Level 1 - Novice Learner
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);" id="candProgressCount">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Interviews Completed</div>
+          </div>
+        </div>
+
+        <h4 style="font-weight: 700; margin-bottom: 0.75rem;">Unlocked Achievements & Badges</h4>
+        <div class="achievements-grid" id="candBadgesGrid">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <h4 style="font-weight: 700; margin: 1.5rem 0 0.75rem 0;">Skill Domain Mastery</h4>
+        <div id="candSkillBars">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Custom JavaScript -->
   <script src="js/script.js"></script>
 </body>
 </html>
+

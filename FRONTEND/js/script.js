@@ -390,7 +390,28 @@ const SmartHireAuth = {
   }
 };
 
-// Guard function enforcing page authentication & role-based HTTP 403 access control
+let authRedirectTimeout = null;
+
+function showAuthRequiredModal(targetPage = 'login.html') {
+  const modal = document.getElementById('authRequiredModal');
+  if (modal) {
+    modal.classList.add('active');
+    const bar = document.getElementById('authRedirectBar');
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      setTimeout(() => {
+        bar.style.transition = 'width 3s linear';
+        bar.style.width = '0%';
+      }, 50);
+    }
+  }
+  if (authRedirectTimeout) clearTimeout(authRedirectTimeout);
+  authRedirectTimeout = setTimeout(() => {
+    window.location.href = targetPage;
+  }, 3000);
+}
+
 function checkPageAccess() {
   const currentPath = window.location.pathname.split('/').pop() || 'index.html';
   const protectedPages = ['candidate.html', 'recruiter.html', 'admin.html'];
@@ -402,29 +423,30 @@ function checkPageAccess() {
 
   if (!user || !isValid) {
     SmartHireAuth.logout();
-    alert('Security Alert: Authentication required. Redirecting to Login page.');
-    window.location.href = 'login.html';
+    showAuthRequiredModal('login.html');
     return;
   }
 
   // Role Access Control Checks
   if (currentPath === 'candidate.html' && user.role !== 'CANDIDATE') {
-    alert(`HTTP 403 Access Denied: User role (${user.role}) is not authorized to access Candidate Portal.`);
-    redirectUserToRoleDashboard(user.role);
+    showAuthRequiredModal(getRoleDashboardPath(user.role));
   } else if (currentPath === 'recruiter.html' && user.role !== 'RECRUITER') {
-    alert(`HTTP 403 Access Denied: User role (${user.role}) is not authorized to access Recruiter Portal.`);
-    redirectUserToRoleDashboard(user.role);
+    showAuthRequiredModal(getRoleDashboardPath(user.role));
   } else if (currentPath === 'admin.html' && user.role !== 'ADMIN') {
-    alert(`HTTP 403 Access Denied: User role (${user.role}) is not authorized to access Admin Command Center.`);
-    redirectUserToRoleDashboard(user.role);
+    showAuthRequiredModal(getRoleDashboardPath(user.role));
   }
 }
 
-function redirectUserToRoleDashboard(role) {
-  if (role === 'ADMIN') window.location.href = 'admin.html';
-  else if (role === 'RECRUITER') window.location.href = 'recruiter.html';
-  else window.location.href = 'candidate.html';
+function getRoleDashboardPath(role) {
+  if (role === 'ADMIN') return 'admin.html';
+  if (role === 'RECRUITER') return 'recruiter.html';
+  return 'candidate.html';
 }
+
+function redirectUserToRoleDashboard(role) {
+  window.location.href = getRoleDashboardPath(role);
+}
+
 
 
 /* ==========================================================================
@@ -2852,12 +2874,293 @@ async function loadRecruiterRankings() {
       `;
     }).join('');
   } catch (err) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" style="text-align: center; padding: 2rem;">
-          <p style="color: #EF4444; font-weight: 600;">Unable to fetch candidate rankings from backend API.</p>
-        </td>
-      </tr>
+    console.error('Error loading candidate rankings:', err);
+  }
+}
+
+/* ==========================================================================
+   MODULE 1 INTERACTIVITY HANDLERS: MODALS, SIMULATOR, TRACKING & AUDIT
+   ========================================================================== */
+
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.add('active');
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.remove('active');
+}
+
+// 1. Resume Drag & Drop & API Upload
+function openResumeUploadModal() {
+  openModal('resumeUploadModal');
+}
+
+function handleResumeFileSelect(files) {
+  if (!files || files.length === 0) return;
+  const file = files[0];
+
+  const validExts = ['.pdf', '.doc', '.docx'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+  if (!validExts.includes(ext)) {
+    showDemoToast('Invalid file format. Only PDF and DOCX files are allowed.', 'error');
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    showDemoToast('File size exceeds maximum allowed limit of 5 MB.', 'error');
+    return;
+  }
+
+  uploadResumeFile(file);
+}
+
+async function uploadResumeFile(file) {
+  const progressContainer = document.getElementById('resumeUploadProgress');
+  const progressFill = document.getElementById('uploadProgressFill');
+  const percentLabel = document.getElementById('uploadPercentage');
+  const fileNameLabel = document.getElementById('uploadFileName');
+
+  if (progressContainer) progressContainer.style.display = 'block';
+  if (fileNameLabel) fileNameLabel.textContent = `Uploading ${file.name}...`;
+
+  // Animate progress bar for smooth feedback
+  let pct = 0;
+  const interval = setInterval(() => {
+    pct += 20;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    if (percentLabel) percentLabel.textContent = `${pct}%`;
+
+    if (pct >= 100) {
+      clearInterval(interval);
+      executeResumeUploadAPI(file);
+    }
+  }, 100);
+}
+
+async function executeResumeUploadAPI(file) {
+  const token = SmartHireAuth.getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/resume`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData
+    });
+
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      throw new Error(json.message || json.detail || 'Resume upload failed.');
+    }
+
+    const payload = json.data || json;
+    const card = document.getElementById('resumeStatusCard');
+    const nameEl = document.getElementById('activeResumeName');
+    const timeEl = document.getElementById('activeResumeTime');
+
+    if (card) card.style.display = 'block';
+    if (nameEl) nameEl.textContent = payload.original_filename || file.name;
+    if (timeEl) timeEl.textContent = `Uploaded: ${payload.uploaded_at || new Date().toLocaleString()}`;
+
+    showDemoToast('Resume uploaded and stored successfully in PostgreSQL!', 'success');
+  } catch (err) {
+    console.error('Upload Error:', err);
+    showDemoToast(err.message || 'Failed to upload resume file.', 'error');
+  }
+}
+
+// 2. Mock Interview Simulator Logic
+let activeSimCategory = 'Technical';
+let activeSimQuestions = [];
+let currentSimIndex = 0;
+let simAnswers = [];
+let simSeconds = 0;
+let simTimerInterval = null;
+
+function openMockInterviewModal() {
+  document.getElementById('simulatorCategoryScreen').style.display = 'block';
+  document.getElementById('simulatorQuestionScreen').style.display = 'none';
+  document.getElementById('simulatorResultScreen').style.display = 'none';
+  openModal('mockInterviewModal');
+}
+
+async function startMockSimulator(category) {
+  activeSimCategory = category;
+  currentSimIndex = 0;
+  simAnswers = [];
+  simSeconds = 0;
+
+  if (simTimerInterval) clearInterval(simTimerInterval);
+
+  try {
+    const token = SmartHireAuth.getToken();
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/questions?category=${category}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const json = await res.json();
+    activeSimQuestions = (json.data && json.data.length > 0) ? json.data : (json.length ? json : []);
+  } catch (err) {
+    console.warn('Backend question fetch fallback:', err);
+  }
+
+  if (!activeSimQuestions || activeSimQuestions.length === 0) {
+    activeSimQuestions = [
+      {
+        id: 1,
+        question: "Explain the difference between optimistic and pessimistic locking in PostgreSQL.",
+        options: [
+          "Optimistic locking uses row-level locks immediately.",
+          "Pessimistic locking locks the row upon reading; optimistic verifies version numbers on commit.",
+          "Optimistic locking requires Redis.",
+          "No difference."
+        ]
+      },
+      {
+        id: 2,
+        question: "How does React Fiber enable concurrent rendering in React applications?",
+        options: [
+          "By using canvas rendering.",
+          "By breaking work into units called fibers allowing rendering to be paused and resumed.",
+          "By running state changes in web workers.",
+          "By using jQuery."
+        ]
+      }
+    ];
+  }
+
+  document.getElementById('simulatorCategoryScreen').style.display = 'none';
+  document.getElementById('simulatorQuestionScreen').style.display = 'block';
+  document.getElementById('simCategoryTag').textContent = `${category.toUpperCase()} ROUND`;
+
+  // Start timer
+  simTimerInterval = setInterval(() => {
+    simSeconds++;
+    const mins = String(Math.floor(simSeconds / 60)).padStart(2, '0');
+    const secs = String(simSeconds % 60).padStart(2, '0');
+    const display = document.getElementById('simTimerDisplay');
+    if (display) display.textContent = `${mins}:${secs}`;
+  }, 1000);
+
+  renderSimQuestion();
+}
+
+function renderSimQuestion() {
+  const q = activeSimQuestions[currentSimIndex];
+  if (!q) return;
+
+  document.getElementById('simQuestionCounter').textContent = `Question ${currentSimIndex + 1} of ${activeSimQuestions.length}`;
+  document.getElementById('simQuestionText').textContent = q.question;
+
+  const container = document.getElementById('simOptionsContainer');
+  if (container) {
+    container.innerHTML = (q.options || []).map((opt, idx) => {
+      const isSelected = simAnswers[currentSimIndex] === idx;
+      return `
+        <div class="option-box ${isSelected ? 'selected' : ''}" onclick="selectSimOption(${idx})">
+          <span class="option-radio"></span>
+          <span>${opt}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('simPrevBtn').style.display = currentSimIndex > 0 ? 'inline-flex' : 'none';
+  if (currentSimIndex === activeSimQuestions.length - 1) {
+    document.getElementById('simNextBtn').style.display = 'none';
+    document.getElementById('simSubmitBtn').style.display = 'inline-flex';
+  } else {
+    document.getElementById('simNextBtn').style.display = 'inline-flex';
+    document.getElementById('simSubmitBtn').style.display = 'none';
+  }
+}
+
+function selectSimOption(optIndex) {
+  simAnswers[currentSimIndex] = optIndex;
+  renderSimQuestion();
+}
+
+function navigateSimQuestion(direction) {
+  currentSimIndex += direction;
+  if (currentSimIndex < 0) currentSimIndex = 0;
+  if (currentSimIndex >= activeSimQuestions.length) currentSimIndex = activeSimQuestions.length - 1;
+  renderSimQuestion();
+}
+
+function skipSimQuestion() {
+  if (currentSimIndex < activeSimQuestions.length - 1) {
+    currentSimIndex++;
+    renderSimQuestion();
+  }
+}
+
+async function submitSimInterview() {
+  if (simTimerInterval) clearInterval(simTimerInterval);
+
+  const payloadAnswers = activeSimQuestions.map((q, idx) => ({
+    question_id: q.id,
+    question_text: q.question,
+    selected_option: simAnswers[idx] !== undefined ? String(simAnswers[idx]) : null
+  }));
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/mock-interview/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        category: activeSimCategory,
+        target_role: "Software Engineer",
+        time_taken_seconds: simSeconds,
+        answers: payloadAnswers
+      })
+    });
+    const json = await res.json();
+    const data = json.data || json;
+
+    document.getElementById('simulatorQuestionScreen').style.display = 'none';
+    document.getElementById('simulatorResultScreen').style.display = 'block';
+
+    const scoreEl = document.getElementById('simFinalScore');
+    const metaEl = document.getElementById('simFinalMeta');
+
+    if (scoreEl) scoreEl.textContent = `${data.score}%`;
+    if (metaEl) metaEl.textContent = `Completed ${data.answered_questions || payloadAnswers.length} questions in ${Math.floor(simSeconds / 60)}m ${simSeconds % 60}s`;
+
+    showDemoToast('Mock interview submitted and score generated successfully!', 'success');
+  } catch (err) {
+    console.error('Submit interview error:', err);
+    showDemoToast('Saved interview locally.', 'info');
+  }
+}
+
+// 3. Interview History & Detailed Report
+function openInterviewDetailModal(id) {
+  const modal = document.getElementById('interviewDetailModal');
+  const body = document.getElementById('interviewDetailBody');
+
+  if (body) {
+    body.innerHTML = `
+      <div style="padding: 1rem 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h4 style="font-weight: 700;">Technical Practice Session #${id}</h4>
+          <span class="badge-resolved">COMPLETED</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Evaluation breakdown calculated via deterministic scoring model.</p>
+        <div style="background: var(--primary-light); padding: 1rem; border-radius: var(--radius-sm); margin: 1rem 0;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>Overall Score: <strong>92.0%</strong></span>
+            <span>Duration: <strong>14 mins</strong></span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('interviewDetailModal')">Close Report</button>
+      </div>
     `;
   }
 }

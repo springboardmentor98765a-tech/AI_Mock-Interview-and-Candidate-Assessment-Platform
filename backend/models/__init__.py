@@ -1,5 +1,14 @@
-from models.user import User
-from models.candidate import CandidateProfile
-from models.recruiter import RecruiterProfile
+from models.user import User, SystemAuditLog
+from models.candidate import CandidateProfile, ResumeUpload, InterviewHistory
+from models.recruiter import RecruiterProfile, InterviewTemplate
 
-__all__ = ["User", "CandidateProfile", "RecruiterProfile"]
+__all__ = [
+    "User",
+    "CandidateProfile",
+    "ResumeUpload",
+    "InterviewHistory",
+    "RecruiterProfile",
+    "InterviewTemplate",
+    "SystemAuditLog"
+]
+
