@@ -1,0 +1,295 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins,sans-serif;
+}
+
+body{
+
+background:#eef4ff;
+
+}
+
+
+
+.hero{
+
+text-align:center;
+
+padding:60px;
+
+}
+
+.hero h1{
+
+font-size:45px;
+
+color:#1d4ed8;
+
+}
+
+.hero p{
+
+margin-top:15px;
+
+font-size:18px;
+
+color:#555;
+
+}
+
+/* ===== Role Cards ===== */
+
+.roles{
+    display:flex;
+    justify-content:center;
+    gap:40px;
+    flex-wrap:wrap;
+    margin-top:50px;
+}
+
+.role-card{
+
+    width:280px;
+    background:#fff;
+    border-radius:25px;
+    padding:35px 25px;
+
+    text-align:center;
+
+    cursor:pointer;
+
+    transition:0.4s ease;
+
+    box-shadow:0 15px 35px rgba(0,0,0,0.1);
+
+    position:relative;
+
+    overflow:hidden;
+
+    animation:float 4s ease-in-out infinite;
+
+}
+
+/* Blue Glow */
+
+.role-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    width:250px;
+
+    height:250px;
+
+    background:rgba(37,99,235,0.08);
+
+    border-radius:50%;
+
+    top:-130px;
+
+    right:-130px;
+
+    transition:.5s;
+
+}
+
+.role-card:hover::before{
+
+    transform:scale(2);
+
+}
+
+/* Hover */
+
+.role-card:hover{
+
+    transform:translateY(-15px) scale(1.05);
+
+    box-shadow:0 20px 45px rgba(37,99,235,.35);
+
+}
+
+/* Icon */
+
+.icon{
+
+    width:100px;
+
+    height:100px;
+
+    margin:auto;
+
+    border-radius:50%;
+
+    background:#eef4ff;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    margin-bottom:25px;
+
+    transition:.4s;
+
+}
+
+.icon i{
+
+    font-size:45px;
+
+    color:#2563eb;
+
+    transition:.4s;
+
+}
+
+.role-card:hover .icon{
+
+    background:#2563eb;
+
+    transform:rotate(10deg);
+
+}
+
+.role-card:hover .icon i{
+
+    color:white;
+
+}
+
+/* Heading */
+
+.role-card h2{
+
+    margin-bottom:25px;
+
+    color:#1e3a8a;
+
+    transition:.3s;
+
+}
+
+.role-card:hover h2{
+
+    color:#2563eb;
+
+}
+
+/* Button */
+.role-card{
+
+    width:280px;
+    height:250px;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    background:white;
+
+    border-radius:25px;
+
+    cursor:pointer;
+
+    transition:.4s;
+
+    box-shadow:0 15px 35px rgba(0,0,0,.12);
+
+}
+
+.role-card:hover{
+
+    cursor:pointer;
+
+}
+/* ==========================
+   Login / Register Modal
+========================== */
+.modal{
+    display:none;
+    position:fixed;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.6);
+    justify-content:center;
+    align-items:center;
+    z-index:999;
+}
+
+.modal-content{
+    background:#fff;
+    width:400px;
+    padding:30px;
+    border-radius:15px;
+    text-align:center;
+    position:relative;
+}
+
+.modal-content input{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border:1px solid #ccc;
+    border-radius:8px;
+}
+
+.modal-content button{
+    width:100%;
+    padding:12px;
+    background:#2563eb;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+.close{
+    position:absolute;
+    right:20px;
+    top:15px;
+    font-size:28px;
+    cursor:pointer;
+}
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    background: transparent;
+    border: none;
+    color: black;
+    padding: 10px;
+}
+/* Floating Animation */
+
+@keyframes float{
+
+    0%{
+
+        transform:translateY(0);
+
+    }
+
+    50%{
+
+        transform:translateY(-10px);
+
+    }
+
+    100%{
+
+        transform:translateY(0);
+
+    }
+
+}

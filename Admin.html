@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Admin Dashboard | SmartHire AI</title>
+
+<link rel="stylesheet" href="Admin.css">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+
+<body>
+
+
+<!-- Sidebar -->
+
+<div class="sidebar">
+
+<div class="logo">
+
+<i class="fa-solid fa-robot"></i>
+
+<h2>SmartHire AI</h2>
+
+</div>
+
+<ul>
+
+<li onclick="scrollToSection('dashboard')" title="Dashboard">
+    <i class="fa-solid fa-house"></i>
+    <span>Dashboard</span>
+</li>
+
+<li onclick="scrollToSection('users')" title="Users">
+    <i class="fa-solid fa-users"></i>
+    <span>Users</span>
+</li>
+
+<li onclick="scrollToSection('users')" title="Recruiters">
+    <i class="fa-solid fa-user-tie"></i>
+    <span>Recruiters</span>
+</li>
+
+<li onclick="scrollToSection('reports')" title="Reports">
+    <i class="fa-solid fa-file-lines"></i>
+    <span>Reports</span>
+</li>
+
+<li onclick="scrollToSection('analytics')" title="Analytics">
+    <i class="fa-solid fa-chart-line"></i>
+    <span>Analytics</span>
+</li>
+
+<li onclick="logout()" title="Logout">
+    <i class="fa-solid fa-right-from-bracket"></i>
+    <span>Logout</span>
+</li>
+
+</ul>
+</div>
+
+
+<!-- Main -->
+
+
+<div class="main">
+
+
+
+<div class="topbar">
+
+
+<div>
+
+<h1>Admin Dashboard</h1>
+
+<p>Welcome Admin 👋</p>
+
+</div>
+
+
+
+<div class="top-icons">
+
+<i class="fa-solid fa-bell"></i>
+
+<i class="fa-solid fa-gear"></i>
+
+<img src="https://i.pravatar.cc/45">
+
+</div>
+
+
+</div>
+
+
+<!-- Dashboard Cards -->
+
+
+<div class="cards" id="dashboard">
+
+
+<div class="card blue">
+
+<i class="fa-solid fa-users"></i>
+
+<h2 id="totalUsers">...</h2>
+
+<p>Total Users</p>
+
+</div>
+
+<div class="card green">
+
+<i class="fa-solid fa-user-tie"></i>
+
+<h2 id="totalRecruiters">...</h2>
+
+<p>Recruiters</p>
+
+</div>
+
+
+<div class="card orange">
+
+<i class="fa-solid fa-video"></i>
+
+<h2 id="totalCandidates">...</h2>
+
+<p>Total Candidates</p>
+
+</div>
+
+
+<div class="card purple">
+
+<i class="fa-solid fa-database"></i>
+
+<h2>98%</h2>
+
+<p>System Health</p>
+
+</div>
+
+
+</div>
+
+
+<!-- Analytics -->
+
+
+<div class="dashboard-grid" id="analytics">
+
+
+<div class="chart-box">
+
+
+<h2>📊 Platform Analytics</h2>
+
+
+<canvas id="platformChart"></canvas>
+
+
+</div>
+
+
+<div class="system-card">
+
+
+<h2>⚡ System Status</h2>
+
+
+<div class="status">
+
+Server Status
+
+<span>Online</span>
+
+</div>
+
+
+
+<div class="status">
+
+AI Model
+
+<span>Active</span>
+
+</div>
+
+
+
+<div class="status">
+
+Database
+
+<span>Connected</span>
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+<!-- Manage Users -->
+
+
+<div class="section" id="users">
+
+
+<h2>👥 Manage Users & Recruiters</h2>
+
+
+<table>
+
+
+<tr>
+
+<th>Name</th>
+
+<th>Email</th>
+
+<th>Role</th>
+
+<th>Login Type</th>
+
+</tr>
+
+<tbody id="usersTableBody">
+<tr><td colspan="4">Loading...</td></tr>
+</tbody>
+
+</table>
+
+
+</div>
+
+
+<!-- Platform Settings -->
+
+
+<div class="section">
+
+
+<h2>⚙ Platform Settings</h2>
+
+
+
+<div class="settings-grid">
+
+
+
+<div class="setting-card">
+
+<i class="fa-solid fa-user-lock"></i>
+
+<h3>User Access Control</h3>
+
+<p>Manage user permissions</p>
+
+<button>Configure</button>
+
+</div>
+
+
+
+
+<div class="setting-card">
+
+
+<i class="fa-solid fa-server"></i>
+
+<h3>Server Settings</h3>
+
+<p>Monitor server configuration</p>
+
+<button>Configure</button>
+
+
+</div>
+
+
+
+
+<div class="setting-card">
+
+
+<i class="fa-solid fa-envelope"></i>
+
+<h3>Email Notifications</h3>
+
+<p>Manage alerts and emails</p>
+
+<button>Configure</button>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+<!-- System Activity -->
+
+<div class="section" id="reports">
+
+
+<h2>🛡 System Activity Monitoring</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Activity</th>
+
+<th>User</th>
+
+<th>Time</th>
+
+<th>Status</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>Login Attempt</td>
+
+<td>Admin</td>
+
+<td>10:30 AM</td>
+
+<td class="online">Success</td>
+
+</tr>
+<tr>
+
+<td>AI Model Updated</td>
+
+<td>System</td>
+
+<td>11:15 AM</td>
+
+<td class="online">Completed</td>
+
+</tr>
+
+
+
+
+<tr>
+
+<td>Database Backup</td>
+
+<td>Server</td>
+
+<td>12:00 PM</td>
+
+<td class="online">Success</td>
+
+</tr>
+
+
+
+</table>
+
+
+</div>
+
+
+<!-- AI Configuration -->
+
+
+<div class="section">
+
+
+<h2>🤖 AI Configuration</h2>
+
+<div class="ai-grid">
+<div class="ai-card">
+
+<i class="fa-solid fa-brain"></i>
+
+<h3>Interview AI Model</h3>
+
+<p>GPT Interview Assistant</p>
+
+<button>Manage</button>
+
+
+</div>
+
+<div class="ai-card">
+<i class="fa-solid fa-chart-simple"></i>
+
+<h3>Evaluation System</h3>
+
+<p>AI Performance Analysis</p>
+
+<button>Manage</button>
+</div>
+
+<div class="ai-card">
+
+
+<i class="fa-solid fa-microphone"></i>
+<h3>Voice Analysis</h3>
+<p>Speech Confidence Detection</p>
+<button>Manage</button>
+</div>
+</div>
+</div>
+</div>
+
+<script src="Admin.js"></script>
+
+<script>
+const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+if(currentUser){
+    document.querySelector(".topbar p").innerHTML =
+        "Welcome back, " + currentUser.name + " 👋";
+}
+</script>
+</body>
+
+</html>

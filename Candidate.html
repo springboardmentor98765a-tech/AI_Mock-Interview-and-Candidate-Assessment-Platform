@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Candidate Dashboard | SmartHire AI</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="Candidate.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    
+
+<!-- Sidebar -->
+
+<div class="sidebar">
+
+    <div class="logo">
+
+        <i class="fa-solid fa-robot"></i>
+
+        <h2>SmartHire AI</h2>
+
+    </div>
+
+   <ul>
+
+    <li class="active" onclick="scrollToSection('dashboard')">
+        <i class="fa-solid fa-house"></i>
+        <span>Dashboard</span>
+    </li>
+
+    <li onclick="scrollToSection('resume')">
+        <i class="fa-solid fa-file-arrow-up"></i>
+        <span>Resume</span>
+    </li>
+
+    <li onclick="scrollToSection('performance')">
+        <i class="fa-solid fa-video"></i>
+        <span>Mock Interview</span>
+    </li>
+
+    <li onclick="scrollToSection('performance')">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Performance</span>
+    </li>
+
+    <li onclick="scrollToSection('reports')">
+        <i class="fa-solid fa-file-lines"></i>
+        <span>Reports</span>
+    </li>
+
+    <li onclick="scrollToSection('feedback')">
+        <i class="fa-solid fa-robot"></i>
+        <span>AI Feedback</span>
+    </li>
+
+    <li onclick="logout()">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>Logout</span>
+    </li>
+
+</ul>
+
+</div>
+
+<!-- Main -->
+
+<div class="main">
+
+    <!-- Top Bar -->
+
+    <div class="topbar">
+
+        <div>
+
+            <h1>Candidate Dashboard</h1>
+
+         <h1 id="welcomeUser">
+Welcome 👋
+</h1>
+
+        </div>
+
+        <div class="top-icons">
+
+            <i class="fa-solid fa-bell"></i>
+
+            <i class="fa-solid fa-gear"></i>
+
+            <img src="https://i.pravatar.cc/45">
+
+        </div>
+
+    </div>
+
+    <!-- Cards -->
+<div class="cards" id="dashboard">
+
+        <div class="card blue">
+
+            <i class="fa-solid fa-video"></i>
+
+            <h2>15</h2>
+
+            <p>Total Interviews</p>
+
+        </div>
+
+        <div class="card green">
+
+            <i class="fa-solid fa-chart-column"></i>
+
+            <h2>82%</h2>
+
+            <p>Average Score</p>
+
+        </div>
+
+        <div class="card orange">
+
+            <i class="fa-solid fa-trophy"></i>
+
+            <h2>95%</h2>
+
+            <p>Best Score</p>
+
+        </div>
+
+        <div class="card purple">
+
+            <i class="fa-solid fa-ranking-star"></i>
+
+            <h2>#12</h2>
+
+            <p>Current Rank</p>
+
+        </div>
+
+    </div>
+
+    <!-- Quick Actions -->
+<div class="quick-actions" id="resume">
+
+        <h2>Quick Actions</h2>
+
+      <button onclick="alert('Resume Upload Feature')">📄 Upload Resume</button>
+
+        <button onclick="alert('Mock Interview Feature')">🎤 Start Mock Interview</button>
+
+      <button onclick="scrollToSection('performance')">📊 View Performance</button>
+
+       <button onclick="scrollToSection('reports')">📥 Download Report</button>
+    
+    </div>
+
+ 
+<div class="dashboard-grid" id="performance">
+
+    <!-- Performance Chart -->
+
+    <div class="chart-container">
+
+        <h2>📈 Performance Overview</h2>
+
+        <canvas id="performanceChart"></canvas>
+
+    </div>
+
+    <!-- Upcoming Interview -->
+
+    <div class="upcoming-card">
+
+        <h2>📅 Upcoming Interview</h2>
+
+        <div class="interview-box">
+
+            <h3>Frontend Developer</h3>
+
+            <p><i class="fa-solid fa-calendar"></i> 28 July 2026</p>
+
+            <p><i class="fa-solid fa-clock"></i> 10:00 AM</p>
+
+            <p><i class="fa-solid fa-video"></i> Online Interview</p>
+
+            <button>Join Interview</button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================
+      Interview History
+========================= -->
+<div class="history" id="reports">
+
+  <h2>Join Interview</h2>
+
+    <table>
+
+        <thead>
+
+            <tr>
+
+                <th>Interview</th>
+
+                <th>Date</th>
+
+                <th>Score</th>
+
+                <th>Status</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            <tr>
+
+                <td>HR Round</td>
+
+                <td>20 Jul</td>
+
+                <td>82%</td>
+
+                <td><span class="completed">Completed</span></td>
+
+            </tr>
+
+            <tr>
+
+                <td>Technical</td>
+
+                <td>18 Jul</td>
+
+                <td>91%</td>
+
+                <td><span class="completed">Completed</span></td>
+
+            </tr>
+
+            <tr>
+
+                <td>Aptitude</td>
+
+                <td>15 Jul</td>
+
+                <td>75%</td>
+
+                <td><span class="completed">Completed</span></td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<!-- =========================
+       AI Feedback
+========================= -->
+
+<div class="feedback-section" id="feedback">
+
+    <h2>🤖 AI Feedback</h2>
+
+    <div class="feedback-grid">
+
+        <div class="feedback-card">
+
+            <i class="fa-solid fa-face-smile"></i>
+
+            <h3>Strengths</h3>
+
+            <ul>
+
+                <li>Excellent Communication</li>
+
+                <li>Confident Speaking</li>
+
+                <li>Positive Attitude</li>
+
+            </ul>
+
+        </div>
+
+        <div class="feedback-card">
+
+            <i class="fa-solid fa-lightbulb"></i>
+
+            <h3>Improve</h3>
+
+            <ul>
+
+                <li>Practice DSA</li>
+
+                <li>Improve SQL Queries</li>
+
+                <li>Answer Faster</li>
+
+            </ul>
+
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+
+<script src="Candidate.js"></script>
+<script>
+const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+if(currentUser){
+
+    document.getElementById("welcomeName").innerHTML =
+        "Welcome back, " + currentUser.name + " 👋";
+
+}
+</script>
+<script>
+
+const user = JSON.parse(
+    localStorage.getItem("user")
+);
+
+
+if(user){
+
+    document.getElementById("welcomeUser").innerHTML =
+    "Welcome " + user.name + " 👋";
+
+}
+
+else{
+
+    window.location.href="index.html";
+
+}
+
+</script>
+</body>
+
+</html>
