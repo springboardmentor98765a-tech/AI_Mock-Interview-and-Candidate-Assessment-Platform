@@ -1,0 +1,80 @@
+import {
+  FileText, Video, BarChart2, Clock, TrendingUp,
+  Users, FileSearch, GitCompare, Layout, MonitorPlay,
+  UserCog, Settings, Activity, Bot, Globe
+} from 'lucide-react';
+
+const navConfig = {
+  candidate: [
+    { id: 'resume',    label: 'Resume Upload',       icon: FileText },
+    { id: 'interview', label: 'Interview Room',       icon: Video,   badge: 'Live' },
+    { id: 'analytics', label: 'Performance Analytics',icon: BarChart2 },
+    { id: 'history',   label: 'Interview History',    icon: Clock },
+    { id: 'tracker',   label: 'Improvement Tracker',  icon: TrendingUp },
+  ],
+  recruiter: [
+    { id: 'overview',    label: 'Candidate Overview',  icon: Users },
+    { id: 'reports',     label: 'Candidate Reports',   icon: FileSearch },
+    { id: 'comparison',  label: 'Comparison Dashboard',icon: GitCompare },
+    { id: 'builder',     label: 'Template Builder',    icon: Layout },
+    { id: 'sessions',    label: 'Active Sessions',     icon: MonitorPlay, badge: '4' },
+  ],
+  admin: [
+    { id: 'users',    label: 'User Management',     icon: UserCog },
+    { id: 'config',   label: 'Platform Config',     icon: Settings },
+    { id: 'monitor',  label: 'System Monitor',      icon: Activity },
+    { id: 'ai',       label: 'AI Configuration',    icon: Bot },
+    { id: 'stats',    label: 'Global Statistics',   icon: Globe },
+  ],
+};
+
+const sectionLabels = {
+  candidate: 'CANDIDATE TOOLS',
+  recruiter:  'RECRUITER TOOLS',
+  admin:      'ADMIN PANEL',
+};
+
+export default function Sidebar({ role, activeTab, onTabChange }) {
+  const items = navConfig[role] || [];
+
+  return (
+    <aside className="sidebar">
+      <p className="sidebar-section-label">{sectionLabels[role]}</p>
+
+      {items.map(item => {
+        const Icon = item.icon;
+        return (
+          <div
+            key={item.id}
+            className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+            onClick={() => onTabChange(item.id)}
+            id={`sidebar-${item.id}`}
+          >
+            <Icon size={18} className="item-icon" />
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.badge && (
+              <span className="sidebar-badge">{item.badge}</span>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Bottom decoration */}
+      <div style={{ marginTop: 'auto', padding: '24px 20px 8px' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, hsla(252,100%,68%,0.08), hsla(280,90%,65%,0.08))',
+          border: '1px solid hsla(252,100%,68%,0.15)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px',
+        }}>
+          <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--accent-primary)', marginBottom: 4 }}>
+            AI-Powered Platform
+          </p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            Powered by Gemini 2.0 &amp; advanced ML models
+          </p>
+        </div>
+      </div>
+    </aside>
+  );
+}
