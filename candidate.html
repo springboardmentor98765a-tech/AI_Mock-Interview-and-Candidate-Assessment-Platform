@@ -3,23 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate</title>
+    <link rel="stylesheet" href="style.css">
+</head>
     <title>Document</title>
 </head>
 <body>
     <h1> WELCOME CANDIDATE</h1>
     <div>
-        <button type="button" onclick="alert('Resume Upload successfull!')" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Upload Resumes</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Attend mock interviews</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  View interview history</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Access performance analytics</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Download reports</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Track improvement progress</button>
+        <a href="#upload"><!--"Go to the element whose id is upload."--> 
+            <button class="menu-btn">Upload Resumes</button></a>
+        <a href="#interview"><button class="menu-btn">Attend mock interviews</button></a>
+        <a href="#history"><button class="menu-btn">View interview history</button></a>
+        <a href="#analytics"><button class="menu-btn">Access performance analytics</button></a>
+        <a href="#report"><button class="menu-btn">Download reports</button></a>
+        <button class="menu-btn">Track improvement progress</button>
     </div>
+
+    <section id="upload" class="upload"><!--id is like the unique name or address of that section-->
+    <br>
+    <h2>Upload Resume</h2>
+    <br><input type="file">  <!--can input file from our computer-->
+    <p> <!--paragraph tag-->
+        Upload your resume in PDF format.
+    </p>
+    <br>
+    <button class="menu-btn">Upload</button>
+    </section>
+    <section id="interview" class="interview">
+        <h2>Attend Mock Interview</h2><br>
+        <label><b>Select Domain:</b></label><br><br>
+        <select><!--Dropdown box-->
+        <option>Python</option><br>
+        <option>Java</option><br>
+        <option>Machine Learning</option><br>
+        <option>HR Interview</option><br>
+        </select>
+
+        <br><br>
+        <label><b>Select Level:</b></label><br><br>
+        <select><!--Dropdown box-->
+        <option>Easy</option><br>
+        <option>Medium</option><br>
+        <option>Hard</option><br>
+        </select>
+
+        <br><br>
+        <label><b>Select No of questions:</b></label><br><br>
+        <select><!--Dropdown box-->
+        <option>10</option><br>
+        <option>20</option><br>
+        <option>30</option><br>
+        </select>
+
+        <br>
+    <button class="menu-btn">Start Interview</button>
+    </section>
+
+    <section id="history">
+        <h2>Interview History</h2>
+        <table class="history-table">
+            <tr><!--Table Row-->
+                <th><!--Table Heading-->Date</th>
+                <th>Domain</th>
+                <th>Score</th>
+                <th>Status</th>
+            </tr>
+            <tr><!--New row-->
+                <td>29-07-26</td>
+                <td>Python</td>
+                <td>91</td>
+                <td>Completed</td>
+            </tr>
+             <tr><!--New row-->
+                <td>30-07-26</td>
+                <td>SQL</td>
+                <td>89</td>
+                <td>Completed</td>
+            </tr>
+             <tr><!--New row-->
+                <td>31-07-26</td>
+                <td>ML</td>
+                <td>90</td>
+                <td>Completed</td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete history</button>
+    </section>
+
+    <section id="analytics">
+        <h2>Performance Analytics</h2>
+        <div class="card-container"><!--parent in flexbox-->
+        <div class="card"><!--child in flex box-->
+            <h3>Communication</h3>
+            <p>95%</p>
+        </div>
+        <div class="card">
+            <h3>Technical</h3>
+            <p>90%</p>
+        </div>
+        <div class="card">
+            <h3>Confidence</h3>
+            <p>91%</p>
+        </div>
+        </div>
+    </section>
+
+    <section id="report">
+        <h2>Download Reports</h2>
+        <p>Your latest interview performance report is available</p>
+        <button class="menu-btn" onclick="downloadReport()">Download Report</button><!--JavaScript function downloadReport()-->
+    </section>
+
+
 </body>
 </html>
