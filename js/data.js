@@ -30,6 +30,11 @@ const state = {
   interviewStream: null,
   voiceCapture: null,
   interviewerAudio: null,
+  configModal: null,
+  configDifficulty: 'medium',
+  configMode: 'questions',
+  configNumQuestions: 5,
+  configTimeDuration: 30,
 };
 
 let charts = {};

@@ -72,9 +72,8 @@ class InterviewGenerateRequest(BaseModel):
     interview_type: Literal["hr", "technical", "behavioral", "aptitude"]
     domain: Optional[str] = Field(default=None, max_length=100)
     difficulty: Literal["easy", "medium", "hard"] = "medium"
-    num_questions: Optional[int] = Field(default=5, ge=1, le=20)
-    # The resume parser can pass its extracted skills here.  Keeping this
-    # optional also allows candidates to generate a general interview.
+    num_questions: Optional[int] = Field(default=None, ge=1, le=20)
+    time_duration: Optional[int] = Field(default=None, ge=1, le=120)
     skills: list[str] = Field(default_factory=list, max_length=30)
 
 

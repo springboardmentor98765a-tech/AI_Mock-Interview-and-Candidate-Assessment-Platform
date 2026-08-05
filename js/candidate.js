@@ -38,23 +38,27 @@ function candidateOverview() {
 
 function candidateInterviews() {
   var types = [
-    { key: 'technical', title: 'Technical Interview', domain: 'Software Engineering', desc: 'Data structures, algorithms, system design', icon: icon('cpu', 20), color: INDIGO, duration: '45 min', difficulty: 'hard' },
-    { key: 'hr', title: 'HR Round', domain: 'General', desc: 'Culture fit, career goals, soft skills', icon: icon('messageSquare', 20), color: CYAN, duration: '30 min', difficulty: 'medium' },
-    { key: 'behavioral', title: 'Behavioural', domain: 'General', desc: 'STAR-method situational questions', icon: icon('brain', 20), color: EMERALD, duration: '30 min', difficulty: 'medium' },
-    { key: 'aptitude', title: 'Aptitude Test', domain: 'General', desc: 'Logical reasoning, quantitative analysis', icon: icon('target', 20), color: AMBER, duration: '25 min', difficulty: 'medium' },
+    { key: 'technical', title: 'Technical Interview', domain: 'Software Engineering', desc: 'Data structures, algorithms, system design', icon: icon('cpu', 20), color: INDIGO },
+    { key: 'hr', title: 'HR Round', domain: 'General', desc: 'Culture fit, career goals, soft skills', icon: icon('messageSquare', 20), color: CYAN },
+    { key: 'behavioral', title: 'Behavioural', domain: 'General', desc: 'STAR-method situational questions', icon: icon('brain', 20), color: EMERALD },
+    { key: 'aptitude', title: 'Aptitude Test', domain: 'General', desc: 'Logical reasoning, quantitative analysis', icon: icon('target', 20), color: AMBER },
   ];
+  var modal = '';
+  if (state.configModal) {
+    var t = types.find(function(x) { return x.key === state.configModal; });
+    if (t) modal = renderConfigModal(t);
+  }
   return `<div class="space-y-6">
-    <div><h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Mock Interviews</h1><p class="text-white/40 text-sm mt-1">Choose an interview type to begin your AI-powered session.</p></div>
+    <div><h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Mock Interviews</h1><p class="text-white/40 text-sm mt-1">Choose an interview type, then configure your session.</p></div>
     <div class="grid grid-cols-2 gap-4">
       ${types.map(function(t) {
         return `<div class="interview-card rounded-xl border border-white/7 p-6 hover:border-white/15 transition-all group cursor-pointer" style="background:#0d0f1e">
           <div class="flex items-start justify-between mb-4">
             <div class="interview-icon" style="background:${t.color}20"><span style="color:${t.color}">${t.icon}</span></div>
-            <div class="flex gap-2">${badge(t.duration, 'slate')}${badge(t.difficulty.charAt(0).toUpperCase() + t.difficulty.slice(1), t.difficulty === 'hard' ? 'rose' : 'amber')}</div>
           </div>
           <h3 class="text-white font-semibold mb-1" style="font-family:'Outfit',sans-serif">${t.title}</h3>
           <p class="text-white/40 text-xs leading-relaxed mb-5">${t.desc}</p>
-          <button class="btn-start-session w-full py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2 transition-all hover:opacity-90" data-interview-type="${t.key}" data-domain="${t.domain}" data-difficulty="${t.difficulty}" style="background:${t.color}">${icon('play', 14)} Start Session</button>
+          <button class="btn-configure-session w-full py-2.5 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2 transition-all hover:opacity-90" data-interview-type="${t.key}" data-domain="${t.domain}" style="background:${t.color}">${icon('play', 14)} Configure &amp; Start</button>
         </div>`;
       }).join('')}
     </div>
@@ -70,6 +74,61 @@ function candidateInterviews() {
         }).join('')}
       </div>
       <p id="device-status" class="mt-3 text-xs text-white/40" role="status">Camera and microphone have not been tested yet.</p>
+    </div>
+  </div>${modal}`;
+}
+
+function renderConfigModal(t) {
+  var isQ = state.configMode === 'questions';
+  return `<div id="config-overlay" class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+    <div class="w-full max-w-lg rounded-2xl border border-white/10 p-6 space-y-5" style="background:#0d0f1e">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${t.color}20"><span style="color:${t.color}">${t.icon}</span></div>
+          <div><p class="text-white font-semibold" style="font-family:'Outfit',sans-serif">${t.title}</p><p class="text-white/40 text-xs">${t.domain}</p></div>
+        </div>
+        <button id="config-close" class="text-white/30 hover:text-white/70 text-xl leading-none">&times;</button>
+      </div>
+
+      <div>
+        <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Difficulty</p>
+        <div class="grid grid-cols-3 gap-2">
+          ${['easy', 'medium', 'hard'].map(function(d) {
+            var sel = state.configDifficulty === d;
+            var col = d === 'easy' ? EMERALD : d === 'medium' ? AMBER : ROSE;
+            return `<button class="config-diff-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-diff="${d}" style="${sel ? 'background:' + col + '25;border-color:' + col + '60;color:' + col : 'background:#141627;border-color:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)'}">${d.charAt(0).toUpperCase() + d.slice(1)}</button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Selection Mode</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="config-mode-btn py-2.5 rounded-lg text-xs font-semibold border transition-all" data-mode="questions" style="${isQ ? 'background:' + INDIGO + '25;border-color:' + INDIGO + '60;color:' + INDIGO : 'background:#141627;border-color:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)'}">By Questions</button>
+          <button class="config-mode-btn py-2.5 rounded-lg text-xs font-semibold border transition-all" data-mode="time" style="${!isQ ? 'background:' + INDIGO + '25;border-color:' + INDIGO + '60;color:' + INDIGO : 'background:#141627;border-color:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)'}">By Time</button>
+        </div>
+      </div>
+
+      ${isQ ? `<div>
+        <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Number of Questions</p>
+        <div class="grid grid-cols-4 gap-2">
+          ${[3, 5, 10, 15].map(function(n) {
+            var sel = state.configNumQuestions === n;
+            return `<button class="config-qty-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-qty="${n}" style="${sel ? 'background:' + INDIGO + '25;border-color:' + INDIGO + '60;color:' + INDIGO : 'background:#141627;border-color:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)'}">${n}</button>`;
+          }).join('')}
+        </div>
+      </div>` : `<div>
+        <p class="text-xs text-white/40 mb-2 font-medium uppercase tracking-wider">Interview Duration</p>
+        <div class="grid grid-cols-4 gap-2">
+          ${[20, 30, 45, 60].map(function(m) {
+            var sel = state.configTimeDuration === m;
+            var label = m >= 60 ? '1 hr' : m + ' min';
+            return `<button class="config-time-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-time="${m}" style="${sel ? 'background:' + INDIGO + '25;border-color:' + INDIGO + '60;color:' + INDIGO : 'background:#141627;border-color:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)'}">${label}</button>`;
+          }).join('')}
+        </div>
+      </div>`}
+
+      <button id="config-start" class="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90" style="background:linear-gradient(135deg,${t.color},${t.color}cc)" data-interview-type="${t.key}" data-domain="${t.domain}">${icon('play', 14)} Start Interview</button>
     </div>
   </div>`;
 }
@@ -95,11 +154,18 @@ async function startCandidateInterview(button) {
   button.textContent = 'Creating session...';
   try {
     await enableInterviewDevices();
-    var generated = await api.generateInterview({ interview_type: button.dataset.interviewType, domain: button.dataset.domain, difficulty: button.dataset.difficulty, num_questions: 5 });
+    var payload = { interview_type: button.dataset.interviewType, domain: button.dataset.domain, difficulty: state.configDifficulty };
+    if (state.configMode === 'time') {
+      payload.time_duration = state.configTimeDuration;
+    } else {
+      payload.num_questions = state.configNumQuestions;
+    }
+    var generated = await api.generateInterview(payload);
     var started = await api.startInterview(generated.interview.id);
     state.currentInterview = started;
     state.currentQuestionIndex = 0;
     state.sessionMessage = '';
+    state.configModal = null;
     state.section = 'session';
     render();
   } catch (error) {
@@ -276,7 +342,34 @@ async function submitCandidateAnswer() {
 }
 
 function bindCandidateInterviewEvents() {
-  document.querySelectorAll('.btn-start-session').forEach(function(button) { button.addEventListener('click', function() { startCandidateInterview(button); }); });
+  document.querySelectorAll('.btn-configure-session').forEach(function(button) {
+    button.addEventListener('click', function() {
+      state.configModal = button.dataset.interviewType;
+      state.configDifficulty = 'medium';
+      state.configMode = 'questions';
+      state.configNumQuestions = 5;
+      state.configTimeDuration = 30;
+      render();
+    });
+  });
+  document.querySelectorAll('.config-diff-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { state.configDifficulty = this.dataset.diff; render(); });
+  });
+  document.querySelectorAll('.config-mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { state.configMode = this.dataset.mode; render(); });
+  });
+  document.querySelectorAll('.config-qty-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { state.configNumQuestions = parseInt(this.dataset.qty); render(); });
+  });
+  document.querySelectorAll('.config-time-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { state.configTimeDuration = parseInt(this.dataset.time); render(); });
+  });
+  var configClose = document.getElementById('config-close');
+  if (configClose) configClose.addEventListener('click', function() { state.configModal = null; render(); });
+  var configOverlay = document.getElementById('config-overlay');
+  if (configOverlay) configOverlay.addEventListener('click', function(e) { if (e.target === configOverlay) { state.configModal = null; render(); } });
+  var configStart = document.getElementById('config-start');
+  if (configStart) configStart.addEventListener('click', function() { startCandidateInterview(this); });
   var testDevices = document.getElementById('btn-test-devices');
   if (testDevices) testDevices.addEventListener('click', testCandidateDevices);
   var submitAnswer = document.getElementById('btn-submit-answer');

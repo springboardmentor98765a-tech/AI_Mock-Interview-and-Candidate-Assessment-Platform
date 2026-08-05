@@ -63,15 +63,22 @@ def create_interview(req: InterviewCreateRequest, user: dict = Depends(get_curre
 
 @router.post("/generate")
 def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_current_user)):
+    if req.num_questions:
+        num_q = req.num_questions
+    elif req.time_duration:
+        num_q = max(1, req.time_duration // 4)
+    else:
+        num_q = 5
+
     ai_generated = mimo.configured()
     try:
         questions_data = mimo.generate_questions(
-            req.interview_type, req.difficulty, req.domain, req.skills, req.num_questions or 5
+            req.interview_type, req.difficulty, req.domain, req.skills, num_q
         ) if ai_generated else generate_bank_questions(
             interview_type=req.interview_type,
             difficulty=req.difficulty,
             domain=req.domain,
-            num_questions=req.num_questions or 5,
+            num_questions=num_q,
             skills=req.skills,
         )
     except mimo.MimoError as error:

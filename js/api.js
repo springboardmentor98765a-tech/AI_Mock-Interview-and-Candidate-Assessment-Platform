@@ -1,8 +1,5 @@
 /* ── API Utility ── */
-// During local development an older FastAPI worker may still be running on
-// 8080.  Keep that UI usable by sending its API calls to the verified current
-// server on 8081.  Production and direct 8081 requests stay same-origin.
-const API_BASE = window.location.port === '8080' ? 'http://127.0.0.1:8081/api' : '/api';
+const API_BASE = '/api';
 
 async function apiRequest(endpoint, options) {
   var config = {
