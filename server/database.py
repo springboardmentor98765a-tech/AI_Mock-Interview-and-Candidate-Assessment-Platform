@@ -43,10 +43,56 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+
+        CREATE TABLE IF NOT EXISTS interview (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            interview_type TEXT NOT NULL,
+            domain TEXT,
+            difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_interview_user_id ON interview(user_id);
+        CREATE INDEX IF NOT EXISTS idx_interview_type ON interview(interview_type);
+
+        CREATE TABLE IF NOT EXISTS interview_question (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            interview_id INTEGER NOT NULL,
+            question_text TEXT NOT NULL,
+            category TEXT,
+            difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+            sequence_no INTEGER NOT NULL,
+            FOREIGN KEY (interview_id) REFERENCES interview(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_interview_question_interview_id ON interview_question(interview_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_interview_question_sequence
+            ON interview_question(interview_id, sequence_no);
     """)
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
     if "is_super_admin" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0")
+
+    interview_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview)").fetchall()}
+    if "status" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN status TEXT NOT NULL DEFAULT 'created' CHECK(status IN ('created', 'in_progress', 'completed'))")
+    if "started_at" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN started_at TIMESTAMP")
+    if "completed_at" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN completed_at TIMESTAMP")
+    if "total_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN total_score REAL")
+
+    question_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_question)").fetchall()}
+    if "answer_text" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN answer_text TEXT")
+    if "score" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN score REAL")
+    if "feedback" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN feedback TEXT")
+
     conn.commit()
     conn.close()
 

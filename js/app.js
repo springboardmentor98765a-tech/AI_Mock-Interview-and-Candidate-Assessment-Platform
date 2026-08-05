@@ -30,6 +30,7 @@ function render() {
     var sections = {
       overview: candidateOverview,
       interviews: candidateInterviews,
+      session: candidateSession,
       analytics: candidateAnalytics,
       resume: candidateResume,
       history: candidateHistory,
@@ -85,6 +86,7 @@ function handleAuthSuccess(data) {
   localStorage.setItem('smarthire_token', data.token);
   state.token = data.token;
   state.user = data.user;
+  state.role = data.user.role;
   state.page = data.user.role;
   state.section = 'overview';
   state.authError = '';
@@ -128,6 +130,7 @@ async function checkAuth() {
     var data = await api.getMe();
     state.token = token;
     state.user = data.user;
+    state.role = data.user.role;
     state.page = data.user.role;
     state.section = 'overview';
     render();
@@ -279,6 +282,7 @@ function bindDashboardEvents() {
       if (tempVal) tempVal.textContent = state.temp.toFixed(1);
     });
   }
+  if (state.page === 'candidate') bindCandidateInterviewEvents();
 }
 
 /* ── Chart drawing after render ── */

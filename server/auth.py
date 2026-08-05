@@ -4,7 +4,7 @@ import jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRES_IN_MINUTES
+from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRES_IN_MINUTES, ADMIN_EMAILS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -35,7 +35,28 @@ def decode_token(token: str) -> dict:
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    return decode_token(credentials.credentials)
+    token_user = decode_token(credentials.credentials)
+
+    # Roles in a JWT can become stale after an admin changes a user. Always load
+    # the current role from the database and enforce the server-only allowlist.
+    from database import get_db
+    conn = get_db()
+    row = conn.execute("SELECT id, name, email, role, is_super_admin FROM users WHERE id = ?", (token_user["id"],)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=401, detail="User account no longer exists.")
+
+    role = row["role"]
+    if role == "admin" and row["email"].strip().lower() not in ADMIN_EMAILS:
+        role = "candidate"
+
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "email": row["email"],
+        "role": role,
+        "is_super_admin": bool(row["is_super_admin"]),
+    }
 
 
 def require_role(*roles: str):

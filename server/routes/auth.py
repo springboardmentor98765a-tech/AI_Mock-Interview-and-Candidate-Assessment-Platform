@@ -11,18 +11,23 @@ from models import (
     AuthResponse, UserResponse,
 )
 from auth import hash_password, verify_password, create_token, get_current_user
-from config import APP_BASE_URL, PASSWORD_RESET_TOKEN_EXPIRES_MINUTES
+from config import APP_BASE_URL, PASSWORD_RESET_TOKEN_EXPIRES_MINUTES, ADMIN_EMAILS
 from services.email_service import send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def row_to_user(row) -> dict:
+    # A database role alone never grants admin access. This keeps every response
+    # (login, Google sign-in, /me, and the UI) aligned with the access policy.
+    role = row["role"]
+    if role == "admin" and row["email"].strip().lower() not in ADMIN_EMAILS:
+        role = "candidate"
     return {
         "id": row["id"],
         "name": row["name"],
         "email": row["email"],
-        "role": row["role"],
+        "role": role,
         "provider": row["provider"],
         "google_id": row["google_id"],
         "avatar": row["avatar"],
@@ -98,6 +103,7 @@ def google_login(req: GoogleLoginRequest):
             if user:
                 conn.execute("UPDATE users SET google_id=?, avatar=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                              (google_id, avatar, user["id"]))
+                user = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
             else:
                 cur = conn.execute(
                     "INSERT INTO users (name, email, role, provider, google_id, avatar) VALUES (?, ?, 'candidate', 'GOOGLE', ?, ?)",
@@ -107,8 +113,9 @@ def google_login(req: GoogleLoginRequest):
             conn.commit()
 
         conn.close()
-        token = create_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})
-        return {"message": "Google login successful.", "token": token, "user": row_to_user(user)}
+        response_user = row_to_user(user)
+        token = create_token({"id": user["id"], "email": user["email"], "role": response_user["role"], "name": user["name"]})
+        return {"message": "Google login successful.", "token": token, "user": response_user}
 
     except HTTPException:
         raise

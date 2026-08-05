@@ -24,6 +24,12 @@ const state = {
   showPassword: false,
   user: null,
   token: null,
+  currentInterview: null,
+  currentQuestionIndex: 0,
+  sessionMessage: '',
+  interviewStream: null,
+  voiceCapture: null,
+  interviewerAudio: null,
 };
 
 let charts = {};

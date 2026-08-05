@@ -1,5 +1,8 @@
 /* ── API Utility ── */
-const API_BASE = '/api';
+// During local development an older FastAPI worker may still be running on
+// 8080.  Keep that UI usable by sending its API calls to the verified current
+// server on 8081.  Production and direct 8081 requests stay same-origin.
+const API_BASE = window.location.port === '8080' ? 'http://127.0.0.1:8081/api' : '/api';
 
 async function apiRequest(endpoint, options) {
   var config = {
@@ -57,5 +60,41 @@ var api = {
   },
   getUserStats: function() {
     return apiRequest('/users/stats');
+  },
+  generateInterview: function(payload) {
+    return apiRequest('/interviews/generate', { method: 'POST', body: payload });
+  },
+  getInterviews: function(params) {
+    var qs = new URLSearchParams(params || {}).toString();
+    return apiRequest('/interviews' + (qs ? '?' + qs : ''));
+  },
+  getInterview: function(id) {
+    return apiRequest('/interviews/' + id);
+  },
+  updateInterview: function(id, payload) {
+    return apiRequest('/interviews/' + id, { method: 'PUT', body: payload });
+  },
+  deleteInterview: function(id) {
+    return apiRequest('/interviews/' + id, { method: 'DELETE' });
+  },
+  startInterview: function(interviewId) {
+    return apiRequest('/interviews/' + interviewId + '/start', { method: 'POST' });
+  },
+  submitInterviewAnswer: function(interviewId, questionId, answerText) {
+    return apiRequest('/interviews/' + interviewId + '/answer', {
+      method: 'POST',
+      body: { question_id: questionId, answer_text: answerText },
+    });
+  },
+  speakInterviewQuestion: function(interviewId, questionId) {
+    return apiRequest('/interviews/' + interviewId + '/speak', { method: 'POST', body: { question_id: questionId } });
+  },
+  submitVoiceAnswer: function(interviewId, questionId, audioData) {
+    return apiRequest('/interviews/' + interviewId + '/answer-audio', {
+      method: 'POST', body: { question_id: questionId, audio_data: audioData },
+    });
+  },
+  getInterviewHistory: function() {
+    return apiRequest('/interviews/history');
   },
 };
