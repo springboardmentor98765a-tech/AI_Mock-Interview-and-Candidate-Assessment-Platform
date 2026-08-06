@@ -17,7 +17,7 @@
         <a href="#history"><button class="menu-btn">View interview history</button></a>
         <a href="#analytics"><button class="menu-btn">Access performance analytics</button></a>
         <a href="#report"><button class="menu-btn">Download reports</button></a>
-        <button class="menu-btn">Track improvement progress</button>
+        <a href="#improvement"><button class="menu-btn">Track improvement progress</button></a>
     </div>
 
     <section id="upload" class="upload"><!--id is like the unique name or address of that section-->
@@ -111,10 +111,40 @@
 
     <section id="report">
         <h2>Download Reports</h2>
-        <p>Your latest interview performance report is available</p>
+        <p><br>Your latest interview performance report is available</p>
         <button class="menu-btn" onclick="downloadReport()">Download Report</button><!--JavaScript function downloadReport()-->
     </section>
+    <section id="improvement">
+        <h2>Track Improvement Progress</h2>
+        <table class="history-table">
+            <tr>
+                <th>Skill</th>
+                <th>Previous Score</th>
+                <th>Current Score</th>
+                <th>Improvement</th>
+            </tr>
+            <tr>
+                <td>Communication</td>
+                <td>80%</td>
+                <td>95%</td>
+                <td class="improv">+15%</td>
+            </tr>
+             <tr>
+                <td>Technical</td>
+                <td>76%</td>
+                <td>90%</td>
+                <td class="improv">+14%</td>
+            </tr>
+             <tr>
+                <td>Confidence</td>
+                <td>74%</td>
+                <td>90%</td>
+                <td class="improv">+17%</td>
+            </tr>
+        </table>
+    </section>
 
-
+<script src="script.js"></script><!--The browser reads HTML from top to bottom.
+If JavaScript loads before the page is created, it may try to access elements that don't exist yet-->
 </body>
 </html>

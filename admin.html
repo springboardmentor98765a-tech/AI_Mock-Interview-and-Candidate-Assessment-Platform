@@ -3,21 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Admin</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <h1>
         WELCOME ADMIN
     </h1>
-    <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Manage users and recruiters</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Configure platform settings</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Monitor system activities</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Manage AI configurations</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Access platform-wide analytics</button>
+      <a href="#dashboard-info"><button class="menu-btn">Dashboard</button></a>
+      <a href="#user&recruiter"><button class="menu-btn">Manage users and recruiters</button></a>
+      <a href="#settings"><button class="menu-btn">Configure platform settings</button></a>
+      <a href="#sys-activities"><button class="menu-btn">Monitor system activities</button></a>
+      <a href="#ai-config"><button class="menu-btn">Manage AI configurations</button></a>
+      <a href="#plat-analy"><button class="menu-btn">Access platform-wide analytics</button></a>
+  <section id="dashboard-info">
+        <div class="card-container"><!--parent in flexbox-->
+        <div class="card"><!--child in flex box-->
+            <h3>Users</h3>
+            <p>245</p>
+        </div>
+        <div class="card">
+            <h3>Recruiters</h3>
+            <p>18</p>
+        </div>
+        <div class="card">
+            <h3>Candidates</h3>
+            <p>223</p>
+        </div>
+        <div class="card">
+            <h3>Admin</h3>
+            <p>4</p>
+        </div>
+        </div>
+    </section>
+    <section id="user&recruiter">
+        <h2>Review candidate analytics</h2>
+        <table class="history-table">
+            <tr><!--Table Row-->
+                <th>User ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+            </tr>
+            <tr><!--New row-->
+                <td>101</td>
+                <td>Hasini</td>
+                <td>Candidate</td>
+                <td>Active</td>
+            </tr>
+             <tr><!--New row-->
+                <td>102</td>
+                <td>Chaitanya</td>
+                <td>Recruiter</td>
+                <td>Active</td>
+            </tr>
+             <tr><!--New row-->
+                <td>103</td>
+                <td>Nakshatra</td>
+                <td>Admin</td>
+                <td>Active</td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete details</button>
+    </section>
+
+    <section id="settings">
+      <h2>Platform Settings</h2>
+      <input type="checkbox" checked>
+      <label>Allow New Registrations</label><br><br>
+      <input type="checkbox" checked>
+      <label>Email Notification</label><br><br>
+      <input type="checkbox" checked>
+      <label>Maintenance</label><br><br>
+    </section>
+
+      <section id="sys-activities">
+        <h2>System activities</h2>
+        <table class="history-table">
+            <tr><!--Table Row-->
+                <th>Time</th>
+                <th>Activity</th>
+            </tr>
+            <tr><!--New row-->
+                <td>10:30</td>
+                <td>Rahul logged in</td>
+            </tr>
+             <tr><!--New row-->
+                <td>11:15</td>
+                <td>Resume Uploaded</td>
+            </tr>
+             <tr><!--New row-->
+                <td>11:40</td>
+                <td>Interview completed</td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete details</button>
+    </section>    
+
+      <section id="ai-config">
+            <h2>AI configurations</h2>
+        <div class="card-container"><!--parent in flexbox-->
+        <div class="card"><!--child in flex box-->
+            <h3>Interview AI</h3>
+            <p>GPT-4</p>
+        </div>
+        <div class="card">
+            <h3>Speech Recognition</h3>
+            <p>Whisper</p>
+        </div>
+        <div class="card">
+            <h3>Emotion Detection</h3>
+            <p>DeepFace</p>
+        </div>
+        </div>
+    </section>
+
+      <section id="plat-analy">
+            <h2>Platform Analytics</h2>
+        <div class="card-container"><!--parent in flexbox-->
+        <div class="card"><!--child in flex box-->
+            <h3>Total Interviews</h3>
+            <p>458</p>
+        </div>
+        <div class="card">
+            <h3>Average Score</h3>
+            <p>82%</p>
+        </div>
+        <div class="card">
+            <h3>Active Users</h3>
+            <p>91</p>
+        </div>
+        <div class="card">
+            <h3>Reports Generated</h3>
+            <p>301</p>
+        </div>
+        </div>
+    </section>
 </body>
 </html>

@@ -3,21 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Recruiter</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <h1>
         WELCOME RECRUITER
     </h1>
-    <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Review candidate analytics</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Access candidate reports</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Compare candidate performance</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Create interview templates</button>
-        <button type="button" style="background-color: blue; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;">
-  Monitor interview sessions</button>
+    <div>
+      <a href="#dashboard-info"><button class="menu-btn">Dashboard</button></a>
+      <a href="#can-analytics"><button class="menu-btn">Candidate analytics</button></a>
+      <a href="#access-reports"><button class="menu-btn">Candidate reports</button></a>
+      <a href="#compare-can-per"><button class="menu-btn">Candidate performance</button></a>
+      <a href="#interview-temp"><button class="menu-btn">Interview templates</button></a>
+      <a href="#interview-sess"><button class="menu-btn">Monitor interview sessions</button></a>
+    </div>
+    <section id="dashboard-info">
+        <div class="card-container"><!--parent in flexbox-->
+        <div class="card"><!--child in flex box-->
+            <h3>Total Candidates</h3>
+            <p>154</p>
+        </div>
+        <div class="card">
+            <h3>Interview Today</h3>
+            <p>26</p>
+        </div>
+        <div class="card">
+            <h3>Pending Reviews</h3>
+            <p>8</p>
+        </div>
+        <div class="card">
+            <h3>Average Score</h3>
+            <p>84%</p>
+        </div>
+        </div>
+    </section>
+    <section id="can-analytics">
+        <h2>Review candidate analytics</h2>
+        <table class="history-table">
+            <tr><!--Table Row-->
+                <th>Candidate</th>
+                <th>Domain</th>
+                <th>Score</th>
+                <th>Status</th>
+            </tr>
+            <tr><!--New row-->
+                <td>Rahul</td>
+                <td>Python</td>
+                <td>91</td>
+                <td>Completed</td>
+            </tr>
+             <tr><!--New row-->
+                <td>Priya</td>
+                <td>SQL</td>
+                <td>89</td>
+                <td>Completed</td>
+            </tr>
+             <tr><!--New row-->
+                <td>Kiran</td>
+                <td>HR</td>
+                <td>90</td>
+                <td>Pending</td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete details</button>
+    </section>
+
+    <section id="access-reports">
+      <h2>Access Candidate Reports</h2>
+        <table class="history-table">
+            <tr><!--Table Row-->
+                <th>Candidate</th>
+                <th>Interview</th>
+                <th>Download</th>
+            </tr>
+            <tr><!--New row-->
+                <td>Rahul</td>
+                <td>Python</td>
+                <td><button class="menu-btn">Download</button></td>
+            </tr>
+             <tr><!--New row-->
+                <td>Priya</td>
+                <td>SQL</td>
+                <td><button class="menu-btn">Download</button></td>
+            </tr>
+             <tr><!--New row-->
+                <td>Kiran</td>
+                <td>HR</td>
+                <td><button class="menu-btn">Download</button></td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete history</button>
+    </section>
+
+    <section id="compare-can-per">
+      <h2>Comapare Candidate Performance</h2>
+      <div class="card-container"><!--parent in flexbox-->
+            <div class="card"><!--child in flex box-->
+            <h3>Rahul</h3>
+            <p>91%</p>
+        </div>
+        <div class="card">
+            <h3>Priya</h3>
+            <p>88%</p>
+        </div>
+        <div class="card">
+            <h3>Kiran</h3>
+            <p>79%</p>
+        </div>
+        </div>
+    </section>
+
+    <section id="interview-temp">
+       <h2>Interview Templates</h2>
+      <div class="card-container"><!--parent in flexbox-->
+            <div class="card"><!--child in flex box-->
+              <h3>Technical Interview</h3>    
+              <button class="menu-btn">Edit</button>
+
+        </div>
+        <div class="card">
+            <h3>HR Interview</h3>
+            <button class="menu-btn">Edit</button>
+        </div>
+        <div class="card">
+            <h3>Behavioural</h3>
+            <button class="menu-btn">Edit</button>
+        </div>
+        </div>
+    </section>
+
+     <section id="interview-sess">
+       <h2>Interview Sessions</h2>
+       <table class="history-table">
+            <tr><!--Table Row-->
+                <th>Candidate</th>
+                <th>Domain</th>
+                <th>Start Time</th>
+                <th>Status</th>
+            </tr>
+            <tr><!--New row-->
+                <td>Rahul</td>
+                <td>Python</td>
+                <td>10:00</td>
+                <td>Running</td>
+            </tr>
+             <tr><!--New row-->
+                <td>Priya</td>
+                <td>SQL</td>
+                <td>11:30</td>
+                <td>Completed</td>
+            </tr>
+             <tr><!--New row-->
+                <td>Kiran</td>
+                <td>Java</td>
+                <td>9:00</td>
+                <td>Yet to start</td>
+            </tr>
+        </table>
+        <button class="menu-btn">View complete details</button>
+      
+    </section>
+        
 </body>
 </html>
