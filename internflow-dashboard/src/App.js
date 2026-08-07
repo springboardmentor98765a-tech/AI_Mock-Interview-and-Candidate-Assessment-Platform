@@ -6,6 +6,8 @@ import LoginPage from './components/LoginPage';
 import AdminDashboard from './components/AdminDashboard';
 import RecruiterDashboard from './components/RecruiterDashboard';
 import CandidateDashboard from './components/CandidateDashboard';
+import VoiceInterview from './components/VoiceInterview';
+import './styles/CandidateDashboard.css';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('landing');
@@ -45,7 +47,6 @@ function App() {
     }
 
     // Check if user is already logged in
-    // Only auto-login if we're NOT on the login page
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
     const currentPath = window.location.pathname;
@@ -78,11 +79,10 @@ function App() {
     localStorage.removeItem('user');
     setUser(null);
     setCurrentPage('landing');
-    // Force reload to clear any cached state
     window.location.href = '/';
   };
 
-
+  // ✅ UPDATED: Now uses VoiceInterview for USER role
   const renderDashboard = () => {
     if (!user) {
       return <div className="text-center mt-5">Loading...</div>;
@@ -98,7 +98,7 @@ function App() {
         return <RecruiterDashboard user={user} />;
       case 'USER':
       default:
-        return <CandidateDashboard user={user} />;
+        return <CandidateDashboard user={user} />;  // ✅ Now shows Voice Interview
     }
   };
 
@@ -115,7 +115,6 @@ function App() {
             <div>
               <button 
                 onClick={() => {
-                  // Clear any existing session before going to login
                   localStorage.removeItem('token');
                   localStorage.removeItem('user');
                   setUser(null);
@@ -129,7 +128,6 @@ function App() {
           </div>
         </nav>
         <LandingPage onLoginClick={() => {
-          // Clear any existing session before going to login
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);

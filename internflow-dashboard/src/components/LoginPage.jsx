@@ -41,6 +41,9 @@ const LoginPage = ({ onLogin }) => {
     }
   }, [onLogin]);
 
+  // =============================================
+  // UPDATED handleSubmit - Now updates role on login
+  // =============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -50,9 +53,11 @@ const LoginPage = ({ onLogin }) => {
       let url, body;
 
       if (isLoginMode) {
+        // LOGIN
         url = 'http://localhost:5000/api/auth/login';
         body = { email, password };
       } else {
+        // REGISTER
         url = 'http://localhost:5000/api/auth/register';
         body = { name, email, password, role };
       }
@@ -70,10 +75,43 @@ const LoginPage = ({ onLogin }) => {
       }
 
       if (isLoginMode) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        onLogin(data.user);
+        // Get the token and user
+        const token = data.token;
+        const user = data.user;
+        
+        // If the selected role is different from the user's current role, update it
+        if (role !== user.role) {
+          try {
+            const updateResponse = await fetch('http://localhost:5000/api/oauth/update-role', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                email: user.email,
+                role: role,
+              }),
+            });
+
+            if (updateResponse.ok) {
+              const updatedData = await updateResponse.json();
+              user.role = updatedData.user.role;
+              console.log('✅ User role updated to:', user.role);
+            } else {
+              console.warn('⚠️ Could not update role, using existing role:', user.role);
+            }
+          } catch (updateError) {
+            console.warn('⚠️ Error updating role, using existing role:', user.role);
+          }
+        }
+
+        // Store user data with updated role
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        onLogin(user);
       } else {
+        // Registration successful - switch to login mode
         alert('Registration successful! Please login.');
         setIsLoginMode(true);
         setPassword('');
@@ -86,16 +124,14 @@ const LoginPage = ({ onLogin }) => {
     }
   };
 
-  // SIMPLE Google Login - Direct URL with role parameter
+  // Google Login - Direct URL with role parameter
   const handleGoogleLogin = (selectedRole) => {
     console.log('🔑 Google Login clicked with role:', selectedRole);
-    // Redirect with the role as a query parameter
     window.location.href = `http://localhost:5000/api/oauth/google?role=${selectedRole}`;
   };
 
   // Function to get the Google button text based on mode
   const getGoogleButtonText = (roleName) => {
-    const roleEmoji = roleName === 'USER' ? '🎓' : roleName === 'RECRUITER' ? '👔' : '👑';
     const roleDisplay = roleName === 'USER' ? 'Candidate' : roleName === 'RECRUITER' ? 'Recruiter' : 'Admin';
     
     if (isLoginMode) {
@@ -187,23 +223,22 @@ const LoginPage = ({ onLogin }) => {
             </div>
           </div>
 
-          {!isLoginMode && (
-            <div className="mb-3">
-              <label className="form-label">
-                <i className="fas fa-user-tag"></i> Select Role
-              </label>
-              <select
-                className="form-select"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                style={{ borderRadius: '12px', padding: '12px 16px' }}
-              >
-                <option value="USER">🎓 Candidate</option>
-                <option value="RECRUITER">👔 Recruiter</option>
-                <option value="ADMIN">👑 Admin</option>
-              </select>
-            </div>
-          )}
+          {/* Role Selection - Visible for BOTH Login and Signup */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="fas fa-user-tag"></i> {isLoginMode ? 'Select Role to Login' : 'Select Role'}
+            </label>
+            <select
+              className="form-select"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={{ borderRadius: '12px', padding: '12px 16px' }}
+            >
+              <option value="USER">🎓 Candidate</option>
+              <option value="RECRUITER">👔 Recruiter</option>
+              <option value="ADMIN">👑 Admin</option>
+            </select>
+          </div>
 
           <button 
             type="submit" 
