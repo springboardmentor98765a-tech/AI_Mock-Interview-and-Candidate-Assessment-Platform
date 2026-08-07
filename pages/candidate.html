@@ -146,15 +146,17 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <i class="fa-regular fa-envelope"></i>
 
+<button id="candidateThemeToggle" class="secondary-btn" type="button" style="padding:8px 12px;">Dark Mode</button>
+
 <div class="profile">
 
 <img src="https://i.pravatar.cc/45?img=12">
 
 <div>
 
-<h4 id="dashboardUserName">John Doe</h4>
+<h4 id="dashboardUserName">Loading...</h4>
 
-<p id="dashboardUserRole">Candidate</p>
+<p id="dashboardUserRole">Loading role...</p>
 
 </div>
 
@@ -176,9 +178,8 @@ Track your interview preparation and placement progress.
 
 </section>
 
-<section class="dashboard-header">
-    <!--=========================================
-            DASHBOARD CARDS
+<!--=========================================
+        DASHBOARD CARDS
 ==========================================-->
 
 <section class="dashboard-cards">
@@ -191,8 +192,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>Resume Score</h4>
-            <h2><span class="counter" data-target="92">0</span>%</h2>
-            <span>+5% This Week</span>
+            <h2><span class="counter" data-target="0" id="candidateResumeScoreValue">0</span>%</h2>
+            <span id="candidateResumeScoreHint">Loading...</span>
         </div>
 
     </div>
@@ -205,8 +206,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>ATS Score</h4>
-            <h2><span class="counter" data-target="94">0</span>%</h2>
-            <span>Excellent</span>
+            <h2><span class="counter" data-target="0" id="candidateAtsScoreValue">0</span>%</h2>
+            <span id="candidateAtsScoreHint">Loading...</span>
         </div>
 
     </div>
@@ -219,8 +220,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>Mock Interviews</h4>
-            <h2><span class="counter" data-target="18">0</span></h2>
-            <span>Completed</span>
+            <h2><span class="counter" data-target="0" id="candidateInterviewCountValue">0</span></h2>
+            <span id="candidateInterviewCountHint">Loading...</span>
         </div>
 
     </div>
@@ -233,8 +234,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>AI Rating</h4>
-            <h2>4.9</h2>
-            <span>Outstanding</span>
+            <h2 id="candidateAiRatingValue">-</h2>
+            <span id="candidateAiRatingHint">Loading...</span>
         </div>
 
     </div>
@@ -247,8 +248,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>Placement Ready</h4>
-            <h2><span class="counter" data-target="89">0</span>%</h2>
-            <span>Keep Improving</span>
+            <h2><span class="counter" data-target="0" id="candidatePlacementReadyValue">0</span>%</h2>
+            <span id="candidatePlacementReadyHint">Loading...</span>
         </div>
 
     </div>
@@ -261,8 +262,8 @@ Track your interview preparation and placement progress.
 
         <div class="card-content">
             <h4>Overall Performance</h4>
-            <h2><span class="counter" data-target="91">0</span>%</h2>
-            <span>Excellent Progress</span>
+            <h2><span class="counter" data-target="0" id="candidateOverallPerformanceValue">0</span>%</h2>
+            <span id="candidateOverallPerformanceHint">Loading...</span>
         </div>
 
     </div>
@@ -370,13 +371,13 @@ Track your interview preparation and placement progress.
 
         <h2>📅 Upcoming Interview</h2>
 
-        <h3>Frontend Developer</h3>
+        <h3 id="candidateUpcomingRole">Upcoming interview loading...</h3>
 
-        <p><strong>Company:</strong> Infosys</p>
+        <p><strong>Company:</strong> <span id="candidateUpcomingCompany">-</span></p>
 
-        <p><strong>Date:</strong> 15 August 2026</p>
+        <p><strong>Date:</strong> <span id="candidateUpcomingDate">-</span></p>
 
-        <p><strong>Time:</strong> 10:00 AM</p>
+        <p><strong>Time:</strong> <span id="candidateUpcomingTime">-</span></p>
 
         <button class="primary-btn">
 
@@ -405,13 +406,17 @@ Track your interview preparation and placement progress.
 
             <h3>Upload Your Resume</h3>
 
-            <p>Supported formats: PDF, DOCX</p>
+            <p>Supported format: PDF</p>
 
-            <button class="primary-btn">
+            <input type="file" id="resumeFileInput" accept=".pdf,application/pdf" style="display:none;">
+
+            <button class="primary-btn" id="resumeUploadBtn">
 
                 Upload Resume
 
             </button>
+
+            <p id="resumeUploadStatus" style="margin-top:10px; font-weight:500;"></p>
 
         </div>
 
@@ -427,15 +432,21 @@ Track your interview preparation and placement progress.
 
             <i class="fa-solid fa-file-pdf pdf-icon"></i>
 
-            <h3>Revanth_Resume.pdf</h3>
+            <h3 id="resumePreviewFileName">No resume uploaded yet</h3>
 
-            <p>Last Updated : 10 Aug 2026</p>
+            <p id="resumePreviewUpdated">Upload a resume to see details</p>
 
             <div class="resume-buttons">
 
                 <button class="secondary-btn">
 
                     Preview
+
+                </button>
+
+                <button class="primary-btn" id="downloadReportBtn" style="display:none;">
+
+                    Download AI Report
 
                 </button>
 
@@ -454,76 +465,163 @@ Track your interview preparation and placement progress.
 </section>
 
 <!--=========================================
-            ATS REPORT
+            EXTRACTED RESUME
 ==========================================-->
 
 <section class="ats-report">
 
     <div class="analytics-card">
 
-        <h2>🤖 ATS Resume Analysis</h2>
+        <h2>📄 Extracted Resume</h2>
 
-        <table class="ats-table">
+        <p id="resumeExtractLoading" style="display:none; color:#6c63ff; font-weight:500;">⏳ Extracting resume text... Please wait.</p>
 
-            <tr>
+        <p id="resumeExtractError" style="display:none; color:#e74c3c; font-weight:500;"></p>
 
-                <td>Formatting</td>
+        <div id="resumeExtractResults" style="display:none;">
 
-                <td><span class="badge-success">Excellent</span></td>
+            <h3 style="margin-top:15px; color:#6c63ff;">File Name</h3>
 
-            </tr>
+            <p id="resumeFileName" style="margin-top:5px;"></p>
 
-            <tr>
+            <h3 style="margin-top:15px; color:#6c63ff;">Page Count</h3>
 
-                <td>Keywords</td>
+            <p id="resumePageCount" style="margin-top:5px;"></p>
 
-                <td><span class="badge-warning">Needs Improvement</span></td>
+            <h3 style="margin-top:15px; color:#6c63ff;">Extracted Text</h3>
 
-            </tr>
+            <pre id="resumeExtractedText" style="margin-top:5px; white-space:pre-wrap; word-wrap:break-word; background:#f4f2ff; padding:12px; border-radius:8px; max-height:400px; overflow-y:auto;"></pre>
 
-            <tr>
-
-                <td>Skills Match</td>
-
-                <td><span class="badge-success">94%</span></td>
-
-            </tr>
-
-            <tr>
-
-                <td>Experience Match</td>
-
-                <td><span class="badge-success">91%</span></td>
-
-            </tr>
-
-        </table>
+        </div>
 
     </div>
 
     <div class="analytics-card">
 
-        <h2>💡 AI Suggestions</h2>
+        <h2>🤖 AI Resume Analysis</h2>
 
-        <ul class="suggestion-list">
+        <p id="resumeAnalysisLoading" style="display:none; color:#6c63ff; font-weight:500;">⏳ Analyzing with AI... Please wait.</p>
 
-            <li>✔ Add React.js to Technical Skills</li>
+        <p id="resumeAnalysisError" style="display:none; color:#e74c3c; font-weight:500;"></p>
 
-            <li>✔ Include more measurable achievements</li>
+        <div id="resumeAnalysisResults" style="display:none;">
 
-            <li>✔ Add internship projects</li>
+            <h3 style="margin-top:15px; color:#6c63ff;">Skills</h3>
 
-            <li>✔ Improve summary section</li>
+            <div id="resumeSkills" style="margin-top:5px; display:flex; flex-wrap:wrap; gap:8px;"></div>
 
-            <li>✔ Include GitHub profile</li>
+            <h3 style="margin-top:15px; color:#6c63ff;">Experience</h3>
 
-        </ul>
+            <p id="resumeExperience" style="margin-top:5px;"></p>
 
-        <button class="primary-btn">
+            <h3 style="margin-top:15px; color:#6c63ff;">Technologies</h3>
 
-            Improve Resume
+            <div id="resumeTechnologies" style="margin-top:5px; display:flex; flex-wrap:wrap; gap:8px;"></div>
 
-        </button>
+            <h3 style="margin-top:15px; color:#6c63ff;">Education</h3>
+
+            <p id="resumeEducation" style="margin-top:5px;"></p>
+
+            <h3 style="margin-top:15px; color:#6c63ff;">Resume Summary</h3>
+
+            <p id="resumeSummary" style="margin-top:5px;"></p>
+
+            <h3 style="margin-top:15px; color:#e74c3c; display:none;" id="missingSkillsHeading">Missing Skills</h3>
+
+            <div id="resumeMissingSkills" style="margin-top:5px; display:none; flex-wrap:wrap; gap:8px;"></div>
+
+            <h3 style="margin-top:15px; color:#6c63ff; display:none;" id="atsScoreHeading">ATS Score</h3>
+
+            <p id="resumeAtsScore" style="margin-top:5px; display:none;"></p>
+
+            <!-- ATS Score Breakdown -->
+            <div id="atsScoreBreakdown" style="display:none; margin-top:20px;">
+
+                <h3 style="color:#6c63ff;">ATS Score Breakdown</h3>
+
+                <div style="margin-top:10px;">
+
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="font-weight:500;">Keyword Match</span>
+                        <span id="keywordScore" style="font-weight:600; color:#6c63ff;"></span>
+                    </div>
+                    <div style="background:#f0edff; border-radius:8px; height:10px; overflow:hidden;">
+                        <div id="keywordScoreBar" style="height:100%; background:#6c63ff; border-radius:8px; width:0%; transition:width 0.8s ease;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:5px;">
+                        <span style="font-weight:500;">Resume Formatting</span>
+                        <span id="formattingScore" style="font-weight:600; color:#6c63ff;"></span>
+                    </div>
+                    <div style="background:#f0edff; border-radius:8px; height:10px; overflow:hidden;">
+                        <div id="formattingScoreBar" style="height:100%; background:#27ae60; border-radius:8px; width:0%; transition:width 0.8s ease;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:5px;">
+                        <span style="font-weight:500;">Skills Match</span>
+                        <span id="skillsScore" style="font-weight:600; color:#6c63ff;"></span>
+                    </div>
+                    <div style="background:#f0edff; border-radius:8px; height:10px; overflow:hidden;">
+                        <div id="skillsScoreBar" style="height:100%; background:#e67e22; border-radius:8px; width:0%; transition:width 0.8s ease;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:5px;">
+                        <span style="font-weight:500;">Experience</span>
+                        <span id="experienceScore" style="font-weight:600; color:#6c63ff;"></span>
+                    </div>
+                    <div style="background:#f0edff; border-radius:8px; height:10px; overflow:hidden;">
+                        <div id="experienceScoreBar" style="height:100%; background:#e74c3c; border-radius:8px; width:0%; transition:width 0.8s ease;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:5px;">
+                        <span style="font-weight:500;">Education</span>
+                        <span id="educationScore" style="font-weight:600; color:#6c63ff;"></span>
+                    </div>
+                    <div style="background:#f0edff; border-radius:8px; height:10px; overflow:hidden;">
+                        <div id="educationScoreBar" style="height:100%; background:#3498db; border-radius:8px; width:0%; transition:width 0.8s ease;"></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Resume Improvement Suggestions -->
+        <div id="resumeImprovementSection" style="display:none; margin-top:25px;">
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+
+                <!-- Strengths Card -->
+                <div class="improvement-card strengths-card">
+                    <h3 style="color:#27ae60; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-circle-check"></i> Strengths
+                    </h3>
+                    <ul id="resumeStrengths" style="list-style:none; padding:0; margin:0;">
+                    </ul>
+                </div>
+
+                <!-- Weaknesses Card -->
+                <div class="improvement-card weaknesses-card">
+                    <h3 style="color:#e74c3c; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-circle-exclamation"></i> Weaknesses
+                    </h3>
+                    <ul id="resumeWeaknesses" style="list-style:none; padding:0; margin:0;">
+                    </ul>
+                </div>
+
+                <!-- Improvement Suggestions Card -->
+                <div class="improvement-card suggestions-card">
+                    <h3 style="color:#f39c12; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-lightbulb"></i> Improvement Suggestions
+                    </h3>
+                    <ul id="resumeSuggestions" style="list-style:none; padding:0; margin:0;">
+                    </ul>
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
@@ -542,13 +640,13 @@ Track your interview preparation and placement progress.
 
         <div class="interview-details">
 
-            <h3>Frontend Developer</h3>
+            <h3 id="candidateInterviewCenterRole">Upcoming interview loading...</h3>
 
-            <p><strong>Company:</strong> Infosys</p>
+            <p><strong>Company:</strong> <span id="candidateInterviewCenterCompany">-</span></p>
 
-            <p><strong>Date:</strong> 15 August 2026</p>
+            <p><strong>Date:</strong> <span id="candidateInterviewCenterDate">-</span></p>
 
-            <p><strong>Time:</strong> 10:00 AM</p>
+            <p><strong>Time:</strong> <span id="candidateInterviewCenterTime">-</span></p>
 
             <p><strong>Mode:</strong> Online</p>
 
@@ -557,6 +655,124 @@ Track your interview preparation and placement progress.
                 Join Interview
 
             </button>
+
+        </div>
+
+    </div>
+
+    <!-- Live AI Interview Preview -->
+
+    <div class="interview-box live-interview-box">
+
+        <h2><i class="fa-solid fa-video"></i> Live AI Interview Preview</h2>
+
+        <p class="live-interview-subtitle">Check your camera and microphone before joining your live interview.</p>
+
+        <div class="live-interview-preview-wrap">
+
+            <video id="liveInterviewVideo" autoplay playsinline muted></video>
+
+            <div id="liveInterviewPlaceholder" class="live-interview-placeholder">Webcam preview will appear here</div>
+
+        </div>
+
+        <p id="liveInterviewError" class="live-interview-error" style="display:none;"></p>
+
+        <div class="live-status-grid">
+
+            <div class="live-status-card">
+                <span class="live-status-label">Camera</span>
+                <span id="liveCameraStatus" class="live-status-pill off">Off</span>
+            </div>
+
+            <div class="live-status-card">
+                <span class="live-status-label">Microphone</span>
+                <span id="liveMicStatus" class="live-status-pill off">Muted</span>
+            </div>
+
+            <div class="live-status-card">
+                <span class="live-status-label">Emotion</span>
+                <span id="liveEmotionLabel" class="live-status-pill off">Neutral</span>
+            </div>
+
+            <div class="live-status-card">
+                <span class="live-status-label">Eye Contact</span>
+                <span id="liveEyeContactPct" class="live-status-pill off">0%</span>
+            </div>
+
+            <div class="live-status-card">
+                <span class="live-status-label">Attention</span>
+                <span id="liveAttentionLevel" class="live-status-pill off">Low</span>
+            </div>
+
+            <div class="live-status-card">
+                <span class="live-status-label">Engagement</span>
+                <span id="liveEngagementLevel" class="live-status-pill off">Low</span>
+            </div>
+
+        </div>
+
+        <p id="liveAdvancedValidation" style="display:none; margin-top:10px; color:#1f4f8a; font-weight:600;"></p>
+
+        <div class="live-interview-actions">
+
+            <button id="liveCameraToggleBtn" class="secondary-btn" type="button">Turn Camera On</button>
+
+            <button id="liveMicToggleBtn" class="secondary-btn" type="button">Unmute Microphone</button>
+
+            <button id="liveRecordingStartBtn" class="secondary-btn" type="button">Start Recording</button>
+
+            <button id="liveRecordingStopBtn" class="secondary-btn" type="button" disabled>Stop Recording</button>
+
+            <button id="liveRecordingDownloadBtn" class="secondary-btn" type="button" disabled>Download Video</button>
+
+            <button id="liveAudioDownloadBtn" class="secondary-btn" type="button" disabled>Download Audio</button>
+
+            <button id="liveTranscriptDownloadBtn" class="secondary-btn" type="button">Download Transcript</button>
+
+            <button id="liveJoinBtn" class="primary-btn" type="button">Join Live Interview</button>
+
+            <button id="liveLeaveBtn" class="primary-btn" type="button" style="background:#e74c3c;" disabled>Leave Live Interview</button>
+
+        </div>
+
+        <div class="live-recording-status" style="margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;">
+            <span class="live-status-label">Recording</span>
+            <span id="liveRecordingStatus" class="live-status-pill off">Idle</span>
+            <span id="liveRecoveryNotice" style="color:#1f4f8a; font-weight:600; display:none;">Session restored from browser storage.</span>
+        </div>
+
+        <div class="live-transcript-wrap">
+
+            <div class="live-transcript-head">
+                <h3>Live Transcript</h3>
+                <span id="liveSpeechStatus" class="live-status-pill off">Not Listening</span>
+            </div>
+
+            <p id="liveSpeechError" class="live-interview-error" style="display:none;"></p>
+
+            <div id="liveTranscriptText" class="live-transcript-box">Your speech will appear here when listening starts.</div>
+
+            <div class="live-speech-actions">
+                <button id="liveSpeechStartBtn" class="secondary-btn" type="button">Start Listening</button>
+                <button id="liveSpeechStopBtn" class="secondary-btn" type="button" disabled>Stop Listening</button>
+                <button id="liveSpeechClearBtn" class="secondary-btn" type="button">Clear Transcript</button>
+                <button id="liveGenerateFollowUpBtn" class="primary-btn" type="button">Generate Follow-up</button>
+            </div>
+
+            <div class="live-speech-actions" style="margin-top:10px;">
+                <button id="liveReportBtn" class="primary-btn" type="button">Open Interview Report</button>
+                <button id="liveEmailPreviewBtn" class="secondary-btn" type="button">Email Report Preview</button>
+            </div>
+
+            <p id="liveFollowUpLoading" style="display:none; color:#1f4f8a; font-weight:600; margin-top:10px;">AI is generating a follow-up question...</p>
+
+            <p id="liveFollowUpError" class="live-interview-error" style="display:none;"></p>
+
+            <div id="liveFollowUpQuestionWrap" class="live-followup-wrap" style="display:none;">
+                <h4>AI Follow-up Question</h4>
+                <p id="liveFollowUpQuestionText"></p>
+            </div>
 
         </div>
 
@@ -598,6 +814,233 @@ Track your interview preparation and placement progress.
 
     </div>
 
+    <!-- AI Mock Interview Questions -->
+
+    <div class="interview-box">
+
+        <h2><i class="fa-solid fa-list-check"></i> AI Mock Interview Questions</h2>
+
+        <p id="interviewLoading" style="display:none; color:#6c63ff; font-weight:500;">⏳ Generating questions... Please wait.</p>
+
+        <p id="interviewError" style="display:none; color:#e74c3c; font-weight:500;"></p>
+
+        <div id="interviewSession" style="display:none; margin-top:14px;">
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+
+                <div style="font-weight:700; color:#6c63ff;" id="interviewQuestionNumber">Question 1/10</div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+
+                    <span id="interviewTimer" style="background:#fff2e8; color:#d35400; padding:5px 10px; border-radius:16px; font-size:12px; font-weight:700;">20:00</span>
+
+                    <span id="interviewCategory" style="background:#f0edff; color:#6c63ff; padding:5px 10px; border-radius:16px; font-size:12px; font-weight:600;">Category</span>
+
+                    <span id="interviewDifficulty" style="background:#eafaf1; color:#27ae60; padding:5px 10px; border-radius:16px; font-size:12px; font-weight:600;">Difficulty</span>
+
+                </div>
+
+            </div>
+
+            <div style="background:#ece8ff; border-radius:999px; height:10px; overflow:hidden; margin-bottom:14px;">
+
+                <div id="interviewProgressBar" style="width:0%; height:100%; background:#6c63ff; transition:width .25s ease;"></div>
+
+            </div>
+
+            <div id="interviewQuestionText" style="background:#f4f2ff; border-left:4px solid #6c63ff; border-radius:10px; padding:14px; color:#2c3e50; line-height:1.5;"></div>
+
+            <div style="margin-top:12px;">
+
+                <label for="interviewAnswerBox" style="display:block; font-weight:600; color:#2c3e50; margin-bottom:6px;">Your Answer</label>
+
+                <textarea id="interviewAnswerBox" rows="6" placeholder="Type your answer here..." style="width:100%; border:1px solid #ddd; border-radius:10px; padding:12px; font-family:inherit; font-size:14px; color:#2c3e50; resize:vertical;"></textarea>
+
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+
+                <button id="interviewPrevBtn" class="secondary-btn" type="button">Previous</button>
+
+                <button id="interviewNextBtn" class="primary-btn" type="button">Next</button>
+
+                <button id="interviewSkipBtn" class="secondary-btn" type="button">Skip</button>
+
+                <button id="interviewEndBtn" class="primary-btn" type="button" style="background:#e74c3c;">End Interview</button>
+
+            </div>
+
+        </div>
+
+        <div id="interviewEvaluationLoading" style="display:none; margin-top:12px; padding:12px 14px; border-radius:10px; background:#eef5ff; color:#1f4f8a; font-weight:600; border-left:4px solid #1f78d1;">AI is evaluating your interview...</div>
+
+        <div id="interviewEvaluationResult" style="display:none; margin-top:14px; background:#ffffff; border:1px solid #e7ebf4; border-radius:18px; padding:18px; box-shadow:0 12px 28px rgba(20,40,80,.08);">
+
+            <div class="evaluation-header">
+                <div>
+                    <p class="evaluation-kicker">AI Evaluation Dashboard</p>
+                    <h3>Interview Evaluation Summary</h3>
+                    <p class="evaluation-subtitle">A weighted view of communication, confidence, technical depth, and professionalism.</p>
+                </div>
+                <div class="evaluation-rating-chip">
+                    <span>Rating</span>
+                    <strong id="evalRating">Pending</strong>
+                </div>
+            </div>
+
+            <div class="evaluation-ring-grid">
+                <div class="evaluation-ring-card evaluation-ring-card-large">
+                    <div id="evalOverallRing" class="evaluation-ring" data-ring-color="#1f78d1">
+                        <div class="evaluation-ring-center">
+                            <span id="evalOverallScore">0%</span>
+                            <small>Overall</small>
+                        </div>
+                    </div>
+                    <p>Weighted overall score</p>
+                </div>
+
+                <div class="evaluation-ring-card">
+                    <div id="evalCommunicationRing" class="evaluation-ring" data-ring-color="#f08a24">
+                        <div class="evaluation-ring-center">
+                            <span id="evalCommunicationScore">0%</span>
+                            <small>Communication</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="evaluation-ring-card">
+                    <div id="evalConfidenceRing" class="evaluation-ring" data-ring-color="#2d7a39">
+                        <div class="evaluation-ring-center">
+                            <span id="evalConfidenceScore">0%</span>
+                            <small>Confidence</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="evaluation-ring-card">
+                    <div id="evalTechnicalRing" class="evaluation-ring" data-ring-color="#1d7f57">
+                        <div class="evaluation-ring-center">
+                            <span id="evalTechnicalScore">0%</span>
+                            <small>Technical</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="evaluation-ring-card">
+                    <div id="evalProfessionalismRing" class="evaluation-ring" data-ring-color="#5f46b3">
+                        <div class="evaluation-ring-center">
+                            <span id="evalProfessionalismScore">0%</span>
+                            <small>Professionalism</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="evaluation-breakdown-grid">
+                <div class="evaluation-breakdown-card">
+                    <h4>Communication Breakdown</h4>
+                    <div class="evaluation-metric"><span>Grammar</span><strong id="evalGrammarScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalGrammarBar"></div></div>
+                    <div class="evaluation-metric"><span>Speech Clarity</span><strong id="evalSpeechClarityScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalSpeechClarityBar"></div></div>
+                    <div class="evaluation-metric"><span>Speaking Pace</span><strong id="evalSpeakingPaceScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalSpeakingPaceBar"></div></div>
+                    <div class="evaluation-metric"><span>Filler Words</span><strong id="evalFillerWordScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalFillerWordBar"></div></div>
+                    <div class="evaluation-metric"><span>Response Completeness</span><strong id="evalResponseCompletenessScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalResponseCompletenessBar"></div></div>
+                </div>
+
+                <div class="evaluation-breakdown-card">
+                    <h4>Confidence Breakdown</h4>
+                    <div class="evaluation-metric"><span>Eye Contact</span><strong id="evalEyeContactScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalEyeContactBar"></div></div>
+                    <div class="evaluation-metric"><span>Facial Engagement</span><strong id="evalFacialEngagementScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalFacialEngagementBar"></div></div>
+                    <div class="evaluation-metric"><span>Response Hesitation</span><strong id="evalResponseHesitationScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalResponseHesitationBar"></div></div>
+                </div>
+
+                <div class="evaluation-breakdown-card">
+                    <h4>Technical Breakdown</h4>
+                    <div class="evaluation-metric"><span>Keyword Matching</span><strong id="evalKeywordMatchingScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalKeywordMatchingBar"></div></div>
+                    <div class="evaluation-metric"><span>Domain Relevance</span><strong id="evalDomainRelevanceScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalDomainRelevanceBar"></div></div>
+                    <div class="evaluation-metric"><span>Technical Accuracy</span><strong id="evalTechnicalAccuracyScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalTechnicalAccuracyBar"></div></div>
+                    <div class="evaluation-metric"><span>Answer Completeness</span><strong id="evalAnswerCompletenessScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalAnswerCompletenessBar"></div></div>
+                </div>
+
+                <div class="evaluation-breakdown-card">
+                    <h4>Professionalism Breakdown</h4>
+                    <div class="evaluation-metric"><span>Time Management</span><strong id="evalTimeManagementScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalTimeManagementBar"></div></div>
+                    <div class="evaluation-metric"><span>Answer Organization</span><strong id="evalAnswerOrganizationScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalAnswerOrganizationBar"></div></div>
+                    <div class="evaluation-metric"><span>Interview Etiquette</span><strong id="evalInterviewEtiquetteScore">0%</strong></div>
+                    <div class="evaluation-bar"><div id="evalInterviewEtiquetteBar"></div></div>
+                </div>
+            </div>
+
+            <div class="evaluation-insight-grid">
+                <div class="evaluation-list-card">
+                    <h4>Strengths</h4>
+                    <ul id="evalStrengths"></ul>
+                </div>
+
+                <div class="evaluation-list-card">
+                    <h4>Weaknesses</h4>
+                    <ul id="evalWeaknesses"></ul>
+                </div>
+
+                <div class="evaluation-list-card">
+                    <h4>Improvement Suggestions</h4>
+                    <ul id="evalImprovementSuggestions"></ul>
+                </div>
+
+                <div class="evaluation-list-card">
+                    <h4>Practice Recommendations</h4>
+                    <ul id="evalPracticeRecommendations"></ul>
+                </div>
+
+                <div class="evaluation-list-card">
+                    <h4>Learning Resources</h4>
+                    <ul id="evalLearningResources"></ul>
+                </div>
+
+                <div class="evaluation-list-card evaluation-list-card-summary">
+                    <h4>Recommendation</h4>
+                    <p id="evalRecommendation"></p>
+                </div>
+
+                <div class="evaluation-list-card evaluation-list-card-summary">
+                    <h4>Feedback</h4>
+                    <ul id="evalFeedback"></ul>
+                </div>
+            </div>
+
+            <div class="evaluation-list-card" style="margin-top:16px;">
+                <h4>Session Timeline</h4>
+                <div id="liveSessionTimeline"></div>
+            </div>
+
+            <div class="evaluation-list-card" style="margin-top:16px;">
+                <h4>Speech Analysis</h4>
+                <div class="evaluation-metric"><span>Grammar Quality</span><strong id="speechGrammarQuality">0%</strong></div>
+                <div class="evaluation-metric"><span>Speaking Pace</span><strong id="speechPace">0 WPM</strong></div>
+                <div class="evaluation-metric"><span>Filler Words</span><strong id="speechFillerWords">0</strong></div>
+                <div class="evaluation-metric"><span>Average Response Length</span><strong id="speechAvgResponseLength">0 words</strong></div>
+                <p id="speechCommunicationInsights" style="margin:10px 0 0; color:#334155; line-height:1.6;">Communication insights will appear once transcript is available.</p>
+            </div>
+
+        </div>
+
+        <ul id="interviewQuestions" style="display:none; list-style:none; padding:0; margin:0;"></ul>
+
+    </div>
+
 </section>
 
 <!--=========================================
@@ -616,59 +1059,23 @@ Track your interview preparation and placement progress.
 
 <tr>
 
-<th>Company</th>
+<th>Interview Date</th>
 
-<th>Role</th>
+<th>Job Role</th>
 
-<th>Score</th>
+<th>Overall Score</th>
 
-<th>Status</th>
+<th>Recommendation</th>
 
 </tr>
 
 </thead>
 
-<tbody>
-
-<tr>
-
-<td>TCS</td>
-
-<td>Java Developer</td>
-
-<td>89%</td>
-
-<td><span class="badge-success">Completed</span></td>
-
-</tr>
-
-<tr>
-
-<td>Infosys</td>
-
-<td>Frontend Developer</td>
-
-<td>92%</td>
-
-<td><span class="badge-success">Completed</span></td>
-
-</tr>
-
-<tr>
-
-<td>Accenture</td>
-
-<td>Full Stack</td>
-
-<td>84%</td>
-
-<td><span class="badge-warning">Pending</span></td>
-
-</tr>
-
-</tbody>
+<tbody id="interviewHistoryBody"></tbody>
 
 </table>
+
+<div id="interviewHistoryDetails" style="display:none; margin-top:14px; border:1px solid #e5eaf5; border-radius:12px; background:#fafcff; padding:14px;"></div>
 
 </div>
 
@@ -894,295 +1301,212 @@ Track your interview preparation and placement progress.
             ⚠ Resume update recommended
         </div>
 
-        <div class="notify-box success">
-            🎉 ATS Score improved to 94%
-        </div>
-
     </div>
 
 </section>
 
 <!--=========================================
-        RECENT ACTIVITY
-==========================================-->
-
-<section class="activity-section">
-
-    <div class="analytics-card">
-
-        <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h2>
-
-        <div class="timeline">
-
-            <div class="timeline-item">
-                <h4>Resume Uploaded</h4>
-                <p>2 Hours Ago</p>
-            </div>
-
-            <div class="timeline-item">
-                <h4>Mock Interview Completed</h4>
-                <p>Yesterday</p>
-            </div>
-
-            <div class="timeline-item">
-                <h4>ATS Score Updated</h4>
-                <p>2 Days Ago</p>
-            </div>
-
-            <div class="timeline-item">
-                <h4>AI Feedback Generated</h4>
-                <p>3 Days Ago</p>
-            </div>
-
-        </div>
-
-    </div>
-
-</section>
-
-<!--=========================================
-        QUICK ACTIONS
-==========================================-->
-
-<section class="quick-action-section">
-
-    <div class="analytics-card">
-
-        <h2><i class="fa-solid fa-bolt"></i> Quick Actions</h2>
-
-        <div class="quick-grid">
-
-            <button class="primary-btn">Upload Resume</button>
-
-            <button class="primary-btn">Start Mock Interview</button>
-
-            <button class="primary-btn">Download Report</button>
-
-            <button class="primary-btn">View Analytics</button>
-
-        </div>
-
-    </div>
-
-</section>
-<!--=========================================
-        PROFILE & SETTINGS
+        CAREER ROADMAP
 ==========================================-->
 
 <section class="settings-section">
 
-    <!-- Profile Card -->
-
     <div class="settings-card">
+        <h2><i class="fa-solid fa-route"></i> AI Career Roadmap</h2>
+        <p style="color:#64748b; margin-top:10px;">Generate a role-based roadmap powered by Gemini with skills, certifications, resources, and projects.</p>
 
-        <h2><i class="fa-solid fa-user"></i> Profile Summary</h2>
-
-        <div class="profile-summary">
-
-            <img src="https://i.pravatar.cc/120?img=12" alt="Profile">
-
-            <h3>John Doe</h3>
-
-            <p>Computer Science Student</p>
-
-            <span>SRM University AP</span>
-
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:14px;">
+            <input id="roadmapCurrentRole" type="text" placeholder="Current Role" style="height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-family:inherit;">
+            <input id="roadmapTargetRole" type="text" placeholder="Target Role" style="height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-family:inherit;">
+            <input id="roadmapExperienceLevel" type="text" placeholder="Experience Level" style="height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-family:inherit;">
+            <input id="roadmapSkills" type="text" placeholder="Current Skills (comma-separated)" style="height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-family:inherit;">
         </div>
 
-        <div class="profile-info">
-
-            <p><strong>Email:</strong> john@example.com</p>
-
-            <p><strong>Phone:</strong> +91 9876543210</p>
-
-            <p><strong>Location:</strong> Andhra Pradesh</p>
-
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button id="generateCareerRoadmapBtn" class="primary-btn" type="button">Generate Roadmap</button>
+            <span id="careerRoadmapStatus" style="font-weight:600; color:#1f4f8a; align-self:center;"></span>
         </div>
-
     </div>
 
-    <!-- Settings -->
-
     <div class="settings-card">
-
-        <h2><i class="fa-solid fa-gear"></i> Settings</h2>
-
-        <div class="setting-item">
-
-            <span>Dark Mode</span>
-
-            <input type="checkbox">
-
+        <h3 style="margin-bottom:12px;">Roadmap Output</h3>
+        <div id="careerRoadmapSkeleton" style="display:none;">
+            <div class="skeleton-block" style="height:18px; margin-bottom:10px;"></div>
+            <div class="skeleton-block" style="height:14px; margin-bottom:8px;"></div>
+            <div class="skeleton-block" style="height:14px; margin-bottom:8px;"></div>
+            <div class="skeleton-block" style="height:14px; margin-bottom:8px;"></div>
         </div>
-
-        <div class="setting-item">
-
-            <span>Email Notifications</span>
-
-            <input type="checkbox" checked>
-
+        <p id="careerRoadmapSummary" style="color:#334155; line-height:1.6;">No roadmap generated yet.</p>
+        <div style="margin-top:12px;">
+            <h4>Career Roadmap</h4>
+            <ul id="careerRoadmapList"></ul>
+            <h4>Recommended Skills</h4>
+            <ul id="careerRoadmapSkills"></ul>
+            <h4>Certifications</h4>
+            <ul id="careerRoadmapCertifications"></ul>
+            <h4>Learning Resources</h4>
+            <ul id="careerRoadmapResources"></ul>
+            <h4>Practice Projects</h4>
+            <ul id="careerRoadmapProjects"></ul>
         </div>
-
-        <div class="setting-item">
-
-            <span>Interview Reminders</span>
-
-            <input type="checkbox" checked>
-
-        </div>
-
-        <div class="setting-item">
-
-            <span>Auto Resume Analysis</span>
-
-            <input type="checkbox">
-
-        </div>
-
     </div>
 
 </section>
 
 <!--=========================================
-        REPORTS
+        CODING TEST
 ==========================================-->
 
-<section class="report-section">
+<section class="interview-section report-section" id="codingTestSection">
 
-<div class="analytics-card">
+    <div class="interview-box">
+        <h2><i class="fa-solid fa-code"></i> Coding Test Dashboard</h2>
+        <p style="color:#64748b; margin-top:10px;">Solve timed coding questions with code editor and summary scoring.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+            <button id="codingStartBtn" class="primary-btn" type="button">Start Coding Test</button>
+            <button id="codingPrevBtn" class="secondary-btn" type="button" disabled>Previous</button>
+            <button id="codingNextBtn" class="secondary-btn" type="button" disabled>Next</button>
+            <button id="codingSubmitBtn" class="primary-btn" type="button" disabled>Submit Test</button>
+            <span id="codingTimer" class="live-status-pill off" style="align-self:center;">30:00</span>
+        </div>
+        <div id="codingQuestionBox" style="margin-top:14px; padding:12px; border-radius:12px; border:1px solid #dbe3ef; background:#f8fbff; color:#1f2937;">Start the test to load questions.</div>
+        <textarea id="codingEditor" rows="12" placeholder="Write your solution here..." style="width:100%; margin-top:12px; border:1px solid #dbe3ef; border-radius:12px; padding:12px; font-family:'Courier New',monospace; font-size:13px; resize:vertical;"></textarea>
+    </div>
 
-<h2><i class="fa-solid fa-chart-pie"></i> Reports</h2>
-
-<div class="report-grid">
-
-<button class="primary-btn">
-
-Download Resume Report
-
-</button>
-
-<button class="primary-btn">
-
-Download ATS Report
-
-</button>
-
-<button class="primary-btn">
-
-Interview Report
-
-</button>
-
-<button class="primary-btn">
-
-Performance Report
-
-</button>
-
-</div>
-
-</div>
+    <div class="interview-box">
+        <h2><i class="fa-solid fa-square-poll-vertical"></i> Coding Result Summary</h2>
+        <p id="codingSummaryStatus" style="color:#64748b;">No coding test attempt yet.</p>
+        <ul id="codingSummaryInsights"></ul>
+    </div>
 
 </section>
 
 <!--=========================================
-        PLACEMENT STATUS
+        APTITUDE TEST
 ==========================================-->
 
-<section class="placement-section">
+<section class="interview-section" id="aptitudeTestSection">
 
-<div class="analytics-card">
+    <div class="interview-box">
+        <h2><i class="fa-solid fa-brain"></i> Aptitude Test</h2>
+        <p style="color:#64748b;">Logical, quantitative, and verbal rounds with navigation and timer.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+            <button id="aptitudeStartBtn" class="primary-btn" type="button">Start Aptitude Test</button>
+            <button id="aptitudePrevBtn" class="secondary-btn" type="button" disabled>Previous</button>
+            <button id="aptitudeNextBtn" class="secondary-btn" type="button" disabled>Next</button>
+            <button id="aptitudeSubmitBtn" class="primary-btn" type="button" disabled>Submit Test</button>
+            <span id="aptitudeTimer" class="live-status-pill off" style="align-self:center;">20:00</span>
+        </div>
+        <div id="aptitudeQuestionBox" style="margin-top:14px; padding:12px; border-radius:12px; border:1px solid #dbe3ef; background:#f8fbff; color:#1f2937;">Start the test to load aptitude questions.</div>
+        <div id="aptitudeOptionsBox" style="margin-top:12px;"></div>
+    </div>
 
-<h2><i class="fa-solid fa-briefcase"></i> Placement Status</h2>
-
-<div class="placement-box">
-
-<h1>91%</h1>
-
-<p>Placement Readiness</p>
-
-<progress value="91" max="100"></progress>
-
-</div>
-
-</div>
+    <div class="interview-box">
+        <h2><i class="fa-solid fa-chart-simple"></i> Aptitude Result</h2>
+        <p id="aptitudeSummaryStatus" style="color:#64748b;">No aptitude test attempt yet.</p>
+        <ul id="aptitudeSummaryInsights"></ul>
+    </div>
 
 </section>
 
 <!--=========================================
-        LOGOUT POPUP
+        INTERVIEW MODES + PROFILE + NOTIFICATIONS
 ==========================================-->
+
+<section class="settings-section">
+
+    <div class="settings-card">
+        <h2><i class="fa-solid fa-user-tie"></i> Interview Modes</h2>
+        <p style="color:#64748b;">Switch between Technical, HR, and Behavioral modes for practice.</p>
+        <select id="interviewModeSelect" style="margin-top:12px; width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-family:inherit;">
+            <option value="technical">Technical Mode</option>
+            <option value="hr">HR Mode</option>
+            <option value="behavioral">Behavioral Mode</option>
+        </select>
+        <p id="interviewModeHint" style="margin-top:10px; color:#334155; line-height:1.6;">Technical mode focuses on implementation depth, architecture, and trade-offs.</p>
+    </div>
+
+    <div class="settings-card">
+        <h2><i class="fa-solid fa-list-check"></i> Profile Completion</h2>
+        <div id="profileCompletionPercent" style="font-size:28px; font-weight:700; color:#1f4f8a; margin-top:10px;">0%</div>
+        <div style="height:10px; border-radius:999px; overflow:hidden; background:#e2e8f0; margin-top:10px;">
+            <div id="profileCompletionBar" style="height:100%; width:0%; background:linear-gradient(90deg,#2563eb,#60a5fa);"></div>
+        </div>
+        <div id="profileChecklist" style="margin-top:12px;"></div>
+        <p id="profileMissingInfo" style="margin-top:10px; color:#92400e;"></p>
+    </div>
+
+</section>
+
+<section class="productivity-section">
+    <div class="productivity-card" style="grid-column:1/-1;">
+        <h2><i class="fa-solid fa-bell"></i> Notification Center</h2>
+        <div id="advancedNotificationList"></div>
+    </div>
+</section>
 
 <div class="logout-modal" id="logoutModal">
-
-<div class="logout-box">
-
-<h2>Logout?</h2>
-
-<p>Are you sure you want to logout?</p>
-
-<div class="logout-buttons">
-
-<button class="secondary-btn" id="cancelLogout">
-
-Cancel
-
-</button>
-
-<button class="primary-btn" id="confirmLogout">
-
-Logout
-
-</button>
-
+    <div class="logout-box">
+        <h3>Confirm Logout</h3>
+        <p style="margin-top:10px; color:#64748b;">Do you want to logout from SmartHire?</p>
+        <div class="logout-buttons">
+            <button id="cancelLogout" class="secondary-btn" type="button">Cancel</button>
+            <button id="confirmLogout" class="primary-btn" type="button">Logout</button>
+        </div>
+    </div>
 </div>
 
-</div>
-
-</div>
-</div>
-
+<script src="../js/api-client.js"></script>
 <script src="../js/script.js"></script>
+
 <script>
-(() => {
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const name = localStorage.getItem("userName") || "User";
-    const email = localStorage.getItem("userEmail") || "";
+    let currentResumeId = null;
 
-    if (!token) {
-        window.location.href = "../index.html";
-        return;
-    }
-
-    if (role !== "candidate") {
-        window.location.href = role === "recruiter" ? "recruiter.html" : role === "admin" ? "admin.html" : "../index.html";
-        return;
-    }
-
-    const userNameEl = document.getElementById("dashboardUserName");
-    const userRoleEl = document.getElementById("dashboardUserRole");
-    const welcomeHeading = document.getElementById("welcomeHeading");
-    const welcomeSubtitle = document.getElementById("welcomeSubtitle");
-
-    if (userNameEl) userNameEl.textContent = name;
-    if (userRoleEl) userRoleEl.textContent = "Candidate";
-    if (welcomeHeading) welcomeHeading.textContent = `Welcome ${name} 👋`;
-    if (welcomeSubtitle) welcomeSubtitle.textContent = `Hello ${name}${email ? ` (${email})` : ""}. Track your interview preparation and placement progress.`;
-
-    document.querySelectorAll("li").forEach((item) => {
-        if (item.textContent.includes("Logout")) {
-            item.addEventListener("click", () => {
-                localStorage.removeItem("authToken");
-                localStorage.removeItem("userRole");
-                localStorage.removeItem("userEmail");
-                localStorage.removeItem("userName");
-                window.location.href = "../index.html";
-            });
+    async function downloadResumeReport() {
+        if (!currentResumeId) {
+            alert('Please upload and analyze a resume first.');
+            return;
         }
-    });
-})();
+
+        const btn = document.getElementById('downloadReportBtn');
+        btn.disabled = true;
+        btn.textContent = 'Generating Report...';
+
+        try {
+            const resumeReportUrl = window.smartHireApi
+                ? window.smartHireApi.buildUrl('/api/resume/report/' + currentResumeId)
+                : 'http://localhost:8080/api/resume/report/' + currentResumeId;
+            const response = await fetch(resumeReportUrl, {
+                headers: {
+                    Authorization: localStorage.getItem('authToken') ? 'Bearer ' + localStorage.getItem('authToken') : ''
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to generate report');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'resume-report-' + currentResumeId + '.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            alert('Error downloading report: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Download AI Report';
+        }
+    }
+
+    document.getElementById('downloadReportBtn')?.addEventListener('click', downloadResumeReport);
 </script>
 
+<script src="../js/candidate-advanced.js"></script>
+
 </body>
+
 </html>

@@ -21,6 +21,9 @@ public class User {
 
     private String provider = "LOCAL";
 
+    @Column(name = "profile_image")
+    private String profileImage;
+
     public User() {
     }
 
@@ -70,5 +73,13 @@ public class User {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
     }
 }

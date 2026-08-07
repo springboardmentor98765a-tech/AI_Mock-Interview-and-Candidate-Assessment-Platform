@@ -29,9 +29,22 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
 
+        if (request.getName() == null || request.getName().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Name is required"));
+        }
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Email is required"));
+        }
+        if (request.getPassword() == null || request.getPassword().length() < 6) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Password must be at least 6 characters"));
+        }
+
         User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setName(request.getName().trim());
+        user.setEmail(request.getEmail().trim().toLowerCase());
         user.setPassword(request.getPassword());
         user.setRole(request.getRole());
 
@@ -41,7 +54,11 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "message", "User registered successfully",
-                "token", token
+                "token", token,
+                "role", savedUser.getRole() == null ? "candidate" : savedUser.getRole(),
+                "name", savedUser.getName(),
+                "email", savedUser.getEmail(),
+                "userId", savedUser.getId()
         ));
     }
 
@@ -52,12 +69,6 @@ public class UserController {
                 request.getEmail(),
                 request.getPassword()
         );
-
-        System.out.println("=================================");
-        System.out.println("Email : " + request.getEmail());
-        System.out.println("Password : " + request.getPassword());
-        System.out.println("Login Success : " + userOpt.isPresent());
-        System.out.println("=================================");
 
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -70,7 +81,11 @@ public class UserController {
 
         return ResponseEntity.ok(Map.of(
                 "message", "Login Successful",
-                "token", token
+                "token", token,
+                "role", user.getRole() == null ? "candidate" : user.getRole(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "userId", user.getId()
         ));
     }
 

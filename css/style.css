@@ -1541,6 +1541,8 @@ z-index:1000;
 
 padding:20px;
 
+overflow-y:auto;
+
 }
 
 .auth-modal{
@@ -1548,6 +1550,8 @@ padding:20px;
 position:relative;
 
 width:min(100%, 480px);
+
+margin:auto;
 
 background:linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
 
@@ -1557,7 +1561,7 @@ border-radius:28px;
 
 box-shadow:0 25px 70px rgba(15, 23, 42, .22);
 
-overflow:hidden;
+overflow:auto;
 
 animation:modalSlideIn .35s ease;
 
@@ -2346,6 +2350,9 @@ font-weight:bold;
     display:flex;
     flex-direction:column;
 
+    overflow-y:auto;
+    overflow-x:hidden;
+
     z-index:999;
 
 }
@@ -2829,6 +2836,86 @@ padding:20px;
 
 }
 
+/* ===========================
+        RESUME IMPROVEMENT CARDS
+============================ */
+
+.improvement-card{
+
+    background:#fff;
+
+    padding:25px;
+
+    border-radius:16px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.06);
+
+    border:1px solid #e2e8f0;
+
+    transition:.3s;
+
+}
+
+.improvement-card:hover{
+
+    transform:translateY(-5px);
+
+    box-shadow:0 12px 28px rgba(0,0,0,.10);
+
+}
+
+.improvement-card h3{
+
+    font-size:18px;
+
+    font-weight:600;
+
+    margin-bottom:15px;
+
+}
+
+.improvement-card ul li{
+
+    padding:10px 0;
+
+    border-bottom:1px solid #f1f5f9;
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:10px;
+
+    font-size:14px;
+
+    color:#334155;
+
+}
+
+.improvement-card ul li:last-child{
+
+    border-bottom:none;
+
+}
+
+.strengths-card{
+
+    border-left:4px solid #27ae60;
+
+}
+
+.weaknesses-card{
+
+    border-left:4px solid #e74c3c;
+
+}
+
+.suggestions-card{
+
+    border-left:4px solid #f39c12;
+
+}
+
 .skill{
 
     margin-bottom:25px;
@@ -3221,6 +3308,294 @@ color:#1d4ed8;
 
 }
 
+.live-interview-box{
+
+grid-column:1/-1;
+
+}
+
+.live-interview-subtitle{
+
+color:#64748b;
+
+margin:10px 0 16px;
+
+}
+
+.live-interview-preview-wrap{
+
+position:relative;
+
+border-radius:16px;
+
+overflow:hidden;
+
+background:linear-gradient(135deg,#0f172a,#1e3a8a);
+
+min-height:280px;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+}
+
+#liveInterviewVideo{
+
+width:100%;
+
+height:100%;
+
+min-height:280px;
+
+object-fit:cover;
+
+display:block;
+
+}
+
+.live-interview-placeholder{
+
+position:absolute;
+
+inset:0;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+color:#dbeafe;
+
+font-weight:600;
+
+background:radial-gradient(circle at center,rgba(30,58,138,.25),rgba(2,6,23,.82));
+
+text-align:center;
+
+padding:20px;
+
+}
+
+.live-interview-error{
+
+margin-top:10px;
+
+padding:10px 12px;
+
+border-radius:10px;
+
+background:#fff5f5;
+
+color:#b42318;
+
+border-left:4px solid #ef4444;
+
+font-weight:500;
+
+}
+
+.live-status-grid{
+
+margin-top:14px;
+
+display:grid;
+
+grid-template-columns:repeat(2,minmax(0,1fr));
+
+gap:10px;
+
+}
+
+.live-status-card{
+
+background:#f8fafc;
+
+border:1px solid #e2e8f0;
+
+border-radius:12px;
+
+padding:10px 12px;
+
+display:flex;
+
+align-items:center;
+
+justify-content:space-between;
+
+gap:8px;
+
+}
+
+.live-status-label{
+
+font-weight:600;
+
+color:#334155;
+
+}
+
+.live-status-pill{
+
+font-size:12px;
+
+font-weight:700;
+
+padding:5px 9px;
+
+border-radius:999px;
+
+}
+
+.live-status-pill.on{
+
+background:#dcfce7;
+
+color:#166534;
+
+}
+
+.live-status-pill.off{
+
+background:#fee2e2;
+
+color:#991b1b;
+
+}
+
+.live-interview-actions{
+
+display:flex;
+
+flex-wrap:wrap;
+
+gap:10px;
+
+margin-top:14px;
+
+}
+
+.live-interview-actions button[disabled]{
+
+opacity:.65;
+
+cursor:not-allowed;
+
+}
+
+.live-transcript-wrap{
+
+margin-top:16px;
+
+padding:14px;
+
+background:#f8fafc;
+
+border:1px solid #e2e8f0;
+
+border-radius:12px;
+
+}
+
+.live-transcript-head{
+
+display:flex;
+
+align-items:center;
+
+justify-content:space-between;
+
+gap:10px;
+
+margin-bottom:10px;
+
+}
+
+.live-transcript-head h3{
+
+margin:0;
+
+font-size:16px;
+
+color:#1f2937;
+
+}
+
+.live-transcript-box{
+
+min-height:120px;
+
+max-height:220px;
+
+overflow:auto;
+
+padding:12px;
+
+border-radius:10px;
+
+background:#ffffff;
+
+border:1px solid #dbe3ef;
+
+color:#334155;
+
+line-height:1.55;
+
+white-space:pre-wrap;
+
+}
+
+.live-speech-actions{
+
+display:flex;
+
+flex-wrap:wrap;
+
+gap:10px;
+
+margin-top:12px;
+
+}
+
+.live-followup-wrap{
+
+margin-top:12px;
+
+padding:12px;
+
+border-radius:10px;
+
+background:#eef5ff;
+
+border-left:4px solid #1f78d1;
+
+}
+
+.live-followup-wrap h4{
+
+margin:0 0 6px;
+
+font-size:14px;
+
+color:#1f4f8a;
+
+}
+
+.live-followup-wrap p{
+
+margin:0;
+
+color:#1f2d3d;
+
+line-height:1.5;
+
+font-weight:500;
+
+}
+
 /*==================================================
         HISTORY TABLE
 ==================================================*/
@@ -3272,6 +3647,27 @@ background:#f8fafc;
 .interview-section{
 
 grid-template-columns:1fr;
+
+}
+
+.live-status-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.live-transcript-head{
+
+align-items:flex-start;
+
+flex-direction:column;
+
+}
+
+.live-interview-preview-wrap,
+#liveInterviewVideo{
+
+min-height:220px;
 
 }
 
@@ -4298,6 +4694,214 @@ text-align:left;
 
 }
 
+.recruiter-filter-bar{
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+
+gap:12px;
+
+margin-bottom:16px;
+
+}
+
+.recruiter-filter-item{
+
+display:flex;
+
+flex-direction:column;
+
+gap:6px;
+
+}
+
+.recruiter-filter-item label{
+
+font-size:13px;
+
+font-weight:600;
+
+color:#334155;
+
+}
+
+.recruiter-filter-item input{
+
+height:40px;
+
+border:1px solid #cbd5e1;
+
+border-radius:10px;
+
+padding:0 12px;
+
+font-family:inherit;
+
+font-size:14px;
+
+}
+
+.recruiter-filter-actions{
+
+display:flex;
+
+align-items:flex-end;
+
+gap:8px;
+
+}
+
+.recruiter-filter-actions button{
+
+height:40px;
+
+}
+
+.table-btn{
+
+border:none;
+
+background:#2563eb;
+
+color:#fff;
+
+font-weight:600;
+
+padding:8px 14px;
+
+border-radius:8px;
+
+cursor:pointer;
+
+}
+
+.table-btn:hover{
+
+background:#1d4ed8;
+
+}
+
+.recruiter-detail-topbar{
+
+justify-content:space-between;
+
+align-items:center;
+
+}
+
+.recruiter-detail-topbar h2{
+
+margin:0;
+
+color:#0f172a;
+
+}
+
+.recruiter-detail-topbar p{
+
+margin:6px 0 0;
+
+color:#64748b;
+
+}
+
+.candidate-detail-section{
+
+padding:0 40px 40px;
+
+}
+
+.detail-score-grid{
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+
+gap:14px;
+
+margin-bottom:18px;
+
+}
+
+.detail-score-card h3{
+
+font-size:14px;
+
+color:#64748b;
+
+margin:0 0 10px;
+
+}
+
+.detail-score-value{
+
+font-size:34px;
+
+font-weight:700;
+
+color:#0f172a;
+
+}
+
+.detail-two-col{
+
+display:grid;
+
+grid-template-columns:1fr 1fr;
+
+gap:16px;
+
+margin-bottom:18px;
+
+}
+
+.detail-meta{
+
+margin:8px 0 0;
+
+color:#475569;
+
+}
+
+.analytics-card ul{
+
+margin:0;
+
+padding-left:18px;
+
+}
+
+.recruiter-error{
+
+color:#b42318;
+
+font-weight:600;
+
+}
+
+@media(max-width:992px){
+
+.candidate-detail-section{
+
+padding:0 20px 30px;
+
+}
+
+.detail-two-col{
+
+grid-template-columns:1fr;
+
+}
+
+.recruiter-filter-actions{
+
+align-items:stretch;
+
+}
+
+}
+
 .candidate-table td{
 
 padding:18px;
@@ -4965,4 +5569,480 @@ grid-template-columns:1fr;
 
 }
 
+}
+
+/*=========================================
+        INTERVIEW EVALUATION DASHBOARD
+=========================================*/
+
+.evaluation-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+}
+
+.evaluation-kicker{
+    margin:0 0 6px 0;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-size:12px;
+    color:#2563eb;
+    font-weight:700;
+}
+
+.evaluation-header h3{
+    margin:0;
+    color:#102033;
+    font-size:24px;
+}
+
+.evaluation-subtitle{
+    margin:8px 0 0 0;
+    color:#64748b;
+    line-height:1.6;
+}
+
+.evaluation-rating-chip{
+    min-width:140px;
+    padding:14px 16px;
+    border-radius:16px;
+    background:linear-gradient(135deg,#eff6ff,#f8fbff);
+    border:1px solid #d9e8fb;
+    box-shadow:0 10px 24px rgba(31,120,209,.08);
+    text-align:center;
+}
+
+.evaluation-rating-chip span{
+    display:block;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1.2px;
+    color:#64748b;
+    margin-bottom:4px;
+}
+
+.evaluation-rating-chip strong{
+    color:#1f4f8a;
+    font-size:18px;
+}
+
+.evaluation-ring-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px;
+    margin-bottom:18px;
+}
+
+.evaluation-ring-card{
+    background:#f8fbff;
+    border:1px solid #e3ebf8;
+    border-radius:18px;
+    padding:14px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    box-shadow:0 10px 26px rgba(20,40,80,.05);
+}
+
+.evaluation-ring-card-large{
+    grid-column:span 2;
+    background:linear-gradient(135deg,#f4f8ff,#ffffff);
+}
+
+.evaluation-ring-card p{
+    margin:12px 0 0 0;
+    color:#64748b;
+    font-size:13px;
+}
+
+.evaluation-ring{
+    width:118px;
+    height:118px;
+    border-radius:50%;
+    padding:10px;
+    display:grid;
+    place-items:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.65);
+}
+
+.evaluation-ring-card-large .evaluation-ring{
+    width:146px;
+    height:146px;
+}
+
+.evaluation-ring-center{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background:#ffffff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:2px;
+    box-shadow:0 6px 18px rgba(20,40,80,.08);
+}
+
+.evaluation-ring-center span{
+    font-size:24px;
+    font-weight:800;
+    color:#102033;
+}
+
+.evaluation-ring-card-large .evaluation-ring-center span{
+    font-size:30px;
+}
+
+.evaluation-ring-center small{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:#64748b;
+}
+
+.evaluation-breakdown-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:14px;
+    margin-bottom:18px;
+}
+
+.evaluation-breakdown-card,
+.evaluation-list-card{
+    background:#ffffff;
+    border:1px solid #e7ebf4;
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 10px 22px rgba(20,40,80,.05);
+}
+
+.evaluation-breakdown-card h4,
+.evaluation-list-card h4{
+    margin:0 0 12px 0;
+    color:#102033;
+    font-size:16px;
+}
+
+.evaluation-metric{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-top:10px;
+    margin-bottom:6px;
+    font-size:13px;
+    color:#334155;
+}
+
+.evaluation-metric strong{
+    color:#102033;
+}
+
+.evaluation-bar{
+    height:9px;
+    background:#e8eef8;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.evaluation-bar div{
+    width:0%;
+    height:100%;
+    border-radius:999px;
+    background:linear-gradient(90deg,#1f78d1,#60a5fa);
+    transition:width .25s ease;
+}
+
+.evaluation-insight-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:14px;
+}
+
+.evaluation-list-card ul{
+    margin:0;
+    padding-left:18px;
+    color:#334155;
+    line-height:1.6;
+}
+
+.evaluation-list-card li + li{
+    margin-top:6px;
+}
+
+.evaluation-list-card-summary p{
+    margin:0;
+    color:#334155;
+    line-height:1.7;
+}
+
+@media(max-width:768px){
+
+.evaluation-ring-card-large{
+    grid-column:span 1;
+}
+
+.evaluation-header{
+    flex-direction:column;
+}
+
+.evaluation-rating-chip{
+    width:100%;
+}
+
+}
+
+/*=========================================
+        ADVANCED CANDIDATE MODULES
+=========================================*/
+
+#advancedNotificationList .notify-box{
+    border:1px solid #dbe3ef;
+    border-radius:12px;
+    padding:12px;
+    background:#f8fbff;
+}
+
+#codingEditor,
+#roadmapCurrentRole,
+#roadmapTargetRole,
+#roadmapExperienceLevel,
+#roadmapSkills,
+#interviewModeSelect{
+    background:#ffffff;
+    color:#1e293b;
+}
+
+#careerRoadmapList,
+#careerRoadmapSkills,
+#careerRoadmapCertifications,
+#careerRoadmapResources,
+#careerRoadmapProjects,
+#codingSummaryInsights,
+#aptitudeSummaryInsights{
+    margin:8px 0 0;
+    padding-left:18px;
+    color:#334155;
+    line-height:1.7;
+}
+
+#profileChecklist label{
+    padding:8px 10px;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    background:#f8fbff;
+}
+
+.dark-mode .interview-box,
+.dark-mode .analytics-card,
+.dark-mode .settings-card,
+.dark-mode .resume-card,
+.dark-mode .productivity-card,
+.dark-mode .achievement-card,
+.dark-mode .goal-card,
+.dark-mode .course-card,
+.dark-mode .history-table,
+.dark-mode .report-card{
+    background:#0f2239;
+    border-color:#203a57;
+    color:#e2e8f0;
+}
+
+.dark-mode .live-transcript-wrap,
+.dark-mode .live-status-card,
+.dark-mode #profileChecklist label,
+.dark-mode #codingQuestionBox,
+.dark-mode #aptitudeQuestionBox{
+    background:#10243e;
+    border-color:#284a6a;
+    color:#dbeafe;
+}
+
+.dark-mode #codingEditor,
+.dark-mode #roadmapCurrentRole,
+.dark-mode #roadmapTargetRole,
+.dark-mode #roadmapExperienceLevel,
+.dark-mode #roadmapSkills,
+.dark-mode #interviewModeSelect,
+.dark-mode #aptitudeOptionsBox label{
+    background:#0d1d33;
+    border-color:#36577a;
+    color:#e2e8f0;
+}
+
+.dark-mode .history-table tr:hover,
+.dark-mode .candidate-table tr:hover,
+.dark-mode .schedule-table tr:hover,
+.dark-mode .job-table tr:hover,
+.dark-mode .admin-table tr:hover{
+    background:#17314f;
+}
+
+.dark-mode .dashboard-header h1,
+.dark-mode .report-title,
+.dark-mode .evaluation-header h3,
+.dark-mode .evaluation-ring-center span,
+.dark-mode .detail-score-value,
+.dark-mode .recruiter-card h2,
+.dark-mode .admin-card h2{
+    color:#eff6ff;
+}
+
+.dark-mode .dashboard-header p,
+.dark-mode .evaluation-subtitle,
+.dark-mode .recruiter-header p,
+.dark-mode .timeline-meta,
+.dark-mode .report-subtitle,
+.dark-mode .score-chip span,
+.dark-mode .transcript-box,
+.dark-mode .preview-box,
+.dark-mode .evaluation-list-card ul,
+.dark-mode #speechCommunicationInsights{
+    color:#c7d7ea !important;
+}
+
+.skeleton-block{
+    border-radius:10px;
+    background:linear-gradient(90deg,#e6eef8 25%,#f2f7ff 37%,#e6eef8 63%);
+    background-size:400% 100%;
+    animation:skeletonShimmer 1.4s ease infinite;
+}
+
+@keyframes skeletonShimmer{
+    0%{background-position:100% 50%;}
+    100%{background-position:0 50%;}
+}
+
+.dark-mode .skeleton-block{
+    background:linear-gradient(90deg,#1a3555 25%,#254768 37%,#1a3555 63%);
+    background-size:400% 100%;
+}
+
+@media(max-width:1200px){
+    .dashboard,
+    .report-shell{
+        width:100%;
+    }
+
+    .dashboard-cards,
+    .analytics-section,
+    .resume-section,
+    .interview-section,
+    .history-section,
+    .achievement-section,
+    .courses-section,
+    .productivity-section,
+    .settings-section,
+    .report-section,
+    .placement-section,
+    .candidate-management,
+    .recruiter-analytics,
+    .interview-schedule,
+    .job-management,
+    .recruiter-notifications,
+    .user-management,
+    .admin-analytics,
+    .system-controls,
+    .candidate-detail-section{
+        padding-left:20px;
+        padding-right:20px;
+    }
+}
+
+@media(max-width:992px){
+    .sidebar{
+        width:82px;
+    }
+
+    .sidebar h2,
+    .sidebar li span{
+        display:none;
+    }
+
+    .dashboard{
+        margin-left:82px;
+        width:calc(100% - 82px);
+    }
+}
+
+@media(max-width:768px){
+    .sidebar{
+        position:fixed;
+        bottom:0;
+        top:auto;
+        left:0;
+        width:100%;
+        height:70px;
+        z-index:999;
+        overflow:hidden;
+        border-right:none;
+        border-top:1px solid #e2e8f0;
+    }
+
+    .sidebar-logo{
+        display:none;
+    }
+
+    .sidebar ul{
+        display:flex;
+        justify-content:space-around;
+        align-items:center;
+        height:100%;
+        gap:0;
+        padding:0 8px;
+    }
+
+    .sidebar ul li{
+        margin:0;
+        padding:6px;
+        min-width:0;
+    }
+
+    .sidebar ul li i{
+        font-size:18px;
+        margin:0;
+    }
+
+    .sidebar ul li span{
+        display:none;
+    }
+
+    .dashboard{
+        margin-left:0;
+        width:100%;
+        padding-bottom:90px;
+    }
+
+    .topbar{
+        padding:12px;
+        gap:10px;
+    }
+
+    .top-icons{
+        gap:8px;
+    }
+
+    .top-icons .profile div{
+        display:none;
+    }
+
+    .live-interview-actions,
+    .live-speech-actions{
+        flex-direction:column;
+    }
+
+    .live-interview-actions button,
+    .live-speech-actions button,
+    #codingTestSection button,
+    #aptitudeTestSection button{
+        width:100%;
+    }
+
+    #codingEditor{
+        min-height:220px;
+    }
 }

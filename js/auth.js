@@ -1,5 +1,7 @@
 (() => {
-    const API_BASE_URL = "http://localhost:8080";
+    const API_BASE_URL = (window.smartHireApi && window.smartHireApi.baseUrl)
+        ? window.smartHireApi.baseUrl
+        : "http://localhost:8080";
 
     const loginFormSection = document.getElementById("loginFormSection");
     const registerFormSection = document.getElementById("registerFormSection");
@@ -14,6 +16,7 @@
     const loginAuthMessage = document.getElementById("loginAuthMessage");
     const registerAuthMessage = document.getElementById("registerAuthMessage");
     const loginModal = document.getElementById("loginModal");
+    const authContainer = document.getElementById("loginModal");
     const loginForm = document.getElementById("loginForm");
     const registerForm = document.getElementById("registerForm");
     const forgotPasswordBtn = document.getElementById("forgotPassword");
@@ -73,6 +76,13 @@
 
         if (showRegisterTab) {
             showRegisterTab.classList.toggle("active", !showLogin);
+        }
+
+        if (authContainer) {
+            authContainer.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
         }
     }
 
@@ -187,6 +197,15 @@
     }
 
     async function apiRequest(url, body) {
+        if (window.smartHireApi && typeof window.smartHireApi.requestJson === "function") {
+            return window.smartHireApi.requestJson(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+                retries: 1
+            });
+        }
+
         const response = await fetch(`${API_BASE_URL}${url}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -202,17 +221,20 @@
         }
 
         if (!response.ok) {
-            throw new Error(data.message || "Invalid Credentials");
+            throw new Error(data.message || "Authentication request failed");
         }
 
         return data;
     }
 
-    function saveUser(token, role, email, name) {
+    function saveUser(token, role, email, name, userId) {
         localStorage.setItem("authToken", token || "");
         localStorage.setItem("userRole", role || "");
         localStorage.setItem("userEmail", email || "");
         localStorage.setItem("userName", name || "User");
+        if (userId !== undefined && userId !== null) {
+            localStorage.setItem("userId", String(userId));
+        }
     }
 
     function clearUser() {
@@ -267,12 +289,13 @@
             const token = result.token || result.jwt || result.jwtToken || result.accessToken;
             const role = (result.role || selectedRole || "").toLowerCase();
             const name = result.name || email.split("@")[0];
+            const userId = result.userId;
 
             if (!token) {
                 throw new Error("Invalid Credentials");
             }
 
-            saveUser(token, role, email, name);
+            saveUser(token, role, email, name, userId);
             setMessage("Login successful", false, loginAuthMessage);
             showToast("✔ Login Successful", "success");
 

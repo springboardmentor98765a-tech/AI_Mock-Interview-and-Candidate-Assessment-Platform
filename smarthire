@@ -1,0 +1,65 @@
+package com.smarthire.backend.interview.controller;
+
+import com.smarthire.backend.interview.dto.InterviewRequest;
+import com.smarthire.backend.interview.dto.InterviewResponse;
+import com.smarthire.backend.interview.entity.Interview;
+import com.smarthire.backend.interview.service.InterviewService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/interviews")
+public class InterviewController {
+
+    private final InterviewService interviewService;
+
+    public InterviewController(InterviewService interviewService) {
+        this.interviewService = interviewService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Interview>> getAllInterviews() {
+        List<Interview> interviews = interviewService.getAllInterviews();
+        return new ResponseEntity<>(interviews, HttpStatus.OK);
+    }
+
+    @PostMapping("/start")
+    public ResponseEntity<InterviewResponse> startInterview(@RequestBody InterviewRequest request) {
+        InterviewResponse response = interviewService.startInterview(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/history/{userId}")
+    public ResponseEntity<List<Interview>> getInterviewHistory(@PathVariable Long userId) {
+        List<Interview> interviews = interviewService.getInterviewHistory(userId);
+        return new ResponseEntity<>(interviews, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteInterview(@PathVariable Long id) {
+        interviewService.deleteInterview(id);
+        return new ResponseEntity<>("Interview deleted successfully.", HttpStatus.OK);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Interview> updateInterview(@PathVariable Long id, @RequestBody InterviewRequest request) {
+        Interview interview = interviewService.updateInterview(id, request);
+        return new ResponseEntity<>(interview, HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Interview> getInterviewById(@PathVariable Long id) {
+        Interview interview = interviewService.getInterviewById(id);
+        return new ResponseEntity<>(interview, HttpStatus.OK);
+    }
+}

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interview Report | SmartHire AI</title>
+<link rel="stylesheet" href="../css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<style>
+body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
+.report-shell{max-width:1240px;margin:0 auto;padding:24px}
+.report-hero{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.report-title{margin:0;color:#102a43;font-size:clamp(28px,4vw,40px)}
+.report-subtitle{margin:8px 0 0;color:#52606d;line-height:1.6;max-width:780px}
+.report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.report-card{background:#fff;border:1px solid #e5edf8;border-radius:18px;padding:18px;box-shadow:0 12px 28px rgba(20,40,80,.08)}
+.report-section{margin-top:18px}
+.report-section h3{margin:0 0 12px;color:#102a43}
+.timeline-item{padding:12px 0;border-bottom:1px solid #edf2fb;display:flex;justify-content:space-between;gap:12px}
+.timeline-item:last-child{border-bottom:none}
+.timeline-meta{font-size:12px;color:#64748b;margin-top:4px}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.score-chip{background:#f8fbff;border:1px solid #dbeafe;border-radius:14px;padding:14px}
+.score-chip span{display:block;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.score-chip strong{display:block;font-size:28px;color:#1f4f8a;margin-top:8px}
+.transcript-box{white-space:pre-wrap;line-height:1.8;color:#243b53;background:#fbfcff;border:1px solid #e8eef8;border-radius:14px;padding:16px;min-height:140px}
+.preview-box{white-space:pre-wrap;background:#f7fbff;border:1px dashed #bfd5f5;border-radius:14px;padding:16px;color:#334e68;line-height:1.7}
+@media (max-width: 720px){.report-shell{padding:16px}.report-hero{align-items:flex-start}.report-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="report-shell">
+    <div class="report-hero">
+        <div>
+            <h1 class="report-title">SmartHire AI Interview Report</h1>
+            <p id="reportSubtitle" class="report-subtitle">A professional summary of the completed live interview, including evaluation scores, transcript, recording metadata, and email-ready report details.</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="secondary-btn" type="button" onclick="window.location.href='candidate.html'">Back to Candidate Dashboard</button>
+            <button class="primary-btn" type="button" onclick="window.print()">Print / Save PDF</button>
+        </div>
+    </div>
+
+    <div id="reportLoading" class="report-card">Loading report...</div>
+    <div id="reportError" class="report-card" style="display:none;color:#b42318;"></div>
+
+    <div id="reportContent" style="display:none;">
+        <div class="report-grid">
+            <div class="report-card">
+                <h3>Interview Summary</h3>
+                <div id="reportSummary"></div>
+            </div>
+            <div class="report-card">
+                <h3>Recording Metadata</h3>
+                <div id="reportRecording"></div>
+            </div>
+            <div class="report-card">
+                <h3>Email Architecture</h3>
+                <div id="reportEmailPreview" class="preview-box"></div>
+            </div>
+        </div>
+
+        <section class="report-section report-card">
+            <h3>Evaluation Scores</h3>
+            <div class="score-grid" id="reportScores"></div>
+        </section>
+
+        <section class="report-section report-card">
+            <h3>Session Timeline</h3>
+            <div id="reportTimeline"></div>
+        </section>
+
+        <section class="report-section report-card">
+            <h3>Transcript</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                <button id="downloadTranscriptBtn" class="secondary-btn" type="button">Download Transcript</button>
+                <button id="copyTranscriptBtn" class="secondary-btn" type="button">Copy Transcript</button>
+            </div>
+            <div id="reportTranscript" class="transcript-box"></div>
+        </section>
+
+        <section class="report-section report-card">
+            <h3>Advanced Live Signals</h3>
+            <div class="score-grid" id="reportLiveSignals"></div>
+            <div id="reportSpeechInsights" style="margin-top:12px; color:#334e68;"></div>
+        </section>
+    </div>
+</div>
+
+<script src="../js/api-client.js"></script>
+<script>
+(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    if (!token) {
+        window.location.href = "../index.html";
+        return;
+    }
+    if (role !== "candidate") {
+        window.location.href = role === "recruiter" ? "recruiter.html" : role === "admin" ? "admin.html" : "../index.html";
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const interviewId = Number(params.get("interviewId") || 0);
+    const loadingEl = document.getElementById("reportLoading");
+    const errorEl = document.getElementById("reportError");
+    const contentEl = document.getElementById("reportContent");
+
+    const safeText = (value, fallback) => (typeof value === "string" && value.trim()) ? value.trim() : fallback;
+    const formatDate = (value) => {
+        if (!value) return "-";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    };
+    const pct = (value) => Number.isFinite(Number(value)) ? Math.round(Number(value)) + "%" : "Pending";
+    const readJsonSafe = (raw, fallback) => {
+        if (!raw || typeof raw !== "string") return fallback;
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            return fallback;
+        }
+    };
+
+    if (!Number.isFinite(interviewId) || interviewId <= 0) {
+        loadingEl.style.display = "none";
+        errorEl.style.display = "block";
+        errorEl.textContent = "Interview ID is missing.";
+        return;
+    }
+
+    const renderScores = (evaluation) => {
+        const scores = [
+            ["Overall", evaluation?.overallScore],
+            ["Communication", evaluation?.communicationScore],
+            ["Confidence", evaluation?.confidenceScore],
+            ["Technical", evaluation?.technicalScore],
+            ["Professionalism", evaluation?.professionalismScore]
+        ];
+        const container = document.getElementById("reportScores");
+        container.innerHTML = scores.map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong>${pct(value)}</strong></div>`).join("");
+    };
+
+    const renderTimeline = (items) => {
+        const container = document.getElementById("reportTimeline");
+        if (!Array.isArray(items) || !items.length) {
+            container.innerHTML = '<p style="margin:0;color:#64748b;">No session timeline available.</p>';
+            return;
+        }
+        container.innerHTML = items.map((item, index) => {
+            const question = safeText(item?.question, `Question ${index + 1}`);
+            const answer = safeText(item?.answer, "No answer recorded.");
+            const status = safeText(item?.status, "Pending");
+            const seconds = Number.isFinite(Number(item?.timeTakenSeconds)) ? Number(item.timeTakenSeconds) : 0;
+            return `<div class="timeline-item"><div><strong>Question ${index + 1}</strong><div class="timeline-meta">${question}</div><div class="timeline-meta">Status: ${status}</div><div class="timeline-meta">Answer: ${answer}</div></div><div style="min-width:70px;text-align:right;color:#1f4f8a;">${seconds}s</div></div>`;
+        }).join("");
+    };
+
+    const renderReport = (data) => {
+        const evaluation = data?.evaluation || null;
+        const liveSignals = readJsonSafe(data?.liveSignalsJson, {});
+        const speechInsights = readJsonSafe(data?.speechInsightsJson, {});
+        document.getElementById("reportSummary").innerHTML = `
+            <p><strong>Interview ID:</strong> ${data?.interviewId || interviewId}</p>
+            <p><strong>Job Role:</strong> ${safeText(data?.jobRole, "Not provided")}</p>
+            <p><strong>Interview Type:</strong> ${safeText(data?.interviewType, "Not provided")}</p>
+            <p><strong>Domain:</strong> ${safeText(data?.domain, "Not provided")}</p>
+            <p><strong>Difficulty:</strong> ${safeText(data?.difficulty, "Not provided")}</p>
+            <p><strong>Experience:</strong> ${safeText(data?.experienceLevel, "Not provided")}</p>
+            <p><strong>Session Summary:</strong> ${safeText(data?.sessionSummary, "Not available")}</p>
+            <p><strong>Evaluation Date:</strong> ${formatDate(evaluation?.evaluationDate)}</p>
+        `;
+
+        document.getElementById("reportRecording").innerHTML = `
+            <p><strong>Video:</strong> ${safeText(data?.recording?.videoRecordingName, "Not recorded")}</p>
+            <p><strong>Audio:</strong> ${safeText(data?.recording?.audioRecordingName, "Not recorded")}</p>
+            <p><strong>Recording Active:</strong> ${data?.recording?.recordingActive ? "Yes" : "No"}</p>
+            <p><strong>Recording Supported:</strong> ${data?.recording?.recordingSupported ? "Yes" : "No"}</p>
+            <p><strong>Duration:</strong> ${Number.isFinite(Number(data?.recording?.durationSeconds)) ? Number(data.recording.durationSeconds) + "s" : "-"}</p>
+            <p><strong>Timer Remaining:</strong> ${Number.isFinite(Number(data?.recording?.timerSecondsRemaining)) ? Number(data.recording.timerSecondsRemaining) + "s" : "-"}</p>
+        `;
+
+        document.getElementById("reportEmailPreview").textContent = [
+            `To: ${safeText(data?.emailPreview?.recipient, "candidate@smarthire.local")}`,
+            `Subject: ${safeText(data?.emailPreview?.subject, "SmartHire AI Interview Report")}`,
+            "",
+            safeText(data?.emailPreview?.body, "Email body unavailable.")
+        ].join("\n");
+
+        document.getElementById("reportTranscript").textContent = safeText(data?.transcript, "Transcript is empty.");
+
+        const signalCards = [
+            ["Emotion", liveSignals?.emotion?.dominantEmotion || "Not captured"],
+            ["Emotion Confidence", Number.isFinite(Number(liveSignals?.emotion?.confidence)) ? Math.round(Number(liveSignals.emotion.confidence)) + "%" : "Pending"],
+            ["Eye Contact", Number.isFinite(Number(liveSignals?.eyeContact?.eyeContactPercentage)) ? Math.round(Number(liveSignals.eyeContact.eyeContactPercentage)) + "%" : "Pending"],
+            ["Looking Away", liveSignals?.eyeContact?.lookingAway ? "Yes" : "No"],
+            ["Attention", liveSignals?.eyeContact?.attentionLevel || "Pending"],
+            ["Engagement", liveSignals?.eyeContact?.engagementLevel || "Pending"]
+        ];
+        document.getElementById("reportLiveSignals").innerHTML = signalCards
+            .map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong style="font-size:20px;">${value}</strong></div>`)
+            .join("");
+
+        document.getElementById("reportSpeechInsights").innerHTML = `
+            <p><strong>Grammar Quality:</strong> ${Number.isFinite(Number(speechInsights?.grammarQuality)) ? Math.round(Number(speechInsights.grammarQuality)) + "%" : "Pending"}</p>
+            <p><strong>Speaking Pace:</strong> ${Number.isFinite(Number(speechInsights?.speakingPaceWpm)) ? Math.round(Number(speechInsights.speakingPaceWpm)) + " WPM" : "Pending"}</p>
+            <p><strong>Filler Words:</strong> ${Number.isFinite(Number(speechInsights?.fillerWords)) ? Math.round(Number(speechInsights.fillerWords)) : "Pending"}</p>
+            <p><strong>Average Response Length:</strong> ${Number.isFinite(Number(speechInsights?.averageResponseLength)) ? Math.round(Number(speechInsights.averageResponseLength)) + " words" : "Pending"}</p>
+            <p><strong>Communication Insights:</strong> ${safeText(speechInsights?.insights, "No speech insights recorded.")}</p>
+        `;
+
+        renderScores(evaluation);
+        renderTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
+        document.getElementById("reportSubtitle").textContent = `Completed interview #${data?.interviewId || interviewId} with an overall score of ${pct(evaluation?.overallScore)}.`;
+
+        const transcriptBlob = new Blob([safeText(data?.transcript, "")], { type: "text/plain;charset=utf-8" });
+        document.getElementById("downloadTranscriptBtn").onclick = () => {
+            const link = document.createElement("a");
+            link.href = window.URL.createObjectURL(transcriptBlob);
+            link.download = `interview-transcript-${data?.interviewId || interviewId}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            window.URL.revokeObjectURL(link.href);
+            document.body.removeChild(link);
+        };
+        document.getElementById("copyTranscriptBtn").onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(safeText(data?.transcript, ""));
+                alert("Transcript copied to clipboard.");
+            } catch (error) {
+                alert("Unable to copy transcript.");
+            }
+        };
+
+        loadingEl.style.display = "none";
+        contentEl.style.display = "block";
+    };
+
+    const loadReport = () => {
+        const path = `/api/interviews/${interviewId}/report`;
+        const request = (window.smartHireApi && typeof window.smartHireApi.requestJson === "function")
+            ? window.smartHireApi.requestJson(path, { retries: 1 })
+            : fetch((window.smartHireApi ? window.smartHireApi.buildUrl(path) : `http://localhost:8080${path}`)).then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Failed to load report (HTTP ${response.status})`);
+                }
+                return response.json();
+            });
+
+        request
+            .then(renderReport)
+            .catch((error) => {
+                loadingEl.style.display = "none";
+                errorEl.style.display = "block";
+                errorEl.innerHTML = `${error.message || "Unable to load report."} <button id="reportRetryBtn" class="secondary-btn" type="button" style="margin-left:8px;">Retry</button>`;
+                document.getElementById("reportRetryBtn")?.addEventListener("click", () => {
+                    errorEl.style.display = "none";
+                    loadingEl.style.display = "block";
+                    loadReport();
+                });
+            });
+    };
+
+    loadReport();
+})();
+</script>
+</body>
+</html>

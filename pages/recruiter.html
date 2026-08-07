@@ -127,9 +127,9 @@
 
 <div>
 
-<h4 id="dashboardUserName">Sarah Johnson</h4>
+<h4 id="dashboardUserName">Loading...</h4>
 
-<p id="dashboardUserRole">Senior Recruiter</p>
+<p id="dashboardUserRole">Recruiter</p>
 
 </div>
 
@@ -164,8 +164,8 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
         <div>
             <h4>Total Candidates</h4>
-            <h2><span class="counter" data-target="245">0</span></h2>
-            <span>+18 This Week</span>
+            <h2><span class="counter" id="recruiterTotalCandidatesCounter" data-target="0">0</span></h2>
+            <span id="recruiterCandidatesHint">Loading...</span>
         </div>
 
     </div>
@@ -178,8 +178,8 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
         <div>
             <h4>Active Jobs</h4>
-            <h2><span class="counter" data-target="28">0</span></h2>
-            <span>4 New Openings</span>
+            <h2><span class="counter" id="recruiterActiveJobsCounter" data-target="0">0</span></h2>
+            <span id="recruiterJobsHint">Loading...</span>
         </div>
 
     </div>
@@ -192,8 +192,8 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
         <div>
             <h4>Interviews</h4>
-            <h2><span class="counter" data-target="39">0</span></h2>
-            <span>Today</span>
+            <h2><span class="counter" id="recruiterInterviewsCounter" data-target="0">0</span></h2>
+            <span id="recruiterInterviewsHint">Loading...</span>
         </div>
 
     </div>
@@ -206,8 +206,8 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
         <div>
             <h4>Offers Sent</h4>
-            <h2><span class="counter" data-target="16">0</span></h2>
-            <span>5 Pending</span>
+            <h2><span class="counter" id="recruiterOffersCounter" data-target="0">0</span></h2>
+            <span id="recruiterOffersHint">Loading...</span>
         </div>
 
     </div>
@@ -228,15 +228,55 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
                 Candidate Management
             </h2>
 
-            <button class="primary-btn">
+        </div>
 
-                <i class="fa-solid fa-plus"></i>
+        <div class="recruiter-filter-bar">
 
-                Add Candidate
+            <div class="recruiter-filter-item">
+                <label for="recruiterSearchInput">Search Candidate</label>
+                <input id="recruiterSearchInput" type="text" placeholder="Search by candidate name">
+            </div>
 
-            </button>
+            <div class="recruiter-filter-item">
+                <label for="recruiterSkillFilter">Skill</label>
+                <input id="recruiterSkillFilter" type="text" placeholder="e.g. Java, React, SQL">
+            </div>
+
+            <div class="recruiter-filter-item">
+                <label for="recruiterExperienceFilter">Experience</label>
+                <input id="recruiterExperienceFilter" type="text" placeholder="e.g. 3 years, senior, fresher">
+            </div>
+
+            <div class="recruiter-filter-item">
+                <label for="recruiterStatusFilter">Status</label>
+                <select id="recruiterStatusFilter">
+                    <option value="">All</option>
+                    <option value="New">New</option>
+                    <option value="Interviewed">Interviewed</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+
+            <div class="recruiter-filter-item">
+                <label for="recruiterAtsFilter">Min ATS Score</label>
+                <input id="recruiterAtsFilter" type="number" min="0" max="100" placeholder="0-100">
+            </div>
+
+            <div class="recruiter-filter-item">
+                <label for="recruiterInterviewFilter">Min Interview Score</label>
+                <input id="recruiterInterviewFilter" type="number" min="0" max="100" placeholder="0-100">
+            </div>
+
+            <div class="recruiter-filter-actions">
+                <button id="recruiterApplyFiltersBtn" class="primary-btn" type="button">Apply Filters</button>
+                <button id="recruiterResetFiltersBtn" class="secondary-btn" type="button">Reset</button>
+            </div>
 
         </div>
+
+        <p id="recruiterCandidatesLoading" style="display:none; color:#1f4f8a; font-weight:600; margin:12px 0 0;">Loading candidates...</p>
+        <p id="recruiterCandidatesError" style="display:none; color:#b42318; font-weight:600; margin:12px 0 0;"></p>
 
         <table class="candidate-table">
 
@@ -244,15 +284,17 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
                 <tr>
 
-                    <th>Candidate</th>
+                    <th>Candidate Name</th>
 
-                    <th>Role</th>
+                    <th>Job Role</th>
 
-                    <th>Experience</th>
+                    <th>Resume ATS Score</th>
 
-                    <th>AI Score</th>
+                    <th>Interview Score</th>
 
-                    <th>Status</th>
+                    <th>Recommendation</th>
+
+                    <th>Resume Uploaded Date</th>
 
                     <th>Action</th>
 
@@ -260,69 +302,7 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
             </thead>
 
-            <tbody>
-
-                <tr>
-
-                    <td>John Smith</td>
-
-                    <td>Frontend Developer</td>
-
-                    <td>2 Years</td>
-
-                    <td><span class="ai-score">94%</span></td>
-
-                    <td><span class="status hired">Shortlisted</span></td>
-
-                    <td>
-
-                        <button class="table-btn">View</button>
-
-                    </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>Emma Watson</td>
-
-                    <td>Java Developer</td>
-
-                    <td>3 Years</td>
-
-                    <td><span class="ai-score">91%</span></td>
-
-                    <td><span class="status pending">Interview</span></td>
-
-                    <td>
-
-                        <button class="table-btn">View</button>
-
-                    </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>Michael Lee</td>
-
-                    <td>Python Developer</td>
-
-                    <td>1 Year</td>
-
-                    <td><span class="ai-score">88%</span></td>
-
-                    <td><span class="status rejected">Review</span></td>
-
-                    <td>
-
-                        <button class="table-btn">View</button>
-
-                    </td>
-
-                </tr>
-
-            </tbody>
+            <tbody id="recruiterCandidateTableBody"></tbody>
 
         </table>
 
@@ -340,6 +320,8 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
     <div class="analytics-card">
 
         <h2><i class="fa-solid fa-chart-simple"></i> Hiring Funnel</h2>
+
+        <div id="recruiterFunnelSummary" style="margin-bottom:16px; color:#475569; font-weight:600;"></div>
 
         <div class="funnel-item">
 
@@ -389,36 +371,11 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 
         <h2><i class="fa-solid fa-robot"></i> AI Top Candidates</h2>
 
-        <div class="rank-item">
-
-            <span>🥇 John Smith</span>
-
-            <span>98%</span>
-
-        </div>
+        <div id="recruiterTopCandidates"></div>
 
         <div class="rank-item">
-
-            <span>🥈 Emma Watson</span>
-
-            <span>95%</span>
-
-        </div>
-
-        <div class="rank-item">
-
-            <span>🥉 Michael Lee</span>
-
-            <span>93%</span>
-
-        </div>
-
-        <div class="rank-item">
-
-            <span>⭐ Olivia Brown</span>
-
-            <span>91%</span>
-
+            <span>Live ranking will appear after candidate data loads.</span>
+            <span>-</span>
         </div>
 
     </div>
@@ -448,33 +405,7 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
             </tr>
 
             <tr>
-
-                <td>John Smith</td>
-
-                <td>10:00 AM</td>
-
-                <td>Online</td>
-
-            </tr>
-
-            <tr>
-
-                <td>Emma Watson</td>
-
-                <td>11:30 AM</td>
-
-                <td>Offline</td>
-
-            </tr>
-
-            <tr>
-
-                <td>Michael Lee</td>
-
-                <td>03:00 PM</td>
-
-                <td>Online</td>
-
+                <td colspan="3" style="text-align:center; color:#64748b;">Upcoming interview schedule will be synced from backend.</td>
             </tr>
 
         </table>
@@ -521,37 +452,9 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
             </thead>
 
             <tbody>
-
                 <tr>
-
-                    <td>Frontend Developer</td>
-                    <td>Engineering</td>
-                    <td>125</td>
-                    <td><span class="status hired">Active</span></td>
-                    <td><button class="table-btn">Manage</button></td>
-
+                    <td colspan="5" style="text-align:center; color:#64748b;">Job management records will be synced from backend.</td>
                 </tr>
-
-                <tr>
-
-                    <td>Java Developer</td>
-                    <td>Engineering</td>
-                    <td>84</td>
-                    <td><span class="status pending">Hiring</span></td>
-                    <td><button class="table-btn">Manage</button></td>
-
-                </tr>
-
-                <tr>
-
-                    <td>UI/UX Designer</td>
-                    <td>Design</td>
-                    <td>41</td>
-                    <td><span class="status rejected">Closed</span></td>
-                    <td><button class="table-btn">Manage</button></td>
-
-                </tr>
-
             </tbody>
 
         </table>
@@ -574,19 +477,7 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
         </h2>
 
         <div class="notify-box success">
-            ✅ New application received from John Smith.
-        </div>
-
-        <div class="notify-box info">
-            📅 Interview scheduled for Emma Watson.
-        </div>
-
-        <div class="notify-box warning">
-            ⚠ AI recommends reviewing Michael Lee.
-        </div>
-
-        <div class="notify-box success">
-            🎉 Offer accepted by Olivia Brown.
+            ✅ Recruiter notifications are now backend-driven.
         </div>
 
     </div>
@@ -594,6 +485,7 @@ Manage job postings, review candidates, schedule interviews, and hire top talent
 </section>
 </div>
 
+<script src="../js/api-client.js"></script>
 <script src="../js/script.js"></script>
 <script>
 (() => {

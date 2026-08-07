@@ -141,7 +141,7 @@ Watch Demo
 
 <div>
 
-<h2>50K+</h2>
+<h2 id="heroCandidatesCount">--</h2>
 
 <p>Candidates</p>
 
@@ -149,7 +149,7 @@ Watch Demo
 
 <div>
 
-<h2>250+</h2>
+<h2 id="heroCompaniesCount">--</h2>
 
 <p>Companies</p>
 
@@ -157,7 +157,7 @@ Watch Demo
 
 <div>
 
-<h2>95%</h2>
+<h2 id="heroAtsAccuracy">--</h2>
 
 <p>ATS Accuracy</p>
 
@@ -183,11 +183,7 @@ Watch Demo
 
 <div class="score">
 
-<h1>
-
-94%
-
-</h1>
+<h1 id="heroAtsScore">--</h1>
 
 <p>
 
@@ -201,15 +197,15 @@ ATS Compatibility Score
 
 <label>Resume Quality</label>
 
-<progress value="94" max="100"></progress>
+<progress id="heroResumeQuality" value="0" max="100"></progress>
 
 <label>Technical Skills</label>
 
-<progress value="90" max="100"></progress>
+<progress id="heroTechnicalSkills" value="0" max="100"></progress>
 
 <label>Communication</label>
 
-<progress value="88" max="100"></progress>
+<progress id="heroCommunication" value="0" max="100"></progress>
 
 </div>
 
@@ -445,29 +441,29 @@ Trusted by Future Professionals
 
     <div class="stats-grid">
 
-        <div class="stat-card">
-            <i class="fa-solid fa-users"></i>
-            <h2 class="counter" data-target="50000">0</h2>
-            <p>Registered Candidates</p>
-        </div>
+<div class="stat-card">
+    <i class="fa-solid fa-users"></i>
+    <h2 class="counter" id="statCandidates" data-target="0">0</h2>
+    <p>Registered Candidates</p>
+</div>
 
-        <div class="stat-card">
-            <i class="fa-solid fa-building"></i>
-            <h2 class="counter" data-target="250">0</h2>
-            <p>Partner Companies</p>
-        </div>
+<div class="stat-card">
+    <i class="fa-solid fa-building"></i>
+    <h2 class="counter" id="statCompanies" data-target="0">0</h2>
+    <p>Partner Companies</p>
+</div>
 
-        <div class="stat-card">
-            <i class="fa-solid fa-chart-simple"></i>
-            <h2 class="counter" data-target="95">0</h2>
-            <p>ATS Accuracy (%)</p>
-        </div>
+<div class="stat-card">
+    <i class="fa-solid fa-chart-simple"></i>
+    <h2 class="counter" id="statAtsAccuracy" data-target="0">0</h2>
+    <p>ATS Accuracy (%)</p>
+</div>
 
-        <div class="stat-card">
-            <i class="fa-solid fa-award"></i>
-            <h2 class="counter" data-target="1000000">0</h2>
-            <p>AI Assessments</p>
-        </div>
+<div class="stat-card">
+    <i class="fa-solid fa-award"></i>
+    <h2 class="counter" id="statAssessments" data-target="0">0</h2>
+    <p>AI Assessments</p>
+</div>
 
     </div>
 
@@ -619,78 +615,39 @@ Trusted by Future Professionals
 
     </div>
 
-    <div class="testimonial-grid">
+<div class="testimonial-grid" id="testimonialGrid">
 
-        <div class="testimonial-card">
-
-            <img src="https://i.pravatar.cc/120?img=11" alt="">
-
-            <h3>Rahul Sharma</h3>
-
-            <span>Software Engineer - Infosys</span>
-
-            <p>
-
-                "The AI Mock Interview and ATS Score helped me
-                prepare confidently and improve my resume."
-
-            </p>
-
-            <div class="stars">
-
-                ★★★★★
-
-            </div>
-
-        </div>
-
-        <div class="testimonial-card">
-
-            <img src="https://i.pravatar.cc/120?img=25" alt="">
-
-            <h3>Sneha Reddy</h3>
-
-            <span>Recruiter - TCS</span>
-
-            <p>
-
-                "Managing candidates became much easier with
-                AI analytics and recruiter dashboard."
-
-            </p>
-
-            <div class="stars">
-
-                ★★★★★
-
-            </div>
-
-        </div>
-
-        <div class="testimonial-card">
-
-            <img src="https://i.pravatar.cc/120?img=32" alt="">
-
-            <h3>Arjun Kumar</h3>
-
-            <span>Student</span>
-
-            <p>
-
-                "The interview feedback and performance reports
-                improved my confidence."
-
-            </p>
-
-            <div class="stars">
-
-                ★★★★★
-
-            </div>
-
-        </div>
-
+    <div class="testimonial-card">
+        <i class="fa-solid fa-quote-left" style="font-size:28px; color:#6c63ff; margin-bottom:12px;"></i>
+        <p>
+            "SmartHire AI combines ATS screening, AI mock interviews, and recruiter analytics into one intelligent platform."
+        </p>
+        <div class="stars">★★★★★</div>
+        <h3>SmartHire AI Platform</h3>
+        <span>AI-Powered Recruitment Suite</span>
     </div>
+
+    <div class="testimonial-card">
+        <i class="fa-solid fa-quote-left" style="font-size:28px; color:#6c63ff; margin-bottom:12px;"></i>
+        <p>
+            "Candidates can upload resumes, receive AI analysis, practice live interviews, and track placement readiness."
+        </p>
+        <div class="stars">★★★★★</div>
+        <h3>Candidate Assessment</h3>
+        <span>Resume → Interview → Evaluation</span>
+    </div>
+
+    <div class="testimonial-card">
+        <i class="fa-solid fa-quote-left" style="font-size:28px; color:#6c63ff; margin-bottom:12px;"></i>
+        <p>
+            "Recruiters and admins get live candidate rankings, interview scores, and platform analytics in real time."
+        </p>
+        <div class="stars">★★★★★</div>
+        <h3>Recruiter & Admin Tools</h3>
+        <span>Live Dashboards & Insights</span>
+    </div>
+
+</div>
 
 </section>
 
@@ -1306,6 +1263,7 @@ All Rights Reserved.
     🌙
 </button>
 
+<script src="js/api-client.js"></script>
 <script src="js/script.js"></script>
 <script src="js/auth.js"></script>
 

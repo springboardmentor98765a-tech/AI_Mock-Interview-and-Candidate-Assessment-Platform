@@ -32,37 +32,40 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 <div class="sidebar-logo">
 
-<i class="fa-solid fa-brain"></i>
-
-<h2>SmartHire AI</h2>
+        <h4>Total Users</h4>
+        <h2><span id="adminTotalUsers" class="counter" data-target="0">0</span></h2>
+        <span>Loading...</span>
 
 </div>
 
 <ul>
 
 <li class="active">
-
-<i class="fa-solid fa-chart-line"></i>
-
+        <h4>Recruiters</h4>
+        <h2><span id="adminRecruitersCount" class="counter" data-target="0">0</span></h2>
+        <span>Loading...</span>
 <span>Dashboard</span>
 
 </li>
 
 <li>
 
-<i class="fa-solid fa-users"></i>
-
-<span>Users</span>
+        <h4>AI Requests</h4>
+        <h2><span id="adminAiRequests" class="counter" data-target="0">0</span></h2>
+        <span>Loading...</span>
 
 </li>
 
 <li>
 
 <i class="fa-solid fa-user-tie"></i>
-
-<span>Recruiters</span>
-
+        <h4>System Health</h4>
+        <h2 id="adminSystemHealthValue">-</h2>
+        <span id="adminSystemHealthHint" style="color:#22c55e;">Loading...</span>
 </li>
+                <tr>
+                    <td colspan="6" style="text-align:center; color:#64748b;">Loading users from backend...</td>
+                </tr>
 
 <li>
 
@@ -96,7 +99,7 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 </li>
 
-</ul>
+            </tbody>
 
 </aside>
 
@@ -165,7 +168,7 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 
         <div>
             <h4>Total Users</h4>
-            <h2><span class="counter" data-target="1248">0</span></h2>
+            <h2><span id="adminTotalUsers" class="counter" data-target="1248">0</span></h2>
             <span>+36 This Month</span>
         </div>
 
@@ -179,7 +182,7 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 
         <div>
             <h4>Recruiters</h4>
-            <h2><span class="counter" data-target="86">0</span></h2>
+            <h2><span id="adminRecruitersCount" class="counter" data-target="86">0</span></h2>
             <span>12 Active Today</span>
         </div>
 
@@ -193,7 +196,7 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 
         <div>
             <h4>AI Requests</h4>
-            <h2><span class="counter" data-target="18975">0</span></h2>
+            <h2><span id="adminAiRequests" class="counter" data-target="18975">0</span></h2>
             <span>Today</span>
         </div>
 
@@ -250,88 +253,10 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 
             </thead>
 
-            <tbody>
-
+            <tbody id="adminUserTableBody">
                 <tr>
-
-                    <td>John Smith</td>
-
-                    <td>Candidate</td>
-
-                    <td><span class="status hired">Active</span></td>
-
-                    <td>Today</td>
-
-                    <td>
-
-                        <button class="table-btn">
-                            View
-                        </button>
-
-                    </td>
-
+                    <td colspan="5" style="text-align:center; color:#64748b;">Loading users from backend...</td>
                 </tr>
-
-                <tr>
-
-                    <td>Sarah Johnson</td>
-
-                    <td>Recruiter</td>
-
-                    <td><span class="status pending">Online</span></td>
-
-                    <td>5 mins ago</td>
-
-                    <td>
-
-                        <button class="table-btn">
-                            View
-                        </button>
-
-                    </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>Michael Lee</td>
-
-                    <td>Admin</td>
-
-                    <td><span class="status hired">Active</span></td>
-
-                    <td>Now</td>
-
-                    <td>
-
-                        <button class="table-btn">
-                            View
-                        </button>
-
-                    </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>Emma Watson</td>
-
-                    <td>Candidate</td>
-
-                    <td><span class="status rejected">Inactive</span></td>
-
-                    <td>Yesterday</td>
-
-                    <td>
-
-                        <button class="table-btn">
-                            View
-                        </button>
-
-                    </td>
-
-                </tr>
-
             </tbody>
 
         </table>
@@ -353,6 +278,8 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
             <i class="fa-solid fa-chart-line"></i>
             Platform Performance
         </h2>
+
+        <div id="adminPlatformStats" style="margin-bottom:16px; color:#475569; font-weight:600;"></div>
 
         <div class="funnel-item">
             <span>Server Usage</span>
@@ -388,6 +315,8 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
             <i class="fa-solid fa-clock-rotate-left"></i>
             Recent Activity
         </h2>
+
+        <div id="adminRecentActivity"></div>
 
         <div class="activity-item">
             ✅ New recruiter account approved
@@ -451,6 +380,7 @@ Manage users, recruiters, AI modules, reports, and monitor the complete SmartHir
 </section>
 </div> <!-- dashboard -->
 
+<script src="../js/api-client.js"></script>
 <script src="../js/script.js"></script>
 <script>
 (() => {

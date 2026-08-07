@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candidate Detail | SmartHire AI</title>
+<link rel="stylesheet" href="../css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+</head>
+<body>
+<aside class="sidebar">
+<div class="sidebar-logo">
+<i class="fa-solid fa-brain"></i>
+<h2>SmartHire AI</h2>
+</div>
+<ul>
+<li><i class="fa-solid fa-chart-line"></i><span><a href="recruiter.html" style="color:inherit; text-decoration:none;">Dashboard</a></span></li>
+<li class="active"><i class="fa-solid fa-user-check"></i><span>Candidate Detail</span></li>
+<li><i class="fa-solid fa-right-from-bracket"></i><span id="recruiterDetailLogout">Logout</span></li>
+</ul>
+</aside>
+
+<div class="dashboard">
+<header class="topbar recruiter-detail-topbar">
+<div>
+<h2 id="candidateDetailHeading">Candidate Profile</h2>
+<p id="candidateDetailSubheading">Recruiter view of resume and interview insights.</p>
+</div>
+<button class="secondary-btn" type="button" onclick="window.location.href='recruiter.html'">Back to Dashboard</button>
+</header>
+
+<section class="candidate-detail-section">
+<div id="recruiterDetailLoading" class="analytics-card">Loading candidate details...</div>
+<div id="recruiterDetailError" class="analytics-card recruiter-error" style="display:none;"></div>
+
+<div id="recruiterDetailContent" style="display:none;">
+<div class="analytics-card" style="margin-bottom:18px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+<div>
+<h3 style="margin-bottom:6px;">Recruiter Actions</h3>
+<p class="detail-meta"><strong>Status:</strong> <span id="detailCandidateStatus">-</span></p>
+<p class="detail-meta"><strong>Notes:</strong> <span id="detailRecruiterNotes">-</span></p>
+</div>
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+<button id="detailShortlistBtn" class="primary-btn" type="button">Shortlist</button>
+<button id="detailRejectBtn" class="secondary-btn" type="button">Reject</button>
+<button id="detailNoteBtn" class="secondary-btn" type="button">Add Note</button>
+</div>
+</div>
+
+<div class="detail-score-grid">
+<div class="analytics-card detail-score-card">
+<h3>ATS Score</h3>
+<div class="detail-score-value" id="detailAtsScore">-</div>
+</div>
+<div class="analytics-card detail-score-card">
+<h3>Interview Overall</h3>
+<div class="detail-score-value" id="detailInterviewOverall">-</div>
+</div>
+<div class="analytics-card detail-score-card">
+<h3>Technical</h3>
+<div class="detail-score-value" id="detailInterviewTechnical">-</div>
+</div>
+<div class="analytics-card detail-score-card">
+<h3>Communication</h3>
+<div class="detail-score-value" id="detailInterviewCommunication">-</div>
+</div>
+<div class="analytics-card detail-score-card">
+<h3>Problem Solving</h3>
+<div class="detail-score-value" id="detailInterviewProblemSolving">-</div>
+</div>
+</div>
+
+<div class="detail-two-col">
+<div class="analytics-card">
+<h3>Resume Summary</h3>
+<p id="detailResumeSummary">-</p>
+<p class="detail-meta"><strong>Job Role:</strong> <span id="detailJobRole">-</span></p>
+<p class="detail-meta"><strong>Resume Uploaded:</strong> <span id="detailResumeDate">-</span></p>
+</div>
+
+<div class="analytics-card">
+<h3>AI Recommendation</h3>
+<p id="detailRecommendation">-</p>
+</div>
+</div>
+
+<div class="detail-two-col">
+<div class="analytics-card">
+<h3>Resume Strengths</h3>
+<ul id="detailStrengthsList"></ul>
+</div>
+
+<div class="analytics-card">
+<h3>Resume Weaknesses</h3>
+<ul id="detailWeaknessesList"></ul>
+</div>
+</div>
+
+<div class="analytics-card">
+<h3>AI Feedback</h3>
+<ul id="detailFeedbackList"></ul>
+</div>
+</div>
+</section>
+</div>
+
+<script src="../js/script.js"></script>
+<script>
+(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    if (!token) {
+        window.location.href = "../index.html";
+        return;
+    }
+    if (role !== "recruiter") {
+        window.location.href = role === "candidate" ? "candidate.html" : role === "admin" ? "admin.html" : "../index.html";
+        return;
+    }
+    const logoutBtn = document.getElementById("recruiterDetailLogout");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("userName");
+            window.location.href = "../index.html";
+        });
+    }
+})();
+</script>
+</body>
+</html>
