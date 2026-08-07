@@ -982,3 +982,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.8125rem;
   margin-bottom: 1rem;
 }
+
+#transcript-box {
+  transition: all 0.3s ease;
+}

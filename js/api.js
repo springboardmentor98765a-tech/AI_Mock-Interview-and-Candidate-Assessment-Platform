@@ -94,4 +94,16 @@ var api = {
   getInterviewHistory: function() {
     return apiRequest('/interviews/history');
   },
+  getInterviewReport: function(id) {
+    return apiRequest('/interviews/' + id + '/report');
+  },
+  getAnalyticsSummary: function() {
+    return apiRequest('/interviews/analytics/summary');
+  },
+  transcribeChunk: function(audioBase64, mimeType) {
+    return apiRequest('/interviews/transcribe-chunk', {
+      method: 'POST',
+      body: { audio_chunk: audioBase64, mime_type: mimeType || 'audio/webm' },
+    });
+  },
 };

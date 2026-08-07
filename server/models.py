@@ -98,9 +98,12 @@ class InterviewQuestionRequest(BaseModel):
 
 
 class VoiceAnswerRequest(InterviewQuestionRequest):
-    # Browser-recorded mono WAV encoded as a data URL.  Limit protects the API
-    # and keeps a single answer within a reasonable upload size.
     audio_data: str = Field(..., min_length=32, max_length=12_000_000)
+
+
+class TranscribeChunkRequest(BaseModel):
+    audio_chunk: str = Field(..., min_length=1)
+    mime_type: str = Field(default="audio/webm")
 
 
 class InterviewQuestionCreateRequest(BaseModel):
@@ -118,6 +121,18 @@ class InterviewResponse(BaseModel):
     difficulty: Optional[str] = None
     status: Optional[str] = None
     total_score: Optional[float] = None
+    communication_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    technical_score: Optional[float] = None
+    professionalism_score: Optional[float] = None
+    overall_score: Optional[float] = None
+    performance_rating: Optional[str] = None
+    strengths: Optional[list[str]] = None
+    weaknesses: Optional[list[str]] = None
+    improvements: Optional[list[str]] = None
+    recommendations: Optional[list[str]] = None
+    resources: Optional[list[dict]] = None
+    detailed_parameters: Optional[dict] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     created_at: Optional[str] = None
@@ -132,4 +147,9 @@ class InterviewQuestionResponse(BaseModel):
     sequence_no: int
     answer_text: Optional[str] = None
     score: Optional[float] = None
+    communication_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    technical_score: Optional[float] = None
+    professionalism_score: Optional[float] = None
+    parameters: Optional[dict] = None
     feedback: Optional[str] = None

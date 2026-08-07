@@ -10,41 +10,73 @@ from models import (
     AnswerSubmitRequest,
     InterviewQuestionRequest,
     VoiceAnswerRequest,
+    TranscribeChunkRequest,
 )
 from auth import get_current_user
 from services.question_bank import generate_questions as generate_bank_questions
+import json
 from services import mimo
 from services import sarvam
+from services import gemini_stt
+from services import scoring_engine
 
 router = APIRouter(prefix="/api/interviews", tags=["interviews"])
 
 
+def _safe_json_loads(val, default=None):
+    if not val:
+        return default
+    try:
+        return json.loads(val)
+    except Exception:
+        return default
+
+
 def row_to_interview(row) -> dict:
+    d = dict(row)
     return {
-        "id": row["id"],
-        "user_id": row["user_id"],
-        "interview_type": row["interview_type"],
-        "domain": row["domain"],
-        "difficulty": row["difficulty"],
-        "status": row["status"],
-        "total_score": row["total_score"],
-        "started_at": str(row["started_at"]) if row["started_at"] else None,
-        "completed_at": str(row["completed_at"]) if row["completed_at"] else None,
-        "created_at": str(row["created_at"]) if row["created_at"] else None,
+        "id": d["id"],
+        "user_id": d["user_id"],
+        "interview_type": d["interview_type"],
+        "domain": d["domain"],
+        "difficulty": d["difficulty"],
+        "status": d["status"],
+        "total_score": d["total_score"],
+        "communication_score": d.get("communication_score"),
+        "confidence_score": d.get("confidence_score"),
+        "technical_score": d.get("technical_score"),
+        "professionalism_score": d.get("professionalism_score"),
+        "overall_score": d.get("overall_score"),
+        "performance_rating": d.get("performance_rating") or (scoring_engine.get_rating_rubric(d["total_score"]) if d.get("total_score") is not None else None),
+        "strengths": _safe_json_loads(d.get("strengths_json"), []),
+        "weaknesses": _safe_json_loads(d.get("weaknesses_json"), []),
+        "improvements": _safe_json_loads(d.get("improvements_json"), []),
+        "recommendations": _safe_json_loads(d.get("recommendations_json"), []),
+        "resources": _safe_json_loads(d.get("resources_json"), []),
+        "detailed_parameters": _safe_json_loads(d.get("detailed_parameters_json"), {}),
+        "started_at": str(d["started_at"]) if d.get("started_at") else None,
+        "completed_at": str(d["completed_at"]) if d.get("completed_at") else None,
+        "created_at": str(d["created_at"]) if d.get("created_at") else None,
     }
 
 
 def row_to_question(row) -> dict:
+    d = dict(row)
     return {
-        "id": row["id"],
-        "interview_id": row["interview_id"],
-        "question_text": row["question_text"],
-        "category": row["category"],
-        "difficulty": row["difficulty"],
-        "sequence_no": row["sequence_no"],
-        "answer_text": row["answer_text"],
-        "score": row["score"],
-        "feedback": row["feedback"],
+        "id": d["id"],
+        "interview_id": d["interview_id"],
+        "question_text": d["question_text"],
+        "category": d["category"],
+        "difficulty": d["difficulty"],
+        "sequence_no": d["sequence_no"],
+        "answer_text": d["answer_text"],
+        "score": d["score"],
+        "communication_score": d.get("communication_score"),
+        "confidence_score": d.get("confidence_score"),
+        "technical_score": d.get("technical_score"),
+        "professionalism_score": d.get("professionalism_score"),
+        "parameters": _safe_json_loads(d.get("parameters_json"), {}),
+        "feedback": d["feedback"],
     }
 
 
@@ -299,23 +331,35 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
         conn.close()
         raise HTTPException(404, "Question not found.")
 
-    ai_evaluated = mimo.configured()
-    try:
-        assessment = mimo.evaluate_answer(
-            question["question_text"], question["category"], question["difficulty"], req.answer_text
-        ) if ai_evaluated else {
-            "score": evaluate_answer(req.answer_text, question["question_text"], question["category"], question["difficulty"]),
-            "feedback": None,
-        }
-    except mimo.MimoError as error:
-        conn.close()
-        raise HTTPException(502, str(error)) from error
-    score = assessment["score"]
-    feedback = assessment["feedback"] or generate_feedback(req.answer_text, score)
+    eval_result = scoring_engine.evaluate_answer_full(
+        question["question_text"],
+        question["category"] or interview["interview_type"],
+        question["difficulty"] or interview["difficulty"],
+        req.answer_text,
+    )
 
     conn.execute(
-        "UPDATE interview_question SET answer_text = ?, score = ?, feedback = ? WHERE id = ?",
-        (req.answer_text, score, feedback, req.question_id),
+        """UPDATE interview_question SET
+            answer_text = ?,
+            score = ?,
+            communication_score = ?,
+            confidence_score = ?,
+            technical_score = ?,
+            professionalism_score = ?,
+            parameters_json = ?,
+            feedback = ?
+           WHERE id = ?""",
+        (
+            req.answer_text,
+            eval_result["score"],
+            eval_result["communication_score"],
+            eval_result["confidence_score"],
+            eval_result["technical_score"],
+            eval_result["professionalism_score"],
+            json.dumps(eval_result.get("parameters", {})),
+            eval_result["feedback"],
+            req.question_id,
+        ),
     )
     conn.commit()
 
@@ -328,15 +372,7 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
     ).fetchone()["cnt"]
 
     if answered_q >= total_q:
-        avg = conn.execute(
-            "SELECT AVG(score) as avg_score FROM interview_question WHERE interview_id = ? AND score IS NOT NULL",
-            (interview_id,),
-        ).fetchone()["avg_score"]
-        conn.execute(
-            "UPDATE interview SET status = 'completed', completed_at = CURRENT_TIMESTAMP, total_score = ? WHERE id = ?",
-            (round(avg, 2) if avg else 0, interview_id),
-        )
-        conn.commit()
+        scoring_engine.generate_final_report(interview_id, conn)
 
     updated_q = conn.execute("SELECT * FROM interview_question WHERE id = ?", (req.question_id,)).fetchone()
     updated_interview = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
@@ -344,10 +380,98 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
 
     return {
         "message": "Answer submitted.",
-        "ai_evaluated": ai_evaluated,
+        "ai_evaluated": True,
         "question": row_to_question(updated_q),
         "interview": row_to_interview(updated_interview),
     }
+
+
+@router.get("/analytics/summary")
+def get_analytics_summary(user: dict = Depends(get_current_user)):
+    """Return aggregated assessment metrics across all candidate completed interviews."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM interview WHERE user_id = ? AND status = 'completed' ORDER BY completed_at DESC",
+        (user["id"],),
+    ).fetchall()
+
+    if not rows:
+        conn.close()
+        return {
+            "sessions_completed": 0,
+            "avg_overall": None,
+            "avg_communication": None,
+            "avg_confidence": None,
+            "avg_technical": None,
+            "avg_professionalism": None,
+            "performance_rating": None,
+            "top_skill": None,
+            "history": [],
+        }
+
+    interviews = [row_to_interview(r) for r in rows]
+    total_count = len(interviews)
+
+    overall_scores = [i["overall_score"] or i["total_score"] or 0 for i in interviews]
+    comm_scores = [i["communication_score"] or i["total_score"] or 0 for i in interviews]
+    conf_scores = [i["confidence_score"] or i["total_score"] or 0 for i in interviews]
+    tech_scores = [i["technical_score"] or i["total_score"] or 0 for i in interviews]
+    prof_scores = [i["professionalism_score"] or i["total_score"] or 0 for i in interviews]
+
+    avg_overall = round(sum(overall_scores) / total_count, 2)
+    avg_comm = round(sum(comm_scores) / total_count, 2)
+    avg_conf = round(sum(conf_scores) / total_count, 2)
+    avg_tech = round(sum(tech_scores) / total_count, 2)
+    avg_prof = round(sum(prof_scores) / total_count, 2)
+
+    rating = scoring_engine.get_rating_rubric(avg_overall)
+
+    # Determine top skill category
+    skill_averages = {
+        "Communication": avg_comm,
+        "Confidence": avg_conf,
+        "Technical Relevance": avg_tech,
+        "Professionalism": avg_prof,
+    }
+    top_skill = max(skill_averages, key=skill_averages.get)
+
+    conn.close()
+    return {
+        "sessions_completed": total_count,
+        "avg_overall": avg_overall,
+        "avg_communication": avg_comm,
+        "avg_confidence": avg_conf,
+        "avg_technical": avg_tech,
+        "avg_professionalism": avg_prof,
+        "performance_rating": rating,
+        "top_skill": top_skill,
+        "history": interviews,
+    }
+
+
+@router.get("/{interview_id}/report")
+def get_interview_report(interview_id: int, user: dict = Depends(get_current_user)):
+    """Fetch complete AI Feedback & Scoring Report for a specific completed interview."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Interview not found.")
+
+    if row["status"] != "completed":
+        scoring_engine.generate_final_report(interview_id, conn)
+        row = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+
+    questions = conn.execute(
+        "SELECT * FROM interview_question WHERE interview_id = ? ORDER BY sequence_no", (interview_id,)
+    ).fetchall()
+    conn.close()
+
+    interview_data = row_to_interview(row)
+    interview_data["questions"] = [row_to_question(q) for q in questions]
+    return interview_data
 
 
 @router.post("/{interview_id}/speak")
@@ -380,6 +504,19 @@ def submit_voice_answer(interview_id: int, req: VoiceAnswerRequest, user: dict =
     result = submit_answer(interview_id, AnswerSubmitRequest(question_id=req.question_id, answer_text=transcript), user)
     result["transcript"] = transcript
     return result
+
+
+@router.post("/transcribe-chunk")
+def transcribe_chunk(req: TranscribeChunkRequest, user: dict = Depends(get_current_user)):
+    """Transcribe audio using Gemini 2.0 Flash (primary) or MiMo/Deepseek (fallback)."""
+    audio_data = req.audio_chunk
+    if "," in audio_data:
+        _, audio_data = audio_data.split(",", 1)
+    try:
+        transcript = gemini_stt.transcribe_audio(audio_data, req.mime_type)
+    except gemini_stt.STTError as error:
+        raise HTTPException(503, str(error)) from error
+    return {"transcript": transcript}
 
 
 @router.post("/{interview_id}/questions")

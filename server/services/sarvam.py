@@ -128,8 +128,9 @@ def transcribe_audio(audio_data: str) -> str:
     boundary = uuid.uuid4().hex
     fields = {
         "file": ("recording.wav", raw_bytes, "audio/wav"),
-        "model": "saaras:v3",
+        "model": "saaras:v4",
         "mode": "transcribe",
+        "language_code": "en-IN",
     }
 
     body = _build_multipart(fields, boundary)
@@ -147,9 +148,14 @@ def transcribe_audio(audio_data: str) -> str:
         with urlopen(request, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
+        error_body = ""
+        try:
+            error_body = error.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
         if error.code in (401, 403):
             raise SarvamError("Sarvam AI credentials were rejected. Check SARVAM_API_KEY in server/.env.") from error
-        raise SarvamError(f"Sarvam STT request failed ({error.code}). Please try again shortly.") from error
+        raise SarvamError(f"Sarvam STT request failed ({error.code}): {error_body[:200]}") from error
     except URLError as error:
         raise SarvamError("Could not reach the Sarvam AI API.") from error
 

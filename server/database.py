@@ -84,6 +84,30 @@ def init_db():
         conn.execute("ALTER TABLE interview ADD COLUMN completed_at TIMESTAMP")
     if "total_score" not in interview_cols:
         conn.execute("ALTER TABLE interview ADD COLUMN total_score REAL")
+    if "communication_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN communication_score REAL")
+    if "confidence_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN confidence_score REAL")
+    if "technical_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN technical_score REAL")
+    if "professionalism_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN professionalism_score REAL")
+    if "overall_score" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN overall_score REAL")
+    if "performance_rating" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN performance_rating TEXT")
+    if "strengths_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN strengths_json TEXT")
+    if "weaknesses_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN weaknesses_json TEXT")
+    if "improvements_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN improvements_json TEXT")
+    if "recommendations_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN recommendations_json TEXT")
+    if "resources_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN resources_json TEXT")
+    if "detailed_parameters_json" not in interview_cols:
+        conn.execute("ALTER TABLE interview ADD COLUMN detailed_parameters_json TEXT")
 
     question_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_question)").fetchall()}
     if "answer_text" not in question_cols:
@@ -92,6 +116,16 @@ def init_db():
         conn.execute("ALTER TABLE interview_question ADD COLUMN score REAL")
     if "feedback" not in question_cols:
         conn.execute("ALTER TABLE interview_question ADD COLUMN feedback TEXT")
+    if "communication_score" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN communication_score REAL")
+    if "confidence_score" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN confidence_score REAL")
+    if "technical_score" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN technical_score REAL")
+    if "professionalism_score" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN professionalism_score REAL")
+    if "parameters_json" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN parameters_json TEXT")
 
     conn.commit()
     conn.close()

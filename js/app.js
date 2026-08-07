@@ -94,6 +94,10 @@ function handleAuthSuccess(data) {
   state.password = '';
   state.name = '';
   state.org = '';
+  state.analyticsData = null;
+  state.historyData = null;
+  state.reportsData = null;
+  state.activeReportModal = null;
   render();
 }
 
@@ -108,6 +112,11 @@ function handleLogout() {
   state.page = 'login';
   state.section = 'overview';
   state.authError = '';
+  state.analyticsData = null;
+  state.activeReportModal = null;
+  state.historyData = null;
+  state.reportsData = null;
+  state.currentInterview = null;
   render();
 }
 
