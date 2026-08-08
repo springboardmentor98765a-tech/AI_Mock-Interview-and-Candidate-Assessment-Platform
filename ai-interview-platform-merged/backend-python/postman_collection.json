@@ -1,0 +1,171 @@
+{
+  "info": {
+    "name": "AI Interview Platform — Module 3 (Python/FastAPI)",
+    "description": "AI Interview Generation, candidate feedback view, and question TTS. Uses the same JWT token issued by the Node auth service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "pyBaseUrl", "value": "http://localhost:8001/api" },
+    { "key": "token", "value": "PASTE_JWT_FROM_NODE_LOGIN_HERE" },
+    { "key": "interviewId", "value": "1" },
+    { "key": "questionId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Generate Interview Questions",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{pyBaseUrl}}/interviews/generate",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"interviewType\": \"Python Developer\",\n  \"category\": \"Technical\",\n  \"domain\": \"python\",\n  \"difficulty\": \"medium\",\n  \"questionCount\": 5,\n  \"mode\": \"online\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Start Instant Mock Interview",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{pyBaseUrl}}/interviews/start",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"interviewType\": \"HR Interview\",\n  \"mode\": \"online\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List My Interviews",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/me"
+      }
+    },
+    {
+      "name": "My Interview History",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/history"
+      }
+    },
+    {
+      "name": "Get Interview by Id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}"
+      }
+    },
+    {
+      "name": "Update / Regenerate Interview",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"difficulty\": \"hard\",\n  \"regenerate\": true,\n  \"category\": \"Mixed\",\n  \"questionCount\": 6\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete Interview",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}"
+      }
+    },
+    {
+      "name": "Attend Scheduled Interview",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/attend"
+      }
+    },
+    {
+      "name": "Cancel Scheduled Interview",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/cancel"
+      }
+    },
+    {
+      "name": "ENHANCEMENT — Candidate Views Feedback",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/feedback"
+      }
+    },
+    {
+      "name": "ENHANCEMENT — Recruiter/Coach Leaves Feedback",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/review",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"feedback\": \"Strong technical answers — work on structuring behavioral responses using STAR format.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "ENHANCEMENT — Question Text-to-Speech (audio)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/questions/{{questionId}}/tts"
+      }
+    },
+    {
+      "name": "ENHANCEMENT — Full Session TTS Manifest",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/{{interviewId}}/tts"
+      }
+    },
+    {
+      "name": "Staff — Overview Stats",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/staff/overview"
+      }
+    },
+    {
+      "name": "Staff — Candidate Summaries",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{pyBaseUrl}}/interviews/staff/candidates"
+      }
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:8001/api/health"
+      }
+    }
+  ]
+}

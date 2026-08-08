@@ -1,0 +1,379 @@
+"""
+Question Generation Logic (Module 3: AI Interview Generation).
+
+Python port of backend/utils/aiEngine.js so behaviour matches the
+existing Node service exactly. A deterministic, curated question bank
+keyed by category and difficulty; Technical questions are further
+keyed by domain (java, python, frontend, data, general). This stands
+in for a real generative model while keeping output stable and free
+to run (no API key / no model hosting required).
+"""
+import random
+from typing import Optional, TypedDict
+
+from app import ai_providers
+
+VALID_CATEGORIES = ["HR", "Technical", "Behavioral", "Aptitude"]
+VALID_DIFFICULTIES = ["easy", "medium", "hard"]
+
+
+class GeneratedQuestion(TypedDict):
+    text: str
+    category: str
+    difficulty: str
+
+
+HR_QUESTIONS = {
+    "easy": [
+        "Tell me about yourself.",
+        "Why do you want to work with us?",
+        "What are your strengths and weaknesses?",
+        "Where do you see yourself in five years?",
+        "Why are you looking to leave your current role?",
+    ],
+    "medium": [
+        "What motivates you to do your best work?",
+        "How do you handle constructive criticism?",
+        "Describe your ideal work environment.",
+        "What are your salary expectations for this role?",
+        "How do you prioritize tasks when everything feels urgent?",
+    ],
+    "hard": [
+        "Tell me about a time you disagreed with a manager and how you handled it.",
+        "Describe a situation where you had to make an unpopular decision.",
+        "How would you handle being asked to do something you believe is unethical?",
+        "What would you do if you found out a close teammate was underperforming badly?",
+        "How do you decide when to walk away from a job offer?",
+    ],
+}
+
+BEHAVIORAL_QUESTIONS = {
+    "easy": [
+        "Describe a time you worked successfully as part of a team.",
+        "Tell me about a goal you set and how you achieved it.",
+        "Give an example of when you had to learn something new quickly.",
+        "Describe a time you helped a colleague solve a problem.",
+        "Tell me about a project you are proud of.",
+    ],
+    "medium": [
+        "Describe a time you missed a deadline. What happened and what did you learn?",
+        "Tell me about a time you had to adapt to a significant change at work.",
+        "Give an example of when you took initiative without being asked.",
+        "Describe a conflict with a coworker and how you resolved it.",
+        "Tell me about a time you received difficult feedback and how you responded.",
+    ],
+    "hard": [
+        "Describe the most complex problem you have solved and your approach to it.",
+        "Tell me about a time you had to influence someone without formal authority.",
+        "Describe a time you failed at something important. How did you recover?",
+        "Tell me about a time you had to manage competing priorities under pressure with limited resources.",
+        "Describe a situation where you had to lead a team through ambiguity.",
+    ],
+}
+
+APTITUDE_QUESTIONS = {
+    "easy": [
+        "If a train travels 60 km in 1.5 hours, what is its average speed?",
+        "What is 15% of 200?",
+        "Find the next number in the series: 2, 4, 6, 8, __",
+        "A shirt costs $40 after a 20% discount. What was the original price?",
+        "If today is Monday, what day will it be after 17 days?",
+    ],
+    "medium": [
+        "Two pipes can fill a tank in 6 and 8 hours respectively. How long will both take together?",
+        "A is twice as old as B. In 10 years, A will be 1.5 times as old as B. Find their current ages.",
+        "If the ratio of boys to girls in a class is 3:2 and there are 30 students, how many are girls?",
+        "A sum of money doubles itself in 8 years at simple interest. Find the rate of interest.",
+        "Find the missing number: 3, 7, 15, 31, __",
+    ],
+    "hard": [
+        "A boat travels 30 km upstream in 6 hours and returns downstream in 3 hours. Find the speed of the boat in still water.",
+        "In how many ways can 5 people be seated in a row such that two specific people always sit together?",
+        "A dice is rolled twice. What is the probability that the sum of the two rolls is greater than 9?",
+        "A works twice as fast as B. Together they finish a job in 12 days. How long would B alone take?",
+        "Three numbers are in the ratio 2:3:5 and their sum is 200. Find the largest number.",
+    ],
+}
+
+TECHNICAL_QUESTIONS = {
+    "java": {
+        "easy": [
+            "What is the difference between JDK, JRE, and JVM?",
+            "What is the difference between == and .equals() in Java?",
+            "What are the main principles of Object-Oriented Programming?",
+            "What is the difference between an ArrayList and a LinkedList?",
+            "What is a constructor, and how does it differ from a method?",
+        ],
+        "medium": [
+            "Explain the difference between abstract classes and interfaces in Java.",
+            'What is the purpose of the "final" keyword and where can it be used?',
+            "How does exception handling work in Java (try/catch/finally)?",
+            "Explain how HashMap works internally in Java.",
+            "What is multithreading, and how do you create a thread in Java?",
+        ],
+        "hard": [
+            "Explain the Java memory model and how garbage collection works.",
+            "How would you design a thread-safe singleton in Java?",
+            "Explain the differences between synchronized blocks and java.util.concurrent locks.",
+            "How does the JVM optimize code at runtime (JIT compilation)?",
+            "Design a rate limiter using Java concurrency primitives.",
+        ],
+    },
+    "python": {
+        "easy": [
+            "What is the difference between a list and a tuple in Python?",
+            "What are Python decorators used for?",
+            "How does Python manage memory?",
+            'What is the difference between "is" and "==" in Python?',
+            "What are *args and **kwargs used for?",
+        ],
+        "medium": [
+            "Explain Python's Global Interpreter Lock (GIL) and its impact on multithreading.",
+            "What is the difference between a generator and a list comprehension?",
+            'How do context managers (the "with" statement) work in Python?',
+            "Explain shallow copy vs deep copy in Python.",
+            "How would you handle circular imports in a Python project?",
+        ],
+        "hard": [
+            "How would you optimize a Python application that is CPU-bound?",
+            "Explain how Python's asyncio event loop works.",
+            "Design a caching decorator with configurable expiry in Python.",
+            "How does Python's garbage collector handle reference cycles?",
+            "Explain metaclasses in Python and a real use case for them.",
+        ],
+    },
+    "frontend": {
+        "easy": [
+            "What is the difference between HTML, CSS, and JavaScript?",
+            "What is the DOM, and how does JavaScript interact with it?",
+            'What is the difference between "let", "const", and "var"?',
+            "What is responsive design, and how do you achieve it?",
+            "What is the box model in CSS?",
+        ],
+        "medium": [
+            "Explain the difference between client-side and server-side rendering.",
+            "What is the virtual DOM, and how does it improve performance?",
+            "How does event delegation work in JavaScript?",
+            "What are Promises, and how do they differ from callbacks?",
+            "How would you optimize the load time of a web page?",
+        ],
+        "hard": [
+            "Design a component architecture for a large, scalable single-page application.",
+            "Explain how you would implement code-splitting and lazy loading in a React app.",
+            "How would you diagnose and fix a memory leak in a front-end application?",
+            "Explain the trade-offs between different state management approaches.",
+            "How would you design a design system used across multiple product teams?",
+        ],
+    },
+    "data": {
+        "easy": [
+            "What is the difference between a primary key and a foreign key?",
+            "What is the difference between mean, median, and mode?",
+            "What is normalization in database design?",
+            "What is the difference between SQL and NoSQL databases?",
+            "What does a JOIN do in SQL?",
+        ],
+        "medium": [
+            "Explain the difference between INNER JOIN, LEFT JOIN, and FULL OUTER JOIN.",
+            "How would you handle missing data in a dataset?",
+            "What is the difference between correlation and causation?",
+            "Explain overfitting and how to prevent it in a machine learning model.",
+            "How would you design a data pipeline to process daily sales data?",
+        ],
+        "hard": [
+            "How would you design a data warehouse schema for a retail company?",
+            "Explain how you would detect and handle outliers in a large dataset.",
+            "How would you evaluate whether an A/B test result is statistically significant?",
+            "Design an approach to build and maintain a real-time analytics dashboard.",
+            "How would you optimize a slow-running SQL query on a multi-million row table?",
+        ],
+    },
+    "general": {
+        "easy": [
+            "What is the difference between a stack and a queue?",
+            "What is Big-O notation, and why does it matter?",
+            "What is version control, and why is Git useful?",
+            "What is the difference between an array and a linked list?",
+            "What does REST stand for, and what makes an API RESTful?",
+        ],
+        "medium": [
+            "Explain the difference between processes and threads.",
+            "How would you design a URL-shortening service at a high level?",
+            "What is database indexing, and how does it improve performance?",
+            "Explain the difference between authentication and authorization.",
+            "How do you approach debugging a production issue you can't reproduce locally?",
+        ],
+        "hard": [
+            "Design a scalable notification system that supports email, SMS, and push.",
+            "How would you design a system to handle millions of concurrent WebSocket connections?",
+            "Explain how you would design a distributed rate limiter across multiple servers.",
+            "Walk through how you would design a fault-tolerant job scheduling system.",
+            "How would you design a system for real-time collaborative document editing?",
+        ],
+    },
+}
+
+
+def normalize_domain(domain: Optional[str]) -> str:
+    if not domain:
+        return "general"
+    d = str(domain).lower()
+    if "java" in d:
+        return "java"
+    if "python" in d:
+        return "python"
+    if any(k in d for k in ("front", "react", "web", "ui")):
+        return "frontend"
+    if "data" in d:
+        return "data"
+    return "general"
+
+
+def _bank_for(category: str, domain: Optional[str]) -> dict:
+    if category == "HR":
+        return HR_QUESTIONS
+    if category == "Behavioral":
+        return BEHAVIORAL_QUESTIONS
+    if category == "Aptitude":
+        return APTITUDE_QUESTIONS
+    return TECHNICAL_QUESTIONS.get(normalize_domain(domain), TECHNICAL_QUESTIONS["general"])
+
+
+def pick_questions(
+    category: str, difficulty: str, domain: Optional[str], count: int
+) -> list[GeneratedQuestion]:
+    """Pulls `count` questions for a single category/difficulty/domain
+    combination, filling in from adjacent difficulty tiers if the
+    primary pool runs short (keeps output count consistent)."""
+    bank = _bank_for(category, domain)
+    pool = list(bank[difficulty])
+    random.shuffle(pool)
+    picked = pool[:count]
+
+    if len(picked) < count:
+        extras: list[str] = []
+        for d in VALID_DIFFICULTIES:
+            if d != difficulty:
+                extras.extend(bank.get(d, []))
+        random.shuffle(extras)
+        needed = count - len(picked)
+        picked = picked + extras[:needed]
+
+    return [{"text": text, "category": category, "difficulty": difficulty} for text in picked]
+
+
+def _generate_for_category(
+    category: str,
+    difficulty: str,
+    domain: Optional[str],
+    count: int,
+    interview_type: Optional[str],
+    use_ai: bool,
+) -> list[GeneratedQuestion]:
+    """Tries the LLM provider chain first (fresh, non-repetitive
+    questions); falls back to the curated bank — in full, or to top
+    up a short AI response — so output count is always satisfied even
+    with zero API keys / no internet / Ollama not running."""
+    if use_ai:
+        try:
+            ai_questions = ai_providers.generate_questions_llm(
+                interview_type=interview_type or category,
+                category=category,
+                difficulty=difficulty,
+                domain=domain,
+                count=count,
+            )
+        except Exception:
+            ai_questions = None
+
+        if ai_questions:
+            if len(ai_questions) < count:
+                ai_questions = ai_questions + pick_questions(
+                    category, difficulty, domain, count - len(ai_questions)
+                )
+            return ai_questions[:count]
+
+    return pick_questions(category, difficulty, domain, count)
+
+
+def generate_questions(
+    category: str,
+    difficulty: str = "medium",
+    domain: Optional[str] = None,
+    count: int = 5,
+    interview_type: Optional[str] = None,
+    use_ai: bool = True,
+) -> list[GeneratedQuestion]:
+    safe_difficulty = difficulty if difficulty in VALID_DIFFICULTIES else "medium"
+    safe_count = max(1, min(int(count or 5), 20))
+
+    if category == "Mixed":
+        per_category = max(1, safe_count // len(VALID_CATEGORIES))
+        questions: list[GeneratedQuestion] = []
+        for cat in VALID_CATEGORIES:
+            questions.extend(
+                _generate_for_category(cat, safe_difficulty, domain, per_category, interview_type, use_ai)
+            )
+        while len(questions) < safe_count:
+            questions.extend(
+                _generate_for_category("HR", safe_difficulty, domain, 1, interview_type, use_ai)
+            )
+        random.shuffle(questions)
+        return questions[:safe_count]
+
+    safe_category = category if category in VALID_CATEGORIES else "Technical"
+    return _generate_for_category(safe_category, safe_difficulty, domain, safe_count, interview_type, use_ai)
+
+
+def _clamp(value: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, value))
+
+
+def generate_assessment() -> dict:
+    """Simulated scoring for an instantly-completed mock interview —
+    matches generateAssessment() in aiEngine.js so scores/feedback
+    bands feel consistent across both services."""
+    base = random.randint(60, 97)
+
+    skill_communication = _clamp(base + random.randint(-8, 8), 40, 100)
+    skill_technical = _clamp(base + random.randint(-10, 10), 40, 100)
+    skill_confidence = _clamp(base + random.randint(-8, 8), 40, 100)
+    skill_problem_solving = _clamp(base + random.randint(-10, 10), 40, 100)
+
+    score = _clamp(
+        round(
+            (skill_communication + skill_technical + skill_confidence + skill_problem_solving)
+            / 4
+        ),
+        0,
+        100,
+    )
+
+    if score >= 90:
+        band = "excellent"
+    elif score >= 80:
+        band = "strong"
+    elif score >= 65:
+        band = "solid"
+    else:
+        band = "developing"
+
+    feedback_by_band = {
+        "excellent": "Outstanding performance — clear, structured answers with strong technical "
+        "depth and confident delivery. Ready for real interviews.",
+        "strong": "Strong performance overall. Communication and technical answers were solid; "
+        "tightening up a few edge-case explanations will push this even higher.",
+        "solid": "A solid attempt with room to grow — focus on structuring answers more clearly "
+        "and backing up claims with concrete examples.",
+        "developing": "Good starting point. Prioritize practicing core concepts out loud and slow "
+        "down under pressure to reduce filler and hesitation.",
+    }
+
+    return {
+        "score": score,
+        "skill_communication": skill_communication,
+        "skill_technical": skill_technical,
+        "skill_confidence": skill_confidence,
+        "skill_problem_solving": skill_problem_solving,
+        "ai_feedback": feedback_by_band[band],
+    }

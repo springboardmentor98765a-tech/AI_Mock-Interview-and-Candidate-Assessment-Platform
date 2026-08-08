@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Coach Dashboard</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+
+<body onload="checkRole('coach');loadProfile();initCoachDashboard();">
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="navbar">
+
+<div class="logo">
+
+🤖 AI Interview
+
+</div>
+
+<ul>
+
+<li><a href="coach.html" class="active">Dashboard</a></li>
+
+<li><a href="#" onclick="scrollToSection(event,'assignedCandidates')">Students</a></li>
+
+<li><a href="#" onclick="scrollToSection(event,'coachingSchedule')">Sessions</a></li>
+
+<li><a href="#" onclick="scrollToSection(event,'assignedCandidates')">Reports</a></li>
+
+<li><a href="#" onclick="openEditProfileModal()">Profile</a></li>
+
+<li><a href="#" onclick="logout()">Logout</a></li>
+
+</ul>
+
+</nav>
+
+<!-- ================= DASHBOARD ================= -->
+
+<div class="dashboard-container">
+
+<!-- Sidebar -->
+
+<div class="sidebar">
+
+<div class="profile-card">
+
+<div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Click to change your photo">
+
+<img id="userAvatarImg" src="images/profile.png" alt="Coach">
+
+<span class="avatar-edit-badge">&#9998;</span>
+
+</div>
+
+<input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="changeAvatar(this)">
+
+<h2 id="userName"></h2>
+
+<p id="userRole"></p>
+
+<hr>
+
+<p id="userEmail"></p>
+
+</div>
+
+<div class="menu">
+
+<a href="#" class="active" onclick="event.preventDefault()">🏠 Dashboard</a>
+
+<a href="#" onclick="scrollToSection(event,'assignedCandidates')">👨‍🎓 Students</a>
+
+<a href="#" onclick="scrollToSection(event,'coachingSchedule')">📅 Sessions</a>
+
+<a href="#" onclick="scrollToSection(event,'assignedCandidates')">📊 Reports</a>
+
+<a href="#" onclick="openChangePasswordModal()">⚙ Settings</a>
+
+</div>
+
+</div>
+
+<!-- Main Content -->
+
+<div class="main-content">
+
+<h1>
+
+Welcome Coach 👋
+
+</h1>
+
+<p>
+
+Guide candidates, review AI reports, and improve interview performance.
+
+</p>
+
+<!-- Statistics -->
+
+<div class="stats-grid">
+
+<div class="stat-card">
+
+<h2 id="statTotalStudents">—</h2>
+
+<p>Total Students</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statSessionsCompleted">—</h2>
+
+<p>Sessions Completed</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statAvgSuccess">—</h2>
+
+<p>Average Success</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statTodaySessions">—</h2>
+
+<p>Today's Sessions</p>
+
+</div>
+
+</div>
+
+<!-- Dashboard Cards -->
+
+<div class="dashboard-grid">
+
+<div class="dashboard-card">
+
+<h3>👨‍🎓 Student Progress</h3>
+
+<p>
+
+Monitor interview scores and placement readiness.
+
+</p>
+
+<button onclick="document.getElementById('assignedCandidates').scrollIntoView({behavior:'smooth'})">View Students</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>📅 Coaching Sessions</h3>
+
+<p>
+
+Manage one-to-one mock interview sessions.
+
+</p>
+
+<button onclick="document.getElementById('coachingSchedule').scrollIntoView({behavior:'smooth'})">Schedule</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>📝 AI Reports</h3>
+
+<p>
+
+Review AI-generated feedback and assessments.
+
+</p>
+
+<button onclick="document.getElementById('assignedCandidates').scrollIntoView({behavior:'smooth'})">Open Reports</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>💡 Feedback</h3>
+
+<p>
+
+Provide suggestions for improving interview performance.
+
+</p>
+
+<button onclick="showToast('Pick a candidate below and hit Review to leave feedback.')">Give Feedback</button>
+
+</div>
+
+</div>
+
+<!-- Student List -->
+
+<h2 id="assignedCandidates">
+
+Assigned Candidates
+
+</h2>
+
+<table>
+
+<thead>
+<tr>
+
+<th>Name</th>
+
+<th>Course</th>
+
+<th>Interview Score</th>
+
+<th>Status</th>
+
+<th>Action</th>
+
+</tr>
+</thead>
+
+<tbody id="coachCandidatesBody">
+
+<tr><td class="table-loading" colspan="5">Loading candidates…</td></tr>
+
+</tbody>
+
+</table>
+
+<!-- Schedule -->
+
+<h2 id="coachingSchedule" style="margin-top:30px;">
+
+Coaching Schedule
+
+</h2>
+
+<div class="schedule-tabs" style="display:flex;gap:8px;margin-bottom:14px;">
+
+<button type="button" class="schedule-tab active" data-range="today" onclick="setScheduleTab(this,'coachScheduleBody','today')">Today</button>
+
+<button type="button" class="schedule-tab" data-range="tomorrow" onclick="setScheduleTab(this,'coachScheduleBody','tomorrow')">Tomorrow</button>
+
+<button type="button" class="schedule-tab" data-range="week" onclick="setScheduleTab(this,'coachScheduleBody','week')">This Week</button>
+
+</div>
+
+<table>
+
+<thead>
+<tr>
+
+<th>Candidate</th>
+
+<th>Time</th>
+
+<th>Topic</th>
+
+<th>Mode</th>
+
+</tr>
+</thead>
+
+<tbody id="coachScheduleBody">
+
+<tr><td class="table-loading" colspan="4">Loading schedule…</td></tr>
+
+</tbody>
+
+</table>
+
+<!-- Performance -->
+
+<h2 style="margin-top:30px;">
+
+Candidate Performance
+
+</h2>
+
+<div class="dashboard-grid">
+
+<div class="dashboard-card">
+
+<h3>Communication</h3>
+
+<progress id="progressCommunication" value="0" max="100"></progress>
+
+<p id="progressCommunicationLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Technical Skills</h3>
+
+<progress id="progressTechnical" value="0" max="100"></progress>
+
+<p id="progressTechnicalLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Confidence</h3>
+
+<progress id="progressConfidence" value="0" max="100"></progress>
+
+<p id="progressConfidenceLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Problem Solving</h3>
+
+<progress id="progressProblemSolving" value="0" max="100"></progress>
+
+<p id="progressProblemSolvingLabel">—</p>
+
+</div>
+
+</div>
+
+<!-- Chat -->
+
+<h2 id="coachChat" style="margin-top:30px;">
+
+💬 Chat with Candidates
+
+</h2>
+
+<div class="chat-widget">
+
+<div class="chat-contacts" id="chatContactsList">
+
+<div class="table-loading">Loading contacts…</div>
+
+</div>
+
+<div class="chat-thread">
+
+<div class="chat-thread-header" id="chatActiveContactName">Select a candidate to start chatting</div>
+
+<div class="chat-messages" id="chatMessages">
+
+<p style="color:var(--ink-soft);text-align:center;margin-top:40px;">No conversation selected.</p>
+
+</div>
+
+<form class="chat-input-row" onsubmit="return submitChatMessage(event)">
+
+<input type="text" id="chatMessageInput" placeholder="Type a message…" autocomplete="off" disabled>
+
+<button type="submit" disabled>Send</button>
+
+</form>
+
+</div>
+
+</div>
+
+<!-- Notifications -->
+
+<h2 style="margin-top:30px;">
+
+Coach Notifications
+
+</h2>
+
+<div id="coachNotifications">
+
+<div class="notification">
+
+<h4>
+
+Loading…
+
+</h4>
+
+<p>
+
+Fetching latest notifications.
+
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<footer>
+
+<p class="copyright">
+
+© 2026 AI Mock Interview & Candidate Assessment Platform
+
+</p>
+
+</footer>
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Login | AI Mock Interview Platform</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+
+<body onload="redirectLoggedInUser()">
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="navbar">
+
+    <div class="logo">
+
+        🤖 AI Interview
+
+    </div>
+
+    <ul>
+
+        <li><a href="index.html">Home</a></li>
+
+        <li><a href="register.html">Register</a></li>
+
+        <li><a href="login.html" class="active">Login</a></li>
+
+    </ul>
+
+</nav>
+
+<!-- ================= LOGIN SECTION ================= -->
+
+<section class="login-section">
+
+<div class="login-container">
+
+<!-- LEFT PANEL -->
+
+<div class="login-left">
+
+<h1>
+
+Welcome Back!
+
+</h1>
+
+<p>
+
+Login to access your personalized AI Mock Interview dashboard.
+Practice interviews, review reports, and monitor your progress.
+
+</p>
+
+<div class="login-features">
+
+<div class="feature">
+
+<h3>🎤 AI Mock Interviews</h3>
+
+<p>Attend AI-powered interview sessions anytime.</p>
+
+</div>
+
+<div class="feature">
+
+<h3>📊 Assessment Reports</h3>
+
+<p>Track your interview scores and analytics.</p>
+
+</div>
+
+<div class="feature">
+
+<h3>💼 Placement Ready</h3>
+
+<p>Prepare confidently for real company interviews.</p>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- RIGHT PANEL -->
+
+<div class="login-right">
+
+<h2>
+
+Login
+
+</h2>
+
+<form>
+
+<label>Email Address</label>
+
+<input
+type="email"
+id="loginEmail"
+placeholder="Enter Email"
+required>
+
+<label>Password</label>
+
+<input
+type="password"
+id="loginPassword"
+placeholder="Enter Password"
+required>
+
+<button
+type="button"
+onclick="loginUser()">
+
+Login
+
+</button>
+
+</form>
+
+<div class="oauth-divider" style="text-align:center; margin:16px 0;">or</div>
+
+<button
+type="button"
+onclick="loginWithGoogle()"
+class="google-btn"
+style="width:100%; padding:10px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+
+🔵 Login with Google
+
+</button>
+
+<div class="register-link">
+
+Don't have an account?
+
+<a href="register.html">
+
+Register Here
+
+</a>
+
+</div>
+
+<br>
+
+<div class="register-link">
+
+<h4>Default Admin Login</h4>
+
+<p>Email : <b>admin@gmail.com</b></p>
+
+<p>Password : <b>admin123</b></p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+<div class="footer-content">
+
+<div>
+
+<h3>
+
+AI Interview Platform
+
+</h3>
+
+<p>
+
+Practice. Learn. Get Hired.
+
+</p>
+
+</div>
+
+<div>
+
+<h4>
+
+Quick Links
+
+</h4>
+
+<p><a href="index.html">Home</a></p>
+
+<p><a href="register.html">Register</a></p>
+
+</div>
+
+<div>
+
+<h4>
+
+Support
+
+</h4>
+
+<p>support@aimockinterview.com</p>
+
+<p>+91 9876543210</p>
+
+</div>
+
+</div>
+
+<hr>
+
+<p class="copyright">
+
+© 2026 AI Mock Interview & Candidate Assessment Platform
+
+</p>
+
+</footer>
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>

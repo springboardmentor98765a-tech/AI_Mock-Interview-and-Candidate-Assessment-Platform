@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "AI Interview Platform — Module 3 (Interview Generation)",
+    "description": "Auth + AI interview generation endpoints. Set {{baseUrl}} (default http://localhost:5000/api) and {{token}} (JWT from login) as collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "interviewId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Login (get JWT)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"rahul@gmail.com\",\n  \"password\": \"demo123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Generate Interview Questions",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/interviews/generate", "host": ["{{baseUrl}}"], "path": ["interviews", "generate"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"interviewType\": \"Java Developer\",\n  \"category\": \"Technical\",\n  \"domain\": \"Java\",\n  \"difficulty\": \"hard\",\n  \"questionCount\": 5,\n  \"mode\": \"online\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Interview Session + Questions",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/interviews/{{interviewId}}", "host": ["{{baseUrl}}"], "path": ["interviews", "{{interviewId}}"] }
+      }
+    },
+    {
+      "name": "Update / Regenerate Interview",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/interviews/{{interviewId}}", "host": ["{{baseUrl}}"], "path": ["interviews", "{{interviewId}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"difficulty\": \"medium\",\n  \"category\": \"Mixed\",\n  \"questionCount\": 8,\n  \"regenerate\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete Interview",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/interviews/{{interviewId}}", "host": ["{{baseUrl}}"], "path": ["interviews", "{{interviewId}}"] }
+      }
+    },
+    {
+      "name": "List My Interviews",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/interviews/me", "host": ["{{baseUrl}}"], "path": ["interviews", "me"] }
+      }
+    }
+  ]
+}

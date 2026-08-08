@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Register | AI Mock Interview</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="navbar">
+
+    <div class="logo">
+        🤖 AI Interview
+    </div>
+
+    <ul>
+
+        <li><a href="index.html">Home</a></li>
+
+        <li><a href="register.html" class="active">Register</a></li>
+
+        <li><a href="login.html">Login</a></li>
+
+    </ul>
+
+</nav>
+
+<!-- ================= REGISTER ================= -->
+
+<section class="register-section">
+
+<div class="register-container">
+
+<!-- LEFT SIDE -->
+
+<div class="register-left">
+
+<h1>
+
+Create Your Account
+
+</h1>
+
+<p>
+
+Register to access AI-powered mock interviews,
+resume evaluation, recruiter interaction,
+candidate assessment reports and much more.
+
+</p>
+
+<ul>
+
+<li>✔ AI Mock Interviews</li>
+
+<li>✔ Resume Analysis</li>
+
+<li>✔ Performance Reports</li>
+
+<li>✔ Recruiter Access</li>
+
+<li>✔ Technical Coaching</li>
+
+<li>✔ Placement Assistance</li>
+
+</ul>
+
+</div>
+
+<!-- RIGHT SIDE -->
+
+<div class="register-right">
+
+<h2>
+
+Registration Form
+
+</h2>
+
+<form id="registerForm">
+
+<label>
+
+Full Name
+
+</label>
+
+<input
+type="text"
+id="fullname"
+placeholder="Enter Full Name"
+required>
+
+<label>
+
+Email Address
+
+</label>
+
+<input
+type="email"
+id="email"
+placeholder="Enter Email"
+required>
+
+<label>
+
+Mobile Number
+
+</label>
+
+<input
+type="tel"
+id="mobile"
+placeholder="Enter Mobile Number"
+maxlength="10"
+required>
+
+<label>
+
+Select Role
+
+</label>
+
+<select id="role" required>
+
+<option value="">Choose Role</option>
+
+<option value="candidate">Candidate</option>
+
+<option value="recruiter">Recruiter</option>
+
+<option value="coach">Coach</option>
+
+<option value="admin">Admin</option>
+
+</select>
+
+<label>
+
+Password
+
+</label>
+
+<input
+type="password"
+id="password"
+placeholder="Create Password"
+required>
+
+<label>
+
+Confirm Password
+
+</label>
+
+<input
+type="password"
+id="confirmPassword"
+placeholder="Confirm Password"
+required>
+
+<button
+type="button"
+onclick="registerUser()">
+
+Register
+
+</button>
+
+</form>
+
+<div class="oauth-divider" style="text-align:center; margin:16px 0;">or</div>
+
+<button
+type="button"
+onclick="loginWithGoogle(document.getElementById('role').value || 'candidate')"
+class="google-btn"
+style="width:100%; padding:10px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+
+🔵 Sign up with Google
+
+</button>
+
+<div class="login-link">
+
+Already have an account?
+
+<a href="login.html">
+
+Login Here
+
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+<div class="footer-content">
+
+<div>
+
+<h3>
+
+AI Interview Platform
+
+</h3>
+
+<p>
+
+Practice. Improve. Get Hired.
+
+</p>
+
+</div>
+
+<div>
+
+<h4>
+
+Quick Links
+
+</h4>
+
+<p><a href="index.html">Home</a></p>
+
+<p><a href="login.html">Login</a></p>
+
+</div>
+
+<div>
+
+<h4>
+
+Support
+
+</h4>
+
+<p>support@aimockinterview.com</p>
+
+<p>+91 9876543210</p>
+
+</div>
+
+</div>
+
+<hr>
+
+<p class="copyright">
+
+© 2026 AI Mock Interview & Candidate Assessment Platform
+
+</p>
+
+</footer>
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>

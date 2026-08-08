@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Mock Interview</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body onload="checkRole('candidate'); initInterviewSession();">
+
+  <!-- ================= PRE-START OVERLAY (camera/fullscreen gate) ================= -->
+  <div id="preStartOverlay" class="prestart-overlay">
+    <div class="prestart-box">
+      <h2>🎤 Live Proctored Mock Interview</h2>
+      <p id="sessionInterviewType" class="prestart-track">—</p>
+      <ul class="prestart-checklist">
+        <li>📷 Your webcam will stay on for face-presence monitoring.</li>
+        <li>🖥️ The session runs in full-screen mode.</li>
+        <li>⏱️ Each question has its own countdown timer.</li>
+        <li>⌨️🎙️ Answer by typing or speaking — your choice, per question.</li>
+        <li>⚠️ Switching tabs, exiting full-screen, or multiple faces on camera count as proctoring warnings.</li>
+      </ul>
+      <div id="preStartError" class="prestart-error" style="display:none"></div>
+      <button id="preStartBtn" class="btn-primary" onclick="beginProctoredSession()">▶ Enable Camera &amp; Start</button>
+      <a href="candidate.html" class="prestart-cancel">Cancel and go back</a>
+    </div>
+  </div>
+
+  <!-- ================= LIVE SESSION SHELL (hidden until camera granted) ================= -->
+  <div id="sessionShell" class="session-shell" style="display:none">
+
+    <div class="session-header">
+      <div class="session-header-left">
+        <span class="session-logo">🤖 AI Interview</span>
+        <span id="sessionProgress" class="badge badge-primary">Question 1 / 1</span>
+      </div>
+      <div class="session-header-right">
+        <span id="overallTimer" class="session-timer">Total 00:00</span>
+        <span id="strikeBadge" class="session-strikes">⚠ 0/5 warnings</span>
+      </div>
+    </div>
+
+    <div id="warningBanner" class="warning-banner" style="display:none"></div>
+
+    <div class="session-container">
+
+      <!-- ---- Left: proctoring / webcam panel ---- -->
+      <aside class="proctor-panel">
+        <div class="webcam-wrap">
+          <video id="webcamVideo" autoplay muted playsinline></video>
+        </div>
+
+        <div class="face-status-row">
+          <span id="faceStatusDot" class="session-face-dot session-face-dot-warn"></span>
+          <span id="faceStatusLabel">Starting face detection…</span>
+        </div>
+
+        <ul class="proctor-checklist">
+          <li id="chkTab" class="ok">🪟 Tab focus: <span>Focused</span></li>
+          <li id="chkFullscreen" class="warn">🖥️ Full-screen: <span>Not active</span></li>
+          <li id="chkFace" class="warn">🙂 Face detection: <span>Starting…</span></li>
+        </ul>
+
+        <div class="warning-log-box">
+          <h4>Warning Log</h4>
+          <ul id="warningLog" class="warning-log">
+            <li class="session-warning-log-empty">No warnings yet.</li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- ---- Right: question + answer panel ---- -->
+      <main class="question-panel">
+        <div class="question-card">
+          <div class="question-meta">
+            <span id="qCategoryBadge" class="badge badge-primary">Category</span>
+            <span id="qDifficultyBadge" class="badge">difficulty</span>
+            <span id="questionTimer" class="question-timer">⏱ 02:00</span>
+          </div>
+          <p id="questionText" class="question-text">Loading question…</p>
+          <button type="button" id="playAudioBtn" class="btn-ghost" onclick="playCurrentQuestionAudio()">🔊 Play question</button>
+        </div>
+
+        <div class="answer-card">
+          <textarea id="answerText" class="answer-textarea" placeholder="Type your answer here, or use voice below…"></textarea>
+
+          <div class="voice-controls">
+            <button type="button" id="micBtn" class="mic-btn" onclick="toggleVoiceInput()">🎙️ Start Voice Answer</button>
+            <span id="micStatus" class="voice-status"></span>
+          </div>
+
+          <div class="answer-actions">
+            <button type="button" id="nextBtn" class="btn-primary" onclick="goToNextQuestion()">Save &amp; Next ▶</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= FINISH / REPORT OVERLAY ================= -->
+  <div id="finishOverlay" class="prestart-overlay" style="display:none">
+    <div class="prestart-box">
+      <h2 id="finishHeading">⏳ Scoring your interview…</h2>
+      <p id="finishSubtext">The AI is reviewing your answers. This takes a few seconds.</p>
+      <div id="finishScoreBox" class="finish-score-box" style="display:none">
+        <div id="finishScoreCircle" class="finish-score-circle">—</div>
+        <p id="finishFeedbackText" class="finish-feedback-text"></p>
+      </div>
+      <a href="candidate.html" class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center;margin-top:16px">Back to Dashboard</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="js/script.js?v=20260808"></script>
+  <script src="js/interview-session.js?v=20260808"></script>
+</body>
+
+</html>

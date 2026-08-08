@@ -1,0 +1,20 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+SQLAlchemy==2.0.35
+# 2.9.9 has no prebuilt wheel for Python 3.13, which forces a from-source
+# build requiring MS C++ Build Tools on Windows. 2.9.10+ ships proper
+# prebuilt wheels for 3.13 on Windows/macOS/Linux — no compiler needed.
+psycopg2-binary>=2.9.10
+PyJWT==2.9.0
+python-dotenv==1.0.1
+pydantic==2.9.2
+
+# Text-to-Speech (Module 3 enhancement)
+# gTTS = free, high quality, needs internet access at request time.
+# pyttsx3 = fully offline fallback, used automatically if gTTS/network fails.
+gTTS==2.5.3
+pyttsx3==2.90
+
+# Multi-provider AI engine (app/ai_providers.py) — talks to Ollama /
+# Gemini / OpenAI / Grok over plain HTTP.
+requests==2.32.3

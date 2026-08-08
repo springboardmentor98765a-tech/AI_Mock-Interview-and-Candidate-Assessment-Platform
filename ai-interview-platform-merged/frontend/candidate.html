@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Candidate Dashboard</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+
+<body onload="checkRole('candidate');loadProfile();initCandidateDashboard();">
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="navbar">
+
+    <div class="logo">
+
+        🤖 AI Interview
+
+    </div>
+
+    <ul>
+
+        <li><a href="candidate.html" class="active">Dashboard</a></li>
+
+        <li><a href="#" onclick="scrollToSection(event,'mockInterviewCard')">Mock Interview</a></li>
+
+        <li><a href="#" onclick="scrollToSection(event,'interviewHistory')">Reports</a></li>
+
+        <li><a href="#" onclick="openEditProfileModal()">Profile</a></li>
+
+        <li><a href="#" onclick="logout()">Logout</a></li>
+
+    </ul>
+
+</nav>
+
+<!-- ================= DASHBOARD ================= -->
+
+<div class="dashboard-container">
+
+<!-- Sidebar -->
+
+<div class="sidebar">
+
+<div class="profile-card">
+
+<div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Click to change your photo">
+
+<img id="userAvatarImg" src="images/profile.png" alt="Profile">
+
+<span class="avatar-edit-badge">&#9998;</span>
+
+</div>
+
+<input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="changeAvatar(this)">
+
+<h2 id="userName"></h2>
+
+<p id="userRole"></p>
+
+<hr>
+
+<p id="userEmail"></p>
+
+</div>
+
+<div class="menu">
+
+<a href="#" class="active" onclick="event.preventDefault()">🏠 Dashboard</a>
+
+<a href="#" onclick="scrollToSection(event,'mockInterviewCard')">🎤 Mock Interview</a>
+
+<a href="#" onclick="event.preventDefault(); viewLatestResume();">📄 Resume</a>
+
+<a href="#" onclick="scrollToSection(event,'interviewHistory')">📊 Reports</a>
+
+<a href="#" onclick="openChangePasswordModal()">⚙ Settings</a>
+
+</div>
+
+</div>
+
+<!-- Main Content -->
+
+<div class="main-content">
+
+<h1>
+
+Welcome Candidate 👋
+
+</h1>
+
+<p>
+
+Practice AI interviews and improve your placement readiness.
+
+</p>
+
+<!-- Statistics -->
+
+<div class="stats-grid">
+
+<div class="stat-card">
+
+<h2 id="statMockInterviews">—</h2>
+
+<p>Mock Interviews</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statAverageScore">—</h2>
+
+<p>Average Score</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statReportsGenerated">—</h2>
+
+<p>Reports Generated</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="statUpcoming">—</h2>
+
+<p>Upcoming Interviews</p>
+
+</div>
+
+</div>
+
+<!-- Dashboard Cards -->
+
+<div class="dashboard-grid">
+
+<div class="dashboard-card" id="mockInterviewCard">
+
+<h3>🎤 Start Mock Interview</h3>
+
+<p>
+
+Practice AI-powered HR and Technical interviews.
+
+</p>
+
+<button onclick="promptStartInterview()">
+
+Start
+
+</button>
+
+<button style="margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="promptScheduleInterview()">
+
+Schedule for later
+
+</button>
+
+<button style="margin-top:8px" onclick="promptGenerateQuestions()">
+
+✨ Generate AI Questions
+
+</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>📄 Resume Analysis</h3>
+
+<p>
+
+Upload and evaluate your resume.
+
+</p>
+
+<button onclick="promptUploadResume()">
+
+Upload
+
+</button>
+
+<button style="margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewLatestResume()">
+
+View Latest Analysis
+
+</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>📊 Performance Report</h3>
+
+<p>
+
+Check interview scores and improvement suggestions.
+
+</p>
+
+<button onclick="document.getElementById('interviewHistory').scrollIntoView({behavior:'smooth'})">
+
+View Report
+
+</button>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>💼 Placement Tips</h3>
+
+<p>
+
+Daily interview preparation guidance.
+
+</p>
+
+<button onclick="openPlacementTipsModal()">
+
+Read Tips
+
+</button>
+
+</div>
+
+</div>
+
+<!-- Interview History -->
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+
+<h2 id="interviewHistory">
+
+Interview History
+
+</h2>
+
+<button type="button" style="background:transparent;border:1px solid var(--danger, #d33);color:var(--danger, #d33)" onclick="clearInterviewHistory()">🧹 Clear History</button>
+
+</div>
+
+<table>
+
+<thead>
+<tr>
+
+<th>Date</th>
+
+<th>Interview</th>
+
+<th>Score</th>
+
+<th>Status</th>
+
+<th>Action</th>
+
+</tr>
+</thead>
+
+<tbody id="candidateHistoryBody">
+
+<tr><td class="table-loading" colspan="5">Loading interview history…</td></tr>
+
+</tbody>
+
+</table>
+
+<!-- Progress -->
+
+<h2 style="margin-top:30px;">
+
+Skill Progress
+
+</h2>
+
+<div class="dashboard-grid">
+
+<div class="dashboard-card">
+
+<h3>Communication</h3>
+
+<progress id="progressCommunication" value="0" max="100"></progress>
+
+<p id="progressCommunicationLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Technical Skills</h3>
+
+<progress id="progressTechnical" value="0" max="100"></progress>
+
+<p id="progressTechnicalLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Confidence</h3>
+
+<progress id="progressConfidence" value="0" max="100"></progress>
+
+<p id="progressConfidenceLabel">—</p>
+
+</div>
+
+<div class="dashboard-card">
+
+<h3>Problem Solving</h3>
+
+<progress id="progressProblemSolving" value="0" max="100"></progress>
+
+<p id="progressProblemSolvingLabel">—</p>
+
+</div>
+
+</div>
+
+<!-- Score Trend -->
+
+<h2 id="performanceTrend" style="margin-top:30px;">
+
+Your Score Trend
+
+</h2>
+
+<div class="dashboard-card">
+
+<p style="margin:0 0 12px;color:var(--ink-soft);font-size:0.85rem;">Your last few completed interviews, oldest to most recent — watch this climb as you keep practicing.</p>
+
+<div id="scoreTrendChart">
+
+<p class="table-loading">Loading trend…</p>
+
+</div>
+
+</div>
+
+<!-- Chat -->
+
+<h2 id="candidateChat" style="margin-top:30px;">
+
+💬 Chat with Your Coach
+
+</h2>
+
+<div class="chat-widget">
+
+<div class="chat-contacts" id="chatContactsList">
+
+<div class="table-loading">Loading contacts…</div>
+
+</div>
+
+<div class="chat-thread">
+
+<div class="chat-thread-header" id="chatActiveContactName">Select a coach to start chatting</div>
+
+<div class="chat-messages" id="chatMessages">
+
+<p style="color:var(--ink-soft);text-align:center;margin-top:40px;">No conversation selected.</p>
+
+</div>
+
+<form class="chat-input-row" onsubmit="return submitChatMessage(event)">
+
+<input type="text" id="chatMessageInput" placeholder="Type a message…" autocomplete="off" disabled>
+
+<button type="submit" disabled>Send</button>
+
+</form>
+
+</div>
+
+</div>
+
+<!-- Notifications -->
+
+<h2 style="margin-top:30px;">
+
+Latest Notifications
+
+</h2>
+
+<div id="candidateNotifications">
+
+<div class="notification">
+
+<h4>
+
+Loading…
+
+</h4>
+
+<p>
+
+Fetching latest notifications.
+
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<footer>
+
+<p class="copyright">
+
+© 2026 AI Mock Interview & Candidate Assessment Platform
+
+</p>
+
+</footer>
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>

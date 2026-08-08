@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signing you in…</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <p style="text-align:center; margin-top:100px; font-family:sans-serif;">
+    Signing you in, please wait…
+  </p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const role = params.get('role');
+    const name = params.get('name');
+
+    const DASHBOARD_BY_ROLE = {
+      candidate: 'candidate.html',
+      recruiter: 'recruiter.html',
+      coach: 'coach.html',
+      admin: 'admin.html',
+    };
+
+    if (token && role) {
+      // We don't have the full user object here, but decoding the JWT
+      // payload (base64) gives us email/fullName without another request.
+      function decodeJwtPayload(t) {
+        try {
+          return JSON.parse(atob(t.split('.')[1]));
+        } catch (e) {
+          return {};
+        }
+      }
+      const payload = decodeJwtPayload(token);
+
+      localStorage.setItem('token', token);
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: payload.id,
+          fullName: payload.fullName || name || '',
+          email: payload.email || '',
+          role: payload.role || role,
+        })
+      );
+
+      window.location.href = DASHBOARD_BY_ROLE[role] || 'login.html';
+    } else {
+      window.location.href = 'login.html?error=oauth_failed';
+    }
+  </script>
+</body>
+</html>
