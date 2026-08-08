@@ -1,6 +1,10 @@
 /**
- * Client-side report download. No backend involved: the report text is built
- * from data already on the page and handed to the browser as a file.
+ * Client-side report download.
+ *
+ * Built from the same real data the page is showing — interview counts,
+ * statuses and timestamps that came from the API. Where a figure does not
+ * exist (anything score-based), the report says so in words rather than
+ * printing a zero that would read as a real result.
  */
 export function downloadTextFile(filename, text) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -15,44 +19,64 @@ export function downloadTextFile(filename, text) {
 }
 
 function line(label, value) {
-  return `${label.padEnd(22)}${value}`;
+  return `${String(label).padEnd(26)}${value}`;
 }
 
-export function buildSessionReport({ candidate, session, breakdown, notes = [] }) {
-  return [
-    'SMARTHIRE AI - INTERVIEW REPORT',
-    '='.repeat(46),
-    '',
-    line('Candidate', candidate),
-    line('Session', session.type),
-    line('Date', session.date),
-    line('Duration', session.duration ?? '-'),
-    line('Overall score', session.score),
-    '',
-    'SCORE BREAKDOWN',
-    '-'.repeat(46),
-    ...breakdown.map(([label, value, weight]) => line(`${label} (${weight})`, `${value}%`)),
-    '',
-    ...(notes.length ? ['NOTES', '-'.repeat(46), ...notes.map((note) => `- ${note}`), ''] : []),
-    `Generated ${new Date().toISOString().slice(0, 10)}`,
-  ].join('\n');
-}
+const when = (iso) => (iso ? new Date(iso).toLocaleString() : '—');
 
-export function buildSummaryReport({ candidate, stats, skills }) {
-  return [
-    'SMARTHIRE AI - PERFORMANCE SUMMARY',
-    '='.repeat(46),
+export function buildActivityReport({ candidate, email, stats, interviews, resume }) {
+  const rows = [
+    'SMARTHIRE AI - ACTIVITY SUMMARY',
+    '='.repeat(58),
     '',
     line('Candidate', candidate),
+    line('Email', email ?? '—'),
+    line('Generated', new Date().toLocaleString()),
     '',
-    'HEADLINE FIGURES',
-    '-'.repeat(46),
-    ...stats.map(([value, label]) => line(label, value)),
+    'ACTIVITY',
+    '-'.repeat(58),
+    line('Interviews generated', stats.interviews_total),
+    line('Completed', stats.interviews_by_status?.COMPLETED ?? 0),
+    line('In progress', stats.interviews_by_status?.IN_PROGRESS ?? 0),
+    line('Questions answered', `${stats.questions_answered} of ${stats.questions_total}`),
+    line('Last interview', when(stats.last_interview_at)),
     '',
-    'SKILL BREAKDOWN',
-    '-'.repeat(46),
-    ...skills.map(([label, value]) => line(label, `${value}%`)),
-    '',
-    `Generated ${new Date().toISOString().slice(0, 10)}`,
-  ].join('\n');
+  ];
+
+  if (resume?.extracted) {
+    rows.push(
+      'RESUME',
+      '-'.repeat(58),
+      line('File', resume.filename),
+      line('Parsed', when(resume.parsed_at)),
+      line('Experience', `${resume.extracted.total_experience_years} years`),
+      line('Skills', resume.extracted.skills.join(', ') || '—'),
+      line('Technologies', resume.extracted.technologies.join(', ') || '—'),
+      ''
+    );
+  } else {
+    rows.push('RESUME', '-'.repeat(58), 'No parsed resume on file.', '');
+  }
+
+  if (interviews?.length) {
+    rows.push('INTERVIEW HISTORY', '-'.repeat(58));
+    interviews.forEach((row) => {
+      rows.push(
+        `${row.interview_type} / ${row.difficulty} / ${row.domain}`,
+        `    ${row.question_count} questions · ${row.status} · created ${when(row.created_at)}`
+      );
+    });
+    rows.push('');
+  }
+
+  rows.push(
+    'SCORING',
+    '-'.repeat(58),
+    'Not available. This platform records spoken answers as audio, but does not',
+    'transcribe or score them, so this report deliberately contains no scores,',
+    'skill ratings or performance percentages.',
+    ''
+  );
+
+  return rows.join('\n');
 }

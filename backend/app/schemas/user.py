@@ -52,6 +52,7 @@ class UserOut(BaseModel):
     email: EmailStr
     role: Role
     provider: Provider
+    is_blocked: bool = False
     created_at: datetime
     updated_at: datetime
 

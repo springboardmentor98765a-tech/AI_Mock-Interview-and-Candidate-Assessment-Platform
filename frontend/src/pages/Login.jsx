@@ -35,7 +35,8 @@ export default function Login() {
   const [lockedUntil, setLockedUntil] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [googleReady, setGoogleReady] = useState(false);
-  const { login, adoptToken, startGoogleLogin } = useAuth();
+  const [githubReady, setGithubReady] = useState(false);
+  const { login, adoptToken, startGoogleLogin, startGithubLogin } = useAuth();
   const navigate = useNavigate();
 
   // Re-check the lock whenever the address changes.
@@ -58,16 +59,22 @@ export default function Login() {
     return () => clearInterval(id);
   }, [lockedUntil]);
 
-  // Google login is only offered when the server actually has credentials for it.
+  // Social login buttons are only offered when the server actually has credentials for them.
   useEffect(() => {
     let cancelled = false;
     api
       .health()
       .then((info) => {
-        if (!cancelled) setGoogleReady(Boolean(info?.google_login));
+        if (!cancelled) {
+          setGoogleReady(Boolean(info?.google_login));
+          setGithubReady(Boolean(info?.github_login));
+        }
       })
       .catch(() => {
-        if (!cancelled) setGoogleReady(false);
+        if (!cancelled) {
+          setGoogleReady(false);
+          setGithubReady(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -75,9 +82,9 @@ export default function Login() {
   }, []);
 
   /**
-   * Coming back from Google: the backend redirects here with the JWT it issued.
-   * Swap it for the profile, then clear it out of the address bar so the token
-   * does not linger in history.
+   * Coming back from Google or GitHub: the backend redirects here with the JWT
+   * it issued. Swap it for the profile, then clear it out of the address bar
+   * so the token does not linger in history.
    */
   useEffect(() => {
     const token = searchParams.get('token');
@@ -87,7 +94,7 @@ export default function Login() {
     setBusy(true);
     adoptToken(token)
       .then((session) => navigate(HOME_BY_ROLE[session.role] ?? '/', { replace: true }))
-      .catch(() => setError('Google sign-in did not complete. Try again.'))
+      .catch(() => setError('Sign-in did not complete. Try again.'))
       .finally(() => setBusy(false));
   }, [searchParams]);
 
@@ -198,8 +205,9 @@ export default function Login() {
           <button
             type="button"
             className="btn btn-block"
-            disabled
-            title="GitHub sign-in is not implemented yet."
+            disabled={busy || isLocked || !githubReady}
+            title={githubReady ? undefined : 'GitHub sign-in is not configured on the server yet.'}
+            onClick={startGithubLogin}
           >
             <GithubMark />
             Continue with GitHub

@@ -861,3 +861,396 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Landing page — 3D pyramid, orbs, role cards
+   Built with CSS 3D transforms rather than WebGL: no dependency, and it keeps
+   the single-stylesheet approach intact.
+   ========================================================================== */
+
+.landing {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  overflow: hidden;
+}
+
+/* ---------- atmospheric floating orbs ---------- */
+.orbs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+}
+.orb-1 {
+  width: 340px;
+  height: 340px;
+  top: -80px;
+  right: -60px;
+  background: radial-gradient(circle at 35% 35%, rgba(0, 200, 255, 0.55), transparent 68%);
+  animation: drift 22s ease-in-out infinite;
+}
+.orb-2 {
+  width: 260px;
+  height: 260px;
+  top: 340px;
+  left: -70px;
+  background: radial-gradient(circle at 40% 40%, rgba(138, 120, 255, 0.5), transparent 68%);
+  animation: drift 27s ease-in-out infinite reverse;
+}
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  bottom: -90px;
+  right: 22%;
+  background: radial-gradient(circle at 45% 45%, rgba(0, 232, 122, 0.32), transparent 70%);
+  animation: drift 32s ease-in-out infinite;
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(26px, -32px, 0) scale(1.1);
+  }
+}
+
+/* ---------- hero ---------- */
+.hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 48px;
+  min-height: calc(100vh - 56px);
+  padding: 32px 0;
+}
+.hero-copy .badge {
+  margin-bottom: 18px;
+}
+.hero-copy h1 {
+  font-size: clamp(38px, 6vw, 62px);
+  line-height: 1.02;
+  margin-bottom: 16px;
+}
+.hero-copy h1 span {
+  color: var(--blue);
+}
+.lede {
+  max-width: 46ch;
+  margin-bottom: 26px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--tx-2);
+}
+.hero-copy .actions {
+  margin-bottom: 18px;
+}
+
+/* ---------- 3D stage ---------- */
+.hero-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+.stage {
+  position: relative;
+  width: 100%;
+  height: 330px;
+  perspective: 1100px;
+  perspective-origin: 50% 42%;
+}
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 300px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 200, 255, 0.35), transparent 70%);
+  filter: blur(26px);
+}
+
+.pyramid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-style: preserve-3d;
+  animation: spin 20s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: translateY(54px) rotateX(-16deg) rotateY(0deg);
+  }
+  to {
+    transform: translateY(54px) rotateX(-16deg) rotateY(360deg);
+  }
+}
+
+/* one stepped slab; --w --h --y come from the component */
+.tier {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: translateY(var(--y));
+  cursor: pointer;
+}
+.tier .face {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(
+    135deg,
+    rgba(0, 200, 255, 0.44) 0%,
+    rgba(120, 140, 255, 0.26) 38%,
+    rgba(190, 150, 255, 0.22) 62%,
+    rgba(0, 232, 122, 0.2) 100%
+  );
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.16);
+  transition: background 0.35s, box-shadow 0.35s, border-color 0.35s;
+}
+/* four sides */
+.tier .front,
+.tier .back,
+.tier .left,
+.tier .right {
+  width: var(--w);
+  height: var(--h);
+  left: calc(var(--w) / -2);
+  top: calc(var(--h) / -2);
+}
+.tier .front {
+  transform: translateZ(calc(var(--w) / 2));
+}
+.tier .back {
+  transform: rotateY(180deg) translateZ(calc(var(--w) / 2));
+}
+.tier .left {
+  transform: rotateY(-90deg) translateZ(calc(var(--w) / 2));
+}
+.tier .right {
+  transform: rotateY(90deg) translateZ(calc(var(--w) / 2));
+}
+/* the lit top surface */
+.tier .top {
+  width: var(--w);
+  height: var(--w);
+  left: calc(var(--w) / -2);
+  top: calc(var(--w) / -2);
+  transform: rotateX(90deg) translateZ(calc(var(--h) / 2));
+  background: linear-gradient(
+    135deg,
+    rgba(214, 245, 255, 0.5) 0%,
+    rgba(0, 200, 255, 0.34) 40%,
+    rgba(160, 140, 255, 0.36) 100%
+  );
+}
+
+/* highlighted step */
+.tier.on .face {
+  border-color: rgba(0, 200, 255, 0.85);
+  background: linear-gradient(
+    135deg,
+    rgba(0, 200, 255, 0.72) 0%,
+    rgba(140, 160, 255, 0.5) 45%,
+    rgba(0, 232, 122, 0.42) 100%
+  );
+  box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.3), 0 0 22px rgba(0, 200, 255, 0.4);
+}
+
+/* ---------- the steps that explain the product ---------- */
+.steps {
+  width: 100%;
+  max-width: 400px;
+  list-style: none;
+  counter-reset: none;
+}
+.steps li {
+  display: flex;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.steps li:hover,
+.steps li.on {
+  background: var(--card);
+  border-color: var(--line-2);
+}
+.steps b {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--tx-2);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.steps li.on b {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--blue-bg);
+}
+.steps strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.steps small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--tx-2);
+}
+
+/* ---------- role cards with an isometric cube ---------- */
+.roles {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 40px 0;
+}
+.role-card {
+  position: relative;
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.25s, transform 0.25s;
+}
+.role-card:hover {
+  border-color: var(--blue);
+  transform: translateY(-3px);
+}
+.role-card h2 {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--tx);
+}
+.role-card p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--tx-2);
+}
+
+.role-cube {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 16px;
+  transform-style: preserve-3d;
+  transform: rotateX(-26deg) rotateY(-38deg);
+  animation: tumble 14s linear infinite;
+}
+.role-card:nth-child(2) .role-cube {
+  animation-duration: 17s;
+}
+.role-card:nth-child(3) .role-cube {
+  animation-duration: 20s;
+}
+@keyframes tumble {
+  from {
+    transform: rotateX(-26deg) rotateY(-38deg);
+  }
+  to {
+    transform: rotateX(-26deg) rotateY(322deg);
+  }
+}
+.role-cube i {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.4), rgba(150, 140, 255, 0.22));
+  box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.14);
+}
+.role-cube i:nth-child(1) {
+  transform: translateZ(23px);
+}
+.role-cube i:nth-child(2) {
+  transform: rotateY(180deg) translateZ(23px);
+}
+.role-cube i:nth-child(3) {
+  transform: rotateY(90deg) translateZ(23px);
+}
+.role-cube i:nth-child(4) {
+  transform: rotateY(-90deg) translateZ(23px);
+}
+.role-cube i:nth-child(5) {
+  transform: rotateX(90deg) translateZ(23px);
+  background: linear-gradient(135deg, rgba(214, 245, 255, 0.44), rgba(0, 200, 255, 0.3));
+}
+.role-cube i:nth-child(6) {
+  transform: rotateX(-90deg) translateZ(23px);
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.2), rgba(90, 80, 160, 0.24));
+}
+
+.landing-foot {
+  position: relative;
+  z-index: 1;
+  padding: 26px 0;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    min-height: 0;
+    text-align: center;
+  }
+  .hero-copy .actions {
+    justify-content: center;
+  }
+  .lede {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .roles {
+    grid-template-columns: 1fr;
+  }
+  .steps li {
+    text-align: left;
+  }
+}
+@media (max-width: 560px) {
+  .stage {
+    height: 260px;
+    transform: scale(0.82);
+  }
+}
+
+/* ---------- motion preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .pyramid,
+  .role-cube,
+  .orb {
+    animation: none;
+  }
+  .pyramid {
+    transform: translateY(54px) rotateX(-16deg) rotateY(38deg);
+  }
+}

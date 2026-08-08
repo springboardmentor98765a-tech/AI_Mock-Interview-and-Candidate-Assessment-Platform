@@ -31,8 +31,13 @@ backend/*.py[cod]
 backend/*.db
 backend/*.sqlite3
 backend/.env
+# Uploaded candidate résumés — never commit these.
+backend/uploads/
 
 # IDE / Editors
 .vscode/
 .idea/
 *.swp
+
+# Local agent/tooling settings — machine-specific, not part of the project.
+.claude/

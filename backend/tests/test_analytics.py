@@ -1,0 +1,164 @@
+"""
+Real analytics — the numbers must match the database, not a guess.
+
+These tests assert against live COUNT queries so a fabricated or drifting
+figure fails immediately.
+"""
+
+import pytest
+from sqlalchemy import func
+
+from .conftest import auth
+
+
+@pytest.fixture(scope="module")
+def db():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from app.db.session import SessionLocal
+
+    session = SessionLocal()
+    yield session
+    session.close()
+
+
+class TestAdminAnalytics:
+    def test_requires_admin(self, client, candidate_token, recruiter_token):
+        assert client.get("/analytics/admin", headers=auth(candidate_token)).status_code == 403
+        assert client.get("/analytics/admin", headers=auth(recruiter_token)).status_code == 403
+
+    def test_numbers_match_the_database(self, client, admin_token, db):
+        from app.models.interview import Interview, InterviewQuestion
+        from app.models.resume import Resume
+        from app.models.user import User
+
+        body = client.get("/analytics/admin", headers=auth(admin_token)).json()
+
+        assert body["users_total"] == db.query(User).count()
+        assert body["interviews_total"] == db.query(Interview).count()
+        assert body["questions_total"] == db.query(InterviewQuestion).count()
+        assert body["resumes_total"] == db.query(Resume).count()
+        from app.models.interview import QUESTION_ANSWERED, QUESTION_SKIPPED
+
+        assert body["questions_answered"] == db.query(InterviewQuestion).filter(
+            QUESTION_ANSWERED
+        ).count()
+        # A skipped question was not attempted and must not inflate the
+        # answered figure.
+        assert body["questions_skipped"] == db.query(InterviewQuestion).filter(
+            QUESTION_SKIPPED
+        ).count()
+
+    def test_role_breakdown_sums_to_total(self, client, admin_token):
+        body = client.get("/analytics/admin", headers=auth(admin_token)).json()
+        assert sum(body["users_by_role"].values()) == body["users_total"]
+
+    def test_status_breakdown_sums_to_total(self, client, admin_token):
+        body = client.get("/analytics/admin", headers=auth(admin_token)).json()
+        assert sum(body["interviews_by_status"].values()) == body["interviews_total"]
+
+    def test_time_series_has_14_points(self, client, admin_token):
+        body = client.get("/analytics/admin", headers=auth(admin_token)).json()
+        series = body["interviews_last_14_days"]
+        assert len(series) == 14
+        assert all(isinstance(p["count"], int) for p in series)
+
+    def test_no_score_fields_present(self, client, admin_token):
+        """The hard rule: no fabricated score data anywhere in the payload."""
+        body = client.get("/analytics/admin", headers=auth(admin_token)).json()
+        blob = str(body).lower()
+        for banned in ("avg_score", "score_distribution", "confidence", "eye_contact"):
+            assert banned not in blob, f"score-derived field {banned!r} leaked into analytics"
+
+
+class TestCandidateAnalytics:
+    def test_requires_candidate(self, client, recruiter_token, admin_token):
+        assert client.get("/analytics/candidate", headers=auth(recruiter_token)).status_code == 403
+        assert client.get("/analytics/candidate", headers=auth(admin_token)).status_code == 403
+
+    def test_counts_are_own_only(self, client, candidate_token, db):
+        from app.models.interview import Interview
+        from app.models.user import User
+
+        me = client.get("/users/me", headers=auth(candidate_token)).json()
+        body = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
+        expected = db.query(Interview).filter(Interview.user_id == me["id"]).count()
+        assert body["interviews_total"] == expected
+
+    def test_scoring_flagged_unavailable(self, client, candidate_token):
+        body = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
+        assert body["scoring_available"] is False, "must not claim scoring exists"
+
+    def test_reflects_a_new_interview(self, client, candidate_token):
+        before = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
+        r = client.post("/interviews/generate", headers=auth(candidate_token), json={
+            "interview_type": "HR", "domain": "analytics probe",
+            "difficulty": "EASY", "question_count": 2})
+        iid = r.json()["id"]
+        try:
+            after = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
+            assert after["interviews_total"] == before["interviews_total"] + 1
+            assert after["questions_total"] == before["questions_total"] + 2
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+
+class TestRecruiterAnalytics:
+    def test_requires_recruiter_or_admin(self, client, candidate_token):
+        assert client.get("/analytics/recruiter", headers=auth(candidate_token)).status_code == 403
+
+    def test_candidate_count_matches_db(self, client, recruiter_token, db):
+        from app.models.user import Role, User
+
+        body = client.get("/analytics/recruiter", headers=auth(recruiter_token)).json()
+        assert body["candidates_total"] == db.query(User).filter(
+            User.role == Role.CANDIDATE
+        ).count()
+
+    def test_scoring_flagged_unavailable(self, client, recruiter_token):
+        body = client.get("/analytics/recruiter", headers=auth(recruiter_token)).json()
+        assert body["scoring_available"] is False
+
+    def test_candidate_list_has_no_score_or_rank(self, client, recruiter_token):
+        rows = client.get("/analytics/recruiter/candidates", headers=auth(recruiter_token)).json()
+        assert isinstance(rows, list)
+        for row in rows:
+            assert "score" not in row, "fabricated score in the candidate list"
+            assert "rank" not in row, "fabricated rank in the candidate list"
+            assert row["interviews_total"] >= 0
+
+    def test_candidate_list_blocked_for_candidates(self, client, candidate_token):
+        r = client.get("/analytics/recruiter/candidates", headers=auth(candidate_token))
+        assert r.status_code == 403
+
+
+class TestLiveMonitoring:
+    def test_requires_recruiter_or_admin(self, client, candidate_token):
+        assert client.get("/analytics/live", headers=auth(candidate_token)).status_code == 403
+
+    def test_started_interview_appears_and_leaves(self, client, candidate_token, recruiter_token):
+        r = client.post("/interviews/generate", headers=auth(candidate_token), json={
+            "interview_type": "HR", "domain": "live probe",
+            "difficulty": "EASY", "question_count": 2})
+        iid = r.json()["id"]
+        try:
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            assert iid not in [x["interview_id"] for x in live], "unstarted interview shown as live"
+
+            client.post("/interviews/start", headers=auth(candidate_token),
+                        json={"interview_id": iid})
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            entry = next((x for x in live if x["interview_id"] == iid), None)
+            assert entry is not None, "IN_PROGRESS interview missing from live monitoring"
+            assert entry["questions_total"] == 2
+            assert entry["questions_answered"] == 0
+            assert entry["candidate_name"]
+
+            client.put(f"/interviews/{iid}", headers=auth(candidate_token),
+                       json={"status": "COMPLETED"})
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            assert iid not in [x["interview_id"] for x in live], "completed interview still live"
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))

@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -15,6 +15,7 @@ class Role(str, enum.Enum):
 class Provider(str, enum.Enum):
     LOCAL = "LOCAL"
     GOOGLE = "GOOGLE"
+    GITHUB = "GITHUB"
 
 
 class User(Base):
@@ -29,6 +30,10 @@ class User(Base):
 
     role = Column(Enum(Role), nullable=False, default=Role.CANDIDATE)
     provider = Column(Enum(Provider), nullable=False, default=Provider.LOCAL)
+
+    # Set by an administrator. A blocked user cannot log in and their existing
+    # token stops working, so blocking is real rather than cosmetic.
+    is_blocked = Column(Boolean, nullable=False, default=False, server_default="false")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

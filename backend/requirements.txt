@@ -23,3 +23,16 @@ python-jose[cryptography]>=3.3.0
 authlib>=1.3.0
 httpx>=0.27.0
 itsdangerous>=2.1.2
+
+# AI question generation and résumé extraction — Google Gemini
+google-genai>=1.0.0
+
+# Résumé upload (Module 2). FastAPI needs python-multipart for ANY file upload.
+python-multipart>=0.0.9
+pypdf>=4.2.0
+
+# WebSocket transport for the voice interviewer
+websockets>=12.0
+
+# Local model provider (AI_PROVIDER=ollama) — no API key, no quota
+ollama>=0.4.0

@@ -6,3 +6,6 @@ venv/
 *.db
 .pytest_cache/
 .DS_Store
+
+# Uploaded candidate résumés — never commit these.
+uploads/

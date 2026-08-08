@@ -37,6 +37,14 @@ def get_current_user(
     if user is None:
         raise CREDENTIALS_ERROR
 
+    # Blocking takes effect immediately, on the token the user already holds —
+    # otherwise a blocked account stays usable for the rest of the JWT's life.
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been blocked by an administrator.",
+        )
+
     return user
 
 

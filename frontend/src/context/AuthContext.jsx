@@ -204,6 +204,10 @@ export function AuthProvider({ children }) {
         window.location.href = api.googleLoginUrl();
       },
 
+      startGithubLogin() {
+        window.location.href = api.githubLoginUrl();
+      },
+
       /** PUT /users/me. Name and password only — role is not accepted there. */
       async updateProfile(fields) {
         const session = toSession(await api.updateProfile(fields));

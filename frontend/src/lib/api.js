@@ -47,7 +47,11 @@ function readDetail(payload, status) {
 
 async function request(path, { method = 'GET', body, auth = false } = {}) {
   const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  // FormData must set its own multipart boundary, so do not touch Content-Type
+  // and do not stringify it.
+  const isForm = body instanceof FormData;
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
 
   if (auth) {
     const token = getToken();
@@ -59,7 +63,7 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     response = await fetch(`${BASE}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Is the API running on port 8000?');
@@ -72,27 +76,118 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
   return payload;
 }
 
+const query = (params) => {
+  const search = new URLSearchParams(
+    Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== '')
+  ).toString();
+  return search ? `?${search}` : '';
+};
+
 export const api = {
-  /** POST /auth/register -> { message, user }. Does not sign you in. */
+  /* ---------------- auth ---------------- */
+
   register: ({ name, email, password, role }) =>
     request('/auth/register', { method: 'POST', body: { name, email, password, role } }),
 
-  /** POST /auth/login -> { access_token, token_type, user } */
   login: ({ email, password }) =>
     request('/auth/login', { method: 'POST', body: { email, password } }),
 
-  /** GET /users/me -> the signed-in user, or 401 if the token is stale. */
   me: () => request('/users/me', { auth: true }),
 
   /** PUT /users/me. The server has no role field here, so it cannot be escalated. */
   updateProfile: (fields) => request('/users/me', { method: 'PUT', body: fields, auth: true }),
 
-  /** GET /health -> { status, database, google_login } */
   health: () => request('/health'),
 
+  publicSettings: () => request('/settings/public'),
+
   /**
-   * Google sign-in is a full page redirect, not a fetch: the browser goes to
-   * the backend, which bounces it to Google and back to /login?token=...
+   * Google/GitHub sign-in are full page redirects, not fetches: the browser
+   * goes to the backend, which bounces it to the provider and back to
+   * /login?token=...
    */
   googleLoginUrl: () => `${BASE}/auth/google/login`,
+  githubLoginUrl: () => `${BASE}/auth/github/login`,
+
+  /* ---------------- résumés ---------------- */
+
+  uploadResume: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request('/resumes', { method: 'POST', body: form, auth: true });
+  },
+  myResume: () => request('/resumes/me', { auth: true }),
+  candidateResume: (userId) => request(`/resumes/candidate/${userId}`, { auth: true }),
+
+  /* ---------------- interviews ---------------- */
+
+  generateInterview: (payload) =>
+    request('/interviews/generate', { method: 'POST', body: payload, auth: true }),
+  listInterviews: (params) => request(`/interviews${query(params)}`, { auth: true }),
+  getInterview: (id) => request(`/interviews/${id}`, { auth: true }),
+  updateInterview: (id, fields) =>
+    request(`/interviews/${id}`, { method: 'PUT', body: fields, auth: true }),
+  deleteInterview: (id) => request(`/interviews/${id}`, { method: 'DELETE', auth: true }),
+  startInterview: (interviewId) =>
+    request('/interviews/start', { method: 'POST', body: { interview_id: interviewId }, auth: true }),
+  interviewHistory: (params) => request(`/interviews/history${query(params)}`, { auth: true }),
+  domains: () => request('/interviews/domains', { auth: true }),
+
+  /** The voice interviewer is a WebSocket; the token goes in the query string. */
+  voiceSocketUrl: (interviewId) => {
+    const wsBase = BASE.replace(/^http/, 'ws');
+    return `${wsBase}/interviews/voice/${interviewId}?token=${encodeURIComponent(getToken() ?? '')}`;
+  },
+
+  /**
+   * A recorded answer, as a blob URL playable by an <audio> element.
+   *
+   * Fetched rather than pointed at directly: the endpoint needs an
+   * Authorization header, and <audio src> cannot send one. Callers must
+   * URL.revokeObjectURL the result when they are done with it.
+   */
+  answerAudioUrl: async (interviewId, sequenceNo) => {
+    const response = await fetch(
+      `${BASE}/interviews/${interviewId}/answers/${sequenceNo}/audio`,
+      { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
+    );
+    if (!response.ok) throw new ApiError(response.status, 'That recording could not be loaded.');
+    return URL.createObjectURL(await response.blob());
+  },
+
+  /* ---------------- analytics ---------------- */
+
+  adminAnalytics: () => request('/analytics/admin', { auth: true }),
+  candidateAnalytics: () => request('/analytics/candidate', { auth: true }),
+  recruiterAnalytics: () => request('/analytics/recruiter', { auth: true }),
+  recruiterCandidates: (params) =>
+    request(`/analytics/recruiter/candidates${query(params)}`, { auth: true }),
+  liveInterviews: () => request('/analytics/live', { auth: true }),
+
+  /* ---------------- admin ---------------- */
+
+  listUsers: () => request('/users', { auth: true }),
+  directory: (role) => request(`/users/directory${query({ role })}`, { auth: true }),
+  setUserRole: (userId, role) =>
+    request(`/users/${userId}/role`, { method: 'PUT', body: { role }, auth: true }),
+  setUserBlocked: (userId, isBlocked) =>
+    request(`/users/${userId}/block`, { method: 'PUT', body: { is_blocked: isBlocked }, auth: true }),
+
+  getSettings: () => request('/settings', { auth: true }),
+  updateSettings: (fields) => request('/settings', { method: 'PUT', body: fields, auth: true }),
+
+  metrics: () => request('/metrics', { auth: true }),
+
+  /* ---------------- tickets ---------------- */
+
+  ticketReasons: () => request('/tickets/reasons'),
+  createTicket: ({ againstId, reason, details }) =>
+    request('/tickets', {
+      method: 'POST',
+      body: { against_id: againstId, reason, details },
+      auth: true,
+    }),
+  listTickets: (params) => request(`/tickets${query(params)}`, { auth: true }),
+  setTicketStatus: (ticketId, status) =>
+    request(`/tickets/${ticketId}/status`, { method: 'PUT', body: { status }, auth: true }),
 };

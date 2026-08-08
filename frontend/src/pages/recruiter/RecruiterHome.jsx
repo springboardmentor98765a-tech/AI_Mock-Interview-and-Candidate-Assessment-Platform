@@ -2,112 +2,40 @@ import React, { useState } from 'react';
 import AppLayout from '../../components/AppLayout';
 import Section from '../../components/Section';
 import ReportDialog from '../../components/ReportDialog';
+import { Panel, NotAvailable } from '../../components/Panel';
 import { useAuth } from '../../context/AuthContext';
-import { downloadTextFile, buildSessionReport } from '../../lib/report';
-import { createTicket, listTickets } from '../../lib/tickets';
+import { api } from '../../lib/api';
+import { useApi } from '../../lib/useApi';
 
-const STATS = [
-  ['24', 'Candidates'],
-  ['18', 'Assessed'],
-  ['69%', 'Avg score'],
-  ['2', 'Live now'],
-];
+const STATUS_TONE = { OPEN: 'badge-warn', RESOLVED: 'badge-ok', DISMISSED: 'badge-muted' };
 
-const CANDIDATES = [
-  { id: 'c1', name: 'DIV KUMAR', initials: 'DK', sessions: 6, score: 79, rank: '#1', tone: 'badge-ok', skills: [82, 74, 80, 77] },
-  { id: 'c2', name: 'Priya P.', initials: 'PP', sessions: 4, score: 74, rank: '#2', tone: 'badge-info', skills: [78, 71, 72, 75] },
-  { id: 'c3', name: 'Rahul V.', initials: 'RV', sessions: 5, score: 63, rank: '#3', tone: 'badge-warn', skills: [64, 58, 68, 62] },
-  { id: 'c4', name: 'Sneha L.', initials: 'SL', sessions: 3, score: 58, rank: '#4', tone: 'badge-muted', skills: [61, 52, 59, 60] },
-];
+const initials = (name) =>
+  String(name).split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 
-const SKILL_LABELS = ['Communication', 'Confidence', 'Technical', 'Professionalism'];
-
-const DISTRIBUTION = [
-  ['0-40', 18],
-  ['41-55', 46],
-  ['56-70', 104],
-  ['71-85', 90],
-  ['86-100', 18],
-];
-
-const POOL_SKILLS = [
-  ['Communication', 74],
-  ['Technical', 68],
-  ['Confidence', 62],
-  ['Professionalism', 79],
-];
-
-const LIVE = [
-  { id: 'm1', name: 'DIV KUMAR', initials: 'DK', template: 'Backend - Python', progress: 'Q7 of 10', state: 'live', tone: 'badge-bad' },
-  { id: 'm2', name: 'Priya P.', initials: 'PP', template: 'Frontend - React', progress: 'Q3 of 8', state: 'live', tone: 'badge-bad' },
-  { id: 'm3', name: 'Rahul V.', initials: 'RV', template: 'Data engineer', progress: 'Complete', state: 'scoring', tone: 'badge-info' },
-  { id: 'm4', name: 'Sneha L.', initials: 'SL', template: 'QA automation', progress: 'Not started', state: 'queued', tone: 'badge-muted' },
-];
-
-const BREAKDOWN = [
-  ['Communication', 82, '30%'],
-  ['Confidence', 74, '25%'],
-  ['Technical relevance', 80, '30%'],
-  ['Professionalism', 77, '15%'],
-];
-
-const TYPES = ['technical', 'hr', 'aptitude', 'behavioural'];
-const LEVELS = ['easy', 'medium', 'hard'];
-const TONE_BY_LEVEL = { easy: 'badge-ok', medium: 'badge-info', hard: 'badge-warn' };
+const shortTime = (iso) => (iso ? new Date(iso).toLocaleString() : '—');
 
 export default function RecruiterHome() {
   const { user } = useAuth();
   const me = user?.name ?? 'Recruiter';
 
-  const [selected, setSelected] = useState(['c1', 'c3']);
+  const stats = useApi(() => api.recruiterAnalytics());
+  const candidates = useApi(() => api.recruiterCandidates());
+  const live = useApi(() => api.liveInterviews());
+  const tickets = useApi(() => api.listTickets());
+
   const [reportTarget, setReportTarget] = useState(null);
-  const [tickets, setTickets] = useState(listTickets);
-  const [templates, setTemplates] = useState([
-    { id: 't1', name: 'Backend engineer - Python', type: 'technical', level: 'medium', questions: 10 },
-    { id: 't2', name: 'Frontend screen - React', type: 'technical', level: 'easy', questions: 8 },
-  ]);
-  const [form, setForm] = useState({ name: '', type: 'technical', level: 'medium', questions: 10 });
-  const [formError, setFormError] = useState(null);
+  const [resume, setResume] = useState({ open: null, data: null, error: null, loading: false });
 
-  const myTickets = tickets.filter((t) => t.fromName === me);
-  const chosen = CANDIDATES.filter((c) => selected.includes(c.id));
-  const best = (index) => Math.max(...chosen.map((c) => c.skills[index]));
+  const s = stats.data;
 
-  const toggle = (id) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-
-  const downloadFor = (candidate) =>
-    downloadTextFile(
-      `smarthire-report-${candidate.name.replace(/\W+/g, '-').toLowerCase()}.txt`,
-      buildSessionReport({
-        candidate: candidate.name,
-        session: { type: 'Latest assessment', date: '24 Oct 2026', duration: '18m', score: `${candidate.score}%` },
-        breakdown: BREAKDOWN,
-      })
-    );
-
-  const submitReport = ({ reason, details }) => {
-    createTicket({
-      fromName: me,
-      fromRole: 'recruiter',
-      against: reportTarget.name,
-      againstRole: 'candidate',
-      reason,
-      details,
-    });
-    setTickets(listTickets());
-    setReportTarget(null);
-  };
-
-  const addTemplate = (e) => {
-    e.preventDefault();
-    const name = form.name.trim();
-    if (!name) return setFormError('Give the template a name.');
-    if (templates.some((t) => t.name.toLowerCase() === name.toLowerCase()))
-      return setFormError('A template with that name already exists.');
-    setFormError(null);
-    setTemplates([{ id: `t${Date.now()}`, ...form, name }, ...templates]);
-    setForm({ name: '', type: 'technical', level: 'medium', questions: 10 });
+  const viewResume = async (candidate) => {
+    setResume({ open: candidate.user_id, data: null, error: null, loading: true });
+    try {
+      const data = await api.candidateResume(candidate.user_id);
+      setResume({ open: candidate.user_id, data, error: null, loading: false });
+    } catch (err) {
+      setResume({ open: candidate.user_id, data: null, error: err, loading: false });
+    }
   };
 
   return (
@@ -115,305 +43,286 @@ export default function RecruiterHome() {
       {/* ---------- overview ---------- */}
       <Section
         id="overview"
-        title="Recruiter dashboard"
-        subtitle="Review candidates, compare them, manage templates and monitor live sessions."
+        title={`Welcome, ${me.split(' ')[0]}`}
+        subtitle="Live counts across the candidate pool."
       >
-        <div className="grid cols-4">
-          {STATS.map(([value, label]) => (
-            <div key={label} className="stat">
-              <b>{value}</b>
-              <span>{label}</span>
+        <Panel {...stats} onRetry={stats.reload}>
+          {s && (
+            <div className="grid cols-4">
+              <div className="stat">
+                <b>{s.candidates_total}</b>
+                <span>Candidates</span>
+              </div>
+              <div className="stat">
+                <b>{s.candidates_with_resume}</b>
+                <span>With résumé</span>
+              </div>
+              <div className="stat">
+                <b>{s.interviews_total}</b>
+                <span>Interviews</span>
+              </div>
+              <div className="stat">
+                <b>{s.live_now}</b>
+                <span>Live now</span>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </Panel>
       </Section>
 
       {/* ---------- candidates ---------- */}
       <Section
         id="candidates"
         title="Candidates"
-        subtitle="Ranked by average score. Tick two or more to compare them below."
+        subtitle="Real accounts, ordered by interview activity."
       >
         <div className="card">
-          <div className="scroll-x">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="pick" />
-                  <th>Candidate</th>
-                  <th>Sessions</th>
-                  <th>Avg score</th>
-                  <th>Rank</th>
-                  <th className="end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CANDIDATES.map((candidate) => (
-                  <tr key={candidate.id}>
-                    <td className="pick">
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${candidate.name}`}
-                        checked={selected.includes(candidate.id)}
-                        onChange={() => toggle(candidate.id)}
-                      />
-                    </td>
-                    <td>
-                      <div className="cell">
-                        <span className="avatar">{candidate.initials}</span>
-                        {candidate.name}
-                      </div>
-                    </td>
-                    <td className="num">{candidate.sessions}</td>
-                    <td className="num">{candidate.score}%</td>
-                    <td>
-                      <span className={`badge ${candidate.tone}`}>{candidate.rank}</span>
-                    </td>
-                    <td className="end">
-                      <div className="actions actions-end">
-                        <button className="btn" onClick={() => downloadFor(candidate)}>
-                          Report
-                        </button>
-                        <button className="btn btn-danger" onClick={() => setReportTarget(candidate)}>
-                          Flag
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Section>
-
-      {/* ---------- analytics ---------- */}
-      <Section id="analytics" title="Candidate analytics" subtitle="Aggregate performance across your pool.">
-        <div className="grid cols-2">
-          <div className="card">
-            <h2>Score distribution</h2>
-            <div className="chart">
-              {DISTRIBUTION.map(([band, height]) => (
-                <div key={band}>
-                  <i style={{ height: `${height}px` }} />
-                  <span>{band}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card">
-            <h2>Pool skill averages</h2>
-            {POOL_SKILLS.map(([label, value]) => (
-              <div key={label} className="meter">
-                <div>
-                  <em>{label}</em>
-                  <b>{value}%</b>
-                </div>
-                <div className="bar">
-                  <i style={{ width: `${value}%` }} />
-                </div>
-              </div>
-            ))}
-            <p className="note">Confidence is the weakest skill across the pool at 62%.</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ---------- compare ---------- */}
-      <Section id="compare" title="Compare candidates" subtitle="Highest score in each row is highlighted.">
-        <div className="card">
-          {chosen.length < 2 ? (
-            <p className="note">Select at least two candidates in the Candidates section above.</p>
-          ) : (
+          <Panel
+            {...candidates}
+            isEmpty={candidates.data?.length === 0}
+            empty="No candidates have registered yet."
+            onRetry={candidates.reload}
+          >
             <div className="scroll-x">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Category</th>
-                    {chosen.map((c) => (
-                      <th key={c.id} className="end">
-                        {c.name}
-                      </th>
-                    ))}
+                    <th>Candidate</th>
+                    <th>Interviews</th>
+                    <th>Completed</th>
+                    <th>Résumé</th>
+                    <th>Last active</th>
+                    <th className="end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {SKILL_LABELS.map((label, index) => (
-                    <tr key={label}>
-                      <td>{label}</td>
-                      {chosen.map((c) => (
-                        <td key={c.id} className="num end">
-                          {c.skills[index] === best(index) ? (
-                            <span className="badge badge-ok">{c.skills[index]}%</span>
-                          ) : (
-                            `${c.skills[index]}%`
+                  {candidates.data?.map((c) => (
+                    <tr key={c.user_id}>
+                      <td>
+                        <div className="cell">
+                          <span className="avatar">{initials(c.name)}</span>
+                          {c.name}
+                        </div>
+                      </td>
+                      <td className="num">{c.interviews_total}</td>
+                      <td className="num">{c.interviews_completed}</td>
+                      <td>
+                        <span className={`badge ${c.has_resume ? 'badge-ok' : 'badge-muted'}`}>
+                          {c.has_resume ? 'Parsed' : 'None'}
+                        </span>
+                      </td>
+                      <td className="num">{shortTime(c.last_active_at)}</td>
+                      <td className="end">
+                        <div className="actions actions-end">
+                          {c.has_resume && (
+                            <button className="btn" onClick={() => viewResume(c)}>
+                              Résumé
+                            </button>
                           )}
-                        </td>
-                      ))}
+                          <button className="btn" onClick={() => setReportTarget(c)}>
+                            Report
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
-                  <tr>
-                    <td>Overall</td>
-                    {chosen.map((c) => (
-                      <td key={c.id} className="num end">
-                        {c.score}%
-                      </td>
-                    ))}
-                  </tr>
                 </tbody>
               </table>
             </div>
+          </Panel>
+        </div>
+
+        {resume.open && (
+          <div className="card">
+            <h2>Extracted profile</h2>
+            {resume.loading && <p className="note">Loading…</p>}
+            {resume.error && (
+              <p className="note">
+                {resume.error.status === 404
+                  ? 'This candidate has no parsed résumé.'
+                  : (resume.error.detail ?? 'Could not load the résumé.')}
+              </p>
+            )}
+            {resume.data?.extracted && (
+              <>
+                <p className="muted">{resume.data.extracted.summary}</p>
+                <div className="row">
+                  <div>
+                    <strong>Experience</strong>
+                    <small>{resume.data.extracted.total_experience_years} years</small>
+                  </div>
+                </div>
+                <p className="label gap-top">Technologies</p>
+                <div className="tags">
+                  {resume.data.extracted.technologies.map((t) => (
+                    <span key={t} className="badge badge-info">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <p className="label gap-top">Skills</p>
+                <div className="tags">
+                  {resume.data.extracted.skills.map((t) => (
+                    <span key={t} className="badge badge-muted">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="actions gap-top">
+              <button className="btn" onClick={() => setResume({ open: null })}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {/* ---------- analytics ---------- */}
+      <Section
+        id="analytics"
+        title="Candidate analytics"
+        subtitle="What the data actually supports today."
+      >
+        <Panel {...stats} onRetry={stats.reload}>
+          {s && (
+            <div className="card">
+              <h2>Most common technologies across parsed résumés</h2>
+              {s.top_technologies.length === 0 ? (
+                <p className="note">No parsed résumés yet, so there is nothing to aggregate.</p>
+              ) : (
+                s.top_technologies.map((row) => {
+                  const peak = s.top_technologies[0].count || 1;
+                  return (
+                    <div key={row.label} className="row">
+                      <div>
+                        <strong>{row.label}</strong>
+                        <small>
+                          {row.count} candidate{row.count === 1 ? '' : 's'}
+                        </small>
+                      </div>
+                      <div className="meter">
+                        <i style={{ width: `${Math.round((row.count / peak) * 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
+        </Panel>
+
+        <div className="grid cols-2">
+          <NotAvailable
+            what="Score distribution"
+            reason="Interviews are recorded but not yet scored, so there is no distribution to plot. This needs the scoring engine (Module 7)."
+          />
+          <NotAvailable
+            what="Pool skill averages"
+            reason="Communication, confidence, technical and professionalism ratings do not exist yet — nothing in the platform produces them."
+          />
         </div>
       </Section>
 
+      {/* ---------- compare ---------- */}
+      <Section
+        id="compare"
+        title="Compare candidates"
+        subtitle="Side-by-side comparison of scored performance."
+      >
+        <NotAvailable
+          what="Score comparison"
+          reason="Comparing candidates requires scores, and no interview has ever been scored. Until the scoring engine exists, use the Candidates table above — interview counts, completion and résumé data are real."
+        />
+      </Section>
+
       {/* ---------- templates ---------- */}
-      <Section id="templates" title="Interview templates" subtitle="Reusable question sets you can launch for any candidate.">
-        <div className="grid cols-2">
-          <form className="card" onSubmit={addTemplate}>
-            <h2>Create template</h2>
-
-            <div className="field">
-              <label className="label" htmlFor="tpl-name">
-                Template name
-              </label>
-              <input
-                id="tpl-name"
-                type="text"
-                value={form.name}
-                placeholder="e.g. Senior backend - system design"
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <span className="label">Type</span>
-              <div className="choices">
-                {TYPES.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={value === form.type ? 'choice on' : 'choice'}
-                    onClick={() => setForm({ ...form, type: value })}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="field">
-              <span className="label">Difficulty</span>
-              <div className="choices">
-                {LEVELS.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={value === form.level ? 'choice on' : 'choice'}
-                    onClick={() => setForm({ ...form, level: value })}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {formError && <p className="error">{formError}</p>}
-
-            <button type="submit" className="btn btn-primary btn-block">
-              Save template
-            </button>
-          </form>
-
-          <div className="card">
-            <h2>Saved templates ({templates.length})</h2>
-            {templates.map((template) => (
-              <div key={template.id} className="row">
-                <div>
-                  <strong>{template.name}</strong>
-                  <small>
-                    {template.type} &middot; {template.questions} questions
-                  </small>
-                </div>
-                <span className={`badge ${TONE_BY_LEVEL[template.level]}`}>{template.level}</span>
-                <button
-                  className="btn"
-                  onClick={() => setTemplates(templates.filter((t) => t.id !== template.id))}
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
-          </div>
+      <Section
+        id="templates"
+        title="Interview templates"
+        subtitle="Reusable question sets you can launch for any candidate."
+      >
+        <div className="card">
+          <h2>Saved templates</h2>
+          <p className="note">
+            <span className="badge badge-muted">Not yet available</span>
+          </p>
+          <p className="muted">
+            There is no templates table on the server, so a template created here would vanish on
+            reload. Candidates generate interviews directly by type, domain and difficulty in the
+            meantime — that path is fully working.
+          </p>
         </div>
       </Section>
 
       {/* ---------- sessions ---------- */}
-      <Section id="sessions" title="Monitor sessions" subtitle="Live, queued and awaiting-score interviews.">
+      <Section
+        id="sessions"
+        title="Monitor sessions"
+        subtitle="Interviews currently in progress, from live session status."
+      >
         <div className="card">
-          <div className="scroll-x">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Candidate</th>
-                  <th>Template</th>
-                  <th>Progress</th>
-                  <th className="end">State</th>
-                </tr>
-              </thead>
-              <tbody>
-                {LIVE.map((session) => (
-                  <tr key={session.id}>
-                    <td>
-                      <div className="cell">
-                        <span className="avatar">{session.initials}</span>
-                        {session.name}
-                      </div>
-                    </td>
-                    <td>{session.template}</td>
-                    <td className="num">{session.progress}</td>
-                    <td className="end">
-                      <span className={`badge ${session.tone}`}>{session.state}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h2>
+            Live now{live.data ? ` (${live.data.length})` : ''}
+            <button className="btn" onClick={live.reload} style={{ float: 'right' }}>
+              Refresh
+            </button>
+          </h2>
+
+          <Panel
+            {...live}
+            isEmpty={live.data?.length === 0}
+            empty="No interviews are in progress. A session appears here as soon as a candidate starts one."
+            onRetry={live.reload}
+          >
+            {live.data?.map((row) => (
+              <div key={row.interview_id} className="row">
+                <span className="avatar">{initials(row.candidate_name)}</span>
+                <div>
+                  <strong>{row.candidate_name}</strong>
+                  <small>
+                    {row.interview_type} &middot; {row.domain} &middot; {row.difficulty}
+                  </small>
+                </div>
+                <span className="mono muted">
+                  Q{row.questions_answered} of {row.questions_total}
+                </span>
+                <span className="badge badge-bad">live</span>
+              </div>
+            ))}
+          </Panel>
         </div>
       </Section>
 
-      {/* ---------- report ---------- */}
-      <Section id="report" title="Reports you have raised" subtitle="Flag a candidate from the Candidates section above.">
+      {/* ---------- reports ---------- */}
+      <Section
+        id="report"
+        title="Reports you have raised"
+        subtitle="Flag a candidate from the Candidates section above."
+      >
         <div className="card">
-          {myTickets.length === 0 ? (
-            <p className="note">You have not reported anyone.</p>
-          ) : (
-            myTickets.map((ticket) => (
+          <Panel
+            {...tickets}
+            isEmpty={tickets.data?.length === 0}
+            empty="You have not raised any reports."
+            onRetry={tickets.reload}
+          >
+            {tickets.data?.map((ticket) => (
               <div key={ticket.id} className="row">
                 <div>
-                  <strong>
-                    {ticket.against} &middot; {ticket.reason}
-                  </strong>
+                  <strong>{ticket.against_name}</strong>
                   <small>
-                    {ticket.id} &middot; raised {ticket.raised}
+                    #{ticket.id} &middot; {ticket.reason} &middot; {shortTime(ticket.created_at)}
                   </small>
+                  {ticket.details && <p className="muted">{ticket.details}</p>}
                 </div>
-                <span
-                  className={`badge ${
-                    ticket.status === 'open'
-                      ? 'badge-warn'
-                      : ticket.status === 'resolved'
-                        ? 'badge-ok'
-                        : 'badge-muted'
-                  }`}
-                >
-                  {ticket.status}
+                <span className={`badge ${STATUS_TONE[ticket.status]}`}>
+                  {ticket.status.toLowerCase()}
                 </span>
               </div>
-            ))
-          )}
+            ))}
+          </Panel>
         </div>
       </Section>
 
@@ -422,7 +331,11 @@ export default function RecruiterHome() {
           target={reportTarget.name}
           targetRole="candidate"
           onCancel={() => setReportTarget(null)}
-          onSubmit={submitReport}
+          onSubmit={async ({ reason, details }) => {
+            await api.createTicket({ againstId: reportTarget.user_id, reason, details });
+            setReportTarget(null);
+            tickets.reload();
+          }}
         />
       )}
     </AppLayout>

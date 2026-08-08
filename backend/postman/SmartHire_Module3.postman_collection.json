@@ -1,0 +1,227 @@
+{
+  "info": {
+    "name": "SmartHire AI — Module 3: AI Interview Generation",
+    "description": "REST endpoints for interview generation, CRUD and session management.\n\nSetup:\n1. Import this collection.\n2. Set the `base_url` variable if your API is not on http://localhost:8000/api.\n3. Run **Auth > Login** first — it saves the JWT into the `token` collection variable automatically, and every other request uses it.\n4. Run **Interviews > Generate** — it saves the new id into `interview_id`, so the CRUD requests below work without editing anything.\n\nThe voice interviewer is a WebSocket and cannot live in a Postman REST collection. Test it with `python scripts/voice_client.py` or the browser page at {{base_url}}/interviews/voice/demo — see the README.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api" },
+    { "key": "token", "value": "" },
+    { "key": "interview_id", "value": "" },
+    { "key": "email", "value": "candidate.demo@smarthire.dev" },
+    { "key": "password", "value": "Candidate@123" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.access_token);",
+                  "console.log('token saved for', body.user.email, '-', body.user.role);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interviews",
+      "item": [
+        {
+          "name": "Generate (saves interview_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('interview_id', body.id);",
+                  "pm.test('has questions', () => pm.expect(body.questions.length).to.be.above(0));",
+                  "console.log('interview', body.id, '| source:', body.source, '|', body.question_count, 'questions');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"interview_type\": \"TECHNICAL\",\n  \"domain\": \"backend developer\",\n  \"difficulty\": \"MEDIUM\",\n  \"question_count\": 5\n}"
+            },
+            "description": "Features 1-6. `interview_type`: HR | TECHNICAL | BEHAVIORAL | APTITUDE. `difficulty`: EASY | MEDIUM | HARD. `domain` is free text — any value works, no code change needed. `question_count` 1-25.\n\nThe `source` field in the response is `AI` when Gemini produced the questions and `FALLBACK` when the built-in bank did.",
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "Generate — HR / EASY",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_type\": \"HR\",\n  \"domain\": \"hr executive\",\n  \"difficulty\": \"EASY\",\n  \"question_count\": 5\n}" },
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "Generate — BEHAVIORAL / HARD (non-tech role)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_type\": \"BEHAVIORAL\",\n  \"domain\": \"sales executive\",\n  \"difficulty\": \"HARD\",\n  \"question_count\": 5\n}" },
+            "description": "Feature 3: behavioural questions work for non-technical roles.",
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "Generate — APTITUDE / MEDIUM",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_type\": \"APTITUDE\",\n  \"domain\": \"software engineer\",\n  \"difficulty\": \"MEDIUM\",\n  \"question_count\": 5\n}" },
+            "description": "Feature 4: MNC-style campus assessment questions.",
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "Generate — brand-new domain (proves feature 6)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_type\": \"TECHNICAL\",\n  \"domain\": \"marine biology data analyst\",\n  \"difficulty\": \"HARD\",\n  \"question_count\": 5\n}" },
+            "description": "A domain that appears nowhere in the codebase. It works because `domain` is a free-text column, not an enum.",
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "List interviews",
+          "request": {
+            "method": "GET",
+            "description": "Optional filters: interview_type, difficulty, status, limit, offset.",
+            "url": {
+              "raw": "{{base_url}}/interviews?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["interviews"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "offset", "value": "0" },
+                { "key": "interview_type", "value": "TECHNICAL", "disabled": true },
+                { "key": "difficulty", "value": "HARD", "disabled": true },
+                { "key": "status", "value": "CREATED", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get one interview (with questions)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/interviews/{{interview_id}}", "host": ["{{base_url}}"], "path": ["interviews", "{{interview_id}}"] }
+          }
+        },
+        {
+          "name": "Update interview",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"domain\": \"senior backend developer\"\n}" },
+            "description": "Send only the fields that change: domain, difficulty, interview_type, status. Does not regenerate questions — call Generate for that.",
+            "url": { "raw": "{{base_url}}/interviews/{{interview_id}}", "host": ["{{base_url}}"], "path": ["interviews", "{{interview_id}}"] }
+          }
+        },
+        {
+          "name": "Delete interview",
+          "request": {
+            "method": "DELETE",
+            "description": "Returns 204. The interview's questions are deleted with it.",
+            "url": { "raw": "{{base_url}}/interviews/{{interview_id}}", "host": ["{{base_url}}"], "path": ["interviews", "{{interview_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Start session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('now IN_PROGRESS', () => pm.expect(pm.response.json().status).to.eql('IN_PROGRESS'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_id\": {{interview_id}}\n}" },
+            "description": "Feature 7. Moves CREATED (or ABANDONED) to IN_PROGRESS and stamps started_at. Returns 409 if already in progress or complete.",
+            "url": { "raw": "{{base_url}}/interviews/start", "host": ["{{base_url}}"], "path": ["interviews", "start"] }
+          }
+        },
+        {
+          "name": "History (past interviews)",
+          "request": {
+            "method": "GET",
+            "description": "Every session that was actually started, newest first. Interviews still at CREATED are excluded — use List interviews for those.",
+            "url": {
+              "raw": "{{base_url}}/interviews/history?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["interviews", "history"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Suggested domains",
+          "request": {
+            "method": "GET",
+            "description": "Feature 6. Suggestions for a dropdown only — the API accepts any domain string.",
+            "url": { "raw": "{{base_url}}/interviews/domains", "host": ["{{base_url}}"], "path": ["interviews", "domains"] }
+          }
+        }
+      ]
+    }
+  ]
+}
