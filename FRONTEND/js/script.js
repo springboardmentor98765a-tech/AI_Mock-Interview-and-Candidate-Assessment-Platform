@@ -276,58 +276,7 @@ const SmartHireAuth = {
   };
 }
   },
-  // Google OAuth2 Login
-  googleLogin(targetRole = 'CANDIDATE') {
-    const users = JSON.parse(localStorage.getItem('smarthire_users') || '[]');
-    const googleEmail = 'google.user@gmail.com';
-    let user = users.find(u => u.email.toLowerCase() === googleEmail);
 
-    if (!user) {
-      const newUserId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
-      user = {
-        id: newUserId,
-        name: 'Google Verified User',
-        email: googleEmail,
-        password: '$2a$10$OAuth2GoogleGeneratedPasswordHashStringKey123',
-        role: targetRole,
-        provider: 'GOOGLE',
-        is_active: true,
-        created_at: new Date().toLocaleString()
-      };
-      users.push(user);
-      localStorage.setItem('smarthire_users', JSON.stringify(users));
-
-      if (targetRole === 'CANDIDATE') {
-        const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
-        candidateProfiles.push({
-          id: candidateProfiles.length + 1,
-          user_id: newUserId,
-          college: 'Google Cloud Academy',
-          preferred_role: 'Fullstack Engineer',
-          ats_score: 90.00,
-          interview_score: 92.00
-        });
-        localStorage.setItem('smarthire_candidate_profiles', JSON.stringify(candidateProfiles));
-      } else {
-        const recruiterProfiles = JSON.parse(localStorage.getItem('smarthire_recruiter_profiles') || '[]');
-        recruiterProfiles.push({
-          id: recruiterProfiles.length + 1,
-          user_id: newUserId,
-          company_name: 'Google Partner Org',
-          industry: 'Cloud Computing',
-          verified: true
-        });
-        localStorage.setItem('smarthire_recruiter_profiles', JSON.stringify(recruiterProfiles));
-      }
-    }
-
-    if (user.is_active === false) {
-      return { success: false, message: 'Your Google account has been suspended by administrator.' };
-    }
-
-    this.setSession(user);
-    return { success: true, user: user };
-  },
 
   // Profile Management (GET/PUT /api/profile)
   getProfile() {
@@ -793,14 +742,18 @@ function setupAuthPageTabs() {
             <hr style="border: none; border-top: 1px solid var(--border-color);">
             <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); padding: 0 10px; font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">OR SIGN IN WITH</span>
           </div>
-          <button type="button" onclick="handleGoogleAuth()" class="btn btn-secondary btn-full" style="border: 1px solid var(--border-color); height: 48px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-            <i class="fa-brands fa-google" style="color: #EA4335;"></i> Continue with Google
-          </button>
+          <div id="g_id_signin_container" style="display: flex; justify-content: center; width: 100%; min-height: 44px;">
+            <button type="button" id="google-auth-trigger-btn" onclick="handleGoogleAuth()" class="btn btn-secondary btn-full" style="border: 1px solid var(--border-color); height: 48px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%;">
+              <i class="fa-brands fa-google" style="color: #EA4335;"></i> Continue with Google
+            </button>
+          </div>
         </div>
       `;
       form.insertAdjacentHTML('afterend', googleBtnHtml);
+      renderGoogleGISButtonOnLoad();
     }
   }
+
 
   // Intercept Auth Form Submissions
   const form = loginCard.querySelector('form');
@@ -966,7 +919,7 @@ function renderRegistrationFormFields(role) {
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
         <div class="form-group">
           <label style="font-weight: 600; font-size: 0.85rem;">Full Name *</label>
-          <input type="text" id="reg-name" class="form-control" placeholder="Alex Morgan" oninput="validateRegistrationForm()" required>
+          <input type="text" id="reg-name" class="form-control" placeholder="Jane Doe" oninput="validateRegistrationForm()" required>
           <span id="err-reg-name" class="inline-error"></span>
         </div>
         <div class="form-group">
@@ -1273,54 +1226,142 @@ function togglePasswordVisibility(inputId, iconEl) {
     }
   }
 }
-function handleGoogleAuth() {
+let googleClientIdCache = null;
 
-  google.accounts.id.initialize({
-    client_id: "897079068822-f14r7au9d9udqkf5jfuomh2veskunarg.apps.googleusercontent.com",
-    callback: handleGoogleResponse
-  });
-
-  google.accounts.id.prompt();
+async function getGoogleClientId() {
+  if (googleClientIdCache) return googleClientIdCache;
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/auth/config`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.google_client_id) {
+        googleClientIdCache = data.google_client_id;
+        return googleClientIdCache;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch Google Client ID from backend:", err);
+  }
+  return null;
 }
 
 
+async function ensureGISLoaded() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    return true;
+  }
+  return new Promise((resolve) => {
+    let script = document.getElementById('gsi-client-script');
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'gsi-client-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    setTimeout(() => resolve(typeof google !== 'undefined' && google.accounts && google.accounts.id), 2000);
+  });
+}
+
+async function initGoogleGIS() {
+  await ensureGISLoaded();
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    return false;
+  }
+  const clientId = await getGoogleClientId();
+  if (!clientId) {
+    console.error("Google Client ID is not configured.");
+    return false;
+  }
+  google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleResponse,
+    auto_select: false
+  });
+  return true;
+}
+
+
+async function renderGoogleGISButtonOnLoad() {
+  const ready = await initGoogleGIS();
+  const container = document.getElementById('g_id_signin_container');
+  if (ready && container && !document.getElementById('g_id_signin_rendered')) {
+    container.innerHTML = '';
+    const renderTarget = document.createElement('div');
+    renderTarget.id = 'g_id_signin_rendered';
+    container.appendChild(renderTarget);
+
+    google.accounts.id.renderButton(renderTarget, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: container.clientWidth || 320
+    });
+  }
+}
+
+async function handleGoogleAuth() {
+
+  const ready = await initGoogleGIS();
+  if (!ready) {
+    showDemoToast("Google Identity Services SDK is loading. Please try again in a moment.", "info");
+    return;
+  }
+
+  const container = document.getElementById('g_id_signin_container');
+  if (container) {
+    container.innerHTML = '';
+    const renderTarget = document.createElement('div');
+    renderTarget.id = 'g_id_signin_rendered';
+    container.appendChild(renderTarget);
+
+    google.accounts.id.renderButton(renderTarget, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: container.clientWidth || 320
+    });
+
+    setTimeout(() => {
+      const clickEl = renderTarget.querySelector('div[role="button"]') || renderTarget.querySelector('iframe');
+      if (clickEl) clickEl.click();
+    }, 150);
+  }
+}
+
 async function handleGoogleResponse(response) {
+  if (!response || !response.credential) {
+    showDemoToast("Google authentication failed: No credential received.", "error");
+    return;
+  }
 
   try {
-
     const googleToken = response.credential;
-
-    const res = await fetch(
-      "http://localhost:8000/api/auth/google",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          token: googleToken
-        })
-      }
-    );
-
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: googleToken })
+    });
 
     const data = await res.json();
 
-
     if (!res.ok) {
-      throw new Error(data.detail || "Google authentication failed");
+      throw new Error(data.detail || data.message || "Google authentication failed.");
     }
-
 
     if (data.role_required) {
-      showDemoToast(
-        "Google account detected. Role selection required.",
-        "info"
-      );
-
+      openGoogleRoleModal(data.email, data.name);
       return;
     }
-
 
     const user = {
       id: data.user_id,
@@ -1330,37 +1371,19 @@ async function handleGoogleResponse(response) {
       provider: data.provider
     };
 
-
-    SmartHireAuth.setSession(
-      user,
-      data.access_token
-    );
-
-
-    showDemoToast(
-      "Google Login Successful!",
-      "success"
-    );
-
+    SmartHireAuth.setSession(user, data.access_token);
+    showDemoToast(`Google Login Successful! Redirecting to ${user.role} Dashboard...`, "success");
 
     setTimeout(() => {
       redirectUserToRoleDashboard(user.role);
     }, 1000);
 
-
-  } catch(error) {
-
-    console.error(
-      "Google OAuth Error:",
-      error
-    );
-
-    showDemoToast(
-      error.message,
-      "error"
-    );
+  } catch (error) {
+    console.error("Google OAuth Error:", error);
+    showDemoToast(error.message || "Google Authentication Error", "error");
   }
 }
+
 
 
 /* ==========================================================================
@@ -1376,7 +1399,16 @@ async function initCandidateDashboard() {
 }
 async function loadCandidateProfile() {
   try {
-    const token = localStorage.getItem("smarthire_jwt_token");
+    const token = SmartHireAuth.getToken();
+
+    if (!token || !SmartHireAuth.isTokenValid()) {
+      showDemoToast("Session expired or invalid. Please log in again.", "error");
+      SmartHireAuth.logout();
+      setTimeout(() => {
+        window.location.href = "login.html";
+      }, 1800);
+      return;
+    }
 
     const response = await fetch(
       "http://localhost:8000/api/candidate/profile",
@@ -1389,18 +1421,52 @@ async function loadCandidateProfile() {
       }
     );
 
+    if (response.status === 401 || response.status === 403) {
+      showDemoToast("Session expired. Please log in again.", "error");
+      SmartHireAuth.logout();
+      setTimeout(() => {
+        window.location.href = "login.html";
+      }, 1800);
+      return;
+    }
+
     if (!response.ok) {
       throw new Error("Unable to load profile.");
     }
 
     const profile = await response.json();
 
-    console.log("Candidate Profile:", profile);
+    if (profile && profile.name) {
+      const sessionUser = SmartHireAuth.getUser() || {};
+      sessionUser.id = profile.user_id;
+      sessionUser.name = profile.name;
+      sessionUser.email = profile.email;
+      sessionUser.role = profile.role || "CANDIDATE";
+      localStorage.setItem('smarthire_user', JSON.stringify(sessionUser));
+    }
 
-    // We'll display the profile data in the UI next.
+    const nameEl = document.getElementById("candidate-display-name");
+    if (nameEl && profile && profile.name) {
+      nameEl.textContent = profile.name;
+    }
+
+    if (profile) {
+      const atsEl = document.querySelector(".dash-stat-card:nth-child(1) .value");
+      if (atsEl && profile.ats_score !== undefined) {
+        atsEl.textContent = `${Math.round(profile.ats_score)}/100`;
+      }
+      const scoreEl = document.querySelector(".dash-stat-card:nth-child(2) .value");
+      if (scoreEl && profile.interview_score !== undefined) {
+        scoreEl.textContent = `${Math.round(profile.interview_score)}%`;
+      }
+    }
   } catch (err) {
-    console.error(err);
-    showDemoToast("Unable to load candidate profile.", "error");
+    console.error("Profile load error:", err);
+    const sessionUser = SmartHireAuth.getUser();
+    const nameEl = document.getElementById("candidate-display-name");
+    if (nameEl && sessionUser && sessionUser.name) {
+      nameEl.textContent = sessionUser.name;
+    }
   }
 }
 function renderCandidateHistoryTable() {
@@ -1770,7 +1836,7 @@ function viewCandidateDossier(candidateProfileId) {
   const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
   const users = JSON.parse(localStorage.getItem('smarthire_users') || '[]');
   const profile = candidateProfiles.find(p => p.id === candidateProfileId) || candidateProfiles[0];
-  const user = users.find(u => u.id === profile.user_id) || { name: 'Alex Morgan', email: 'alex.morgan@dev.io' };
+  const user = users.find(u => u.id === profile.user_id) || { name: (profile && profile.name) ? profile.name : 'Candidate', email: (profile && profile.email) ? profile.email : '' };
 
   let modalId = 'modal-candidate-dossier';
   let modal = document.getElementById(modalId);
@@ -1828,7 +1894,7 @@ function openCandidateCompareModal() {
             <thead>
               <tr>
                 <th>Evaluation Metric</th>
-                <th>Alex Morgan</th>
+                <th>Candidate 1</th>
                 <th>David Chen</th>
               </tr>
             </thead>
@@ -1945,7 +2011,7 @@ function openCandidateReportsLibraryModal() {
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.85rem; border-radius: 8px;">
             <div>
-              <strong>Alex Morgan</strong> - Senior Frontend Engineer
+              <strong>Candidate 1</strong> - Senior Frontend Engineer
               <div style="font-size: 0.75rem; color: var(--text-muted);">ATS: 88/100 • Interview: 94%</div>
             </div>
             <button class="btn btn-primary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-download"></i> PDF Report</button>
@@ -2667,7 +2733,7 @@ function openRankingModal() {
               </tr>
               <tr style="background: var(--primary-light);">
                 <td><strong style="color: var(--primary);">#14 (You)</strong></td>
-                <td><strong>Alex Morgan</strong></td>
+                <td><strong>${(SmartHireAuth.getUser() || {}).name || 'You'}</strong></td>
                 <td>Stanford University</td>
                 <td><strong style="color: var(--primary);">94%</strong></td>
                 <td><span class="badge-status warning">Rising Star</span></td>
@@ -2711,41 +2777,7 @@ function validateResumeUploadFile(input) {
   return true;
 }
 
-async function handleGoogleAuth() {
-  const email = prompt("Enter your Google Account email:", "alex.morgan@dev.io");
-  if (!email) return;
 
-  const name = email.split('@')[0].replace('.', ' ');
-  const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-
-  try {
-    const res = await fetch(`${SmartHireAuth.API_BASE}/api/auth/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: 'google-token-' + Date.now(),
-        email: email,
-        name: formattedName
-      })
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Google authentication failed');
-
-    if (data.role_required) {
-      openGoogleRoleModal(data.email, data.name);
-    } else {
-      const user = { id: data.user_id, name: data.name, email: data.email, role: data.role, provider: data.provider };
-      SmartHireAuth.setSession(user, data.access_token);
-      showDemoToast(`Google authentication successful! Redirecting to ${data.role} Dashboard...`, 'success');
-      setTimeout(() => redirectUserToRoleDashboard(data.role), 1000);
-    }
-  } catch (err) {
-    const user = SmartHireAuth.googleLogin('CANDIDATE').user;
-    showDemoToast(`Signed in with Google as ${user.name}!`, 'success');
-    setTimeout(() => redirectUserToRoleDashboard(user.role), 1000);
-  }
-}
 
 function openGoogleRoleModal(email, name) {
   const modalId = 'modal-google-role-select';
@@ -3168,6 +3200,678 @@ function openInterviewDetailModal(id) {
 // Automatically load rankings on Recruiter page
 if (window.location.pathname.includes('recruiter.html')) {
   document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => loadRecruiterRankings(), 300);
+    setTimeout(() => {
+      loadRecruiterRankings();
+      loadCandidatesForGenerator();
+    }, 300);
   });
 }
+
+// Automatically load assigned interviews on Candidate page
+if (window.location.pathname.includes('candidate.html')) {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      loadCandidateAssignedInterviews();
+      recoverActiveInterviewSession();
+    }, 300);
+  });
+}
+
+// ==========================================
+// MODULE 3: AI INTERVIEW GENERATOR CONTROLLER
+// ==========================================
+
+let activeGeneratedInterviewId = null;
+let activeCandidateResumeUrl = null;
+let activeSessionTimerInterval = null;
+let activeSessionRemainingSeconds = 0;
+
+async function loadRecruiterRankings() {
+  const tbody = document.getElementById('recruiter-rankings-table-body');
+  if (!tbody || !window.location.pathname.includes('recruiter.html')) return;
+
+  const searchEl = document.getElementById('recruiter-cand-search');
+  const roleFilterEl = document.getElementById('recruiter-cand-role-filter');
+  const sortFilterEl = document.getElementById('recruiter-cand-sort-by');
+
+  const search = searchEl ? searchEl.value.trim() : '';
+  const role = roleFilterEl ? roleFilterEl.value : 'ALL';
+  const sortBy = sortFilterEl ? sortFilterEl.value : 'overall';
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    let url = `${SmartHireAuth.API_BASE}/api/recruiter/rankings?sort_by=${sortBy}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (role && role !== 'ALL') url += `&role=${encodeURIComponent(role)}`;
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const items = await res.json();
+
+    if (!Array.isArray(items) || items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No candidate records match criteria.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => `
+      <tr>
+        <td style="text-align: center;"><strong>#${item.rank}</strong></td>
+        <td><strong>${item.candidate_name}</strong><br><small style="color: var(--text-muted);">${item.email || ''}</small></td>
+        <td>${item.preferred_role}</td>
+        <td style="text-align: center;"><strong style="color: var(--primary);">${item.ats_score} / 100</strong></td>
+        <td style="text-align: center;"><strong style="color: var(--secondary);">${item.interview_score}%</strong></td>
+        <td style="text-align: center;"><span class="badge-status success">${item.overall_score}</span></td>
+        <td style="text-align: right;">
+          <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+            <button class="btn btn-secondary btn-sm" onclick="viewCandidateDossier(${item.user_id})"><i class="fa-solid fa-eye"></i> Review</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-file-pdf"></i> Report</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Load recruiter rankings error:', err);
+  }
+}
+
+async function loadCandidatesForGenerator() {
+  const select = document.getElementById('generator-candidate-select');
+  if (!select) return;
+  
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/recruiter/rankings`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      throw new Error(`API returned status ${res.status}`);
+    }
+
+    const items = await res.json();
+
+    if (!Array.isArray(items) || items.length === 0) {
+      select.innerHTML = `<option value="">No candidates available</option>`;
+      return;
+    }
+
+    window.generatorCandidatesCache = items;
+
+    select.innerHTML = items.map(u => {
+      const resFile = u.resume || `resume_user_${u.user_id}.pdf`;
+      return `<option value="${u.user_id}" data-resume="${resFile}" data-name="${u.candidate_name}">${u.candidate_name} (${u.email})</option>`;
+    }).join('');
+  } catch (err) {
+    console.error('Candidate load error:', err);
+    select.innerHTML = `<option value="">Error loading candidates</option>`;
+  }
+}
+
+function onGeneratorCandidateChange() {
+  activeCandidateResumeUrl = null;
+}
+
+function getSelectedCandidateResumeInfo() {
+  const select = document.getElementById('generator-candidate-select');
+  const candIdVal = select?.value;
+  if (!candIdVal) {
+    return { has_resume: false, message: 'Please select a candidate first.' };
+  }
+
+  const candUserId = parseInt(candIdVal, 10);
+  const selectedOption = select.options[select.selectedIndex];
+  const optionResume = selectedOption?.getAttribute('data-resume') || selectedOption?.dataset?.resume;
+  const optionName = selectedOption?.getAttribute('data-name') || selectedOption?.dataset?.name || `Candidate #${candUserId}`;
+
+  const cachedItem = (window.generatorCandidatesCache || []).find(u => u.user_id === candUserId);
+  const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
+  const profile = candidateProfiles.find(p => p.user_id === candUserId || p.id === candUserId);
+
+  let resumeFilename = optionResume || (cachedItem && cachedItem.resume) || (profile && profile.resume) || `resume_user_${candUserId}.pdf`;
+  const candName = (cachedItem && cachedItem.candidate_name) || optionName;
+
+  if (!resumeFilename) {
+    return { has_resume: false, message: `Resume file not found for ${candName}.`, user: { name: candName }, profile };
+  }
+
+  let url = resumeFilename;
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = url.startsWith('/uploads') ? `${SmartHireAuth.API_BASE}${url}` : `${SmartHireAuth.API_BASE}/uploads/resumes/${url}`;
+  }
+
+  return {
+    has_resume: true,
+    url: url,
+    filename: resumeFilename,
+    user: { name: candName },
+    profile: profile
+  };
+}
+
+function previewSelectedCandidateResume() {
+  const info = getSelectedCandidateResumeInfo();
+  if (!info.has_resume) {
+    showDemoToast(info.message || 'Resume not found for candidate.', 'warning');
+    return;
+  }
+
+  let modalId = 'modal-resume-preview';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 750px;">
+      <div class="smarthire-modal-header">
+        <h3><i class="fa-solid fa-file-pdf" style="color: var(--primary);"></i> Resume Preview - ${info.user.name}</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('${modalId}')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;">
+          <div><strong>File:</strong> ${info.filename}</div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="window.open('${info.url}', '_blank')"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Tab</button>
+            <button class="btn btn-primary btn-sm" onclick="downloadSelectedCandidateResume()"><i class="fa-solid fa-download"></i> Download</button>
+          </div>
+        </div>
+        <iframe src="${info.url}" width="100%" height="450px" style="border: 1px solid var(--border-color); border-radius: 8px; background: #FFFFFF;"></iframe>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function openSelectedCandidateResume() {
+  const info = getSelectedCandidateResumeInfo();
+  if (!info.has_resume) {
+    showDemoToast(info.message || 'Resume not found for candidate.', 'warning');
+    return;
+  }
+  window.open(info.url, '_blank');
+}
+
+function downloadSelectedCandidateResume() {
+  const info = getSelectedCandidateResumeInfo();
+  if (!info.has_resume) {
+    showDemoToast(info.message || 'Resume not found for candidate.', 'warning');
+    return;
+  }
+
+  fetch(info.url)
+    .then(res => {
+      if (!res.ok) throw new Error("File missing or inaccessible.");
+      return res.blob();
+    })
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = info.filename || `Candidate_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      showDemoToast("Resume download initiated.", "success");
+    })
+    .catch(err => {
+      console.error("Resume download error:", err);
+      const a = document.createElement('a');
+      a.href = info.url;
+      a.target = '_blank';
+      a.download = info.filename || `Candidate_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showDemoToast("Resume download initiated.", "success");
+    });
+}
+
+async function generateAIInterview() {
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    showAuthRequiredModal();
+    return;
+  }
+
+  const candId = parseInt(document.getElementById('generator-candidate-select')?.value || '1');
+  const type = document.getElementById('generator-interview-type')?.value || 'Technical';
+  const domain = document.getElementById('generator-domain')?.value || 'Software Engineering';
+  const diff = document.getElementById('generator-difficulty')?.value || 'Medium';
+  const numQ = parseInt(document.getElementById('generator-num-questions')?.value || '5');
+  const duration = parseInt(document.getElementById('generator-duration')?.value || '30');
+  const expLevel = document.getElementById('generator-exp-level')?.value || 'Mid';
+
+  const spinner = document.getElementById('generator-loading-indicator');
+  const summaryCard = document.getElementById('generator-summary-card');
+  const noticeCard = document.getElementById('generator-fallback-notice');
+  const questionsContainer = document.getElementById('generator-questions-list');
+  const btnGen = document.getElementById('btn-generate-ai-interview');
+
+  if (spinner) spinner.style.display = 'block';
+  if (summaryCard) summaryCard.style.display = 'none';
+  if (noticeCard) noticeCard.style.display = 'none';
+  if (questionsContainer) questionsContainer.style.display = 'none';
+  if (btnGen) btnGen.disabled = true;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        candidate_id: candId,
+        interview_type: type,
+        domain: domain,
+        difficulty: diff,
+        num_questions: numQ,
+        duration_mins: duration,
+        experience_level: expLevel
+      })
+    });
+
+    const summary = await res.json();
+    if (!res.ok) throw new Error(summary.message || 'AI Generation request failed.');
+
+    activeGeneratedInterviewId = summary.interview_id;
+
+    // Populate Dynamic Interview Summary Card (Never hardcoded)
+    document.getElementById('summary-cand-name').textContent = summary.candidate_name || 'Candidate User';
+    document.getElementById('summary-skills').textContent = (summary.skills_detected || ['Domain Skills']).join(', ');
+    document.getElementById('summary-type').textContent = summary.interview_type;
+    document.getElementById('summary-difficulty').textContent = summary.difficulty;
+    document.getElementById('summary-q-count').textContent = summary.num_questions;
+    document.getElementById('summary-duration').textContent = `${summary.duration_mins} Minutes`;
+    document.getElementById('summary-ai-provider').textContent = summary.ai_provider || 'Gemini';
+    
+    const genSourceEl = document.getElementById('summary-gen-source');
+    if (genSourceEl) {
+      genSourceEl.textContent = summary.generation_source || 'AI';
+      genSourceEl.className = summary.generation_source === 'AI' ? 'badge-status success' : 'badge-status warning';
+    }
+
+    if (summary.generation_source === 'Question Bank' || summary.fallback_reason) {
+      if (noticeCard) {
+        noticeCard.style.display = 'block';
+        document.getElementById('generator-fallback-notice-text').textContent = 
+          'AI generation is temporarily unavailable. Questions have been generated from our verified interview question bank.';
+      }
+    }
+
+    if (summaryCard) summaryCard.style.display = 'block';
+
+    // Fetch full detailed questions list for Recruiter
+    const detailRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/${summary.interview_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const details = await detailRes.json();
+    renderRecruiterQuestionsList(details.questions || []);
+
+    const btnRegen = document.getElementById('btn-regenerate-full-interview');
+    if (btnRegen) btnRegen.style.display = 'inline-flex';
+
+    showDemoToast('AI Interview generated successfully!', 'success');
+  } catch (err) {
+    console.error('Generate Interview Error:', err);
+    showDemoToast(`Generation Notice: ${err.message}`, 'error');
+  } finally {
+    if (spinner) spinner.style.display = 'none';
+    if (btnGen) btnGen.disabled = false;
+  }
+}
+
+function renderRecruiterQuestionsList(questions) {
+  const container = document.getElementById('generator-questions-items');
+  const parent = document.getElementById('generator-questions-list');
+  if (!container || !parent) return;
+
+  parent.style.display = 'block';
+
+  if (!Array.isArray(questions) || questions.length === 0) {
+    container.innerHTML = `
+      <div style="background: #FFF3CD; border: 1px solid #FFE69C; border-radius: 10px; padding: 1.25rem; color: #664D03; text-align: center;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+        <strong>No questions available for this category.</strong>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">Please select another interview category or try generating again.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = questions.map((q, idx) => `
+    <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.5rem;">
+        <div>
+          <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Question ${q.sequence_no || idx+1} • ${q.category}</span>
+          <h4 style="font-weight: 700; color: var(--text-main); margin: 0.2rem 0;">${q.question_text}</h4>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span class="badge-status info">${q.difficulty}</span>
+          <button class="btn btn-secondary btn-sm" onclick="regenerateSingleQuestion(${activeGeneratedInterviewId}, ${q.id})" title="Regenerate this single question">
+            <i class="fa-solid fa-rotate"></i> Regenerate
+          </button>
+        </div>
+      </div>
+      
+      ${q.expected_answer ? `
+        <div style="background: var(--bg-main); padding: 0.75rem; border-radius: 6px; margin-top: 0.75rem; font-size: 0.85rem;">
+          <strong style="color: var(--text-main);">Expected Answer Rubric:</strong>
+          <p style="color: var(--text-muted); margin: 0.25rem 0 0 0;">${q.expected_answer}</p>
+        </div>
+      ` : ''}
+
+      ${q.evaluation_points && q.evaluation_points.length > 0 ? `
+        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+          <strong>Evaluation Points:</strong> ${q.evaluation_points.map(pt => `<span class="badge-status" style="margin-left: 0.25rem; font-size: 0.75rem;">${pt}</span>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+async function regenerateFullInterview() {
+  if (!activeGeneratedInterviewId) return;
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  showDemoToast('Regenerating entire interview questions set...', 'info');
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews/${activeGeneratedInterviewId}/regenerate`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const summary = await res.json();
+    if (!res.ok) throw new Error(summary.message || 'Full regeneration failed.');
+
+    activeGeneratedInterviewId = summary.interview_id;
+    await generateAIInterview();
+  } catch (err) {
+    showDemoToast(err.message, 'error');
+  }
+}
+
+async function regenerateSingleQuestion(interviewId, questionId) {
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  showDemoToast(`Regenerating question #${questionId}...`, 'info');
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews/${interviewId}/questions/${questionId}/regenerate`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const newQ = await res.json();
+    if (!res.ok) throw new Error(newQ.message || 'Single question regeneration failed.');
+
+    showDemoToast('Question regenerated successfully!', 'success');
+    
+    // Refresh question details view
+    const detailRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/${interviewId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const details = await detailRes.json();
+    renderRecruiterQuestionsList(details.questions || []);
+  } catch (err) {
+    showDemoToast(err.message, 'error');
+  }
+}
+
+function copyGeneratedQuestionsList() {
+  const items = document.querySelectorAll('#generator-questions-items h4');
+  const texts = Array.from(items).map((el, i) => `${i+1}. ${el.textContent}`).join('\n\n');
+  if (texts) {
+    navigator.clipboard.writeText(texts);
+    showDemoToast('Questions list copied to clipboard!', 'success');
+  }
+}
+
+function openQuestionBankViewerModal() {
+  showDemoToast('Loading Question Bank entries...', 'info');
+}
+
+// ==========================================
+// CANDIDATE ASSIGNED INTERVIEWS & TIMER
+// ==========================================
+
+async function loadCandidateAssignedInterviews() {
+  const tableBody = document.getElementById('candidate-assigned-interviews-table-body');
+  if (!tableBody) return;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const items = await res.json();
+
+    if (!Array.isArray(items) || items.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            No assigned interviews yet. Contact your recruiter to receive customized AI evaluation sessions.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = items.map(item => `
+      <tr>
+        <td>${item.created_at}</td>
+        <td><strong>${item.domain}</strong></td>
+        <td>${item.interview_type}</td>
+        <td><span class="badge-status info">${item.difficulty}</span></td>
+        <td>${item.num_questions} Qs</td>
+        <td>${item.duration_mins} Mins</td>
+        <td><span class="badge-status ${item.status === 'Completed' ? 'success' : 'warning'}">${item.status}</span></td>
+        <td style="text-align: right;">
+          ${item.status !== 'Completed' ? `
+            <button class="btn btn-accent btn-sm" onclick="startAssignedInterviewSession(${item.interview_id}, ${item.duration_mins})">
+              <i class="fa-solid fa-play"></i> Start Session
+            </button>
+          ` : `
+            <button class="btn btn-secondary btn-sm" onclick="viewAssignedInterviewResults(${item.interview_id})">
+              <i class="fa-solid fa-file-invoice"></i> View Score
+            </button>
+          `}
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Assigned interviews error:', err);
+  }
+}
+
+let activeSessionInterviewId = null;
+let activeSessionQuestions = [];
+let activeSessionCurrentIdx = 0;
+let activeSessionAnswers = {};
+
+async function startAssignedInterviewSession(interviewId, durationMins) {
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const startRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ interview_id: interviewId })
+    });
+    
+    const detailRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/${interviewId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const details = await detailRes.json();
+
+    activeSessionInterviewId = interviewId;
+    activeSessionQuestions = details.questions || [];
+    activeSessionCurrentIdx = 0;
+    activeSessionAnswers = {};
+
+    openModal('mockInterviewModal');
+    document.getElementById('simulatorCategoryScreen').style.display = 'none';
+    document.getElementById('simulatorResultScreen').style.display = 'none';
+    document.getElementById('simulatorQuestionScreen').style.display = 'block';
+
+    const simTitle = document.getElementById('simulatorModalTitle');
+    if (simTitle) simTitle.innerHTML = `<i class="fa-solid fa-laptop-code"></i> Live Assessment: ${details.domain} (${details.interview_type})`;
+
+    renderAssignedSessionQuestion();
+    startSessionCountdownTimer(durationMins * 60, interviewId);
+  } catch (err) {
+    showDemoToast('Failed to initialize interview session.', 'error');
+  }
+}
+
+function renderAssignedSessionQuestion() {
+  const q = activeSessionQuestions[activeSessionCurrentIdx];
+  if (!q) return;
+
+  document.getElementById('simCategoryTag').textContent = `${q.category.toUpperCase()} ROUND • ${q.difficulty}`;
+  document.getElementById('simQuestionCounter').textContent = `Question ${activeSessionCurrentIdx + 1} of ${activeSessionQuestions.length}`;
+  document.getElementById('simQuestionText').textContent = q.question_text;
+
+  const container = document.getElementById('simOptionsContainer');
+  container.innerHTML = `
+    <div style="margin-top: 1rem;">
+      <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Your Response / Solution:</label>
+      <textarea id="simUserAnswerInput" class="form-control" rows="5" placeholder="Type your structured answer here..." oninput="activeSessionAnswers[${q.id}] = this.value">${activeSessionAnswers[q.id] || ''}</textarea>
+    </div>
+  `;
+
+  document.getElementById('simPrevBtn').style.display = activeSessionCurrentIdx > 0 ? 'inline-flex' : 'none';
+  const isLast = activeSessionCurrentIdx === activeSessionQuestions.length - 1;
+  document.getElementById('simNextBtn').style.display = isLast ? 'none' : 'inline-flex';
+  document.getElementById('simSubmitBtn').style.display = isLast ? 'inline-flex' : 'none';
+}
+
+function navigateSimQuestion(direction) {
+  activeSessionCurrentIdx += direction;
+  if (activeSessionCurrentIdx < 0) activeSessionCurrentIdx = 0;
+  if (activeSessionCurrentIdx >= activeSessionQuestions.length) activeSessionCurrentIdx = activeSessionQuestions.length - 1;
+  renderAssignedSessionQuestion();
+}
+
+function startSessionCountdownTimer(totalSeconds, interviewId) {
+  if (activeSessionTimerInterval) clearInterval(activeSessionTimerInterval);
+
+  activeSessionRemainingSeconds = totalSeconds;
+
+  // Persist session timer state in localStorage
+  localStorage.setItem('smarthire_active_timer', JSON.stringify({
+    interview_id: interviewId,
+    end_timestamp: Date.now() + (totalSeconds * 1000)
+  }));
+
+  function updateDisplay() {
+    const mins = Math.floor(activeSessionRemainingSeconds / 60);
+    const secs = activeSessionRemainingSeconds % 60;
+    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    
+    const displayEl = document.getElementById('simTimerDisplay');
+    if (displayEl) displayEl.textContent = formatted;
+
+    // 5 minutes warning notification
+    if (activeSessionRemainingSeconds === 300) {
+      showDemoToast('⏳ Warning: 5 minutes remaining in your interview session!', 'warning');
+    }
+    // 1 minute warning notification
+    if (activeSessionRemainingSeconds === 60) {
+      showDemoToast('⚠️ Urgent: 1 minute remaining! Finalize your answers.', 'error');
+    }
+
+    if (activeSessionRemainingSeconds <= 0) {
+      clearInterval(activeSessionTimerInterval);
+      localStorage.removeItem('smarthire_active_timer');
+      showDemoToast('Time expired! Auto-submitting your interview...', 'info');
+      submitAssignedInterviewSession();
+    } else {
+      activeSessionRemainingSeconds--;
+    }
+  }
+
+  updateDisplay();
+  activeSessionTimerInterval = setInterval(updateDisplay, 1000);
+}
+
+function recoverActiveInterviewSession() {
+  const saved = localStorage.getItem('smarthire_active_timer');
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    const remainingMs = parsed.end_timestamp - Date.now();
+    if (remainingMs > 0) {
+      startSessionCountdownTimer(Math.floor(remainingMs / 1000), parsed.interview_id);
+    } else {
+      localStorage.removeItem('smarthire_active_timer');
+    }
+  } catch (e) {
+    localStorage.removeItem('smarthire_active_timer');
+  }
+}
+
+async function submitAssignedInterviewSession() {
+  if (activeSessionTimerInterval) clearInterval(activeSessionTimerInterval);
+  localStorage.removeItem('smarthire_active_timer');
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  const payloadAnswers = activeSessionQuestions.map(q => ({
+    question_id: q.id,
+    user_answer: activeSessionAnswers[q.id] || "No response provided."
+  }));
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        interview_id: activeSessionInterviewId,
+        answers: payloadAnswers,
+        time_taken_seconds: 180
+      })
+    });
+
+    const result = await res.json();
+    const data = result.data || result;
+
+    document.getElementById('simulatorQuestionScreen').style.display = 'none';
+    document.getElementById('simulatorResultScreen').style.display = 'block';
+
+    const scoreEl = document.getElementById('simFinalScore');
+    const metaEl = document.getElementById('simFinalMeta');
+
+    if (scoreEl) scoreEl.textContent = `${data.score || 85.0}%`;
+    if (metaEl) metaEl.textContent = `Submitted ${data.answered_questions || payloadAnswers.length} of ${data.total_questions || activeSessionQuestions.length} questions.`;
+
+    loadCandidateAssignedInterviews();
+    showDemoToast('Interview submitted and evaluated successfully!', 'success');
+  } catch (err) {
+    console.error('Submit assigned interview error:', err);
+    showDemoToast('Interview response saved.', 'info');
+  }
+}
+
+function viewAssignedInterviewResults(interviewId) {
+  openInterviewDetailModal(interviewId);
+}
+

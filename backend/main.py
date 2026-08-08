@@ -1,4 +1,15 @@
 import os
+
+# Load backend/.env environment variables if present
+env_file = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(env_file):
+    with open(env_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,9 +17,21 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal
 from models.user import User
 from models.candidate import CandidateProfile
-from models.recruiter import RecruiterProfile
+from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog
 from security.password import hash_password
-from routers import auth_router, candidate_router, recruiter_router, admin_router
+
+from routers import (
+    auth_router,
+    candidate_router,
+    recruiter_router,
+    admin_router,
+    interview_router,
+    interview_api_router,
+    interview_singular_api_router,
+    question_router,
+    question_api_router
+)
+from seed_questions import seed_question_bank
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -19,7 +42,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SmartHire AI Backend API",
-    description="Module 1: Authentication, Database Integration & User Management",
+    description="Module 1-3: Authentication, Candidate Management & AI Interview Generation",
     version="1.0.0"
 )
 
@@ -53,7 +76,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "success": False,
-            "message": f"Server Error: {str(exc)}",
+            "message": "An internal server error occurred.",
             "details": None
         }
     )
@@ -77,12 +100,39 @@ app.include_router(auth_router)
 app.include_router(candidate_router)
 app.include_router(recruiter_router)
 app.include_router(admin_router)
+app.include_router(interview_router)
+app.include_router(interview_api_router)
+app.include_router(interview_singular_api_router)
+app.include_router(question_router)
+app.include_router(question_api_router)
 
 
 def seed_database():
-    """Seed initial Admin user and demonstration data into PostgreSQL."""
+    """Seed initial Admin user, demonstration data, and Question Bank into PostgreSQL."""
     db: Session = SessionLocal()
     try:
+        # Seed Question Bank
+        seed_question_bank(db)
+
+        # Seed sample PDF resume files for static file download/preview
+        resumes_dir = os.path.join(os.getcwd(), "uploads", "resumes")
+        os.makedirs(resumes_dir, exist_ok=True)
+        sample_resumes = ["resume_user_1.pdf", "resume_user_2.pdf", "resume_user_3.pdf"]
+        for fname in sample_resumes:
+            fpath = os.path.join(resumes_dir, fname)
+            if not os.path.exists(fpath):
+                pdf_bytes = (
+                    b"%PDF-1.4\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n"
+                    b"2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n"
+                    b"3 0 obj <</Type /Page /Parent 2 0 R /Resources <</Font <</F1 4 0 R>>>> /MediaBox [0 0 612 792] /Contents 5 0 R>> endobj\n"
+                    b"4 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Helvetica>> endobj\n"
+                    b"5 0 obj <</Length 68>> stream\nBT /F1 18 Tf 50 700 Td (SmartHire AI Candidate Professional Resume) Tj ET\nendstream endobj\n"
+                    b"xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000244 00000 n \n0000000313 00000 n \n"
+                    b"trailer <</Size 6 /Root 1 0 R>>\nstartxref\n431\n%%EOF\n"
+                )
+                with open(fpath, "wb") as f:
+                    f.write(pdf_bytes)
+
         # Seed Admin account if not present
         admin = db.query(User).filter(User.email == "admin@smarthire.ai").first()
         if not admin:
@@ -126,6 +176,7 @@ def seed_database():
                 linkedin="https://linkedin.com/in/alexmorgan",
                 github="https://github.com/alexmorgan",
                 portfolio="https://alexmorgan.dev",
+                resume="resume_user_1.pdf",
                 ats_score=88.0,
                 interview_score=94.0
             )
@@ -160,6 +211,7 @@ def seed_database():
                 linkedin="https://linkedin.com/in/davidchen",
                 github="https://github.com/davidchen",
                 portfolio="https://davidchen.ai",
+                resume="resume_user_2.pdf",
                 ats_score=92.0,
                 interview_score=89.0
             )

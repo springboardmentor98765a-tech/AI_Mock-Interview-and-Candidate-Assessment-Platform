@@ -15,11 +15,19 @@ try:
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 except Exception as e:
     print(f"Warning: Primary PostgreSQL connection failed ({e}). Falling back to local SQLite database for development.")
-    FALLBACK_DB_URL = "sqlite:///./smarthire_ai.db"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    sqlite_path = os.path.join(base_dir, "smarthire_ai.db")
+    FALLBACK_DB_URL = f"sqlite:///{sqlite_path}"
     engine = create_engine(FALLBACK_DB_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Auto-create tables for SQLite fallback if not present
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception:
+    pass
 
 def get_db():
     db = SessionLocal()

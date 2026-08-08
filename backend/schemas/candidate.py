@@ -60,6 +60,7 @@ class CandidateRankingItem(BaseModel):
     skills: Optional[str] = None
     college: Optional[str] = None
     degree: Optional[str] = None
+    resume: Optional[str] = None
 
     class Config:
         from_attributes = True

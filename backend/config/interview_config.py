@@ -1,0 +1,14 @@
+import os
+
+# Centralized AI & Interview Configuration Settings
+
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gemini-flash-latest")
+
+MIN_QUESTIONS_PER_INTERVIEW = int(os.getenv("MIN_QUESTIONS_PER_INTERVIEW", "3"))
+MAX_QUESTIONS_PER_INTERVIEW = int(os.getenv("MAX_QUESTIONS_PER_INTERVIEW", "15"))
+DEFAULT_INTERVIEW_DURATION = int(os.getenv("DEFAULT_INTERVIEW_DURATION", "30"))
+AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
+FIRST_WARNING_SECONDS = int(os.getenv("FIRST_WARNING_SECONDS", "300"))  # 5 minutes
+SECOND_WARNING_SECONDS = int(os.getenv("SECOND_WARNING_SECONDS", "60"))   # 1 minute
+QUESTION_BANK_FALLBACK_TARGET_MS = int(os.getenv("QUESTION_BANK_FALLBACK_TARGET_MS", "500"))

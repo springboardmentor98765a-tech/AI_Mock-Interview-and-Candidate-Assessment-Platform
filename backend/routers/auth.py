@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
@@ -22,6 +23,17 @@ from security.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+@router.get("/config")
+def get_auth_config():
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id or not client_id.strip():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google Client ID is not configured on the server."
+        )
+    return {"google_client_id": client_id.strip()}
+
+
 @router.post("/register/candidate", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register_candidate(data: CandidateRegisterRequest, db: Session = Depends(get_db)):
     return register_candidate_service(data, db)
@@ -45,3 +57,4 @@ def complete_google_role(data: GoogleRoleCompleteRequest, db: Session = Depends(
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+

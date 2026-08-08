@@ -54,6 +54,11 @@
           </a>
         </li>
         <li class="sidebar-item">
+          <a href="#" onclick="document.getElementById('candidate-assigned-interviews-section').scrollIntoView({behavior: 'smooth'}); return false;">
+            <i class="fa-solid fa-headset" style="color: var(--secondary);"></i> Assigned Interviews
+          </a>
+        </li>
+        <li class="sidebar-item">
           <a href="#" onclick="openRankingModal(); return false;">
             <i class="fa-solid fa-trophy"></i> Ranking System
           </a>
@@ -107,7 +112,7 @@
       <!-- Welcome Banner Card -->
       <div class="welcome-card">
         <div class="welcome-text">
-          <h2>Welcome back, Alex Morgan! 👋</h2>
+          <h2 id="candidate-welcome-text">Welcome back, <span id="candidate-display-name">Candidate</span>! 👋</h2>
           <p>Your ATS resume score increased by 18% this week. You're in the top 5% of candidates for Senior Frontend Developer roles.</p>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="openPerformanceAnalyticsModal()" style="color: var(--primary);">
@@ -378,6 +383,43 @@
           </button>
         </div>
 
+      </div>
+
+      <!-- Module 3: Assigned AI Interviews Section -->
+      <div id="candidate-assigned-interviews-section" class="table-card" style="margin-top: 2rem; border-top: 4px solid var(--secondary);">
+        <div class="table-card-header">
+          <div>
+            <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <i class="fa-solid fa-headset" style="color: var(--secondary);"></i> Assigned AI Interviews
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+              Active and assigned interviews generated specifically for your target domain and skill set.
+            </p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadCandidateAssignedInterviews()">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh List
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Created Date</th>
+                <th>Target Domain</th>
+                <th>Interview Type</th>
+                <th>Difficulty</th>
+                <th>Questions</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-assigned-interviews-table-body">
+              <!-- Rendered dynamically by script.js -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Candidate Interview History Log Table -->

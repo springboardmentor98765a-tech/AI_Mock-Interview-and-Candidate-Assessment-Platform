@@ -43,6 +43,8 @@ class GoogleRoleCompleteRequest(BaseModel):
     name: str
     picture: Optional[str] = None
     role: str  # CANDIDATE or RECRUITER
+    company_name: Optional[str] = None
+    designation: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -53,3 +55,5 @@ class TokenResponse(BaseModel):
     role: str
     provider: str
     role_required: Optional[bool] = False
+    picture: Optional[str] = None
+
