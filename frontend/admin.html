@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Admin Dashboard | AI Interview Pro</title>
+
+    <link rel="stylesheet" href="admin.css" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div class="admin-container">
+      <!-- ================= SIDEBAR ================= -->
+
+      <aside class="admin-sidebar">
+        <div class="brand">
+          🤖 AI Interview Pro
+
+          <span> Admin Control Center </span>
+        </div>
+
+        <nav>
+          <a href="#overview" class="active"> 🏠 Overview </a>
+
+          <a href="#users"> 👥 User Management </a>
+
+          <a href="#companies"> 🏢 Company Management </a>
+
+          <a href="#ai-config"> 🤖 AI Configuration </a>
+
+          <a href="#analytics"> 📊 Platform Analytics </a>
+
+          <a href="#security"> 🔐 Security Logs </a>
+
+          <a href="#reports"> 📑 Reports </a>
+
+          <a href="#settings"> ⚙ Settings </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- ================= MAIN ================= -->
+
+      <main class="admin-main">
+        <!-- HEADER -->
+
+        <header class="top-header">
+          <div>
+            <h1 id="welcomeUser">Welcome Admin 👋</h1>
+
+            <p>Manage AI Interview Pro platform operations</p>
+          </div>
+
+          <div class="header-actions">
+            <div class="notification">🔔</div>
+
+            <div class="profile">👨‍💼</div>
+          </div>
+        </header>
+
+        <!-- ================= OVERVIEW ================= -->
+
+        <section id="overview" class="section">
+          <div class="section-heading">
+            <h2>Platform Overview</h2>
+
+            <p>Monitor system performance and activities</p>
+          </div>
+
+          <div class="overview-cards">
+            <div class="overview-card">
+              <div class="icon">👨‍🎓</div>
+
+              <div>
+                <h3>12,540</h3>
+
+                <p>Total Candidates</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">🏢</div>
+
+              <div>
+                <h3>850</h3>
+
+                <p>Registered Companies</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">🎤</div>
+
+              <div>
+                <h3>45,320</h3>
+
+                <p>AI Interviews</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">🤖</div>
+
+              <div>
+                <h3>98%</h3>
+
+                <p>AI System Accuracy</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= USER MANAGEMENT ================= -->
+
+        <section id="users" class="section">
+          <div class="section-heading">
+            <h2>👥 User Management</h2>
+
+            <p>Manage candidates, recruiters and administrators</p>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+
+                  <th>Email</th>
+
+                  <th>Role</th>
+
+                  <th>Status</th>
+
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>Rahul Kumar</td>
+
+                  <td>rahul@gmail.com</td>
+
+                  <td>Candidate</td>
+
+                  <td>
+                    <span class="active-status"> Active </span>
+                  </td>
+
+                  <td>
+                    <button class="manage-btn">Manage</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>Priya HR</td>
+
+                  <td>priya@company.com</td>
+
+                  <td>Recruiter</td>
+
+                  <td>
+                    <span class="active-status"> Active </span>
+                  </td>
+
+                  <td>
+                    <button class="manage-btn">Manage</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>Admin User</td>
+
+                  <td>admin@ai.com</td>
+
+                  <td>Admin</td>
+
+                  <td>
+                    <span class="active-status"> Active </span>
+                  </td>
+
+                  <td>
+                    <button class="manage-btn">Manage</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================= COMPANY MANAGEMENT ================= -->
+
+        <section id="companies" class="section">
+          <div class="section-heading">
+            <h2>🏢 Company Management</h2>
+
+            <p>Manage hiring partners and recruiters</p>
+          </div>
+
+          <div class="company-grid">
+            <div class="company-card">
+              <h3>Google</h3>
+
+              <p>120 Active Jobs</p>
+
+              <span> Verified Company </span>
+            </div>
+
+            <div class="company-card">
+              <h3>Microsoft</h3>
+
+              <p>95 Active Jobs</p>
+
+              <span> Verified Company </span>
+            </div>
+
+            <div class="company-card">
+              <h3>Infosys</h3>
+
+              <p>150 Active Jobs</p>
+
+              <span> Verified Company </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= AI CONFIGURATION ================= -->
+
+        <section id="ai-config" class="section">
+          <div class="section-heading">
+            <h2>🤖 AI Configuration</h2>
+
+            <p>Control AI interview engine settings</p>
+          </div>
+
+          <div class="ai-settings">
+            <div class="ai-card">
+              <h3>Interview Question Generator</h3>
+
+              <p>Automatically create role-based questions</p>
+
+              <label class="switch">
+                <input type="checkbox" checked />
+
+                <span></span>
+              </label>
+            </div>
+
+            <div class="ai-card">
+              <h3>Resume Analysis Engine</h3>
+
+              <p>AI-powered ATS scoring system</p>
+
+              <label class="switch">
+                <input type="checkbox" checked />
+
+                <span></span>
+              </label>
+            </div>
+
+            <div class="ai-card">
+              <h3>AI Voice Interview</h3>
+
+              <p>Enable voice-based interviews</p>
+
+              <label class="switch">
+                <input type="checkbox" />
+
+                <span></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ANALYTICS ================= -->
+
+        <section id="analytics" class="section">
+          <div class="section-heading">
+            <h2>📊 Platform Analytics</h2>
+
+            <p>Track platform growth and usage</p>
+          </div>
+
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <h3>Daily Active Users</h3>
+
+              <h1>8,420</h1>
+
+              <p>+12% this month</p>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Interviews Today</h3>
+
+              <h1>1,250</h1>
+
+              <p>+18% this month</p>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Average AI Score</h3>
+
+              <h1>86%</h1>
+
+              <p>Platform average</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SECURITY LOGS ================= -->
+
+        <section id="security" class="section">
+          <div class="section-heading">
+            <h2>🔐 Security Logs</h2>
+
+            <p>Monitor authentication and system activities</p>
+          </div>
+
+          <div class="security-container">
+            <div class="security-item">
+              <div class="security-icon">🔑</div>
+
+              <div>
+                <h3>Successful Login</h3>
+
+                <p>Candidate login completed from Chrome browser</p>
+
+                <span> Today, 10:25 AM </span>
+              </div>
+            </div>
+
+            <div class="security-item">
+              <div class="security-icon">⚠️</div>
+
+              <div>
+                <h3>Failed Login Attempt</h3>
+
+                <p>Multiple incorrect password attempts detected</p>
+
+                <span> Today, 09:40 AM </span>
+              </div>
+            </div>
+
+            <div class="security-item">
+              <div class="security-icon">🛡️</div>
+
+              <div>
+                <h3>System Security Check</h3>
+
+                <p>All services running normally</p>
+
+                <span> Today, 08:00 AM </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= REPORTS ================= -->
+
+        <section id="reports" class="section">
+          <div class="section-heading">
+            <h2>📑 Reports</h2>
+
+            <p>Generate platform reports</p>
+          </div>
+
+          <div class="report-grid">
+            <div class="report-card">
+              <h3>User Report</h3>
+
+              <p>Candidate and recruiter statistics</p>
+
+              <button>Generate</button>
+            </div>
+
+            <div class="report-card">
+              <h3>Hiring Report</h3>
+
+              <p>Company hiring performance</p>
+
+              <button>Generate</button>
+            </div>
+
+            <div class="report-card">
+              <h3>AI Performance Report</h3>
+
+              <p>AI interview accuracy analysis</p>
+
+              <button>Generate</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SETTINGS ================= -->
+
+        <section id="settings" class="section">
+          <div class="section-heading">
+            <h2>⚙ System Settings</h2>
+
+            <p>Manage application preferences</p>
+          </div>
+
+          <div class="settings-panel">
+            <div>
+              <label> Email Notifications </label>
+
+              <input type="checkbox" checked />
+            </div>
+
+            <div>
+              <label> AI Auto Updates </label>
+
+              <input type="checkbox" checked />
+            </div>
+
+            <div>
+              <label> Maintenance Mode </label>
+
+              <input type="checkbox" />
+            </div>
+
+            <button>Save Settings</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="auth-common.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>

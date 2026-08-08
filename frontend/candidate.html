@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Candidate Dashboard | AI Interview Pro</title>
+
+    <link rel="stylesheet" href="candidate.css" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div class="candidate-container">
+      <!-- ================= SIDEBAR ================= -->
+
+      <aside class="candidate-sidebar">
+        <div class="brand">
+          🤖 AI Interview Pro
+
+          <span> Candidate Portal </span>
+        </div>
+
+        <nav>
+          <a href="#overview" class="active"> 🏠 Overview </a>
+
+          <a href="#resume"> 📄 Resume Analysis </a>
+
+          <a href="#interview"> 🎤 Mock Interviews </a>
+
+          <a href="#analytics"> 📊 Performance Analytics </a>
+
+          <a href="#history"> 📜 Interview History </a>
+
+          <a href="#recommendations"> 🤖 AI Recommendations </a>
+
+          <a href="#achievements"> 🏆 Achievements </a>
+
+          <a href="#settings"> ⚙ Settings </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </aside>
+
+      <!-- ================= MAIN CONTENT ================= -->
+
+      <main class="candidate-main">
+        <!-- ================= HEADER ================= -->
+
+        <header class="top-header">
+          <div>
+            <h2 id="welcomeUser">Welcome 👋</h2>
+
+            <p>Improve your interview skills with AI-powered preparation.</p>
+          </div>
+
+          <div class="header-actions">
+            <div class="search-box">🔍 Search</div>
+
+            <div class="notification">🔔</div>
+
+            <div class="profile">👨‍🎓</div>
+          </div>
+        </header>
+
+        <!-- ================= OVERVIEW ================= -->
+
+        <section id="overview" class="section">
+          <div class="section-heading">
+            <h2>Candidate Overview</h2>
+
+            <p>Your interview preparation progress</p>
+          </div>
+
+          <div class="profile-card">
+            <div class="profile-image">👨‍💻</div>
+
+            <div>
+              <h3 id="overviewUser"> </h3>
+
+              <p>Computer Science Engineer</p>
+
+              <p>AI Full Stack Developer Aspirant</p>
+            </div>
+
+            <div class="readiness">
+              <h3 id="statReadiness">-</h3>
+
+              <span> Interview Readiness </span>
+            </div>
+          </div>
+
+          <div class="overview-cards">
+            <div class="overview-card">
+              <div class="icon">📄</div>
+
+              <div>
+                <h3 id="statResumeScore">-</h3>
+
+                <p>Resume Score</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">🎤</div>
+
+              <div>
+                <h3 id="statCompletedInterviews">0</h3>
+
+                <p>Completed Interviews</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">⭐</div>
+
+              <div>
+                <h3 id="statAverageScore">-</h3>
+
+                <p>Average Score</p>
+              </div>
+            </div>
+
+            <div class="overview-card">
+              <div class="icon">🚀</div>
+
+              <div>
+                <h3 id="statSkillGrowth">-</h3>
+
+                <p>Skill Growth</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= RESUME ANALYSIS ================= -->
+
+        <section id="resume" class="section">
+          <div class="section-heading">
+            <h2>📄 AI Resume Analysis</h2>
+
+            <p>AI-powered resume evaluation and improvement suggestions</p>
+          </div>
+
+          <!-- ================= RESUME UPLOAD ================= -->
+
+          <div class="upload-resume-card">
+            <div class="upload-icon">📄</div>
+
+            <div class="upload-content">
+              <h3>Upload Your Resume</h3>
+
+              <p>Upload PDF or DOCX file for AI-powered resume analysis</p>
+
+              <input type="file" id="resumeFile" accept=".pdf,.docx" />
+
+              <label for="resumeFile" class="upload-btn"> Choose Resume </label>
+
+              <p id="file-name">No file selected</p>
+
+              <button id="analyzeResume">Analyze Resume 🤖</button>
+
+              <p id="resumeUploadStatus" class="resume-upload-status"></p>
+            </div>
+          </div>
+
+          <div class="resume-container" id="resumeResultsPanel" style="display:none;">
+            <div class="resume-score-card">
+              <h3>Experience</h3>
+
+              <div class="score-circle" id="resumeExperienceCircle">-</div>
+
+              <p id="resumeExperienceLabel">Total years detected</p>
+            </div>
+
+            <div class="resume-details">
+              <div class="resume-item">
+                <div>
+                  <h4>Skills Detected</h4>
+
+                  <p id="resumeSkillsSummaryText">-</p>
+                </div>
+              </div>
+
+              <div class="resume-item">
+                <div>
+                  <h4>Education</h4>
+
+                  <p id="resumeEducationText">-</p>
+                </div>
+              </div>
+
+              <div class="resume-item">
+                <div>
+                  <h4>Work Experience Entries</h4>
+
+                  <p id="resumeWorkExpText">-</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="resume-skills-card" id="resumeSkillsCard" style="display:none;">
+            <h3>✅ Skills Detected From Your Resume (by category)</h3>
+            <div id="resumeSkillsByCategory"></div>
+            <p class="hint">These skills can now be used to generate a targeted technical interview below.</p>
+          </div>
+
+          <div class="suggestion-card" id="resumeSummaryCard" style="display:none;">
+            <h3>🤖 AI Resume Summary</h3>
+            <p id="resumeSummaryText"></p>
+          </div>
+        </section>
+
+        <!-- ================= MOCK INTERVIEW ================= -->
+
+        <section id="interview" class="section">
+          <div class="section-heading">
+            <h2>🎤 AI Mock Interview Room</h2>
+
+            <p>Practice real-world interviews with AI</p>
+          </div>
+
+          <div class="interview-room">
+            <div class="interview-info">
+              <div class="ai-avatar">🤖</div>
+
+              <div>
+                <h2>AI Technical Interview</h2>
+
+                <p>Java Developer Position</p>
+
+                <span> Difficulty: Medium </span>
+              </div>
+            </div>
+
+            <div class="interview-stats">
+              <div>
+                <h3 id="statLastScore">-</h3>
+
+                <p>Last Score</p>
+              </div>
+
+              <div>
+                <h3 id="statQuestionsAnswered">0</h3>
+
+                <p>Questions Answered</p>
+              </div>
+
+              <div>
+                <h3 id="statAverageTime">-</h3>
+
+                <p>Average Time</p>
+              </div>
+            </div>
+
+            <button class="start-interview" id="scrollToSetupBtn">Start New Interview 🚀</button>
+          </div>
+
+          <!-- ================= AI INTERVIEW SETUP ================= -->
+          <div class="ai-interview-setup" id="aiInterviewSetup">
+            <h3>🎯 Configure Your Practice Interview</h3>
+
+            <div class="setup-grid">
+              <div class="setup-field">
+                <label for="setupType">Interview Type</label>
+                <select id="setupType">
+                  <option value="technical">Technical</option>
+                  <option value="hr">HR</option>
+                  <option value="behavioral">Behavioral</option>
+                  <option value="aptitude">Aptitude</option>
+                </select>
+              </div>
+
+              <div class="setup-field">
+                <label for="setupDifficulty">Difficulty</label>
+                <select id="setupDifficulty">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+
+              <div class="setup-field">
+                <label for="setupNumQuestions">Number of Questions</label>
+                <select id="setupNumQuestions">
+                  <option value="3">3 Questions</option>
+                  <option value="5" selected>5 Questions</option>
+                  <option value="10">10 Questions</option>
+                  <option value="20">20 Questions</option>
+                </select>
+              </div>
+
+              <div class="setup-field">
+                <label for="setupDuration">Time Limit</label>
+                <select id="setupDuration">
+                  <option value="0" selected>No time limit</option>
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes</option>
+                  <option value="15">15 minutes</option>
+                  <option value="20">20 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                </select>
+              </div>
+
+              <div class="setup-field" id="setupDomainWrap">
+                <label for="setupDomain">Domain</label>
+                <input type="text" id="setupDomain" placeholder="e.g. Python, React, General HR" />
+              </div>
+            </div>
+
+            <label class="setup-resume-toggle">
+              <input type="checkbox" id="setupUseResume" />
+              Use my uploaded resume skills instead of typing a domain
+            </label>
+            <p id="setupResumeHint" class="hint">Upload a resume above to enable this.</p>
+
+            <p id="setupError" class="form-error"></p>
+
+            <button id="generateInterviewBtn" type="button">Generate Interview 🤖</button>
+          </div>
+
+          <!-- ================= AI INTERVIEW LIVE SESSION ================= -->
+          <div class="ai-interview-session" id="aiInterviewSession" style="display:none;">
+
+            <div class="session-progress">
+              <span id="sessionProgressText">Question 1</span>
+              <span id="sessionTimer" class="session-timer" style="display:none;">⏱ --:--</span>
+              <div class="session-progress-bar"><div id="sessionProgressFill"></div></div>
+            </div>
+
+            <div class="session-question-card">
+              <div class="question-category" id="questionCategory"></div>
+              <p id="questionText">...</p>
+              <button id="speakQuestionBtn" type="button">🔊 Repeat Question</button>
+            </div>
+
+            <div class="session-answer-area">
+              <div class="mic-controls">
+                <button id="micBtn" type="button">🎤 Speak Your Answer</button>
+                <span id="micStatus"></span>
+              </div>
+
+              <textarea id="answerText" placeholder="Your spoken answer appears here - or just type it directly."></textarea>
+
+              <p id="answerError" class="form-error"></p>
+
+              <button id="submitAnswerBtn" type="button">Submit Answer ✅</button>
+            </div>
+          </div>
+
+          <!-- ================= AI INTERVIEW COMPLETE ================= -->
+          <div class="ai-interview-complete" id="aiInterviewComplete" style="display:none;">
+            <h3>🎉 Interview Complete!</h3>
+            <p id="completeSummary"></p>
+            <button id="reviewAnswersBtn" type="button">Review My Answers</button>
+            <button id="newInterviewBtn" type="button">Start Another Interview</button>
+          </div>
+        </section>
+
+        <!-- ================= ANALYTICS ================= -->
+
+        <section id="analytics" class="section">
+          <div class="section-heading">
+            <h2>📊 Performance Analytics</h2>
+
+            <p>Track your interview improvement</p>
+          </div>
+
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <h3>Communication</h3>
+
+              <div class="progress-bar">
+                <div class="communication-progress" id="communicationProgressBar"></div>
+              </div>
+
+              <h2 id="communicationScoreText">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Technical Skills</h3>
+
+              <div class="progress-bar">
+                <div class="technical-progress" id="technicalProgressBar"></div>
+              </div>
+
+              <h2 id="technicalScoreText">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Confidence Level</h3>
+
+              <div class="progress-bar">
+                <div class="confidence-progress" id="confidenceProgressBar"></div>
+              </div>
+
+              <h2 id="confidenceScoreText">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Grammar</h3>
+
+              <div class="progress-bar">
+                <div class="grammar-progress" id="grammarProgressBar"></div>
+              </div>
+
+              <h2 id="grammarScoreText">-</h2>
+            </div>
+          </div>
+
+          <p id="analyticsEmptyHint" class="hint" style="display:none;">
+            Complete a mock interview to see your real performance analytics here.
+          </p>
+        </section>
+
+        <!-- ================= INTERVIEW HISTORY ================= -->
+
+        <section id="history" class="section">
+          <div class="section-heading">
+            <h2>📜 Interview History</h2>
+
+            <p>Review your previous interview performances</p>
+          </div>
+
+          <div class="history-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type / Domain</th>
+
+                  <th>Difficulty</th>
+
+                  <th>Date</th>
+
+                  <th>Questions</th>
+
+                  <th>Score</th>
+
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody id="historyTableBody">
+                <tr><td colspan="6">Loading your interview history...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="history-detail-panel" id="historyDetailPanel" style="display:none;">
+            <button id="closeHistoryDetail" type="button" class="close-detail-btn">&times; Close</button>
+            <h3 id="historyDetailTitle"></h3>
+            <div id="historyDetailQA"></div>
+          </div>
+        </section>
+
+        <!-- ================= AI RECOMMENDATIONS ================= -->
+
+        <section id="recommendations" class="section">
+          <div class="section-heading">
+            <h2>🤖 AI Career Coach</h2>
+
+            <p>Personalized improvement recommendations</p>
+          </div>
+
+          <div class="coach-card">
+            <div class="coach-avatar">🤖</div>
+
+            <div>
+              <h2>Your Next Improvement</h2>
+
+              <p>
+                "Practice system design questions and improve your explanation
+                skills to reach advanced interview levels."
+              </p>
+
+              <div class="recommendation-tags">
+                <span> System Design </span>
+
+                <span> Communication </span>
+
+                <span> Problem Solving </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ACHIEVEMENTS ================= -->
+
+        <section id="achievements" class="section">
+          <div class="section-heading">
+            <h2>🏆 Achievements</h2>
+
+            <p>Your interview preparation milestones</p>
+          </div>
+
+          <div class="achievement-grid">
+            <div class="achievement-card locked" id="achv10Interviews">
+              <div>🔥</div>
+
+              <h3>10+ Interviews</h3>
+
+              <p id="achv10InterviewsText">Complete 10 AI interviews to unlock</p>
+            </div>
+
+            <div class="achievement-card locked" id="achvTopPerformer">
+              <div>⭐</div>
+
+              <h3>Top Performer</h3>
+
+              <p id="achvTopPerformerText">Maintain an average score above 85%</p>
+            </div>
+
+            <div class="achievement-card locked" id="achvSkillGrowth">
+              <div>🚀</div>
+
+              <h3>Skill Growth</h3>
+
+              <p id="achvSkillGrowthText">Improve your score across interviews</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SETTINGS ================= -->
+
+        <section id="settings" class="section">
+          <div class="section-heading">
+            <h2>⚙ Settings</h2>
+
+            <p>Manage your account preferences</p>
+          </div>
+
+          <div class="settings-panel">
+            <div>
+              <label> Email Notifications </label>
+
+              <input type="checkbox" checked />
+            </div>
+
+            <div>
+              <label> AI Interview Reminders </label>
+
+              <input type="checkbox" checked />
+            </div>
+
+            <div>
+              <label> Performance Updates </label>
+
+              <input type="checkbox" />
+            </div>
+
+            <button>Save Settings</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="auth-common.js"></script>
+    <script src="candidate.js"></script>
+  </body>
+</html>

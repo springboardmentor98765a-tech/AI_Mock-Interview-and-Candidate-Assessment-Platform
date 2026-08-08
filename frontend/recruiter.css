@@ -1,0 +1,1572 @@
+
+/* ==========================================================
+            AI INTERVIEW PRO
+            RECRUITER DASHBOARD CSS
+========================================================== */
+
+
+*{
+
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+
+}
+
+
+
+html{
+
+    scroll-behavior:smooth;
+
+}
+
+
+
+body{
+
+    background:
+    linear-gradient(
+        135deg,
+        #020617,
+        #111827,
+        #1e1b4b
+    );
+
+    color:white;
+
+}
+
+
+
+
+
+/* ===============================
+        MAIN LAYOUT
+================================ */
+
+
+.recruiter-container{
+
+    display:flex;
+
+    min-height:100vh;
+
+}
+
+
+
+
+
+/* ===============================
+        SIDEBAR
+================================ */
+
+
+
+.recruiter-sidebar{
+
+    width:280px;
+
+    height:100vh;
+
+    position:fixed;
+
+    left:0;
+
+    top:0;
+
+    padding:30px 20px;
+
+    background:
+
+    rgba(15,23,42,0.85);
+
+    backdrop-filter:blur(18px);
+
+    border-right:
+
+    1px solid rgba(255,255,255,0.12);
+
+}
+
+
+
+
+
+.brand{
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:#60a5fa;
+
+    text-align:center;
+
+    margin-bottom:40px;
+
+}
+
+
+
+.brand span{
+
+    display:block;
+
+    font-size:13px;
+
+    color:#cbd5e1;
+
+    margin-top:8px;
+
+    font-weight:400;
+
+}
+
+
+
+
+
+.recruiter-sidebar nav a{
+
+    display:block;
+
+    text-decoration:none;
+
+    color:#cbd5e1;
+
+    padding:14px 18px;
+
+    margin:12px 0;
+
+    border-radius:14px;
+
+    transition:.3s;
+
+}
+
+
+
+
+
+.recruiter-sidebar nav a:hover,
+.recruiter-sidebar nav a.active{
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+    color:white;
+
+    transform:translateX(5px);
+
+}
+
+
+
+
+
+.sidebar-footer{
+
+    position:absolute;
+
+    bottom:30px;
+
+    width:calc(100% - 40px);
+
+}
+
+
+
+.sidebar-footer button{
+
+    width:100%;
+
+    padding:13px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#ef4444;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-weight:600;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        MAIN CONTENT
+================================ */
+
+
+
+.recruiter-main{
+
+    margin-left:280px;
+
+    width:calc(100% - 280px);
+
+    padding:35px 45px;
+
+}
+
+
+
+
+
+.section{
+
+    min-height:100vh;
+
+    padding:40px 0;
+
+    scroll-margin-top:30px;
+
+}
+
+
+
+
+
+.section-heading{
+
+    margin-bottom:30px;
+
+}
+
+
+
+.section-heading h2{
+
+    font-size:30px;
+
+    color:#93c5fd;
+
+}
+
+
+
+.section-heading p{
+
+    color:#94a3b8;
+
+    margin-top:8px;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        TOP HEADER
+================================ */
+
+
+.top-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:40px;
+
+}
+
+
+
+
+
+.top-header h1{
+
+    font-size:32px;
+
+}
+
+
+
+.top-header p{
+
+    color:#cbd5e1;
+
+    margin-top:10px;
+
+}
+
+
+
+
+
+.header-actions{
+
+    display:flex;
+
+    gap:18px;
+
+    align-items:center;
+
+}
+
+
+
+
+
+.search-box{
+
+    background:
+
+    rgba(255,255,255,0.08);
+
+    padding:14px 25px;
+
+    border-radius:30px;
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+.notification,
+.profile{
+
+    width:45px;
+
+    height:45px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    background:
+
+    rgba(255,255,255,0.08);
+
+    cursor:pointer;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        OVERVIEW CARDS
+================================ */
+
+
+
+.overview-cards{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:22px;
+
+}
+
+
+
+
+
+.overview-card{
+
+    position:relative;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:18px;
+
+    padding:25px;
+
+    border-radius:22px;
+
+    background:
+
+    rgba(255,255,255,0.08);
+
+    border:
+
+    1px solid rgba(255,255,255,0.12);
+
+    backdrop-filter:blur(15px);
+
+    transition:.3s;
+
+}
+
+
+
+
+
+.overview-card:hover{
+
+    transform:translateY(-8px);
+
+}
+
+
+
+
+
+.overview-card .icon{
+
+    font-size:35px;
+
+}
+
+
+
+
+
+.overview-card h3{
+
+    font-size:28px;
+
+}
+
+
+
+
+
+.overview-card p{
+
+    color:#cbd5e1;
+
+}
+
+
+
+.growth{
+
+    position:absolute;
+
+    top:15px;
+
+    right:18px;
+
+    color:#22c55e;
+
+    font-size:13px;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        PIPELINE
+================================ */
+
+
+
+.pipeline-card{
+
+    margin-top:35px;
+
+    padding:30px;
+
+    border-radius:25px;
+
+    background:
+
+    rgba(255,255,255,0.08);
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+}
+
+
+
+
+
+.pipeline-card h2{
+
+    margin-bottom:30px;
+
+}
+
+
+
+
+
+.pipeline{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+}
+
+
+
+
+
+.pipeline div:not(.arrow){
+
+    text-align:center;
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:20px;
+
+    border-radius:18px;
+
+    min-width:130px;
+
+}
+
+
+
+
+
+.pipeline span{
+
+    display:block;
+
+    margin-top:10px;
+
+    font-size:25px;
+
+    font-weight:700;
+
+    color:#60a5fa;
+
+}
+
+
+
+.arrow{
+
+    font-size:30px;
+
+    color:#93c5fd;
+
+}
+
+
+
+
+/* ===============================
+        CANDIDATE MANAGEMENT
+================================ */
+
+
+.candidate-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:25px;
+
+}
+
+
+
+
+
+.candidate-card{
+
+    background:
+
+    rgba(255,255,255,0.08);
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+    padding:25px;
+
+    border-radius:25px;
+
+    transition:.3s;
+
+}
+
+
+
+
+
+.candidate-card:hover{
+
+    transform:translateY(-8px);
+
+    border-color:#60a5fa;
+
+}
+
+
+
+
+
+.candidate-header{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+}
+
+
+
+.candidate-avatar{
+
+    width:55px;
+
+    height:55px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+    font-weight:700;
+
+}
+
+
+
+
+
+.candidate-header h3{
+
+    font-size:18px;
+
+}
+
+
+
+.candidate-header p{
+
+    color:#cbd5e1;
+
+    font-size:14px;
+
+}
+
+
+
+
+
+.rank{
+
+    margin-left:auto;
+
+    background:#2563eb;
+
+    padding:6px 12px;
+
+    border-radius:20px;
+
+}
+
+
+
+
+
+.skills{
+
+    display:flex;
+
+    gap:8px;
+
+    flex-wrap:wrap;
+
+    margin:25px 0;
+
+}
+
+
+
+
+
+.skills span{
+
+    background:
+
+    rgba(96,165,250,.15);
+
+    color:#93c5fd;
+
+    padding:6px 12px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+}
+
+
+
+
+
+.candidate-score{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+}
+
+
+
+
+
+.candidate-score p{
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+.candidate-score h2{
+
+    color:#60a5fa;
+
+}
+
+
+
+
+
+.score-circle{
+
+    width:55px;
+
+    height:55px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:#2563eb;
+
+    font-weight:700;
+
+}
+
+
+
+
+
+.candidate-actions{
+
+    display:flex;
+
+    gap:12px;
+
+    margin-top:25px;
+
+}
+
+
+
+
+
+.candidate-actions button{
+
+    flex:1;
+
+    padding:10px;
+
+    border:none;
+
+    border-radius:12px;
+
+    cursor:pointer;
+
+    color:white;
+
+}
+
+
+
+
+
+.view-btn{
+
+    background:#334155;
+
+}
+
+
+
+.schedule-btn{
+
+    background:#2563eb;
+
+}
+
+
+
+
+
+
+
+
+
+/* ===============================
+        RESUME SCREENING TABLE
+================================ */
+
+
+
+.screening-table{
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    border-radius:22px;
+
+    padding:25px;
+
+    overflow-x:auto;
+
+}
+
+
+
+
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+
+
+
+
+th{
+
+    text-align:left;
+
+    padding:15px;
+
+    color:#93c5fd;
+
+}
+
+
+
+
+
+td{
+
+    padding:15px;
+
+    border-bottom:
+
+    1px solid rgba(255,255,255,.1);
+
+}
+
+
+
+
+
+.high{
+
+    color:#22c55e;
+
+    font-weight:600;
+
+}
+
+
+
+
+
+.shortlist,
+.reject{
+
+    border:none;
+
+    padding:8px 15px;
+
+    border-radius:10px;
+
+    color:white;
+
+    cursor:pointer;
+
+}
+
+
+
+
+
+.shortlist{
+
+    background:#22c55e;
+
+}
+
+
+
+.reject{
+
+    background:#ef4444;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        INTERVIEW MANAGEMENT
+================================ */
+
+
+
+.interview-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:25px;
+
+}
+
+
+
+
+
+.interview-card{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:20px;
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:25px;
+
+    border-radius:22px;
+
+}
+
+
+
+.date-box{
+
+    background:#2563eb;
+
+    padding:15px;
+
+    border-radius:15px;
+
+    text-align:center;
+
+    font-size:25px;
+
+    font-weight:700;
+
+}
+
+
+
+.date-box span{
+
+    display:block;
+
+    font-size:12px;
+
+}
+
+
+
+
+
+.interview-card p{
+
+    color:#cbd5e1;
+
+    margin:8px 0;
+
+}
+
+
+
+
+
+.status{
+
+    margin-left:auto;
+
+    padding:7px 12px;
+
+    border-radius:20px;
+
+    font-size:13px;
+
+}
+
+
+
+.upcoming{
+
+    background:#2563eb;
+
+}
+
+
+
+.completed{
+
+    background:#22c55e;
+
+}
+
+
+
+/* ===============================
+        ANALYTICS
+================================ */
+
+
+
+.analytics-container{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:25px;
+
+}
+
+
+
+
+
+.analytics-card{
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:30px;
+
+    border-radius:25px;
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+}
+
+
+
+
+
+.analytics-card h3{
+
+    color:#cbd5e1;
+
+    font-size:18px;
+
+}
+
+
+
+
+
+.big-number{
+
+    font-size:42px;
+
+    font-weight:700;
+
+    margin:20px 0;
+
+    color:#60a5fa;
+
+}
+
+
+
+
+
+.analytics-card p{
+
+    color:#94a3b8;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        ANALYTICS CHART
+================================ */
+
+
+
+.chart-placeholder{
+
+    margin-top:35px;
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:30px;
+
+    border-radius:25px;
+
+}
+
+
+
+
+
+.bars{
+
+    margin-top:30px;
+
+}
+
+
+
+.bars > div{
+
+    margin:25px 0;
+
+}
+
+
+
+
+
+.bars span{
+
+    display:block;
+
+    margin-bottom:10px;
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+.bar{
+
+    height:15px;
+
+    border-radius:20px;
+
+    background:#2563eb;
+
+}
+
+
+
+.software{
+
+    width:90%;
+
+}
+
+
+
+.data{
+
+    width:70%;
+
+}
+
+
+
+.cloud{
+
+    width:55%;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        REPORTS
+================================ */
+
+
+
+.report-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:25px;
+
+}
+
+
+
+
+
+.report-card{
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:30px;
+
+    border-radius:25px;
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+}
+
+
+
+
+
+.report-card h3{
+
+    color:#93c5fd;
+
+    margin-bottom:15px;
+
+}
+
+
+
+
+
+.report-card p{
+
+    color:#cbd5e1;
+
+    margin-bottom:25px;
+
+}
+
+
+
+
+
+.report-card button{
+
+    padding:12px 25px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#2563eb;
+
+    color:white;
+
+    cursor:pointer;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        SETTINGS
+================================ */
+
+
+
+.settings-panel{
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    padding:35px;
+
+    border-radius:25px;
+
+}
+
+
+
+
+
+.settings-panel div{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    padding:20px 0;
+
+    border-bottom:
+
+    1px solid rgba(255,255,255,.1);
+
+}
+
+
+
+
+
+.settings-panel label{
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+.settings-panel button{
+
+    margin-top:25px;
+
+    padding:12px 30px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#2563eb;
+
+    color:white;
+
+    cursor:pointer;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        RESPONSIVE DESIGN
+================================ */
+
+
+
+@media(max-width:1200px){
+
+
+.overview-cards{
+
+    grid-template-columns:repeat(2,1fr);
+
+}
+
+
+
+.candidate-grid,
+.analytics-container,
+.report-grid,
+.interview-grid{
+
+    grid-template-columns:repeat(2,1fr);
+
+}
+
+
+
+.pipeline{
+
+    flex-wrap:wrap;
+
+    gap:20px;
+
+}
+
+
+
+.arrow{
+
+    display:none;
+
+}
+
+
+}
+
+
+
+
+
+@media(max-width:800px){
+
+
+
+.recruiter-sidebar{
+
+    width:100%;
+
+    height:auto;
+
+    position:relative;
+
+}
+
+
+
+.recruiter-container{
+
+    display:block;
+
+}
+
+
+
+.recruiter-main{
+
+    margin-left:0;
+
+    width:100%;
+
+    padding:20px;
+
+}
+
+
+
+.top-header{
+
+    flex-direction:column;
+
+    align-items:flex-start;
+
+    gap:20px;
+
+}
+
+
+
+.overview-cards,
+.candidate-grid,
+.analytics-container,
+.report-grid,
+.interview-grid{
+
+    grid-template-columns:1fr;
+
+}
+
+
+
+.header-actions{
+
+    flex-wrap:wrap;
+
+}
+
+
+
+.pipeline{
+
+    flex-direction:column;
+
+}
+
+
+
+}
+
+

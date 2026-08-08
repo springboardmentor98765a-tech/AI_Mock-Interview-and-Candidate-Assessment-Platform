@@ -1,0 +1,2450 @@
+
+/* ==========================================================
+            AI INTERVIEW PRO
+            CANDIDATE DASHBOARD CSS
+========================================================== */
+
+
+*{
+
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+
+}
+
+
+
+html{
+
+    scroll-behavior:smooth;
+
+}
+
+
+
+body{
+
+    background:
+    linear-gradient(
+        135deg,
+        #020617,
+        #111827,
+        #1e1b4b
+    );
+
+    color:white;
+
+}
+
+
+
+
+
+
+/* ===============================
+        MAIN CONTAINER
+================================ */
+
+
+
+.candidate-container{
+
+    display:flex;
+
+    min-height:100vh;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        SIDEBAR
+================================ */
+
+
+
+.candidate-sidebar{
+
+    width:280px;
+
+    height:100vh;
+
+    position:fixed;
+
+    left:0;
+
+    top:0;
+
+    padding:30px 20px;
+
+    background:
+    rgba(15,23,42,0.85);
+
+    backdrop-filter:blur(18px);
+
+    border-right:
+    1px solid rgba(255,255,255,.12);
+
+}
+
+
+
+
+
+.brand{
+
+    text-align:center;
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:#60a5fa;
+
+    margin-bottom:25px;
+
+}
+
+
+
+.brand span{
+
+    display:block;
+
+    margin-top:8px;
+
+    font-size:13px;
+
+    color:#cbd5e1;
+
+    font-weight:400;
+
+}
+
+
+
+
+
+
+
+.candidate-sidebar nav a{
+
+    display:block;
+
+    padding:11px 18px;
+
+    margin:7px 0;
+
+    text-decoration:none;
+
+    color:#cbd5e1;
+
+    border-radius:14px;
+
+    transition:.3s;
+
+}
+
+
+
+
+
+.candidate-sidebar nav a:hover,
+.candidate-sidebar nav a.active{
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+
+    color:white;
+
+    transform:translateX(5px);
+
+}
+
+
+
+
+
+.candidate-sidebar nav{
+
+    flex:1;
+
+}
+
+
+
+.sidebar-footer{
+
+    position:absolute;
+
+    bottom:20px;
+
+    left:20px;
+
+   width:calc(100% - 40px);
+
+}
+
+
+
+
+
+.sidebar-footer button{
+
+
+    width:100%;
+
+    padding:10px;
+
+    border:none;
+
+    border-radius:12px;
+
+
+    background:#ef4444;
+
+
+    color:white;
+
+    cursor:pointer;
+
+    font-weight:600;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        MAIN CONTENT
+================================ */
+
+
+
+.candidate-main{
+
+    margin-left:280px;
+
+    width:calc(100% - 280px);
+
+
+    padding:35px 45px;
+
+}
+
+
+
+
+
+
+
+
+.section{
+
+    min-height:100vh;
+
+    padding:40px 0;
+
+    scroll-margin-top:30px;
+
+}
+
+
+
+
+
+.section-heading{
+
+    margin-bottom:30px;
+
+}
+
+
+
+.section-heading h2{
+
+    font-size:30px;
+
+    color:#93c5fd;
+
+}
+
+
+
+.section-heading p{
+
+    color:#94a3b8;
+
+    margin-top:8px;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        HEADER
+================================ */
+
+
+
+.top-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:40px;
+
+}
+
+
+
+
+
+.top-header h1{
+
+    font-size:32px;
+
+}
+
+
+
+
+
+.top-header p{
+
+    color:#cbd5e1;
+
+    margin-top:10px;
+
+}
+
+
+
+
+
+.header-actions{
+
+    display:flex;
+
+    gap:18px;
+
+    align-items:center;
+
+}
+
+
+
+
+
+.search-box{
+
+    padding:14px 25px;
+
+    border-radius:30px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+.notification,
+.profile{
+
+
+    width:45px;
+
+    height:45px;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        PROFILE CARD
+================================ */
+
+
+
+.profile-card{
+
+
+    display:flex;
+
+    align-items:center;
+
+    gap:25px;
+
+
+    padding:30px;
+
+
+    border-radius:25px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+}
+
+
+
+
+
+
+
+.profile-image{
+
+
+    width:80px;
+
+    height:80px;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+
+    font-size:40px;
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+}
+
+
+
+
+
+.profile-card p{
+
+    color:#cbd5e1;
+
+    margin-top:5px;
+
+}
+
+
+
+
+
+.readiness{
+
+    margin-left:auto;
+
+    text-align:center;
+
+}
+
+
+
+
+
+.readiness h3{
+
+    font-size:40px;
+
+    color:#60a5fa;
+
+}
+
+
+
+.readiness span{
+
+    color:#cbd5e1;
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        OVERVIEW CARDS
+================================ */
+
+
+
+.overview-cards{
+
+
+    margin-top:30px;
+
+
+    display:grid;
+
+
+    grid-template-columns:repeat(4,1fr);
+
+
+    gap:22px;
+
+
+}
+
+
+
+
+
+
+.overview-card{
+
+
+    display:flex;
+
+
+    align-items:center;
+
+
+    gap:18px;
+
+
+    padding:25px;
+
+
+    border-radius:22px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+    transition:.3s;
+
+
+}
+
+
+
+
+
+.overview-card:hover{
+
+
+    transform:translateY(-8px);
+
+
+}
+
+
+
+
+
+.overview-card .icon{
+
+
+    font-size:35px;
+
+
+}
+
+
+
+
+
+.overview-card h3{
+
+
+    font-size:28px;
+
+
+}
+
+
+
+
+
+.overview-card p{
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+
+
+/* ===============================
+        RESUME ANALYSIS
+================================ */
+
+
+
+.resume-container{
+
+    display:grid;
+
+    grid-template-columns:350px 1fr;
+
+    gap:30px;
+
+}
+
+
+
+
+
+.resume-score-card{
+
+    padding:35px;
+
+    border-radius:25px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+    text-align:center;
+
+}
+
+
+
+
+
+.resume-score-card h3{
+
+    color:#cbd5e1;
+
+    margin-bottom:25px;
+
+}
+
+
+
+
+
+.score-circle{
+
+    width:160px;
+
+    height:160px;
+
+
+    margin:auto;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+
+    font-size:45px;
+
+    font-weight:700;
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+}
+
+
+
+
+.resume-score-card p{
+
+    margin-top:20px;
+
+    color:#22c55e;
+
+}
+
+
+
+
+
+.resume-details{
+
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:20px;
+
+
+}
+
+
+
+
+
+
+.resume-item{
+
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+
+    padding:25px;
+
+
+    border-radius:20px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+
+}
+
+
+
+
+
+.resume-item p{
+
+    color:#94a3b8;
+
+    margin-top:5px;
+
+}
+
+
+
+
+
+.resume-item span{
+
+    font-size:25px;
+
+    color:#60a5fa;
+
+    font-weight:700;
+
+}
+
+
+
+
+
+
+
+.suggestion-card{
+
+
+    margin-top:30px;
+
+
+    padding:30px;
+
+
+    border-radius:25px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+
+}
+
+
+
+
+
+.suggestion-card h3{
+
+
+    color:#93c5fd;
+
+
+    margin-bottom:20px;
+
+
+}
+
+
+
+
+
+.suggestion-card li{
+
+
+    margin:12px 0;
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+
+
+
+
+
+
+/* ===============================
+        MOCK INTERVIEW
+================================ */
+
+
+
+.interview-room{
+
+
+    padding:35px;
+
+
+    border-radius:30px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+}
+
+
+
+
+
+.interview-info{
+
+
+    display:flex;
+
+
+    gap:25px;
+
+
+    align-items:center;
+
+
+}
+
+
+
+
+
+.ai-avatar{
+
+
+    width:80px;
+
+
+    height:80px;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+
+    justify-content:center;
+
+
+    align-items:center;
+
+
+    font-size:40px;
+
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+
+}
+
+
+
+
+
+.interview-info p,
+.interview-info span{
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+
+
+
+.interview-stats{
+
+
+    margin-top:35px;
+
+
+    display:grid;
+
+
+    grid-template-columns:repeat(3,1fr);
+
+
+    gap:20px;
+
+
+}
+
+
+
+
+
+.interview-stats div{
+
+
+    padding:25px;
+
+
+    border-radius:20px;
+
+
+    text-align:center;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+}
+
+
+
+
+
+.interview-stats h3{
+
+
+    font-size:32px;
+
+
+    color:#60a5fa;
+
+
+}
+
+
+
+
+
+
+
+.start-interview{
+
+
+    margin-top:30px;
+
+
+    padding:15px 35px;
+
+
+    border:none;
+
+
+    border-radius:15px;
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+
+    color:white;
+
+
+    font-size:16px;
+
+
+    cursor:pointer;
+
+
+}
+
+
+
+
+
+
+
+
+
+/* ===============================
+        PERFORMANCE ANALYTICS
+================================ */
+
+
+
+.analytics-grid{
+
+
+    display:grid;
+
+
+    grid-template-columns:repeat(3,1fr);
+
+
+    gap:25px;
+
+
+}
+
+
+
+
+
+
+.analytics-card{
+
+
+    padding:30px;
+
+
+    border-radius:25px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+
+}
+
+
+
+
+
+.analytics-card h3{
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+
+
+
+.analytics-card h2{
+
+
+    margin-top:20px;
+
+
+    color:#60a5fa;
+
+
+}
+
+
+
+
+
+.progress-bar{
+
+
+    width:100%;
+
+
+    height:12px;
+
+
+    margin-top:20px;
+
+
+    background:#334155;
+
+
+    border-radius:20px;
+
+
+    overflow:hidden;
+
+
+}
+
+
+
+
+
+.communication-progress,
+.technical-progress,
+.confidence-progress,
+.grammar-progress{
+
+
+    height:100%;
+
+
+    border-radius:20px;
+
+
+    background:
+
+    linear-gradient(
+        90deg,
+        #2563eb,
+        #7c3aed
+    );
+
+    width:0%;
+    transition: width 0.6s ease;
+
+
+}
+
+
+
+
+
+/* ===============================
+        INTERVIEW HISTORY
+================================ */
+
+
+
+.history-table{
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    padding:25px;
+
+
+    border-radius:25px;
+
+
+    overflow-x:auto;
+
+
+}
+
+
+
+
+
+table{
+
+
+    width:100%;
+
+
+    border-collapse:collapse;
+
+
+}
+
+
+
+
+
+th{
+
+
+    text-align:left;
+
+
+    padding:15px;
+
+
+    color:#93c5fd;
+
+
+}
+
+
+
+
+
+td{
+
+
+    padding:15px;
+
+
+    border-bottom:
+
+    1px solid rgba(255,255,255,.1);
+
+
+}
+
+
+
+
+
+.score{
+
+
+    color:#22c55e;
+
+
+    font-weight:700;
+
+
+}
+
+
+
+
+
+.completed{
+
+
+    background:#22c55e;
+
+
+    padding:7px 15px;
+
+
+    border-radius:20px;
+
+
+    color:white;
+
+
+    font-size:13px;
+
+
+}
+
+
+
+
+
+
+
+
+
+/* ===============================
+        AI CAREER COACH
+================================ */
+
+
+
+.coach-card{
+
+
+    display:flex;
+
+
+    align-items:center;
+
+
+    gap:30px;
+
+
+    padding:35px;
+
+
+    border-radius:30px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+}
+
+
+
+
+
+.coach-avatar{
+
+
+    width:90px;
+
+
+    height:90px;
+
+
+    border-radius:50%;
+
+
+    display:flex;
+
+
+    justify-content:center;
+
+
+    align-items:center;
+
+
+    font-size:45px;
+
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+
+}
+
+
+
+
+
+.coach-card p{
+
+
+    color:#cbd5e1;
+
+
+    margin:15px 0;
+
+
+    line-height:1.7;
+
+
+}
+
+
+
+
+
+.recommendation-tags{
+
+
+    display:flex;
+
+
+    gap:12px;
+
+
+    flex-wrap:wrap;
+
+
+}
+
+
+
+
+
+.recommendation-tags span{
+
+
+    padding:8px 15px;
+
+
+    border-radius:20px;
+
+
+    background:
+
+    rgba(96,165,250,.2);
+
+
+    color:#93c5fd;
+
+
+}
+
+
+
+
+
+
+
+
+
+/* ===============================
+        ACHIEVEMENTS
+================================ */
+
+
+
+.achievement-grid{
+
+
+    display:grid;
+
+
+    grid-template-columns:repeat(3,1fr);
+
+
+    gap:25px;
+
+
+}
+
+
+
+
+
+.achievement-card{
+
+
+    padding:30px;
+
+
+    border-radius:25px;
+
+
+    text-align:center;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+
+    transition:.3s;
+
+
+}
+
+
+
+
+
+.achievement-card:hover{
+
+
+    transform:translateY(-8px);
+
+
+}
+
+
+
+
+
+.achievement-card div{
+
+
+    font-size:45px;
+
+
+}
+
+
+
+
+
+.achievement-card h3{
+
+
+    margin:15px 0;
+
+
+    color:#93c5fd;
+
+
+}
+
+
+
+
+
+.achievement-card p{
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+.achievement-card.locked{
+
+    opacity:.5;
+    filter:grayscale(.6);
+
+}
+
+
+.achievement-card.locked div{
+
+    filter:grayscale(1);
+
+}
+
+
+/* ===============================
+        LIVE INTERVIEW TIMER
+================================ */
+
+.session-timer{
+
+    display:inline-block;
+    margin-left:14px;
+    padding:4px 12px;
+    border-radius:20px;
+    font-weight:600;
+    background:rgba(37,99,235,.18);
+    color:#93c5fd;
+
+}
+
+.session-timer.session-timer-warning{
+
+    background:rgba(220,38,38,.2);
+    color:#fca5a5;
+    animation:timerPulse 1s infinite;
+
+}
+
+@keyframes timerPulse{
+    0%{ opacity:1; }
+    50%{ opacity:.55; }
+    100%{ opacity:1; }
+}
+
+
+/* ===============================
+        HISTORY DETAIL - QA SCORE
+================================ */
+
+.qa-score{
+
+    margin-top:6px;
+    font-size:.85rem;
+    color:#93c5fd;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===============================
+        SETTINGS
+================================ */
+
+
+
+.settings-panel{
+
+
+    padding:35px;
+
+
+    border-radius:25px;
+
+
+    background:
+
+    rgba(255,255,255,.08);
+
+
+}
+
+
+
+
+
+.settings-panel div{
+
+
+    display:flex;
+
+
+    justify-content:space-between;
+
+
+    padding:20px 0;
+
+
+    border-bottom:
+
+    1px solid rgba(255,255,255,.1);
+
+
+}
+
+
+
+
+
+.settings-panel label{
+
+
+    color:#cbd5e1;
+
+
+}
+
+
+
+
+
+.settings-panel button{
+
+
+    margin-top:25px;
+
+
+    padding:12px 30px;
+
+
+    border:none;
+
+
+    border-radius:12px;
+
+
+    background:#2563eb;
+
+
+    color:white;
+
+
+    cursor:pointer;
+
+
+}
+
+
+
+
+
+
+
+
+
+/* ===============================
+        RESPONSIVE DESIGN
+================================ */
+
+
+
+@media(max-width:1200px){
+
+
+
+.overview-cards{
+
+
+    grid-template-columns:repeat(2,1fr);
+
+
+}
+
+
+
+.resume-container{
+
+
+    grid-template-columns:1fr;
+
+
+}
+
+
+
+.analytics-grid,
+.achievement-grid{
+
+
+    grid-template-columns:repeat(2,1fr);
+
+
+}
+
+
+
+}
+
+
+
+
+@media(max-width:800px){
+
+
+
+.candidate-container{
+
+
+    display:block;
+
+
+}
+
+
+
+
+
+.candidate-sidebar{
+
+
+    width:100%;
+
+
+    height:auto;
+
+
+    position:relative;
+
+
+}
+
+
+
+
+
+.candidate-main{
+
+
+    margin-left:0;
+
+
+    width:100%;
+
+
+    padding:20px;
+
+
+}
+
+
+
+
+
+.top-header{
+
+
+    flex-direction:column;
+
+
+    align-items:flex-start;
+
+
+    gap:20px;
+
+
+}
+
+
+
+
+
+.overview-cards,
+.analytics-grid,
+.achievement-grid,
+.interview-stats{
+
+
+    grid-template-columns:1fr;
+
+
+}
+
+
+
+
+
+.profile-card,
+.coach-card{
+
+
+    flex-direction:column;
+
+
+    text-align:center;
+
+
+}
+
+
+
+
+
+.readiness{
+
+
+    margin-left:0;
+
+
+}
+
+
+
+}
+
+/* ===============================
+        RESUME UPLOAD
+================================ */
+
+
+.upload-resume-card{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:30px;
+
+    margin-bottom:35px;
+
+    padding:35px;
+
+    border-radius:25px;
+
+    background:
+
+    rgba(255,255,255,.08);
+
+    border:
+
+    1px solid rgba(255,255,255,.12);
+
+}
+
+
+
+.upload-icon{
+
+    width:90px;
+
+    height:90px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    font-size:45px;
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+}
+
+
+
+.upload-content h3{
+
+    font-size:25px;
+
+}
+
+
+
+.upload-content p{
+
+    color:#cbd5e1;
+
+    margin:10px 0;
+
+}
+
+
+
+#resumeFile{
+
+    display:none;
+
+}
+
+
+
+.upload-btn{
+
+    display:inline-block;
+
+    padding:12px 25px;
+
+    border-radius:12px;
+
+    background:#2563eb;
+
+    color:white;
+
+    cursor:pointer;
+
+    margin-top:10px;
+
+}
+
+
+
+#file-name{
+
+    color:#60a5fa;
+
+}
+
+
+
+#analyzeResume{
+
+    margin-top:15px;
+
+    padding:12px 25px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:
+
+    linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+    color:white;
+
+    cursor:pointer;
+
+    font-weight:600;
+
+}
+
+
+/* ==========================================================
+   AI INTERVIEW - FUNCTIONAL SETUP / SESSION / RESUME UI
+========================================================== */
+
+.hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.form-error {
+  color: #dc2626;
+  font-size: 13px;
+  min-height: 18px;
+  margin: 8px 0 0;
+}
+
+/* ---------------- Resume ---------------- */
+.resume-upload-status {
+  font-size: 13px;
+  color:#93c5fd;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.resume-skills-card {
+
+    margin-top:30px;
+    padding:28px;
+    border-radius:22px;
+
+    background:rgba(255,255,255,.08);
+
+    border:1px solid rgba(255,255,255,.12);
+
+    backdrop-filter:blur(15px);
+
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+
+}
+.resume-skills-card p{
+
+    color:#cbd5e1;
+
+}
+
+.resume-category-block {
+  margin-bottom: 14px;
+}
+
+.resume-category-title {
+  font-size: 13px;
+  font-weight: 700;
+  color:#93c5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.resume-skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.resume-skill-chip {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ---------------- Setup form ---------------- */
+.ai-interview-setup{
+
+    margin-top:30px;
+
+    padding:32px;
+
+    border-radius:25px;
+
+    background:rgba(255,255,255,.08);
+
+    border:1px solid rgba(255,255,255,.12);
+
+    backdrop-filter:blur(18px);
+
+    box-shadow:0 15px 35px rgba(0,0,0,.3);
+
+}
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+  margin: 18px 0;
+}
+
+.setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setup-field label {
+  font-size: 13px;
+  color:#cbd5e1;
+
+  font-weight:600;
+}
+
+.setup-field select,
+.setup-field input[type="text"],
+.setup-field input[type="number"]{
+
+    background:#1f2937;
+
+    color:white;
+
+    border:1px solid rgba(255,255,255,.12);
+
+    border-radius:12px;
+
+    padding:14px;
+
+}
+
+.setup-field select:focus,
+.setup-field input:focus{
+
+    outline:none;
+
+    border-color:#60a5fa;
+
+    box-shadow:0 0 0 4px rgba(96,165,250,.15);
+
+}
+
+.setup-resume-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-top: 6px;
+  cursor: pointer;
+}
+
+#generateInterviewBtn {
+  margin-top: 18px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+#generateInterviewBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------------- Live session ---------------- */
+.ai-interview-session {
+  margin-top: 30px;
+  padding: 25px;
+  border-radius: 18px;
+  background: #111827;
+  color: #f3f4f6;
+}
+
+.session-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.session-progress-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 6px;
+  background: #374151;
+  overflow: hidden;
+}
+
+.session-progress-bar > div {
+  height: 100%;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.session-question-card {
+  background: #1f2937;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.question-category {
+  display: inline-block;
+  background: #374151;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  text-transform: capitalize;
+}
+
+.session-question-card p {
+  font-size: 17px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+#speakQuestionBtn {
+  background: #374151;
+  color: #f3f4f6;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.session-answer-area textarea {
+  width: 100%;
+  min-height: 110px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #f3f4f6;
+  padding: 14px;
+  font-size: 14px;
+  resize: vertical;
+  margin: 12px 0;
+  box-sizing: border-box;
+}
+
+.mic-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#micBtn {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#micBtn.recording {
+  background: #dc2626;
+  animation: pulseMic 1s infinite;
+}
+
+@keyframes pulseMic {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+#micStatus {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+#submitAnswerBtn {
+  background: #22c55e;
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#submitAnswerBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------------- Completion panel ---------------- */
+.ai-interview-complete {
+  margin-top: 30px;
+  padding: 30px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  text-align: center;
+}
+
+.ai-interview-complete button {
+  margin: 10px 8px 0;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  background: white;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------------- History detail ---------------- */
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+}
+
+.status-completed { background: #22c55e; }
+.status-in_progress { background: #f59e0b; }
+.status-created { background: #6b7280; }
+
+.history-table tbody tr {
+  cursor: pointer;
+}
+
+.history-detail-panel{
+
+    margin-top:25px;
+
+    padding:28px;
+
+    border-radius:22px;
+
+    background:rgba(255,255,255,.08);
+
+    border:1px solid rgba(255,255,255,.12);
+
+    backdrop-filter:blur(15px);
+
+}
+
+.close-detail-btn {
+  float: right;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color:#93c5fd;
+}
+
+.qa-item {
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.qa-item:last-child {
+  border-bottom: none;
+}
+
+.qa-question {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.qa-answer {
+    color: #cbd5e1;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-top: 10px;
+}
+
+.resume-skills-card,
+.ai-interview-setup,
+.history-detail-panel{
+
+    transition:.3s;
+
+}
+
+.resume-skills-card:hover,
+.ai-interview-setup:hover,
+.history-detail-panel:hover{
+
+    transform:translateY(-4px);
+
+    box-shadow:0 20px 40px rgba(0,0,0,.35);
+
+}
