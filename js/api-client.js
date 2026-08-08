@@ -1,9 +1,11 @@
 (function () {
     var explicit = window.SMART_HIRE_API_BASE || localStorage.getItem("smarthire.apiBase") || "";
-    var inferred = window.location && window.location.protocol && window.location.host
-        ? window.location.protocol + "//" + window.location.host
-        : "http://localhost:8080";
-    var baseUrl = (explicit || inferred || "http://localhost:8080").replace(/\/$/, "");
+    // Centralized backend API base URL. The frontend and the Spring Boot backend
+    // run on separate origins, so the base URL is never derived from the browser
+    // origin. An explicit override (window.SMART_HIRE_API_BASE or localStorage
+    // "smarthire.apiBase") is honored; otherwise the centralized backend URL is
+    // used. JWT Authorization is preserved by request() below.
+    var baseUrl = (explicit || "http://localhost:8080").replace(/\/$/, "");
 
     var getToken = function () {
         return localStorage.getItem("authToken") || "";
