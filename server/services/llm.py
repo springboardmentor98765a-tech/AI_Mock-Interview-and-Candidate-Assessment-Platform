@@ -6,8 +6,8 @@ import json
 import re
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-
 from config import (
+
     AICREDITS_API_KEY,
     AICREDITS_BASE_URL,
     AICREDITS_MODEL,
@@ -16,6 +16,8 @@ from config import (
     MIMO_CHAT_MODEL,
     GEMINI_RESUME_KEY,
     GEMINI_RESUME_KEY_2,
+    GEMINI_QUESTION_KEY,
+    GEMINI_QUESTION_KEY_2,
     GEMINI_API_KEY,
     GEMINI_MODEL,
 )
@@ -34,12 +36,17 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
 
 def _gemini_chat(prompt: str, is_resume: bool = False) -> dict | list:
     if is_resume:
-        keys = [GEMINI_RESUME_KEY, GEMINI_RESUME_KEY_2]
+        key_tuples = [
+            (GEMINI_RESUME_KEY, GEMINI_MODEL or "gemini-3.6-flash"),
+            (GEMINI_RESUME_KEY_2, GEMINI_MODEL or "gemini-3.6-flash"),
+        ]
     else:
-        keys = [GEMINI_RESUME_KEY, GEMINI_RESUME_KEY_2, GEMINI_API_KEY]
-    model = GEMINI_MODEL or "gemini-flash-latest"
+        key_tuples = [
+            (GEMINI_QUESTION_KEY, "gemini-flash-latest"),
+            (GEMINI_QUESTION_KEY_2, "gemini-flash-lite-latest"),
+        ]
     errors = []
-    for key in keys:
+    for key, model in key_tuples:
         if not key:
             continue
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
@@ -50,7 +57,7 @@ def _gemini_chat(prompt: str, is_resume: bool = False) -> dict | list:
             clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", text_out, flags=re.IGNORECASE)
             return json.loads(clean_json)
         except Exception as e:
-            errors.append(f"Gemini({key[:10]}...): {e}")
+            errors.append(f"Gemini({model}/{key[:10]}...): {e}")
 
     raise LLMError("Gemini error: " + "; ".join(errors))
 
@@ -103,7 +110,7 @@ def _json_content(result: dict):
 
 
 def chat_json(payload: dict, is_resume: bool = False) -> dict | list:
-    """Send a chat request, trying Gemini 3.6 Flash first, then Deepseek (AICredits), then MiMo."""
+    """Send a chat request, trying Gemini API keys first, then Deepseek (AICredits), then MiMo."""
     errors = []
 
     # Extract user prompt string if available
@@ -115,7 +122,7 @@ def chat_json(payload: dict, is_resume: bool = False) -> dict | list:
     if is_resume:
         gemini_keys_available = bool(GEMINI_RESUME_KEY or GEMINI_RESUME_KEY_2)
     else:
-        gemini_keys_available = bool(GEMINI_RESUME_KEY or GEMINI_RESUME_KEY_2 or GEMINI_API_KEY)
+        gemini_keys_available = bool(GEMINI_QUESTION_KEY or GEMINI_QUESTION_KEY_2)
 
     if user_prompt and gemini_keys_available:
         try:
@@ -138,9 +145,9 @@ def chat_json(payload: dict, is_resume: bool = False) -> dict | list:
     raise LLMError("No LLM provider available: " + "; ".join(errors))
 
 
-
 def configured() -> bool:
-    return bool(GEMINI_RESUME_KEY or GEMINI_RESUME_KEY_2 or GEMINI_API_KEY or AICREDITS_API_KEY or MIMO_API_KEY)
+    return bool(GEMINI_RESUME_KEY or GEMINI_RESUME_KEY_2 or GEMINI_QUESTION_KEY or GEMINI_QUESTION_KEY_2 or AICREDITS_API_KEY or MIMO_API_KEY)
+
 
 
 

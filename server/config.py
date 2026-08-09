@@ -28,6 +28,9 @@ GEMINI_API_KEY_4 = os.getenv("GEMINI_API_KEY_4", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 GEMINI_RESUME_KEY = os.getenv("GEMINI_RESUME_KEY", "")
 GEMINI_RESUME_KEY_2 = os.getenv("GEMINI_RESUME_KEY_2", "")
+GEMINI_QUESTION_KEY = os.getenv("GEMINI_QUESTION_KEY", "")
+GEMINI_QUESTION_KEY_2 = os.getenv("GEMINI_QUESTION_KEY_2", "")
+
 
 
 def _csv_env(name: str) -> set[str]:

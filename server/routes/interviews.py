@@ -112,21 +112,23 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
     else:
         num_q = 5
 
-    ai_generated = llm.configured()
+    ai_generated = True
     try:
         questions_data = llm.generate_questions(
             req.interview_type, req.difficulty, req.domain, req.skills, num_q, resume_context=req.resume_context
-        ) if ai_generated else generate_bank_questions(
+        )
+    except Exception:
+        ai_generated = False
+        questions_data = generate_bank_questions(
             interview_type=req.interview_type,
             difficulty=req.difficulty,
             domain=req.domain,
             num_questions=num_q,
             skills=req.skills,
         )
-    except llm.LLMError as error:
-        raise HTTPException(502, str(error)) from error
     if not questions_data:
         raise HTTPException(400, "Could not generate questions for the given parameters.")
+
 
     conn = get_db()
     cur = conn.execute(
