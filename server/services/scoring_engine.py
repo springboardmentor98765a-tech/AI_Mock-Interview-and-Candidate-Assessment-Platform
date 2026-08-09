@@ -1,7 +1,7 @@
 import json
 import re
 from typing import Any, Dict, List
-from services import mimo
+from services import llm
 
 
 def get_rating_rubric(score: float) -> str:
@@ -29,7 +29,7 @@ def calculate_weighted_overall(comm: float, conf: float, tech: float, prof: floa
 
 def evaluate_answer_full(question_text: str, category: str, difficulty: str, answer_text: str) -> Dict[str, Any]:
     """Evaluate candidate answer across all assessment dimensions and parameters."""
-    if mimo.configured():
+    if llm.configured():
         try:
             prompt = (
                 "You are an expert AI interview evaluator for SmartHire AI. Evaluate the candidate's answer against the question.\n"
@@ -52,11 +52,10 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 '  "feedback": "2 sentence detailed feedback on the answer."\n'
                 "}"
             )
-            data = mimo._json_content(mimo._chat({
-                "model": mimo.MIMO_CHAT_MODEL,
+            data = llm.chat_json({
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.2,
-            }))
+            })
             if isinstance(data, dict) and "communication_score" in data:
                 comm = round(float(data.get("communication_score", 70)), 2)
                 conf = round(float(data.get("confidence_score", 70)), 2)
@@ -188,8 +187,8 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             "time_management": avg_prof, "response_organization": avg_prof, "professional_communication": avg_prof, "interview_etiquette": avg_prof
         }
 
-    # Generate custom AI feedback if MiMo is configured
-    if mimo.configured():
+    # Generate custom AI feedback if an LLM provider is configured
+    if llm.configured():
         try:
             qa_summary = "\n".join([f"Q: {q['question_text']}\nA: {q['answer_text'] or 'No answer'}" for q in questions])
             ai_prompt = (
@@ -207,11 +206,10 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
                 '  ]\n'
                 '}'
             )
-            ai_report = mimo._json_content(mimo._chat({
-                "model": mimo.MIMO_CHAT_MODEL,
+            ai_report = llm.chat_json({
                 "messages": [{"role": "user", "content": ai_prompt}],
                 "temperature": 0.3,
-            }))
+            })
             if isinstance(ai_report, dict):
                 if ai_report.get("strengths"): strengths = ai_report["strengths"]
                 if ai_report.get("weaknesses"): weaknesses = ai_report["weaknesses"]

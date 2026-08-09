@@ -16,10 +16,18 @@ PASSWORD_RESET_TOKEN_EXPIRES_MINUTES = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIR
 MIMO_API_KEY = os.getenv("MIMO_API_KEY", "")
 MIMO_BASE_URL = os.getenv("MIMO_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1").rstrip("/")
 MIMO_CHAT_MODEL = os.getenv("MIMO_CHAT_MODEL", "mimo-v2.5")
+AICREDITS_API_KEY = os.getenv("AICREDITS_API_KEY", "")
+AICREDITS_BASE_URL = os.getenv("AICREDITS_BASE_URL", "https://aicredits.in/v1").rstrip("/")
+AICREDITS_MODEL = os.getenv("AICREDITS_MODEL", "deepseek/deepseek-v4-flash-0731")
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 SARVAM_BASE_URL = os.getenv("SARVAM_BASE_URL", "https://api.sarvam.ai").rstrip("/")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2", "")
+GEMINI_API_KEY_3 = os.getenv("GEMINI_API_KEY_3", "")
+GEMINI_API_KEY_4 = os.getenv("GEMINI_API_KEY_4", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_RESUME_KEY = os.getenv("GEMINI_RESUME_KEY", "")
+GEMINI_RESUME_KEY_2 = os.getenv("GEMINI_RESUME_KEY_2", "")
 
 
 def _csv_env(name: str) -> set[str]:

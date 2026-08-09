@@ -100,6 +100,23 @@ var api = {
   getAnalyticsSummary: function() {
     return apiRequest('/interviews/analytics/summary');
   },
+  uploadResume: function(file) {
+    var formData = new FormData();
+    formData.append('file', file);
+    var token = localStorage.getItem('smarthire_token');
+    var headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(API_BASE + '/interviews/upload-resume', {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    }).then(async function(res) {
+      var data;
+      try { data = await res.json(); } catch(_) { throw new Error('Upload failed.'); }
+      if (!res.ok) throw new Error(data.detail || data.error || data.message || 'Upload failed.');
+      return data;
+    });
+  },
   transcribeChunk: function(audioBase64, mimeType) {
     return apiRequest('/interviews/transcribe-chunk', {
       method: 'POST',

@@ -75,6 +75,7 @@ class InterviewGenerateRequest(BaseModel):
     num_questions: Optional[int] = Field(default=None, ge=1, le=20)
     time_duration: Optional[int] = Field(default=None, ge=1, le=120)
     skills: list[str] = Field(default_factory=list, max_length=30)
+    resume_context: Optional[dict] = None
 
 
 class InterviewStartRequest(BaseModel):

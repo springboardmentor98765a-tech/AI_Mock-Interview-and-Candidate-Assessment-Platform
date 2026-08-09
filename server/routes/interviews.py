@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from typing import Optional
 from database import get_db
 from models import (
@@ -15,12 +15,22 @@ from models import (
 from auth import get_current_user
 from services.question_bank import generate_questions as generate_bank_questions
 import json
-from services import mimo
+from services import llm
 from services import sarvam
 from services import gemini_stt
 from services import scoring_engine
+from services import resume_parser
 
 router = APIRouter(prefix="/api/interviews", tags=["interviews"])
+
+
+@router.post("/upload-resume")
+async def upload_resume(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    if not file.filename:
+        raise HTTPException(400, "Invalid file name.")
+    content = await file.read()
+    parsed = resume_parser.parse_resume_content(file.filename, content)
+    return {"message": "Resume processed successfully.", "resume": parsed}
 
 
 def _safe_json_loads(val, default=None):
@@ -102,10 +112,10 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
     else:
         num_q = 5
 
-    ai_generated = mimo.configured()
+    ai_generated = llm.configured()
     try:
-        questions_data = mimo.generate_questions(
-            req.interview_type, req.difficulty, req.domain, req.skills, num_q
+        questions_data = llm.generate_questions(
+            req.interview_type, req.difficulty, req.domain, req.skills, num_q, resume_context=req.resume_context
         ) if ai_generated else generate_bank_questions(
             interview_type=req.interview_type,
             difficulty=req.difficulty,
@@ -113,7 +123,7 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
             num_questions=num_q,
             skills=req.skills,
         )
-    except mimo.MimoError as error:
+    except llm.LLMError as error:
         raise HTTPException(502, str(error)) from error
     if not questions_data:
         raise HTTPException(400, "Could not generate questions for the given parameters.")
@@ -144,6 +154,7 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
         "interview": row_to_interview(interview),
         "questions": [row_to_question(q) for q in questions],
     }
+
 
 
 @router.get("/history")
