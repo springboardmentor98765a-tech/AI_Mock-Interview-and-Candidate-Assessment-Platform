@@ -30,7 +30,10 @@ def _set_auth_cookie(response: Response, token: str):
 
 
 def _row_to_user(row: dict | asyncpg.Record) -> UserResponse:
-    return UserResponse(**dict(row))
+    d = dict(row)
+    if "role" in d:
+        d["role"] = str(d["role"]).lower()
+    return UserResponse(**d)
 
 
 # ──────────────────────────────────────────────
@@ -54,7 +57,8 @@ async def register(body: RegisterRequest, response: Response, db: asyncpg.Connec
         body.name.strip(), body.email.lower(), pw_hash, body.role.value,
     )
 
-    token = create_access_token({"id": str(user["id"]), "email": user["email"], "role": user["role"], "name": user["name"]})
+    role_str = str(user["role"]).lower()
+    token = create_access_token({"id": str(user["id"]), "email": user["email"], "role": role_str, "name": user["name"]})
     _set_auth_cookie(response, token)
 
     return AuthResponse(success=True, message="Account created successfully.", user=_row_to_user(user))
@@ -84,7 +88,8 @@ async def login(body: LoginRequest, response: Response, db: asyncpg.Connection =
     # Update last_login_at
     await db.execute("UPDATE users SET last_login_at = $1 WHERE id = $2", datetime.now(timezone.utc), user["id"])
 
-    token = create_access_token({"id": str(user["id"]), "email": user["email"], "role": user["role"], "name": user["name"]})
+    role_str = str(user["role"]).lower()
+    token = create_access_token({"id": str(user["id"]), "email": user["email"], "role": role_str, "name": user["name"]})
     _set_auth_cookie(response, token)
 
     return AuthResponse(success=True, message="Login successful.", user=_row_to_user(user))
@@ -110,4 +115,8 @@ async def logout(response: Response):
 # ──────────────────────────────────────────────
 @router.get("/me", response_model=AuthResponse)
 async def get_me(current_user: CurrentUser):
-    return AuthResponse(success=True, message="OK", user=UserResponse(**current_user))
+    u_dict = dict(current_user)
+    if "role" in u_dict:
+        u_dict["role"] = str(u_dict["role"]).lower()
+    return AuthResponse(success=True, message="OK", user=UserResponse(**u_dict))
+

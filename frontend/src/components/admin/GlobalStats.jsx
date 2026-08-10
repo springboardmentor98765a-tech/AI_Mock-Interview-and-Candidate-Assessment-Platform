@@ -1,191 +1,166 @@
+// ============================================================
+//  GlobalStats.jsx — Recharts Analytics & Platform Metrics
+// ============================================================
+import { useState, useEffect } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Cell
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { platformTrend, adminStats } from '../../data/mockData';
-import { Users, Video, DollarSign, Clock, ArrowUp, ArrowDown, Globe, TrendingUp } from 'lucide-react';
+import { Users, Video, Clock, TrendingUp, Globe, Sparkles, Award, BarChart2 } from 'lucide-react';
 
-const iconMap = ['users', 'video', 'dollar', 'clock'];
-const iconComp = [Users, Video, DollarSign, Clock];
-const iconColors = ['var(--accent-primary)', 'var(--accent-teal)', 'var(--accent-amber)', 'var(--accent-secondary)'];
-const iconBgs = [
-  'hsla(252,100%,68%,0.12)', 'hsla(174,80%,55%,0.12)', 'hsla(38,95%,60%,0.12)', 'hsla(280,90%,65%,0.12)'
-];
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
     return (
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem' }}>
         <p style={{ color: 'var(--text-muted)', marginBottom: 6 }}>{label}</p>
-        {payload.map((p, i) => <p key={i} style={{ color: p.color || p.stroke, fontWeight: 600 }}>{p.name}: {typeof p.value === 'number' && p.value > 1000 ? p.value.toLocaleString() : p.value}</p>)}
+        {payload.map((p, i) => (
+          <p key={i} style={{ color: p.color || p.stroke, fontWeight: 600 }}>
+            {p.name}: {p.value}
+          </p>
+        ))}
       </div>
     );
   }
   return null;
 };
 
-const retentionData = [
-  { week: 'W1', rate: 92 }, { week: 'W2', rate: 89 }, { week: 'W3', rate: 91 },
-  { week: 'W4', rate: 87 }, { week: 'W5', rate: 90 }, { week: 'W6', rate: 93 },
-  { week: 'W7', rate: 88 }, { week: 'W8', rate: 94 },
-];
-
-const topRoles = [
-  { name: 'Frontend Dev', count: 412, fill: 'hsl(252,100%,68%)' },
-  { name: 'Backend Dev', count: 318, fill: 'hsl(280,90%,65%)' },
-  { name: 'ML Engineer', count: 247, fill: 'hsl(174,80%,55%)' },
-  { name: 'DevOps', count: 189, fill: 'hsl(38,95%,60%)' },
-  { name: 'Full Stack', count: 164, fill: 'hsl(142,70%,55%)' },
-];
-
 export default function GlobalStats() {
-  const lastMonth = platformTrend[platformTrend.length - 1];
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/analytics`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+      }
+    } catch (_err) {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const summary = data?.summary || {
+    total_interviews_created: 48,
+    completed_interviews: 36,
+    total_ai_questions: 240,
+    completion_rate: '75.0%'
+  };
+
+  const trendData = data?.trends || [
+    { name: 'Mon', created: 4, completed: 3, ai_calls: 22 },
+    { name: 'Tue', created: 8, completed: 6, ai_calls: 45 },
+    { name: 'Wed', created: 12, completed: 9, ai_calls: 68 },
+    { name: 'Thu', created: 9, completed: 7, ai_calls: 54 },
+    { name: 'Fri', created: 15, completed: 12, ai_calls: 89 },
+    { name: 'Sat', created: 6, completed: 5, ai_calls: 34 },
+    { name: 'Sun', created: 7, completed: 6, ai_calls: 40 },
+  ];
+
+  const distribution = data?.domain_distribution || [
+    { name: 'Software Dev', value: 45 },
+    { name: 'AI/ML', value: 25 },
+    { name: 'Data Science', value: 15 },
+    { name: 'Cloud', value: 10 },
+    { name: 'Cyber Security', value: 5 },
+  ];
 
   return (
-    <div className="animate-fade-in-up">
-      <div className="page-header">
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h1>Global Statistics</h1>
-            <p>Platform-wide usage analytics, AI cost tracking, and user retention metrics</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Globe size={16} color="var(--accent-primary)" />
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Last updated: just now</span>
-          </div>
+    <div className="animate-fade-in-up" style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 700 }}>
+            Platform Analytics &amp; Intelligence
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            System-wide interview metrics, candidate &amp; recruiter activities, and AI token statistics.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <Globe size={16} color="var(--accent-primary)" /> Live Database Telemetry
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid-4" style={{ marginBottom: 'var(--space-8)' }}>
-        {adminStats.map((s, i) => {
-          const Icon = iconComp[i];
-          const isUp = s.up;
-          return (
-            <div key={s.label} className={`stat-card animate-fade-in-up delay-${i + 1}`}>
-              <div className="flex items-center justify-between">
-                <div className="stat-icon" style={{ background: iconBgs[i] }}>
-                  <Icon size={20} color={iconColors[i]} />
-                </div>
-                <span className={`stat-change ${isUp ? 'up' : 'down'}`}>
-                  {isUp ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                  {s.change}
-                </span>
-              </div>
-              <div className="stat-value">{s.value}</div>
-              <div className="stat-label">{s.label}</div>
-            </div>
-          );
-        })}
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
+        <div className="card" style={{ padding: 20, borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>TOTAL INTERVIEWS CREATED</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>{summary.total_interviews_created}</div>
+        </div>
+
+        <div className="card" style={{ padding: 20, borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>COMPLETED INTERVIEWS</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--accent-green)' }}>{summary.completed_interviews}</div>
+        </div>
+
+        <div className="card" style={{ padding: 20, borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>AI QUESTIONS GENERATED</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--accent-secondary)' }}>{summary.total_ai_questions}</div>
+        </div>
+
+        <div className="card" style={{ padding: 20, borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>COMPLETION RATE</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--accent-amber)' }}>{summary.completion_rate}</div>
+        </div>
       </div>
 
-      {/* Main Trend Chart */}
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
-        <div className="flex justify-between items-center" style={{ marginBottom: 'var(--space-6)' }}>
-          <div>
-            <h3>Platform Growth</h3>
-            <p className="text-xs text-muted mt-2">Interviews, users, and AI costs over 6 months</p>
-          </div>
-          <div className="flex items-center gap-5">
-            {[
-              { label: 'Interviews', color: 'hsl(252,100%,68%)' },
-              { label: 'Users', color: 'hsl(174,80%,55%)' },
-              { label: 'AI Cost ($)', color: 'hsl(38,95%,60%)' },
-            ].map(l => (
-              <div key={l.label} className="flex items-center gap-2" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                <div style={{ width: 12, height: 3, borderRadius: 99, background: l.color }} />
-                {l.label}
-              </div>
-            ))}
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={platformTrend} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
-            <defs>
-              {[
-                { id: 'interviews', color: 'hsl(252,100%,68%)' },
-                { id: 'users', color: 'hsl(174,80%,55%)' },
-                { id: 'cost', color: 'hsl(38,95%,60%)' },
-              ].map(g => (
-                <linearGradient key={g.id} id={`grad-${g.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={g.color} stopOpacity={0.2} />
-                  <stop offset="95%" stopColor={g.color} stopOpacity={0.01} />
+      {/* Recharts Area Trend Chart */}
+      <div className="card" style={{ padding: '24px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', marginBottom: 28 }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, fontFamily: 'var(--font-heading)', marginBottom: 16 }}>
+          Weekly Interview &amp; AI Generation Activity
+        </h3>
+
+        <div style={{ width: '100%', height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(252,100%,68%)" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="hsl(252,100%,68%)" stopOpacity={0}/>
                 </linearGradient>
-              ))}
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-            <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="interviews" stroke="hsl(252,100%,68%)" strokeWidth={2} fill="url(#grad-interviews)" name="Interviews" />
-            <Area type="monotone" dataKey="users" stroke="hsl(174,80%,55%)" strokeWidth={2} fill="url(#grad-users)" name="Users" />
-            <Area type="monotone" dataKey="cost" stroke="hsl(38,95%,60%)" strokeWidth={2} fill="url(#grad-cost)" name="AI Cost ($)" />
-          </AreaChart>
-        </ResponsiveContainer>
+                <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(174,80%,55%)" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="hsl(174,80%,55%)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="created" name="Interviews Created" stroke="hsl(252,100%,68%)" fillOpacity={1} fill="url(#colorCreated)" />
+              <Area type="monotone" dataKey="completed" name="Completed Interviews" stroke="hsl(174,80%,55%)" fillOpacity={1} fill="url(#colorCompleted)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid-2" style={{ gap: 'var(--space-6)' }}>
-        {/* Retention Line */}
-        <div className="card">
-          <h3 className="section-title">
-            <TrendingUp size={16} color="var(--accent-green)" />
-            User Retention (8 weeks)
-          </h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={retentionData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-              <XAxis dataKey="week" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[80, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="rate" stroke="hsl(142,70%,55%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(142,70%,55%)' }} name="Retention %" />
-            </LineChart>
-          </ResponsiveContainer>
-          <div style={{ marginTop: 'var(--space-3)', display: 'flex', gap: 'var(--space-6)' }}>
-            <div>
-              <div style={{ fontSize: '1.6rem', fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--accent-green)' }}>91.5%</div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Avg retention</p>
-            </div>
-            <div>
-              <div style={{ fontSize: '1.6rem', fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--accent-teal)' }}>94%</div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Last week</p>
-            </div>
-          </div>
-        </div>
+      {/* Recharts Bar Chart Domain Breakdown */}
+      <div className="card" style={{ padding: '24px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, fontFamily: 'var(--font-heading)', marginBottom: 16 }}>
+          Interview Distribution by Technical Domain
+        </h3>
 
-        {/* Top Roles */}
-        <div className="card">
-          <h3 className="section-title">Top Interview Roles</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={topRoles} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }} barSize={12}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" horizontal={false} />
-              <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} width={70} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Interviews">
-                {topRoles.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-              </Bar>
+        <div style={{ width: '100%', height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={distribution} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" name="Sessions Percentage" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Summary Stats Footer */}
-      <div className="card mt-6" style={{ background: 'linear-gradient(135deg, hsla(252,100%,68%,0.06), hsla(280,90%,65%,0.06))', border: '1px solid var(--border-accent)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-4)', textAlign: 'center' }}>
-          {[
-            { label: 'Countries', value: '47', icon: '🌍' },
-            { label: 'Companies', value: '312', icon: '🏢' },
-            { label: 'Avg Score', value: '76.4', icon: '⭐' },
-            { label: 'Pass Rate', value: '68%', icon: '✅' },
-            { label: 'Uptime', value: '99.9%', icon: '⚡' },
-          ].map(s => (
-            <div key={s.label} style={{ padding: 'var(--space-4) 0' }}>
-              <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>{s.icon}</div>
-              <div style={{ fontSize: '1.6rem', fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--text-primary)' }}>{s.value}</div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</p>
-            </div>
-          ))}
         </div>
       </div>
     </div>

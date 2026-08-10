@@ -8,7 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import close_pool, get_pool
-from app.routers import auth, oauth, users
+from app.routers import admin, auth, interviews, oauth, users
+
+
+
 
 
 @asynccontextmanager
@@ -36,16 +39,24 @@ app = FastAPI(
 # ── CORS ────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=[
+        settings.FRONTEND_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5000",
+    ],
     allow_credentials=True,            # Required for cookies
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── Routers ──────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(oauth.router)
 app.include_router(users.router)
+app.include_router(interviews.router)
+app.include_router(admin.router)
+
 
 
 # ── Health check ─────────────────────────────────────────────

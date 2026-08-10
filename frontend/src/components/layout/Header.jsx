@@ -15,7 +15,9 @@ export default function Header({ activeRole }) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const rc      = roleConfig[activeRole] || roleConfig.candidate;
+  const effectiveRole = (activeRole || user?.role || '').toLowerCase().trim();
+  const rc = roleConfig[effectiveRole] || roleConfig.candidate;
+
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';

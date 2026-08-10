@@ -99,3 +99,111 @@ class AuthResponse(BaseModel):
 class MessageResponse(BaseModel):
     success: bool
     message: str
+
+
+# ── Interview Module Schemas ─────────────────────────────────
+
+class InterviewType(str, Enum):
+    hr = "HR Interview"
+    technical = "Technical Interview"
+    behavioral = "Behavioral Interview"
+    aptitude = "Aptitude Interview"
+
+
+class DifficultyLevel(str, Enum):
+    easy = "Easy"
+    medium = "Medium"
+    hard = "Hard"
+    expert = "Expert"
+
+
+class GenerateQuestionsRequest(BaseModel):
+    job_role: str
+    domain: str = "Software Development"
+    interview_type: str = "Technical Interview"
+    difficulty: str = "Medium"
+    experience_level: Optional[str] = "Mid Level"
+    num_questions: int = 5
+    user_skills: Optional[str] = None
+    job_description: Optional[str] = None
+    resume_text: Optional[str] = None
+    generation_seed: Optional[str] = None
+
+
+
+class CreateSessionRequest(BaseModel):
+    job_role: str
+    domain: str = "Software Development"
+    interview_type: str = "Technical Interview"
+    difficulty: str = "Medium"
+    experience_level: Optional[str] = "Mid Level"
+    num_questions: int = 5
+    user_skills: Optional[str] = None
+    job_description: Optional[str] = None
+    resume_text: Optional[str] = None
+    candidate_id: Optional[UUID] = None
+    questions: Optional[list[dict]] = None
+
+
+class CandidateUserResponse(BaseModel):
+    id: UUID
+    name: str
+    email: str
+    avatar_url: Optional[str] = None
+
+
+class SubmitAnswerRequest(BaseModel):
+    question_id: UUID
+    user_answer: str
+
+
+class UpdateSessionRequest(BaseModel):
+    status: Optional[str] = None
+    score: Optional[float] = None
+
+
+class QuestionResponse(BaseModel):
+    id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
+    question_number: int
+    question_text: str
+    interview_type: str
+    domain: str
+    difficulty: str
+    expected_answer_points: list[str] = []
+    category: Optional[str] = None
+    user_answer: Optional[str] = None
+    sample_answer: Optional[str] = None
+    feedback: Optional[str] = None
+    score: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class SessionResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    created_by: Optional[UUID] = None
+    candidate_id: Optional[UUID] = None
+    job_role: str
+    domain: str
+    interview_type: str
+    difficulty: str
+    experience_level: Optional[str] = None
+    num_questions: int
+    user_skills: Optional[str] = None
+    job_description: Optional[str] = None
+    resume_text: Optional[str] = None
+    status: str
+    score: Optional[float] = None
+    total_questions: int
+    completed_questions: int
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    questions: Optional[list[QuestionResponse]] = None
+
+    model_config = {"from_attributes": True}
+
+

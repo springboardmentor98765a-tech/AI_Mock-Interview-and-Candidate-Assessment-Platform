@@ -9,8 +9,8 @@ const AuthContext = createContext(null);
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function AuthProvider({ children }) {
-  const [user,          setUser]          = useState(null);
-  const [isLoading,     setIsLoading]     = useState(true); // true while restoring session
+  const [user,            setUser]            = useState(null);
+  const [isLoading,       setIsLoading]       = useState(true); // true while restoring session
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // ── Restore session from HTTP-only cookie on mount ──
@@ -32,16 +32,13 @@ export function AuthProvider({ children }) {
           : reason === 'no_email'
             ? `Could not retrieve email from ${provider}. Please ensure your email is public or verified.`
             : `Sign in with ${provider} failed. Please try again.`;
-        // Store error to be picked up by login page
         sessionStorage.setItem('oauth_error', msg);
-        // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
         setIsLoading(false);
         return;
       }
 
       if (oauthResult === 'success') {
-        // Clean URL immediately
         window.history.replaceState({}, '', window.location.pathname);
       }
 
@@ -51,11 +48,19 @@ export function AuthProvider({ children }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        const returnedUser = data.user;
+        const normalizedRole = returnedUser?.role ? String(returnedUser.role).toLowerCase().trim() : null;
+        
+        console.log('[AuthContext] Session Restored User Object:', returnedUser);
+        console.log('[AuthContext] Session Restored Role:', normalizedRole);
+
+        setUser(returnedUser);
         setIsAuthenticated(true);
+      } else {
+        console.log('[AuthContext] Session Restore: No active session (HTTP', res.status, ')');
       }
-    } catch (_err) {
-      // Network error or no session — stay logged out
+    } catch (err) {
+      console.error('[AuthContext] Error restoring session:', err);
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +68,7 @@ export function AuthProvider({ children }) {
 
   // ── Login ──
   const login = useCallback(async (email, password) => {
+    console.log('[AuthContext] Executing login for:', email);
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method:      'POST',
       credentials: 'include',
@@ -70,14 +76,24 @@ export function AuthProvider({ children }) {
       body:        JSON.stringify({ email, password }),
     });
     const data = await res.json();
+    console.log('[AuthContext] Login API Response:', data);
+
     if (!res.ok) throw new Error(data.message || 'Login failed');
-    setUser(data.user);
+    
+    const returnedUser = data.user;
+    const normalizedRole = returnedUser?.role ? String(returnedUser.role).toLowerCase().trim() : null;
+
+    console.log('[AuthContext] Stored User Object:', returnedUser);
+    console.log('[AuthContext] Current Authenticated Role:', normalizedRole);
+
+    setUser(returnedUser);
     setIsAuthenticated(true);
-    return data.user;
+    return returnedUser;
   }, []);
 
   // ── Register ──
   const register = useCallback(async (name, email, password, role) => {
+    console.log('[AuthContext] Registering user with role:', role);
     const res = await fetch(`${API_BASE}/api/auth/register`, {
       method:      'POST',
       credentials: 'include',
@@ -85,14 +101,22 @@ export function AuthProvider({ children }) {
       body:        JSON.stringify({ name, email, password, role }),
     });
     const data = await res.json();
+    console.log('[AuthContext] Register API Response:', data);
+
     if (!res.ok) {
-      // Surface validation errors
       if (data.errors?.length) throw new Error(data.errors[0].msg);
       throw new Error(data.message || 'Registration failed');
     }
-    setUser(data.user);
+    
+    const returnedUser = data.user;
+    const normalizedRole = returnedUser?.role ? String(returnedUser.role).toLowerCase().trim() : null;
+
+    console.log('[AuthContext] Stored Registered User Object:', returnedUser);
+    console.log('[AuthContext] Current Authenticated Role:', normalizedRole);
+
+    setUser(returnedUser);
     setIsAuthenticated(true);
-    return data.user;
+    return returnedUser;
   }, []);
 
   // ── Logout ──
@@ -106,9 +130,11 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
   }, []);
 
+  const normalizedRole = user?.role ? String(user.role).toLowerCase().trim() : null;
+
   const value = {
     user,
-    role: user?.role || null,
+    role: normalizedRole,
     isAuthenticated,
     isLoading,
     login,

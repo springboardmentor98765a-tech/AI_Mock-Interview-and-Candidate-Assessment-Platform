@@ -10,6 +10,7 @@ import Header    from './components/layout/Header';
 import Sidebar   from './components/layout/Sidebar';
 
 // Candidate
+import InterviewGenerator from './components/candidate/InterviewGenerator';
 import ResumeUpload       from './components/candidate/ResumeUpload';
 import InterviewRoom      from './components/candidate/InterviewRoom';
 import Analytics          from './components/candidate/Analytics';
@@ -24,37 +25,47 @@ import TemplateBuilder     from './components/recruiter/TemplateBuilder';
 import ActiveSessions      from './components/recruiter/ActiveSessions';
 
 // Admin
-import UserManagement from './components/admin/UserManagement';
-import PlatformConfig from './components/admin/PlatformConfig';
-import SystemMonitor  from './components/admin/SystemMonitor';
-import AIConfig       from './components/admin/AIConfig';
-import GlobalStats    from './components/admin/GlobalStats';
+import AdminOverview       from './components/admin/AdminOverview';
+import UserManagement      from './components/admin/UserManagement';
+import RecruiterManagement from './components/admin/RecruiterManagement';
+import PlatformConfig      from './components/admin/PlatformConfig';
+import SystemMonitor       from './components/admin/SystemMonitor';
+import AIConfig            from './components/admin/AIConfig';
+import GlobalStats         from './components/admin/GlobalStats';
 
 // ── View registries ──────────────────────────────────────────
-const defaultTabs = { candidate: 'resume', recruiter: 'overview', admin: 'users' };
+const defaultTabs = { candidate: 'interview', recruiter: 'generator', admin: 'overview' };
 
 const candidateViews = {
-  resume:    ResumeUpload,
   interview: InterviewRoom,
-  analytics: Analytics,
+  generator: InterviewGenerator,
   history:   InterviewHistory,
+  resume:    ResumeUpload,
+  analytics: Analytics,
   tracker:   ImprovementTracker,
 };
+
 const recruiterViews = {
+  generator:  InterviewGenerator,
   overview:   CandidateOverview,
   reports:    CandidateReports,
   comparison: ComparisonDashboard,
   builder:    TemplateBuilder,
   sessions:   ActiveSessions,
 };
+
 const adminViews = {
-  users:   UserManagement,
-  config:  PlatformConfig,
-  monitor: SystemMonitor,
-  ai:      AIConfig,
-  stats:   GlobalStats,
+  overview:   AdminOverview,
+  users:      UserManagement,
+  recruiters: RecruiterManagement,
+  config:     PlatformConfig,
+  ai:         AIConfig,
+  monitor:    SystemMonitor,
+  stats:      GlobalStats,
 };
+
 const viewsByRole = { candidate: candidateViews, recruiter: recruiterViews, admin: adminViews };
+
 
 // ── Loading screen ───────────────────────────────────────────
 function LoadingScreen() {
@@ -87,29 +98,46 @@ function ForbiddenScreen({ role }) {
 
 // ── Dashboard shell (requires auth) ─────────────────────────
 function Dashboard() {
-  const { role, isLoading } = useAuth();
+  const { role, user, isLoading } = useAuth();
   const [tabs, setTabs] = useState(defaultTabs);
 
   if (isLoading) return <LoadingScreen />;
 
-  const handleTabChange = (tab) => setTabs(t => ({ ...t, [role]: tab }));
+  const activeRole = role ? String(role).toLowerCase().trim() : null;
 
-  const views     = viewsByRole[role];
-  const activeTab = tabs[role];
-  const ActiveView = views?.[activeTab] || (() => null);
+  console.log('[App Router Debug] Current User Email:', user?.email);
+  console.log('[App Router Debug] Auth Context Raw Role:', role);
+  console.log('[App Router Debug] Normalized Active Role:', activeRole);
+
+  if (!activeRole || !viewsByRole[activeRole]) {
+    console.error('[App Router Debug] Unauthorized or invalid role detected:', activeRole);
+    return <ForbiddenScreen role={role || 'unknown'} />;
+  }
+
+  const views = viewsByRole[activeRole];
+  const activeTab = tabs[activeRole] || defaultTabs[activeRole];
+  const ActiveView = views[activeTab] || views[defaultTabs[activeRole]];
+
+  console.log('[App Router Debug] Redirected Route Target -> Role:', activeRole, '| Active Tab:', activeTab, '| Rendering Component:', ActiveView?.name);
+
+  const handleTabChange = (tab) => {
+    console.log('[App Router Debug] Switching tab for role', activeRole, 'to:', tab);
+    setTabs(t => ({ ...t, [activeRole]: tab }));
+  };
 
   return (
     <div className="app-shell">
-      <Header activeRole={role} activeTab={activeTab} onTabChange={handleTabChange} />
+      <Header activeRole={activeRole} activeTab={activeTab} onTabChange={handleTabChange} />
       <div className="app-body">
-        <Sidebar role={role} activeTab={activeTab} onTabChange={handleTabChange} />
+        <Sidebar role={activeRole} activeTab={activeTab} onTabChange={handleTabChange} />
         <main className="main-content" id="main-content">
-          <ActiveView key={`${role}-${activeTab}`} />
+          <ActiveView key={`${activeRole}-${activeTab}`} onTabChange={handleTabChange} />
         </main>
       </div>
     </div>
   );
 }
+
 
 // ── Inner app (inside AuthProvider) ─────────────────────────
 function InnerApp() {
