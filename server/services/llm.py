@@ -18,6 +18,8 @@ from config import (
     GEMINI_RESUME_KEY_2,
     GEMINI_QUESTION_KEY,
     GEMINI_QUESTION_KEY_2,
+    GEMINI_QUIZ_KEY,
+    GEMINI_QUIZ_KEY_2,
     GEMINI_API_KEY,
     GEMINI_MODEL,
 )
@@ -34,8 +36,13 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
         return json.loads(response.read().decode("utf-8"))
 
 
-def _gemini_chat(prompt: str, is_resume: bool = False) -> dict | list:
-    if is_resume:
+def _gemini_chat(prompt: str, is_resume: bool = False, is_quiz: bool = False) -> dict | list:
+    if is_quiz:
+        key_tuples = [
+            (GEMINI_QUIZ_KEY, "gemini-2.0-flash"),
+            (GEMINI_QUIZ_KEY_2, "gemini-2.0-flash-lite"),
+        ]
+    elif is_resume:
         key_tuples = [
             (GEMINI_RESUME_KEY, GEMINI_MODEL or "gemini-3.6-flash"),
             (GEMINI_RESUME_KEY_2, GEMINI_MODEL or "gemini-3.6-flash"),
@@ -60,6 +67,7 @@ def _gemini_chat(prompt: str, is_resume: bool = False) -> dict | list:
             errors.append(f"Gemini({model}/{key[:10]}...): {e}")
 
     raise LLMError("Gemini error: " + "; ".join(errors))
+
 
 
 def _aicredits_chat(payload: dict) -> dict:
@@ -109,7 +117,7 @@ def _json_content(result: dict):
         raise LLMError("Model returned invalid JSON.") from error
 
 
-def chat_json(payload: dict, is_resume: bool = False) -> dict | list:
+def chat_json(payload: dict, is_resume: bool = False, is_quiz: bool = False) -> dict | list:
     """Send a chat request, trying Gemini API keys first, then Deepseek (AICredits), then MiMo."""
     errors = []
 
@@ -119,16 +127,19 @@ def chat_json(payload: dict, is_resume: bool = False) -> dict | list:
     if messages and isinstance(messages, list):
         user_prompt = messages[-1].get("content", "")
 
-    if is_resume:
+    if is_quiz:
+        gemini_keys_available = bool(GEMINI_QUIZ_KEY or GEMINI_QUIZ_KEY_2)
+    elif is_resume:
         gemini_keys_available = bool(GEMINI_RESUME_KEY or GEMINI_RESUME_KEY_2)
     else:
         gemini_keys_available = bool(GEMINI_QUESTION_KEY or GEMINI_QUESTION_KEY_2)
 
     if user_prompt and gemini_keys_available:
         try:
-            return _gemini_chat(user_prompt, is_resume=is_resume)
+            return _gemini_chat(user_prompt, is_resume=is_resume, is_quiz=is_quiz)
         except Exception as e:
             errors.append(f"Gemini: {e}")
+
 
     if AICREDITS_API_KEY:
         try:

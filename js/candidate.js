@@ -1682,3 +1682,878 @@ function candidateReports() {
     </div>`}
   </div>${modalHtml}`;
 }
+
+
+/* ══════════════════════════════════════════════════
+   PRACTICE ASSESSMENT FEATURE IMPLEMENTATION
+   ══════════════════════════════════════════════════ */
+
+var ALL_ASSESSMENT_TOPICS = [
+  'Quantitative Aptitude', 'Logical Reasoning', 'Verbal Ability', 'Data Interpretation',
+  'Data Structures', 'Algorithms', 'Programming', 'Database', 'SQL',
+  'Operating Systems', 'Computer Networks', 'OOP & Design Patterns',
+  'Java', 'Python', 'JavaScript', 'React', 'Node.js',
+  'Cloud & DevOps', 'AI & Machine Learning', 'System Design'
+];
+
+function candidateAssessment() {
+  var topics = state.assessmentSelectedTopics || [];
+  var devReady = state.deviceTested;
+
+  return `<div class="mic-page">
+    <!-- Page Header -->
+    <div style="width:100%;max-width:580px;margin-bottom:1rem">
+      <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Practice Assessment</h1>
+      <p class="text-white/40 text-xs mt-1">Configure your AI-powered assessment and test your skills under real interview conditions.</p>
+    </div>
+
+    <!-- Main Config Card -->
+    <div class="mic-card">
+      <!-- Header -->
+      <div class="mic-header">
+        <div class="mic-header-title">
+          <span class="mic-title-icon">${icon('clipboard', 14)}</span>
+          Configure Practice Assessment
+        </div>
+        <p class="mic-header-sub">Set your role, topics, difficulty, and assessment preferences.</p>
+      </div>
+
+      <div class="mic-body">
+        ${state.assessmentError ? `<div class="mic-error">${icon('alertTriangle', 13)} ${state.assessmentError}</div>` : ''}
+
+        <!-- TARGET JOB ROLE -->
+        <div class="mic-field">
+          <label class="mic-label">Target Job Role</label>
+          <div class="relative">
+            <span class="mic-input-icon">${icon('briefcase', 13)}</span>
+            <input id="inp-assessment-role" value="${state.assessmentTargetRole || ''}" placeholder="e.g. Software Engineer, Data Analyst" class="mic-input mic-input-with-icon" />
+          </div>
+        </div>
+
+        <!-- ASSESSMENT TOPICS -->
+        <div class="mic-field">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label class="mic-label">Assessment Topics</label>
+            <span style="font-size:0.65rem;color:#818cf8;font-weight:600">${topics.length} selected</span>
+          </div>
+          <div class="mic-chips">
+            ${ALL_ASSESSMENT_TOPICS.map(function(t) {
+              var isSelected = topics.includes(t);
+              return `<button class="mic-chip ${isSelected ? 'active' : ''} btn-topic-chip" data-topic="${t}">${isSelected ? '✓ ' : ''}${t}</button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- DIFFICULTY + QUESTIONS -->
+        <div class="mic-row-2">
+          <div class="mic-field">
+            <label class="mic-label">Difficulty</label>
+            <select id="config-assessment-diff-select" class="mic-select">
+              <option value="easy" ${state.assessmentDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
+              <option value="medium" ${state.assessmentDifficulty === 'medium' ? 'selected' : ''}>Medium</option>
+              <option value="hard" ${state.assessmentDifficulty === 'hard' ? 'selected' : ''}>Hard</option>
+            </select>
+          </div>
+          <div class="mic-field">
+            <label class="mic-label">Questions</label>
+            <select id="config-assessment-num-select" class="mic-select">
+              <option value="5" ${state.assessmentNumQuestions === 5 ? 'selected' : ''}>5 Questions</option>
+              <option value="10" ${state.assessmentNumQuestions === 10 ? 'selected' : ''}>10 Questions</option>
+              <option value="15" ${state.assessmentNumQuestions === 15 ? 'selected' : ''}>15 Questions</option>
+              <option value="20" ${state.assessmentNumQuestions === 20 ? 'selected' : ''}>20 Questions</option>
+              <option value="30" ${state.assessmentNumQuestions === 30 ? 'selected' : ''}>30 Questions</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TIME LIMIT -->
+        <div class="mic-field">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label class="mic-label">Time Limit</label>
+            <div style="display:flex;align-items:center;gap:0.375rem">
+              <span style="font-size:0.65rem;color:rgba(255,255,255,0.4)">Custom:</span>
+              <input id="inp-assessment-custom-time" type="number" min="1" max="180" value="${state.assessmentCustomTime || ''}" class="mic-input" style="width:3.5rem;height:1.625rem;padding:0 0.375rem;font-size:0.7rem;text-align:center" placeholder="15" />
+              <span style="font-size:0.65rem;color:rgba(255,255,255,0.4)">min</span>
+            </div>
+          </div>
+          <div class="mic-chips">
+            ${[5, 10, 15, 20, 30].map(function(m) {
+              var isSel = (state.assessmentTimeLimit === m);
+              return `<button class="mic-chip ${isSel ? 'active' : ''} btn-assessment-time" data-time="${m}">${m} min</button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- UPLOAD RESUME (OPTIONAL) -->
+        <div class="mic-field">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label class="mic-label">Upload Resume <span style="font-weight:400;text-transform:none;opacity:0.6">(Optional)</span></label>
+            <span style="font-size:0.625rem;color:rgba(255,255,255,0.35);font-family:'Inter',sans-serif;font-weight:500">PERSONALIZED INTERVIEW FROM YOUR RESUME</span>
+          </div>
+          ${state.assessmentResume ? `
+            <div class="mic-resume-card">
+              <div style="display:flex;align-items:center;gap:0.625rem;min-width:0">
+                <span class="mic-file-icon">📄</span>
+                <div style="min-width:0">
+                  <p class="mic-file-name" title="${state.assessmentResume.filename || state.assessmentResume.candidate_name || 'Resume'}">${state.assessmentResume.filename || state.assessmentResume.candidate_name || 'Resume'}</p>
+                  <p class="mic-file-meta"><span style="color:#34d399;font-weight:600">✓ Resume ready</span> &bull; ${state.assessmentResume.skills ? state.assessmentResume.skills.length + ' skills' : 'Context ready'}</p>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.375rem;flex-shrink:0">
+                <label for="inp-assessment-resume-replace" class="mic-resume-action-btn" style="display:inline-flex;align-items:center;cursor:pointer">Replace</label>
+                <input type="file" id="inp-assessment-resume-replace" accept=".pdf,.docx" style="display:none" />
+                <button id="btn-assessment-resume-remove" class="mic-resume-action-btn mic-remove-btn">Remove</button>
+              </div>
+            </div>
+          ` : `
+            <div id="assessment-resume-dropzone" class="mic-resume-zone">
+              <input type="file" id="inp-assessment-resume" accept=".pdf,.docx" style="display:none" />
+              <span class="mic-upload-icon">${icon('uploadCloud', 16)}</span>
+              <p class="mic-upload-main">Click or drag & drop PDF / DOCX resume</p>
+              <p class="mic-upload-sub">Max 5MB &bull; Personalizes assessment questions</p>
+            </div>
+          `}
+        </div>
+
+        <!-- ASSESSMENT MONITORING -->
+        <div class="mic-field">
+          <label class="mic-label">Assessment Monitoring</label>
+          <div style="display:flex;align-items:center;gap:1rem;padding:0.5rem 0.75rem;border-radius:0.5rem;background:#0a0c18;border:1px solid rgba(255,255,255,0.05)">
+            <span class="mic-device-indicator">
+              <span class="mic-device-dot ready"></span>
+              <span class="mic-device-label ready">Face Tracking</span>
+            </span>
+            <span class="mic-device-indicator">
+              <span class="mic-device-dot ready"></span>
+              <span class="mic-device-label ready">Eye Contact</span>
+            </span>
+            <span class="mic-device-indicator">
+              <span class="mic-device-dot ready"></span>
+              <span class="mic-device-label ready">Emotion Recognition</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- DEVICE STATUS -->
+        <div class="mic-device-bar">
+          <div style="display:flex;align-items:center;gap:1rem">
+            <span class="mic-device-indicator">
+              <span class="mic-device-dot ${devReady ? 'ready' : 'warn'}"></span>
+              Webcam: <span class="mic-device-label ${devReady ? 'ready' : 'warn'}">${devReady ? 'Ready' : 'Not tested'}</span>
+            </span>
+            <span class="mic-device-indicator">
+              <span class="mic-device-dot ${devReady ? 'ready' : 'warn'}"></span>
+              Mic: <span class="mic-device-label ${devReady ? 'ready' : 'warn'}">${devReady ? 'Ready' : 'Not tested'}</span>
+            </span>
+          </div>
+          <button id="btn-test-assessment-devices" class="mic-test-btn">${icon('video', 10)} Test Devices</button>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="mic-summary">
+          <span><strong>Role:</strong> ${state.assessmentTargetRole || 'Software Engineer'}</span>
+          <span class="mic-sep">&bull;</span>
+          <span><strong>Topics:</strong> ${topics.length}</span>
+          <span class="mic-sep">&bull;</span>
+          <span><strong>Difficulty:</strong> <span style="text-transform:capitalize">${state.assessmentDifficulty || 'medium'}</span></span>
+          <span class="mic-sep">&bull;</span>
+          <span><strong>Questions:</strong> ${state.assessmentNumQuestions || 10}</span>
+          <span class="mic-sep">&bull;</span>
+          <span><strong>Duration:</strong> ${state.assessmentTimeLimit || 10} min</span>
+          <span class="mic-sep">&bull;</span>
+          <span><strong>Resume:</strong> <span style="${state.assessmentResume ? 'color:#6ee7b7;font-weight:600' : ''}">${state.assessmentResume ? 'Ready' : 'None'}</span></span>
+        </div>
+
+        <!-- CTA BUTTON -->
+        <button id="btn-start-assessment" class="mic-cta">${icon('play', 14)} Start AI Practice Assessment</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+
+function candidateAssessmentSession() {
+  var assessment = state.currentAssessment;
+  var questions = state.currentAssessmentQuestions || [];
+  var idx = state.assessmentQuestionIndex || 0;
+  var q = questions[idx];
+
+  if (!q) {
+    return `<div class="p-8 text-center text-white/50">Loading assessment questions...</div>`;
+  }
+
+  var timeRem = state.assessmentTimeRemaining || 0;
+  var mins = Math.floor(timeRem / 60);
+  var secs = timeRem % 60;
+  var timeStr = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  var isUrgent = (timeRem <= 120);
+
+  var answeredCount = Object.keys(state.assessmentAnswers || {}).length;
+  var currentSelectedAnswer = state.assessmentAnswers[q.id] || '';
+
+  var modalHtml = state.submitConfirmModal ? `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="bg-[#0d0f1e] border border-white/10 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <h3 class="text-lg font-bold text-white" style="font-family:'Outfit',sans-serif">Submit Practice Assessment?</h3>
+        <p class="text-white/60 text-xs leading-relaxed">
+          You have answered <strong class="text-indigo-400">${answeredCount}</strong> out of <strong class="text-white">${questions.length}</strong> questions.
+          ${answeredCount < questions.length ? '<br/><span class="text-amber-400 font-medium">Warning: You have unanswered questions.</span>' : ''}
+        </p>
+        <div class="flex justify-end gap-3 pt-2">
+          <button id="btn-modal-cancel-submit" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors">Continue Test</button>
+          <button id="btn-modal-confirm-submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/30 transition-all">Submit Now</button>
+        </div>
+      </div>
+    </div>
+  ` : '';
+
+  return `<div class="space-y-4">
+    <!-- Top Bar -->
+    <div class="flex items-center justify-between p-4 rounded-xl border border-white/7" style="background:#0d0f1e">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-white font-bold text-base" style="font-family:'Outfit',sans-serif">Practice Assessment</h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">${assessment ? assessment.target_role : 'Technical'}</span>
+        </div>
+        <p class="text-white/40 text-xs mt-0.5">Question ${idx + 1} of ${questions.length} &bull; Answered ${answeredCount}/${questions.length}</p>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <!-- Timer -->
+        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border ${isUrgent ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 animate-pulse' : 'bg-white/5 border-white/10 text-indigo-300'}">
+          ${icon('clock', 14)}
+          <span class="font-mono font-bold text-sm">${timeStr}</span>
+        </div>
+        <button id="btn-session-submit-trigger" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-md shadow-emerald-500/20">
+          Submit Assessment
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div class="h-full bg-indigo-500 transition-all duration-300" style="width:${((idx + 1) / questions.length) * 100}%"></div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left: MCQ Question View -->
+      <div class="lg:col-span-2 rounded-xl border border-white/7 p-6 space-y-6 flex flex-col justify-between" style="background:#0d0f1e">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/60 font-medium">${q.topic || 'General'}</span>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/60 capitalize font-medium">${q.difficulty || 'medium'}</span>
+          </div>
+
+          <h3 class="text-white font-semibold text-lg leading-snug" style="font-family:'Outfit',sans-serif">
+            ${idx + 1}. ${q.question_text}
+          </h3>
+
+          <div class="space-y-3 pt-2">
+            ${(q.options || []).map(function(opt, oIdx) {
+              var isSelected = (currentSelectedAnswer === opt);
+              var letter = String.fromCharCode(65 + oIdx);
+              return `<button class="btn-mcq-option w-full p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${isSelected ? 'bg-indigo-500/20 border-indigo-500/60 text-white shadow-md shadow-indigo-500/10' : 'bg-white/[0.01] border-white/10 text-white/70 hover:bg-white/[0.03] hover:border-white/20'}" data-option="${opt.replace(/"/g, '&quot;')}">
+                <span class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/10 text-white/60'}">${letter}</span>
+                <span class="text-sm font-medium pt-0.5 leading-normal">${opt}</span>
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex items-center justify-between pt-6 border-t border-white/6">
+          <button id="btn-prev-question" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-medium transition-colors ${idx === 0 ? 'opacity-40 cursor-not-allowed' : ''}" ${idx === 0 ? 'disabled' : ''}>
+            &larr; Previous Question
+          </button>
+          <span class="text-xs text-white/40 font-mono">${idx + 1} / ${questions.length}</span>
+          ${idx < questions.length - 1 ? `
+            <button id="btn-next-question" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all">
+              Next Question &rarr;
+            </button>
+          ` : `
+            <button id="btn-session-submit-trigger-2" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all">
+              Submit Assessment
+            </button>
+          `}
+        </div>
+      </div>
+
+      <!-- Right: Live Monitoring Panel -->
+      <div class="rounded-xl border border-white/7 p-5 space-y-5" style="background:#0d0f1e">
+        <div class="flex items-center justify-between border-b border-white/6 pb-3">
+          <h4 class="text-white font-semibold text-xs tracking-wider uppercase" style="font-family:'Outfit',sans-serif">Live Monitoring Panel</h4>
+          <span class="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Active</span>
+        </div>
+
+        <!-- Webcam Stream -->
+        <div class="relative rounded-lg overflow-hidden border border-white/10 aspect-video bg-black/60 flex items-center justify-center">
+          <video id="assessment-webcam" class="w-full h-full object-cover" autoplay playsinline muted></video>
+          <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 text-[10px] text-white/70 backdrop-blur-sm">Candidate Feed</div>
+        </div>
+
+        <!-- Monitoring Status List -->
+        <div class="space-y-2.5 text-xs">
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Camera</span>
+            <span class="font-medium text-emerald-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ready</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Face</span>
+            <span class="font-medium text-emerald-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> ${state.assessmentFaceStatus || 'Detected'}</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Eye Contact</span>
+            <span class="font-bold text-indigo-300">${state.assessmentEyeContact || 88}%</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Expression</span>
+            <span class="font-medium text-cyan-300">${state.assessmentExpression || 'Neutral'}</span>
+          </div>
+        </div>
+
+        <p class="text-[11px] text-white/35 text-center leading-relaxed">
+          Assessment integrity system tracks face presence and gaze orientation.
+        </p>
+      </div>
+    </div>
+  </div>${modalHtml}`;
+}
+
+function candidateAssessmentResult() {
+  var res = state.assessmentResult;
+  if (!res) {
+    return `<div class="p-8 text-center text-white/50">No assessment result found.</div>`;
+  }
+
+  var a = res.assessment || {};
+  var questions = res.questions || [];
+
+  var pct = a.score_percentage || 0;
+  var topicPerf = a.topic_performance || {};
+  var diffPerf = a.difficulty_performance || {};
+  var integrity = a.integrity_metrics || { face_detected_pct: 95, eye_contact_pct: 88, look_away_events: 1, multiple_faces_events: 0 };
+  var fb = a.ai_feedback || {};
+
+  return `<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Assessment Results</h1>
+        <p class="text-white/40 text-sm mt-1">${a.target_role || 'Technical'} Practice Assessment &bull; Completed ${a.completed_at || 'Recently'}</p>
+      </div>
+      <button id="btn-new-assessment" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition-all">
+        Configure New Assessment
+      </button>
+    </div>
+
+    <!-- Top Score Overview Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="md:col-span-1 rounded-xl border border-indigo-500/30 p-6 text-center space-y-2 flex flex-col items-center justify-center" style="background:linear-gradient(135deg, rgba(99,102,241,0.15), rgba(79,70,229,0.05))">
+        <span class="text-xs text-indigo-300 font-semibold uppercase tracking-wider">OVERALL SCORE</span>
+        <span class="text-4xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${pct.toFixed(1)}%</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold ${pct >= 75 ? 'bg-emerald-500/20 text-emerald-300' : pct >= 50 ? 'bg-amber-500/20 text-amber-300' : 'bg-rose-500/20 text-rose-300'}">
+          ${pct >= 75 ? 'Pass / High Proficiency' : pct >= 50 ? 'Moderate Proficiency' : 'Needs Practice'}
+        </span>
+      </div>
+
+      <div class="md:col-span-3 rounded-xl border border-white/7 p-6 grid grid-cols-4 gap-4 items-center" style="background:#0d0f1e">
+        <div class="text-center p-3 rounded-lg border border-white/6" style="background:#141627">
+          <p class="text-white/40 text-xs">Total Questions</p>
+          <p class="text-2xl font-bold text-white mt-1">${a.total_questions || questions.length}</p>
+        </div>
+        <div class="text-center p-3 rounded-lg border border-emerald-500/20" style="background:rgba(16,185,129,0.05)">
+          <p class="text-emerald-400 text-xs">Correct</p>
+          <p class="text-2xl font-bold text-emerald-300 mt-1">${a.correct_answers || 0}</p>
+        </div>
+        <div class="text-center p-3 rounded-lg border border-rose-500/20" style="background:rgba(244,63,94,0.05)">
+          <p class="text-rose-400 text-xs">Incorrect</p>
+          <p class="text-2xl font-bold text-rose-300 mt-1">${a.incorrect_answers || 0}</p>
+        </div>
+        <div class="text-center p-3 rounded-lg border border-white/6" style="background:#141627">
+          <p class="text-white/40 text-xs">Unanswered</p>
+          <p class="text-2xl font-bold text-white/60 mt-1">${a.unanswered || 0}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Breakdown & Integrity Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Topic Performance Breakdown -->
+      <div class="lg:col-span-2 rounded-xl border border-white/7 p-6 space-y-4" style="background:#0d0f1e">
+        <h3 class="text-white font-semibold text-base" style="font-family:'Outfit',sans-serif">Topic Performance Breakdown</h3>
+        <div class="space-y-3">
+          ${Object.keys(topicPerf).length ? Object.keys(topicPerf).map(function(t) {
+            var item = topicPerf[t];
+            var p = item.percentage || 0;
+            return `<div>
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-white/80 font-medium">${t}</span>
+                <span class="text-white font-bold">${item.correct}/${item.total} (${p.toFixed(0)}%)</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-white/6 overflow-hidden">
+                <div class="h-full rounded-full transition-all" style="width:${p}%;background:${p >= 75 ? EMERALD : p >= 50 ? AMBER : ROSE}"></div>
+              </div>
+            </div>`;
+          }).join('') : '<p class="text-white/40 text-xs">No topic statistics available.</p>'}
+        </div>
+      </div>
+
+      <!-- Assessment Integrity Card -->
+      <div class="rounded-xl border border-white/7 p-6 space-y-4" style="background:#0d0f1e">
+        <h3 class="text-white font-semibold text-base" style="font-family:'Outfit',sans-serif">Assessment Integrity</h3>
+        <div class="space-y-3 text-xs">
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Face Detection Rate</span>
+            <span class="font-bold text-emerald-400">${integrity.face_detected_pct || 95}%</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Eye Contact Percentage</span>
+            <span class="font-bold text-indigo-300">${integrity.eye_contact_pct || 88}%</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Look-away Events</span>
+            <span class="font-bold text-amber-300">${integrity.look_away_events || 1}</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg border border-white/6" style="background:#141627">
+            <span class="text-white/60">Multiple Faces Events</span>
+            <span class="font-bold text-emerald-400">${integrity.multiple_faces_events || 0}</span>
+          </div>
+        </div>
+        <p class="text-[11px] text-white/35 leading-relaxed">
+          Metrics summarize camera presence during the session.
+        </p>
+      </div>
+    </div>
+
+    <!-- AI Assessment Feedback Section -->
+    <div class="rounded-xl border border-indigo-500/30 p-6 space-y-6" style="background:#0d0f1e">
+      <div class="flex items-center gap-2">
+        <span class="text-indigo-400">${icon('brain', 20)}</span>
+        <h3 class="text-white font-bold text-lg" style="font-family:'Outfit',sans-serif">AI Assessment Feedback</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Strengths -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">STRENGTHS</h4>
+          <ul class="space-y-1.5 text-xs text-white/70">
+            ${(fb.strengths || ["Strong performance across core concepts."]).map(function(s) {
+              return `<li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&bull;</span><span>${s}</span></li>`;
+            }).join('')}
+          </ul>
+        </div>
+
+        <!-- Areas to Improve -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">AREAS TO IMPROVE</h4>
+          <ul class="space-y-1.5 text-xs text-white/70">
+            ${(fb.areas_to_improve || ["Review missed questions in the detailed review below."]).map(function(a) {
+              return `<li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5">&bull;</span><span>${a}</span></li>`;
+            }).join('')}
+          </ul>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-white/6 space-y-3">
+        <div>
+          <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider">RECOMMENDED DIFFICULTY TIER</h4>
+          <p class="text-xs text-white/80 mt-1">${fb.difficulty_recommendation || 'Continue practicing medium difficulty questions.'}</p>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider">PERSONALIZED PREPARATION SUGGESTIONS</h4>
+          <ul class="space-y-1.5 text-xs text-white/70 mt-1">
+            ${(fb.personalized_suggestions || ["Focus on time management during multi-step problems."]).map(function(ps) {
+              return `<li class="flex items-start gap-2"><span class="text-cyan-400 mt-0.5">&bull;</span><span>${ps}</span></li>`;
+            }).join('')}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Question Review Section -->
+    <div class="rounded-xl border border-white/7 p-6 space-y-4" style="background:#0d0f1e">
+      <h3 class="text-white font-bold text-lg" style="font-family:'Outfit',sans-serif">Question Review</h3>
+      <p class="text-white/40 text-xs">Detailed evaluation key for all ${questions.length} questions.</p>
+
+      <div class="space-y-4 pt-2">
+        ${questions.map(function(q, qIdx) {
+          var isCorr = q.is_correct;
+          var candAns = q.candidate_answer || 'Unanswered';
+          var corrAns = q.correct_answer || 'N/A';
+          return `<div class="p-4 rounded-xl border ${isCorr ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : candAns === 'Unanswered' ? 'border-white/10 bg-white/[0.01]' : 'border-rose-500/30 bg-rose-500/[0.02]'} space-y-3">
+            <div class="flex items-start justify-between">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white">Q${qIdx + 1}.</span>
+                  <span class="text-xs px-2 py-0.5 rounded bg-white/5 text-white/60 font-medium">${q.topic || 'General'}</span>
+                  <span class="text-xs px-2 py-0.5 rounded bg-white/5 text-white/60 capitalize font-medium">${q.difficulty || 'medium'}</span>
+                </div>
+                <h4 class="text-white font-medium text-sm pt-1">${q.question_text}</h4>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded-full font-bold uppercase shrink-0 ${isCorr ? 'bg-emerald-500/20 text-emerald-300' : candAns === 'Unanswered' ? 'bg-white/10 text-white/50' : 'bg-rose-500/20 text-rose-300'}">
+                ${isCorr ? 'Correct' : candAns === 'Unanswered' ? 'Unanswered' : 'Incorrect'}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+              <div class="p-2.5 rounded-lg border border-white/6" style="background:#141627">
+                <span class="text-white/40 block text-[10px]">Your Answer:</span>
+                <span class="font-medium ${isCorr ? 'text-emerald-300' : 'text-rose-300'}">${candAns}</span>
+              </div>
+              <div class="p-2.5 rounded-lg border border-emerald-500/20" style="background:rgba(16,185,129,0.05)">
+                <span class="text-emerald-400 block text-[10px]">Correct Answer:</span>
+                <span class="font-medium text-emerald-200">${corrAns}</span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
+              <span class="font-semibold block mb-0.5 text-indigo-300">Explanation:</span>
+              ${q.explanation || 'Option evaluated based on standard technical principles.'}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── Practice Assessment Event Binding ── */
+function startAssessmentTimer() {
+  if (state.assessmentTimerInterval) {
+    clearInterval(state.assessmentTimerInterval);
+  }
+  state.assessmentTimerInterval = setInterval(function() {
+    if (state.assessmentTimeRemaining > 0) {
+      state.assessmentTimeRemaining--;
+      var timerEl = document.querySelector('.font-mono');
+      if (timerEl) {
+        var mins = Math.floor(state.assessmentTimeRemaining / 60);
+        var secs = state.assessmentTimeRemaining % 60;
+        timerEl.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+      }
+    } else {
+      clearInterval(state.assessmentTimerInterval);
+      state.assessmentTimerInterval = null;
+      stopAssessmentWebcam();
+      // Auto-submit assessment when timer hits zero
+      if (state.currentAssessment && state.section === 'assessment-session') {
+        api.submitAssessment(state.currentAssessment.id, {
+          answers: state.assessmentAnswers,
+          integrity_metrics: state.assessmentIntegrity,
+        }).then(function(res) {
+          state.assessmentResult = res;
+          state.section = 'assessment-result';
+          render();
+        }).catch(function(err) {
+          alert('Assessment time expired. Submission error: ' + err.message);
+        });
+      }
+    }
+  }, 1000);
+}
+
+function startAssessmentWebcam() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(function(stream) {
+        state.assessmentStream = stream;
+        var videoEl = document.getElementById('assessment-webcam');
+        if (videoEl) {
+          videoEl.srcObject = stream;
+        }
+      })
+      .catch(function(_) {
+        state.assessmentFaceStatus = 'No Camera';
+      });
+  }
+}
+
+function stopAssessmentWebcam() {
+  if (state.assessmentStream) {
+    state.assessmentStream.getTracks().forEach(function(track) { track.stop(); });
+    state.assessmentStream = null;
+  }
+}
+
+function bindCandidateAssessmentEvents() {
+  // Topic Chip Toggles
+  document.querySelectorAll('.btn-topic-chip').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var topic = this.dataset.topic;
+      var topics = state.assessmentSelectedTopics || [];
+      if (topics.includes(topic)) {
+        state.assessmentSelectedTopics = topics.filter(function(t) { return t !== topic; });
+      } else {
+        state.assessmentSelectedTopics.push(topic);
+      }
+      render();
+    });
+  });
+
+  // Role Input
+  var roleInp = document.getElementById('inp-assessment-role');
+  if (roleInp) {
+    roleInp.addEventListener('input', function() {
+      state.assessmentTargetRole = this.value;
+    });
+  }
+
+  // Difficulty Select Dropdown
+  var diffSelect = document.getElementById('config-assessment-diff-select');
+  if (diffSelect) {
+    diffSelect.addEventListener('change', function() {
+      state.assessmentDifficulty = this.value;
+      render();
+    });
+  }
+
+  // Question Count Select Dropdown
+  var numSelect = document.getElementById('config-assessment-num-select');
+  if (numSelect) {
+    numSelect.addEventListener('change', function() {
+      state.assessmentNumQuestions = parseInt(this.value, 10);
+      render();
+    });
+  }
+
+  // Difficulty Selector (compat)
+  document.querySelectorAll('.btn-assessment-diff').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      state.assessmentDifficulty = this.dataset.diff;
+      render();
+    });
+  });
+
+  // Question Count Selector (compat)
+  document.querySelectorAll('.btn-assessment-num').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      state.assessmentNumQuestions = parseInt(this.dataset.num, 10);
+      render();
+    });
+  });
+
+
+  // Time Limit Selector
+  document.querySelectorAll('.btn-assessment-time').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      state.assessmentTimeLimit = parseInt(this.dataset.time, 10);
+      render();
+    });
+  });
+
+  // Custom Time Input
+  var customTimeInp = document.getElementById('inp-assessment-custom-time');
+  if (customTimeInp) {
+    customTimeInp.addEventListener('input', function() {
+      var val = parseInt(this.value, 10);
+      if (val > 0) {
+        state.assessmentCustomTime = val;
+        state.assessmentTimeLimit = val;
+      }
+    });
+  }
+
+  // Resume Upload
+  var resumeInp = document.getElementById('inp-assessment-resume');
+  if (resumeInp) {
+    resumeInp.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        state.assessmentResumeStatus = 'loading';
+        api.uploadResume(this.files[0]).then(function(res) {
+          state.assessmentResume = res.resume;
+          state.assessmentResumeStatus = 'ready';
+          render();
+        }).catch(function(err) {
+          state.assessmentError = err.message;
+          render();
+        });
+      }
+    });
+  }
+
+  var resumeReplaceInp = document.getElementById('inp-assessment-resume-replace');
+  if (resumeReplaceInp) {
+    resumeReplaceInp.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        api.uploadResume(this.files[0]).then(function(res) {
+          state.assessmentResume = res.resume;
+          render();
+        }).catch(function(err) {
+          state.assessmentError = err.message;
+          render();
+        });
+      }
+    });
+  }
+
+  var resumeRemoveBtn = document.getElementById('btn-assessment-resume-remove');
+  if (resumeRemoveBtn) {
+    resumeRemoveBtn.addEventListener('click', function() {
+      state.assessmentResume = null;
+      render();
+    });
+  }
+
+  var dropzone = document.getElementById('assessment-resume-dropzone');
+
+  if (dropzone) {
+    dropzone.addEventListener('click', function() {
+      var fileInp = document.getElementById('inp-assessment-resume');
+      if (fileInp) fileInp.click();
+    });
+  }
+
+  // Test Devices Button
+  var testDevBtn = document.getElementById('btn-test-assessment-devices');
+  if (testDevBtn) {
+    testDevBtn.addEventListener('click', function() {
+      state.deviceTested = true;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          .then(function(stream) {
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            render();
+          })
+          .catch(function() {
+            render();
+          });
+      } else {
+        render();
+      }
+    });
+  }
+
+  // Start Assessment CTA
+
+  var startBtn = document.getElementById('btn-start-assessment');
+  if (startBtn) {
+    startBtn.addEventListener('click', function() {
+      state.assessmentError = '';
+      startBtn.disabled = true;
+      startBtn.innerHTML = `${icon('refreshCw', 16)} Generating Assessment...`;
+
+      var payload = {
+        target_role: state.assessmentTargetRole || 'Software Engineer',
+        topics: state.assessmentSelectedTopics.length ? state.assessmentSelectedTopics : ['Data Structures'],
+        difficulty: state.assessmentDifficulty || 'medium',
+        num_questions: state.assessmentNumQuestions || 10,
+        time_limit_minutes: state.assessmentTimeLimit || 10,
+        resume_context: state.assessmentResume,
+      };
+
+      api.generateAssessment(payload).then(function(res) {
+        state.currentAssessment = res.assessment;
+        state.currentAssessmentQuestions = res.questions;
+        state.assessmentQuestionIndex = 0;
+        state.assessmentAnswers = {};
+        state.assessmentTimeRemaining = (res.assessment.time_limit_minutes || 10) * 60;
+        
+        return api.startAssessment(res.assessment.id);
+      }).then(function(_) {
+        state.section = 'assessment-session';
+        render();
+        startAssessmentTimer();
+        startAssessmentWebcam();
+      }).catch(function(err) {
+        state.assessmentError = err.message;
+        render();
+      });
+    });
+  }
+
+  // MCQ Option Selection
+  document.querySelectorAll('.btn-mcq-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var opt = this.dataset.option;
+      var q = state.currentAssessmentQuestions[state.assessmentQuestionIndex];
+      if (q) {
+        state.assessmentAnswers[q.id] = opt;
+        render();
+      }
+    });
+  });
+
+  // Question Navigation
+  var prevBtn = document.getElementById('btn-prev-question');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function() {
+      if (state.assessmentQuestionIndex > 0) {
+        state.assessmentQuestionIndex--;
+        render();
+      }
+    });
+  }
+
+  var nextBtn = document.getElementById('btn-next-question');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function() {
+      if (state.assessmentQuestionIndex < state.currentAssessmentQuestions.length - 1) {
+        state.assessmentQuestionIndex++;
+        render();
+      }
+    });
+  }
+
+  // Submit Trigger Modal
+  var submitTriggers = [
+    document.getElementById('btn-session-submit-trigger'),
+    document.getElementById('btn-session-submit-trigger-2')
+  ];
+  submitTriggers.forEach(function(btn) {
+    if (btn) {
+      btn.addEventListener('click', function() {
+        state.submitConfirmModal = true;
+        render();
+      });
+    }
+  });
+
+  var cancelSubmitBtn = document.getElementById('btn-modal-cancel-submit');
+  if (cancelSubmitBtn) {
+    cancelSubmitBtn.addEventListener('click', function() {
+      state.submitConfirmModal = false;
+      render();
+    });
+  }
+
+  var confirmSubmitBtn = document.getElementById('btn-modal-confirm-submit');
+  if (confirmSubmitBtn) {
+    confirmSubmitBtn.addEventListener('click', function() {
+      state.submitConfirmModal = false;
+      confirmSubmitBtn.disabled = true;
+      confirmSubmitBtn.textContent = 'Submitting...';
+
+      if (state.assessmentTimerInterval) {
+        clearInterval(state.assessmentTimerInterval);
+        state.assessmentTimerInterval = null;
+      }
+      stopAssessmentWebcam();
+
+      api.submitAssessment(state.currentAssessment.id, {
+        answers: state.assessmentAnswers,
+        integrity_metrics: state.assessmentIntegrity,
+      }).then(function(res) {
+        state.assessmentResult = res;
+        state.section = 'assessment-result';
+        render();
+      }).catch(function(err) {
+        alert('Submission failed: ' + err.message);
+      });
+    });
+  }
+
+  // New Assessment Button from Result Screen
+  var newAssessmentBtn = document.getElementById('btn-new-assessment');
+  if (newAssessmentBtn) {
+    newAssessmentBtn.addEventListener('click', function() {
+      state.currentAssessment = null;
+      state.currentAssessmentQuestions = [];
+      state.assessmentResult = null;
+      state.section = 'assessment';
+      render();
+    });
+  }
+}
+

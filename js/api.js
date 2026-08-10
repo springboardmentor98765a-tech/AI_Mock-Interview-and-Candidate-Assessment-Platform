@@ -123,4 +123,20 @@ var api = {
       body: { audio_chunk: audioBase64, mime_type: mimeType || 'audio/webm' },
     });
   },
+  generateAssessment: function(payload) {
+    return apiRequest('/assessments/generate', { method: 'POST', body: payload });
+  },
+  startAssessment: function(id) {
+    return apiRequest('/assessments/' + id + '/start', { method: 'POST' });
+  },
+  getAssessment: function(id) {
+    return apiRequest('/assessments/' + id);
+  },
+  submitAssessment: function(id, payload) {
+    return apiRequest('/assessments/' + id + '/submit', { method: 'POST', body: payload });
+  },
+  getAssessmentHistory: function() {
+    return apiRequest('/assessments/history');
+  },
 };
+

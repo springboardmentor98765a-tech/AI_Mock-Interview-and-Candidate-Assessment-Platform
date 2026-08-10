@@ -21,6 +21,7 @@ function render() {
     navItems = [
       { key: 'overview', label: 'Overview', icon: icon('layout') },
       { key: 'interviews', label: 'Mock Interviews', icon: icon('monitorPlay') },
+      { key: 'assessment', label: 'Practice Assessment', icon: icon('clipboard') },
       { key: 'analytics', label: 'Analytics', icon: icon('barChart2') },
       { key: 'resume', label: 'Resume & Skills', icon: icon('fileText') },
       { key: 'history', label: 'Interview History', icon: icon('clock') },
@@ -31,6 +32,9 @@ function render() {
       overview: candidateOverview,
       interviews: candidateInterviews,
       session: candidateSession,
+      assessment: candidateAssessment,
+      'assessment-session': candidateAssessmentSession,
+      'assessment-result': candidateAssessmentResult,
       analytics: candidateAnalytics,
       resume: candidateResume,
       history: candidateHistory,
@@ -38,6 +42,7 @@ function render() {
       settings: function() { return placeholderSection('Settings', 'Manage your account preferences, notifications, and privacy settings.', icon('settings', 32)); },
     };
     content = (sections[state.section] || sections.overview)();
+
   } else if (state.page === 'recruiter') {
     navItems = [
       { key: 'overview', label: 'Overview', icon: icon('layout') },
@@ -291,8 +296,12 @@ function bindDashboardEvents() {
       if (tempVal) tempVal.textContent = state.temp.toFixed(1);
     });
   }
-  if (state.page === 'candidate') bindCandidateInterviewEvents();
+  if (state.page === 'candidate') {
+    bindCandidateInterviewEvents();
+    bindCandidateAssessmentEvents();
+  }
 }
+
 
 /* ── Chart drawing after render ── */
 function drawCharts() {

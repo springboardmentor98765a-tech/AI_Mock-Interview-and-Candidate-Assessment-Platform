@@ -64,14 +64,18 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class InterviewCreateRequest(BaseModel):
     interview_type: str = Field(..., min_length=1)
+    candidate_id: Optional[int] = None
     domain: Optional[str] = None
     difficulty: Optional[str] = None
+    duration: int = Field(default=15, ge=1, le=180)
 
 
 class InterviewGenerateRequest(BaseModel):
     interview_type: Literal["hr", "technical", "behavioral", "aptitude"]
+    candidate_id: Optional[int] = None
     domain: Optional[str] = Field(default=None, max_length=100)
     difficulty: Literal["easy", "medium", "hard"] = "medium"
+    duration: int = Field(default=15, ge=1, le=180)
     num_questions: Optional[int] = Field(default=None, ge=1, le=20)
     time_duration: Optional[int] = Field(default=None, ge=1, le=120)
     skills: list[str] = Field(default_factory=list, max_length=30)
@@ -83,9 +87,11 @@ class InterviewStartRequest(BaseModel):
 
 
 class InterviewUpdateRequest(BaseModel):
+    candidate_id: Optional[int] = None
     interview_type: Optional[str] = None
     domain: Optional[str] = None
     difficulty: Optional[str] = None
+    duration: Optional[int] = None
     status: Optional[str] = None
 
 
@@ -117,9 +123,11 @@ class InterviewQuestionCreateRequest(BaseModel):
 class InterviewResponse(BaseModel):
     id: int
     user_id: int
+    candidate_id: int
     interview_type: str
     domain: Optional[str] = None
     difficulty: Optional[str] = None
+    duration: int
     status: Optional[str] = None
     total_score: Optional[float] = None
     communication_score: Optional[float] = None
@@ -139,6 +147,8 @@ class InterviewResponse(BaseModel):
     created_at: Optional[str] = None
 
 
+
+
 class InterviewQuestionResponse(BaseModel):
     id: int
     interview_id: int
@@ -154,3 +164,19 @@ class InterviewQuestionResponse(BaseModel):
     professionalism_score: Optional[float] = None
     parameters: Optional[dict] = None
     feedback: Optional[str] = None
+
+
+class AssessmentGenerateRequest(BaseModel):
+    target_role: str = Field(default="Software Engineer")
+    topics: list[str] = Field(default_factory=list)
+    difficulty: str = Field(default="medium")
+    num_questions: int = Field(default=10, ge=1, le=50)
+    time_limit_minutes: int = Field(default=10, ge=1, le=180)
+    resume_context: Optional[dict] = None
+
+
+class AssessmentSubmitRequest(BaseModel):
+    answers: dict[str, str] = Field(default_factory=dict)
+    integrity_metrics: Optional[dict] = None
+    elapsed_seconds: Optional[int] = None
+

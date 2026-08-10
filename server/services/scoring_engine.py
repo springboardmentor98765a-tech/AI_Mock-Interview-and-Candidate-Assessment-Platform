@@ -135,9 +135,10 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
 
     rating = get_rating_rubric(avg_overall)
 
-    interview_row = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+    interview_row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     itype = interview_row["interview_type"] if interview_row else "Technical"
     domain = interview_row["domain"] if interview_row else "General"
+    duration = interview_row["duration"] if (interview_row and "duration" in interview_row.keys()) else None
 
     # Default structured feedback data
     strengths = [
@@ -220,7 +221,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             pass
 
     conn.execute(
-        """UPDATE interview SET
+        """UPDATE interview_session SET
             status = 'completed',
             completed_at = CURRENT_TIMESTAMP,
             total_score = ?,
@@ -237,6 +238,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             resources_json = ?,
             detailed_parameters_json = ?
            WHERE id = ?""",
+
         (
             avg_overall,
             avg_comm,

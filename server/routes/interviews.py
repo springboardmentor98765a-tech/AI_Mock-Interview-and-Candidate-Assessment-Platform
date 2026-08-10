@@ -47,9 +47,11 @@ def row_to_interview(row) -> dict:
     return {
         "id": d["id"],
         "user_id": d["user_id"],
+        "candidate_id": d.get("candidate_id") or d["user_id"],
         "interview_type": d["interview_type"],
         "domain": d["domain"],
         "difficulty": d["difficulty"],
+        "duration": d.get("duration") or 15,
         "status": d["status"],
         "total_score": d["total_score"],
         "communication_score": d.get("communication_score"),
@@ -93,12 +95,14 @@ def row_to_question(row) -> dict:
 @router.post("")
 def create_interview(req: InterviewCreateRequest, user: dict = Depends(get_current_user)):
     conn = get_db()
+    candidate_id = req.candidate_id or user["id"]
+    duration = req.duration or 15
     cur = conn.execute(
-        "INSERT INTO interview (user_id, interview_type, domain, difficulty) VALUES (?, ?, ?, ?)",
-        (user["id"], req.interview_type, req.domain, req.difficulty),
+        "INSERT INTO interview_session (user_id, candidate_id, interview_type, domain, difficulty, duration) VALUES (?, ?, ?, ?, ?, ?)",
+        (user["id"], candidate_id, req.interview_type, req.domain, req.difficulty, duration),
     )
     conn.commit()
-    row = conn.execute("SELECT * FROM interview WHERE id = ?", (cur.lastrowid,)).fetchone()
+    row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (cur.lastrowid,)).fetchone()
     conn.close()
     return {"message": "Interview created.", "interview": row_to_interview(row)}
 
@@ -109,8 +113,12 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
         num_q = req.num_questions
     elif req.time_duration:
         num_q = max(1, req.time_duration // 4)
+    elif req.duration:
+        num_q = max(1, req.duration // 4)
     else:
         num_q = 5
+
+    duration = req.duration or req.time_duration or 15
 
     ai_generated = True
     try:
@@ -129,13 +137,15 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
     if not questions_data:
         raise HTTPException(400, "Could not generate questions for the given parameters.")
 
-
+    candidate_id = req.candidate_id or user["id"]
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO interview (user_id, interview_type, domain, difficulty, status) VALUES (?, ?, ?, ?, 'created')",
-        (user["id"], req.interview_type, req.domain, req.difficulty),
+        "INSERT INTO interview_session (user_id, candidate_id, interview_type, domain, difficulty, duration, status) VALUES (?, ?, ?, ?, ?, ?, 'created')",
+        (user["id"], candidate_id, req.interview_type, req.domain, req.difficulty, duration),
     )
     interview_id = cur.lastrowid
+
+
 
     for q in questions_data:
         conn.execute(
@@ -144,7 +154,7 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
         )
     conn.commit()
 
-    interview = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+    interview = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     questions = conn.execute(
         "SELECT * FROM interview_question WHERE interview_id = ? ORDER BY sequence_no", (interview_id,)
     ).fetchall()
@@ -163,8 +173,8 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
 def interview_history(user: dict = Depends(get_current_user)):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM interview WHERE user_id = ? AND status = 'completed' ORDER BY completed_at DESC",
-        (user["id"],),
+        "SELECT * FROM interview_session WHERE (user_id = ? OR candidate_id = ?) AND status = 'completed' ORDER BY completed_at DESC",
+        (user["id"], user["id"]),
     ).fetchall()
 
     history = []
@@ -190,8 +200,8 @@ def list_interviews(
     user: dict = Depends(get_current_user),
 ):
     conn = get_db()
-    query = "SELECT * FROM interview WHERE user_id = ?"
-    params = [user["id"]]
+    query = "SELECT * FROM interview_session WHERE (user_id = ? OR candidate_id = ?)"
+    params = [user["id"], user["id"]]
 
     if status:
         query += " AND status = ?"
@@ -210,7 +220,7 @@ def list_interviews(
 def get_interview(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not row:
         conn.close()
@@ -229,7 +239,7 @@ def get_interview(interview_id: int, user: dict = Depends(get_current_user)):
 def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict = Depends(get_current_user)):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not row:
         conn.close()
@@ -237,6 +247,9 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
 
     updates = []
     values = []
+    if req.candidate_id:
+        updates.append("candidate_id = ?")
+        values.append(req.candidate_id)
     if req.interview_type:
         updates.append("interview_type = ?")
         values.append(req.interview_type)
@@ -246,6 +259,9 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
     if req.difficulty:
         updates.append("difficulty = ?")
         values.append(req.difficulty)
+    if req.duration:
+        updates.append("duration = ?")
+        values.append(req.duration)
     if req.status:
         if req.status not in ("created", "in_progress", "completed"):
             conn.close()
@@ -259,10 +275,10 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
 
     if updates:
         values.append(interview_id)
-        conn.execute(f"UPDATE interview SET {', '.join(updates)} WHERE id = ?", values)
+        conn.execute(f"UPDATE interview_session SET {', '.join(updates)} WHERE id = ?", values)
         conn.commit()
 
-    updated = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+    updated = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     conn.close()
     return {"message": "Interview updated.", "interview": row_to_interview(updated)}
 
@@ -271,12 +287,12 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
 def delete_interview(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
     row = conn.execute(
-        "SELECT id FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "Interview not found.")
-    conn.execute("DELETE FROM interview WHERE id = ?", (interview_id,))
+    conn.execute("DELETE FROM interview_session WHERE id = ?", (interview_id,))
     conn.commit()
     conn.close()
     return {"message": "Interview deleted."}
@@ -286,7 +302,7 @@ def delete_interview(interview_id: int, user: dict = Depends(get_current_user)):
 def start_interview(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not row:
         conn.close()
@@ -299,7 +315,7 @@ def start_interview(interview_id: int, user: dict = Depends(get_current_user)):
         raise HTTPException(400, "Interview already in progress.")
 
     conn.execute(
-        "UPDATE interview SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE interview_session SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = ?",
         (interview_id,),
     )
     conn.commit()
@@ -307,7 +323,7 @@ def start_interview(interview_id: int, user: dict = Depends(get_current_user)):
     questions = conn.execute(
         "SELECT * FROM interview_question WHERE interview_id = ? ORDER BY sequence_no", (interview_id,)
     ).fetchall()
-    updated = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+    updated = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     conn.close()
 
     return {
@@ -327,7 +343,7 @@ def start_interview_from_body(req: InterviewStartRequest, user: dict = Depends(g
 def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depends(get_current_user)):
     conn = get_db()
     interview = conn.execute(
-        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not interview:
         conn.close()
@@ -388,7 +404,7 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
         scoring_engine.generate_final_report(interview_id, conn)
 
     updated_q = conn.execute("SELECT * FROM interview_question WHERE id = ?", (req.question_id,)).fetchone()
-    updated_interview = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+    updated_interview = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     conn.close()
 
     return {
@@ -404,8 +420,8 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
     """Return aggregated assessment metrics across all candidate completed interviews."""
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM interview WHERE user_id = ? AND status = 'completed' ORDER BY completed_at DESC",
-        (user["id"],),
+        "SELECT * FROM interview_session WHERE (user_id = ? OR candidate_id = ?) AND status = 'completed' ORDER BY completed_at DESC",
+        (user["id"], user["id"]),
     ).fetchall()
 
     if not rows:
@@ -467,7 +483,7 @@ def get_interview_report(interview_id: int, user: dict = Depends(get_current_use
     """Fetch complete AI Feedback & Scoring Report for a specific completed interview."""
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not row:
         conn.close()
@@ -475,7 +491,7 @@ def get_interview_report(interview_id: int, user: dict = Depends(get_current_use
 
     if row["status"] != "completed":
         scoring_engine.generate_final_report(interview_id, conn)
-        row = conn.execute("SELECT * FROM interview WHERE id = ?", (interview_id,)).fetchone()
+        row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
 
     questions = conn.execute(
         "SELECT * FROM interview_question WHERE interview_id = ? ORDER BY sequence_no", (interview_id,)
@@ -493,9 +509,9 @@ def speak_question(interview_id: int, req: InterviewQuestionRequest, user: dict 
     conn = get_db()
     question = conn.execute(
         """SELECT q.question_text, q.sequence_no FROM interview_question q
-           JOIN interview i ON i.id = q.interview_id
-           WHERE q.id = ? AND q.interview_id = ? AND i.user_id = ?""",
-        (req.question_id, interview_id, user["id"]),
+           JOIN interview_session i ON i.id = q.interview_id
+           WHERE q.id = ? AND q.interview_id = ? AND (i.user_id = ? OR i.candidate_id = ?)""",
+        (req.question_id, interview_id, user["id"], user["id"]),
     ).fetchone()
     conn.close()
     if not question:
@@ -536,7 +552,7 @@ def transcribe_chunk(req: TranscribeChunkRequest, user: dict = Depends(get_curre
 def add_question(interview_id: int, req: InterviewQuestionCreateRequest, user: dict = Depends(get_current_user)):
     conn = get_db()
     interview = conn.execute(
-        "SELECT id FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not interview:
         conn.close()
@@ -555,7 +571,7 @@ def add_question(interview_id: int, req: InterviewQuestionCreateRequest, user: d
 def list_questions(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
     interview = conn.execute(
-        "SELECT id FROM interview WHERE id = ? AND user_id = ?", (interview_id, user["id"])
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
     ).fetchone()
     if not interview:
         conn.close()
@@ -565,6 +581,7 @@ def list_questions(interview_id: int, user: dict = Depends(get_current_user)):
     ).fetchall()
     conn.close()
     return {"questions": [row_to_question(r) for r in rows]}
+
 
 
 def evaluate_answer(answer: str, question: str, category: str, difficulty: str) -> float:

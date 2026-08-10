@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config import PORT
-from routes import auth, users, interviews
+from routes import auth, users, interviews, assessments
 
 app = FastAPI(title="SmartHire AI", version="1.0.0")
 
@@ -22,6 +22,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(interviews.router)
+app.include_router(assessments.router)
+
 
 frontend_dir = os.path.join(os.path.dirname(__file__), "..")
 
