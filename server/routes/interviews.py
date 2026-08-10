@@ -11,6 +11,8 @@ from models import (
     InterviewQuestionRequest,
     VoiceAnswerRequest,
     TranscribeChunkRequest,
+    InterviewRecordingCreateRequest,
+    InterviewRecordingResponse,
 )
 from auth import get_current_user
 from services.question_bank import generate_questions as generate_bank_questions
@@ -581,6 +583,57 @@ def list_questions(interview_id: int, user: dict = Depends(get_current_user)):
     ).fetchall()
     conn.close()
     return {"questions": [row_to_question(r) for r in rows]}
+
+
+def row_to_recording(row) -> dict:
+    d = dict(row)
+    return {
+        "id": d["id"],
+        "session_id": d["session_id"],
+        "recording_type": d["recording_type"],
+        "file_path": d["file_path"],
+        "duration": d.get("duration"),
+        "mime_type": d.get("mime_type"),
+        "file_size_bytes": d.get("file_size_bytes"),
+        "status": d.get("status"),
+        "created_at": str(d["created_at"]) if d.get("created_at") else None,
+    }
+
+
+@router.post("/{interview_id}/recordings")
+def create_recording(interview_id: int, req: InterviewRecordingCreateRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    interview = conn.execute(
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
+    ).fetchone()
+    if not interview:
+        conn.close()
+        raise HTTPException(404, "Interview not found.")
+    cur = conn.execute(
+        "INSERT INTO interview_recording (session_id, recording_type, file_path, duration, mime_type, file_size_bytes, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (interview_id, req.recording_type, req.file_path, req.duration, req.mime_type, req.file_size_bytes, req.status or 'completed'),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM interview_recording WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return {"message": "Recording saved.", "recording": row_to_recording(row)}
+
+
+@router.get("/{interview_id}/recordings")
+def list_recordings(interview_id: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    interview = conn.execute(
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
+    ).fetchone()
+    if not interview:
+        conn.close()
+        raise HTTPException(404, "Interview not found.")
+    rows = conn.execute(
+        "SELECT * FROM interview_recording WHERE session_id = ? ORDER BY created_at ASC", (interview_id,)
+    ).fetchall()
+    conn.close()
+    return {"recordings": [row_to_recording(r) for r in rows]}
+
 
 
 

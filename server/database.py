@@ -120,7 +120,23 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_assessment_question_assessment_id ON assessment_question(assessment_id);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_assessment_question_sequence
             ON assessment_question(assessment_id, sequence_no);
+
+        CREATE TABLE IF NOT EXISTS interview_recording (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            recording_type TEXT NOT NULL DEFAULT 'video',
+            file_path TEXT NOT NULL,
+            duration INTEGER,
+            mime_type TEXT,
+            file_size_bytes INTEGER,
+            status TEXT DEFAULT 'completed',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES interview_session(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_interview_recording_session_id ON interview_recording(session_id);
     """)
+
 
     tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     if "interview" in tables and "interview_session" not in tables:

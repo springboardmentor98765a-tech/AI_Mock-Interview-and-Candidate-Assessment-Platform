@@ -180,3 +180,25 @@ class AssessmentSubmitRequest(BaseModel):
     integrity_metrics: Optional[dict] = None
     elapsed_seconds: Optional[int] = None
 
+
+class InterviewRecordingCreateRequest(BaseModel):
+    recording_type: str = Field(default="video")
+    file_path: str = Field(..., min_length=1)
+    duration: Optional[int] = None
+    mime_type: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    status: Optional[str] = "completed"
+
+
+class InterviewRecordingResponse(BaseModel):
+    id: int
+    session_id: int
+    recording_type: str
+    file_path: str
+    duration: Optional[int] = None
+    mime_type: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    status: Optional[str] = None
+    created_at: Optional[str] = None
+
+
