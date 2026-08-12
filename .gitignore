@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+backend-python/.env
+backend-python/private_recordings/
 
 # Personal local project notes (do not commit)
 LOCAL_RUNBOOK.md
@@ -27,15 +30,9 @@ GUIDE_EXPLANATION.md
 *.sln
 *.sw?
 
-# Node
-node_modules/
-dist/
-
-# Python
 backend-python/.venv/
-backend-python/__pycache__/
 **/__pycache__/
 *.pyc
-
-# Environment variables
 .env
+node_modules/
+dist/

@@ -1,19 +1,30 @@
 import os
+import json
+import uuid
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Generator
 from urllib.parse import quote_plus
 
 import jwt
+import httpx
 from authlib.integrations.starlette_client import OAuth
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from docx import Document
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from passlib.context import CryptContext
-from sqlalchemy import Boolean, DateTime, Enum as SqlEnum, Integer, String, Text, UniqueConstraint, create_engine, text
+from pypdf import PdfReader
+from sqlalchemy import JSON, Boolean, DateTime, Enum as SqlEnum, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
+
+# Loads private settings from the exact backend .env file, regardless of where Uvicorn was started.
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", override=True)
 
 # Builds a safe PostgreSQL connection string from environment variables.
 DATABASE_URL = os.getenv("DATABASE_URL") or (
@@ -26,6 +37,11 @@ DATABASE_URL = os.getenv("DATABASE_URL") or (
 JWT_SECRET = os.getenv("JWT_SECRET", "replace-this-with-a-long-random-secret-at-least-32-characters")
 JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+RECORDINGS_DIR = Path(__file__).resolve().parent.parent / "private_recordings"
+MAX_RECORDING_BYTES = 150 * 1024 * 1024
 
 
 # Defines the roles used to control dashboard and API access.
@@ -50,6 +66,14 @@ class ApplicationStatus(str, Enum):
     INTERVIEW_REQUESTED = "INTERVIEW_REQUESTED"
     INTERVIEW_SCHEDULED = "INTERVIEW_SCHEDULED"
     REJECTED = "REJECTED"
+
+
+class InterviewStatus(str, Enum):
+    GENERATED = "GENERATED"
+    IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    ENDED = "ENDED"
 
 
 class Base(DeclarativeBase):
@@ -108,6 +132,45 @@ class Application(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
+# Stores a candidate's generated interview questions, answers, and progress.
+class Interview(Base):
+    __tablename__ = "interviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    role_title: Mapped[str] = mapped_column(String(160), nullable=False)
+    domain: Mapped[str] = mapped_column(String(40), nullable=False)
+    difficulty: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[InterviewStatus] = mapped_column(SqlEnum(InterviewStatus), nullable=False, default=InterviewStatus.GENERATED)
+    questions: Mapped[list] = mapped_column(JSON, nullable=False)
+    answers: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    feedback: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    current_question: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    recording_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    recording_content_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    recording_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def has_recording(self) -> bool:
+        # Exposes only whether a private recording exists; never exposes its storage path.
+        return bool(self.recording_path)
+
+
+# Stores the latest resume analysis for each candidate without storing the original file.
+class Resume(Base):
+    __tablename__ = "resumes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    extracted_data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
@@ -130,6 +193,17 @@ class JobCreateRequest(BaseModel):
 
 class InterviewTimeRequest(BaseModel):
     interview_at: datetime
+
+
+class InterviewGenerateRequest(BaseModel):
+    role_title: str = Field(min_length=2, max_length=160)
+    domain: str = Field(pattern="^(Technical|Behavioral|Aptitude)$")
+    difficulty: str = Field(pattern="^(Easy|Medium|Hard)$")
+    question_count: int = Field(default=5, ge=3, le=10)
+
+
+class InterviewAnswerRequest(BaseModel):
+    answer: str = Field(min_length=1, max_length=5000)
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -199,6 +273,34 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
 
 
+class InterviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    role_title: str
+    domain: str
+    difficulty: str
+    status: InterviewStatus
+    questions: list[dict]
+    answers: list[dict]
+    feedback: dict | None = None
+    current_question: int
+    created_at: datetime
+    started_at: datetime | None = None
+    paused_at: datetime | None = None
+    completed_at: datetime | None = None
+    ended_at: datetime | None = None
+    has_recording: bool = False
+    recorded_at: datetime | None = None
+
+
+class ResumeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    file_name: str
+    extracted_data: dict
+    uploaded_at: datetime
+
+
 class GrowthPoint(BaseModel):
     month: str
     users: int
@@ -257,6 +359,16 @@ def create_tables() -> None:
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"))
         connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS feedback JSON"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_path VARCHAR(255)"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_content_type VARCHAR(80)"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_size INTEGER"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMPTZ"))
+        # Extends the PostgreSQL enum for databases created before pause/end support.
+        connection.execute(text("ALTER TYPE interviewstatus ADD VALUE IF NOT EXISTS 'PAUSED'"))
+        connection.execute(text("ALTER TYPE interviewstatus ADD VALUE IF NOT EXISTS 'ENDED'"))
 
 
 def database() -> Generator[Session, None, None]:
@@ -282,6 +394,143 @@ def record_login(db: Session, user: User) -> None:
     # Adds a successful-login event for the Admin dashboard activity feed.
     db.add(LoginEvent(user_id=user.id, email=user.email, provider=user.provider))
     db.commit()
+
+
+QUESTION_TEMPLATES = {
+    "Technical": {
+        "Easy": ["What core skills are important for a {role}?", "Explain one tool or technology you would use as a {role}.", "Describe a simple problem you could solve in a {role} role.", "How would you check that your work as a {role} is correct?", "What is one concept you are currently learning for {role}?"],
+        "Medium": ["How would you design a reliable solution for a common {role} problem?", "Describe how you would debug an issue in a {role} project.", "What trade-offs would you consider before choosing a technology for {role}?", "Explain how you would improve performance in a {role} workflow.", "How would you collaborate with another team to deliver a {role} feature?"],
+        "Hard": ["Design a scalable architecture for a high-traffic {role} system and explain the trade-offs.", "How would you diagnose an intermittent production issue in a {role} application?", "Describe a secure, maintainable solution to a complex {role} requirement.", "How would you measure and improve the reliability of a {role} platform?", "Explain how you would lead a technical decision with incomplete information as a {role}."],
+    },
+    "Behavioral": {
+        "Easy": ["Tell me about yourself and why you are interested in {role}.", "Describe a time you learned a new skill for a {role} task.", "How do you receive feedback from teammates?", "What motivates you in a {role} role?", "Describe a project you are proud of."],
+        "Medium": ["Tell me about a conflict in a team and how you resolved it.", "Describe a time you had to meet a difficult deadline.", "How have you handled a mistake in a project?", "Give an example of influencing others without formal authority.", "Tell me about a time you improved an existing process."],
+        "Hard": ["Describe a high-stakes decision you made with limited information.", "Tell me about a time you led through a major change.", "Describe a situation where you had to balance quality, scope, and time.", "How did you recover a project that was at risk of failing?", "Tell me about a difficult ethical decision at work."],
+    },
+    "Aptitude": {
+        "Easy": ["A task takes 4 hours. If two equally productive people work together, how long does it take?", "Identify the next number: 2, 6, 12, 20, __.", "A project has 5 tasks and each takes 2 days. How many total task-days are required?", "Explain how you would prioritize three tasks with different deadlines.", "If a process improves from 80% to 90%, what is the percentage-point improvement?"],
+        "Medium": ["A team completes 60% of work in 6 days at a constant pace. How many more days are needed?", "A system handles 120 requests per minute and demand rises by 25%. What is the new demand?", "You have two proposals with different risks and benefits. How would you compare them?", "A budget decreases by 15% from 200,000. What is the remaining budget?", "How would you estimate effort when requirements are incomplete?"],
+        "Hard": ["Design a method to decide which of three urgent incidents should be handled first.", "A metric rose 20% and then fell 20%. Is it back to the original value? Explain.", "How would you test whether a reported productivity improvement is statistically meaningful?", "Explain a framework for making a decision with uncertain outcomes.", "How would you identify the root cause of a complex multi-step failure?"],
+    },
+}
+
+
+def generate_template_questions(role_title: str, domain: str, difficulty: str, count: int) -> list[dict]:
+    # Keeps local sample questions available for an optional offline-development version.
+    templates = QUESTION_TEMPLATES[domain][difficulty]
+    questions = [template.format(role=role_title) for template in templates]
+    while len(questions) < count:
+        questions.append(f"What additional challenge would you expect in a {role_title} {domain.lower()} interview?")
+    return [{"number": index + 1, "text": question} for index, question in enumerate(questions[:count])]
+
+
+def generate_ai_json(prompt: str, temperature: float, timeout: int) -> object | None:
+    # Uses Gemini first, then the local Ollama model if Gemini is unavailable or out of quota.
+    if GEMINI_API_KEY:
+        try:
+            response = httpx.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+                params={"key": GEMINI_API_KEY},
+                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": temperature, "responseMimeType": "application/json"}},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return json.loads(response.json()["candidates"][0]["content"]["parts"][0]["text"])
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    try:
+        response = httpx.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "format": "json", "stream": False, "options": {"temperature": temperature}},
+            timeout=max(timeout, 90),
+        )
+        response.raise_for_status()
+        return json.loads(response.json()["response"])
+    except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def generate_questions(role_title: str, domain: str, difficulty: str, count: int) -> list[dict]:
+    # Uses Gemini first and automatically switches to Ollama for fresh role-specific questions.
+    domain_rule = {
+        "Technical": "Ask only job-relevant technical questions for the stated role.",
+        "Behavioral": "Ask only behavioral and situational questions. Do not ask coding or aptitude puzzles.",
+        "Aptitude": "Ask only role-neutral quantitative reasoning, logical reasoning, verbal reasoning, data interpretation, or problem-solving questions. Never ask programming, coding, language-specific, framework-specific, or job-technology questions, even if the target role is a developer.",
+    }[domain]
+    prompt = (
+        "Create interview questions for a candidate. Return only a JSON array of strings, with no Markdown or explanation. "
+        f"Create exactly {count} {difficulty.lower()} {domain.lower()} interview questions for the role: {role_title}. "
+        f"{domain_rule} Make every question distinct, clear, realistic, and suitable for a practice interview."
+    )
+    generated_questions = generate_ai_json(prompt, temperature=0.7, timeout=30)
+    if isinstance(generated_questions, list) and len(generated_questions) == count and all(isinstance(question, str) and question.strip() for question in generated_questions):
+        return [{"number": index + 1, "text": question.strip()} for index, question in enumerate(generated_questions)]
+    # Keeps interview creation available even when both AI services are temporarily unavailable.
+    return generate_template_questions(role_title, domain, difficulty, count)
+
+
+def generate_feedback(interview: Interview) -> dict:
+    # Uses Gemini to assess the completed answers and create a concise practice report.
+    score_categories = {
+        "Technical": ["technical", "communication", "problem_solving"],
+        "Behavioral": ["communication", "teamwork", "leadership"],
+        "Aptitude": ["quantitative_reasoning", "logical_reasoning", "problem_solving"],
+    }[interview.domain]
+    category_shape = ", ".join(f'"{category}": 0-100' for category in score_categories)
+    transcript = "\n".join(
+        f"Question {question['number']}: {question['text']}\nAnswer: {answer.get('answer', '')}"
+        for question, answer in zip(interview.questions or [], interview.answers or [])
+    )
+    prompt = (
+        "Assess this practice interview fairly and constructively. Return only JSON with this exact shape: "
+        f'{{"overall_score": 0-100, "category_scores": {{{category_shape}}}, '
+        '"strengths": ["short point"], "improvements": ["short actionable point"], "summary": "short encouraging summary"}. '
+        f"Role: {interview.role_title}. Domain: {interview.domain}. Difficulty: {interview.difficulty}.\n\n{transcript}"
+    )
+    feedback = generate_ai_json(prompt, temperature=0.35, timeout=45)
+    if isinstance(feedback, dict):
+        score = feedback.get("overall_score")
+        categories = feedback.get("category_scores")
+        if isinstance(score, (int, float)) and 0 <= score <= 100 and isinstance(categories, dict):
+            return feedback
+    # Keeps the completed interview usable if both AI services are temporarily unavailable.
+    return {"overall_score": 0, "category_scores": {}, "strengths": [], "improvements": [], "summary": "Your answers were saved. AI feedback is temporarily unavailable; please try another practice interview later."}
+
+
+def extract_resume_text(file_name: str, file_bytes: bytes) -> str:
+    # Reads text from the supported resume formats before sending it for AI analysis.
+    suffix = Path(file_name).suffix.lower()
+    try:
+        if suffix == ".pdf":
+            return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(file_bytes)).pages).strip()
+        if suffix == ".docx":
+            document = Document(BytesIO(file_bytes))
+            return "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The resume could not be read. Upload a valid text-based PDF or DOCX file.") from exc
+    raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Only PDF and DOCX resume files are supported.")
+
+
+def analyze_resume(resume_text: str) -> dict:
+    # Extracts structured skills, projects, education, and summary information with Gemini or Ollama.
+    prompt = (
+        "Extract candidate information from this resume. Return only JSON in this exact shape: "
+        '{"summary":"short profile summary", "skills":["skill"], "projects":[{"name":"project name", "description":"one short description", "technologies":["technology"]}], '
+        '"education":["education item"], "experience":["experience item"]}. '
+        "Do not invent information. Use empty arrays when a section is absent.\n\nRESUME:\n"
+        f"{resume_text[:24000]}"
+    )
+    analysis = generate_ai_json(prompt, temperature=0.1, timeout=45)
+    required_fields = {"summary", "skills", "projects", "education", "experience"}
+    if isinstance(analysis, dict) and required_fields.issubset(analysis) and isinstance(analysis["skills"], list):
+        return analysis
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI resume analysis is temporarily unavailable. Start Ollama with the configured model and try again.")
+
+
+def to_interview(interview: Interview) -> InterviewResponse:
+    # Converts a saved interview session into the API format used by the dashboard.
+    return InterviewResponse.model_validate(interview)
 
 
 def current_user(request: Request, db: Session = Depends(database)) -> User:
@@ -420,6 +669,47 @@ def candidate_jobs(db: Session = Depends(database), user: User = Depends(require
     return [CandidateJobResponse(id=job.id, title=job.title, company=job.company, location=job.location, employment_type=job.employment_type, description=job.description, status=job.status, created_at=job.created_at, application_id=applications[job.id].id if job.id in applications else None, application_status=applications[job.id].status if job.id in applications else None) for job in jobs]
 
 
+@app.get("/api/candidate/resume", response_model=ResumeResponse | None)
+def candidate_resume(db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> ResumeResponse | None:
+    # Returns the logged-in candidate's latest extracted resume details.
+    resume = db.query(Resume).filter(Resume.candidate_id == user.id).first()
+    return ResumeResponse.model_validate(resume) if resume else None
+
+
+@app.post("/api/candidate/resume", response_model=ResumeResponse)
+async def upload_resume(file: UploadFile = File(...), db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> ResumeResponse:
+    # Reads a PDF/DOCX resume, extracts structured details with Gemini, and saves the result.
+    file_name = file.filename or "resume"
+    if Path(file_name).suffix.lower() not in {".pdf", ".docx"}:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Upload a PDF or DOCX resume.")
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The selected resume file is empty.")
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Resume files must be 5 MB or smaller.")
+    resume_text = extract_resume_text(file_name, file_bytes)
+    if len(resume_text) < 40:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No readable text was found. Upload a text-based PDF or DOCX resume.")
+    extracted_data = analyze_resume(resume_text)
+    resume = db.query(Resume).filter(Resume.candidate_id == user.id).first()
+    if resume:
+        resume.file_name = file_name; resume.extracted_data = extracted_data; resume.uploaded_at = datetime.now(timezone.utc)
+    else:
+        resume = Resume(candidate_id=user.id, file_name=file_name, extracted_data=extracted_data)
+        db.add(resume)
+    db.commit(); db.refresh(resume)
+    return ResumeResponse.model_validate(resume)
+
+
+@app.delete("/api/candidate/resume", status_code=status.HTTP_204_NO_CONTENT)
+def clear_resume(db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> None:
+    # Removes the logged-in candidate's saved resume analysis from PostgreSQL.
+    resume = db.query(Resume).filter(Resume.candidate_id == user.id).first()
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No saved resume analysis was found.")
+    db.delete(resume); db.commit()
+
+
 @app.post("/api/candidate/jobs/{job_id}/apply", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 def apply_for_job(job_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> ApplicationResponse:
     # Creates one application per candidate per open job.
@@ -444,6 +734,178 @@ def request_interview(application_id: int, request: InterviewTimeRequest, db: Se
     application.status = ApplicationStatus.INTERVIEW_REQUESTED
     db.commit(); db.refresh(application)
     return ApplicationResponse(id=application.id, job_id=job.id, job_title=job.title, company=job.company, status=application.status, preferred_interview_at=application.preferred_interview_at, scheduled_interview_at=None, created_at=application.created_at)
+
+
+@app.post("/api/interviews/generate", response_model=InterviewResponse, status_code=status.HTTP_201_CREATED)
+def generate_interview(request: InterviewGenerateRequest, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Saves a new role-based practice interview with its generated questions.
+    interview = Interview(
+        candidate_id=user.id,
+        role_title=request.role_title.strip(),
+        domain=request.domain,
+        difficulty=request.difficulty,
+        questions=generate_questions(request.role_title.strip(), request.domain, request.difficulty, request.question_count),
+    )
+    db.add(interview); db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.get("/api/interviews", response_model=list[InterviewResponse])
+@app.get("/api/interviews/history", response_model=list[InterviewResponse])
+def interview_history(db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> list[InterviewResponse]:
+    # Returns the authenticated candidate's generated and completed interview sessions.
+    interviews = db.query(Interview).filter(Interview.candidate_id == user.id).order_by(Interview.created_at.desc()).all()
+    return [to_interview(interview) for interview in interviews]
+
+
+@app.get("/api/interviews/{interview_id}", response_model=InterviewResponse)
+def get_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Retrieves one interview only when it belongs to the logged-in candidate.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/start", response_model=InterviewResponse)
+def start_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Marks a generated interview as in progress while keeping its original questions.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.status in {InterviewStatus.COMPLETED, InterviewStatus.ENDED}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This interview is already completed or ended.")
+    interview.status = InterviewStatus.IN_PROGRESS
+    interview.started_at = interview.started_at or datetime.now(timezone.utc)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/pause", response_model=InterviewResponse)
+def pause_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.status in {InterviewStatus.COMPLETED, InterviewStatus.ENDED}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This interview cannot be paused after it is finished.")
+    if interview.status == InterviewStatus.PAUSED:
+        return to_interview(interview)
+    interview.status = InterviewStatus.PAUSED
+    interview.paused_at = datetime.now(timezone.utc)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/resume", response_model=InterviewResponse)
+def resume_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.status in {InterviewStatus.COMPLETED, InterviewStatus.ENDED}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This interview is already finished.")
+    if interview.status == InterviewStatus.IN_PROGRESS:
+        return to_interview(interview)
+    interview.status = InterviewStatus.IN_PROGRESS
+    interview.started_at = interview.started_at or datetime.now(timezone.utc)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/end", response_model=InterviewResponse)
+def end_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.status in {InterviewStatus.COMPLETED, InterviewStatus.ENDED}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This interview has already ended.")
+    interview.status = InterviewStatus.ENDED
+    interview.ended_at = datetime.now(timezone.utc)
+    interview.started_at = interview.started_at or interview.ended_at
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.put("/api/interviews/{interview_id}", response_model=InterviewResponse)
+def answer_interview_question(interview_id: int, request: InterviewAnswerRequest, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Saves the answer for the current question and completes the session after the final answer.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.status not in {InterviewStatus.IN_PROGRESS, InterviewStatus.GENERATED}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Start the interview before submitting an answer.")
+    if interview.current_question >= len(interview.questions or []):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="All interview questions have already been answered.")
+    answers = list(interview.answers or [])
+    answers.append({"question_number": interview.current_question + 1, "answer": request.answer.strip(), "answered_at": datetime.now(timezone.utc).isoformat()})
+    interview.answers = answers
+    interview.current_question += 1
+    if interview.current_question >= len(interview.questions):
+        interview.status = InterviewStatus.COMPLETED
+        interview.completed_at = datetime.now(timezone.utc)
+        interview.ended_at = interview.completed_at
+        interview.feedback = generate_feedback(interview)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/recording", response_model=InterviewResponse)
+async def upload_interview_recording(interview_id: int, file: UploadFile = File(...), db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Stores a browser-recorded interview under a random private filename owned by its candidate.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    content_type = (file.content_type or "").lower()
+    if not (content_type.startswith("video/webm") or content_type.startswith("video/mp4")):
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Only WebM or MP4 interview recordings are supported.")
+    RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+    extension = ".mp4" if content_type.startswith("video/mp4") else ".webm"
+    filename = f"interview-{interview.id}-{uuid.uuid4().hex}{extension}"
+    destination = RECORDINGS_DIR / filename
+    total_bytes = 0
+    try:
+        with destination.open("wb") as output:
+            while chunk := await file.read(1024 * 1024):
+                total_bytes += len(chunk)
+                if total_bytes > MAX_RECORDING_BYTES:
+                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The recording is larger than the 150 MB limit.")
+                output.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        await file.close()
+    old_recording = RECORDINGS_DIR / interview.recording_path if interview.recording_path else None
+    if old_recording:
+        old_recording.unlink(missing_ok=True)
+    interview.recording_path = filename
+    interview.recording_content_type = content_type.split(";", 1)[0]
+    interview.recording_size = total_bytes
+    interview.recorded_at = datetime.now(timezone.utc)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.get("/api/interviews/{interview_id}/recording")
+def access_interview_recording(interview_id: int, db: Session = Depends(database), user: User = Depends(current_user)) -> FileResponse:
+    # Allows only the recording owner or an Admin to stream a private interview recording.
+    interview = db.get(Interview, interview_id)
+    if not interview or not interview.recording_path or (interview.candidate_id != user.id and user.role != Role.ADMIN):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording not found.")
+    recording = RECORDINGS_DIR / interview.recording_path
+    if not recording.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording file not found.")
+    return FileResponse(recording, media_type=interview.recording_content_type or "video/webm", filename=f"interview-{interview.id}-recording")
+
+
+@app.delete("/api/interviews/{interview_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_interview(interview_id: int, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> None:
+    # Removes one of the logged-in candidate's saved practice sessions.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    if interview.recording_path:
+        (RECORDINGS_DIR / interview.recording_path).unlink(missing_ok=True)
+    db.delete(interview); db.commit()
 
 
 @app.get("/api/admin/access")
