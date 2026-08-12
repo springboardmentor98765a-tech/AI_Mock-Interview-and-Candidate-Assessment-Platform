@@ -1,17 +1,7 @@
-import { defineConfig } from "vite";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-// SmartHire AI is a multi-page static site (no framework).
-// We list every HTML page as a build entry point so Vite outputs
-// all four pages into dist/ instead of only index.html.
+// https://vite.dev/config/
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      input: {
-        index:      "index.html",
-        candidate:  "candidate.html",
-        recruiter:  "recruiter.html",
-        admin:      "admin.html"
-      }
-    }
-  }
-});
+  plugins: [react()],
+})
