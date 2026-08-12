@@ -6,7 +6,7 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -15,6 +15,7 @@ def get_db():
 
 def init_db():
     conn = get_db()
+    conn.execute("PRAGMA foreign_keys=OFF")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,12 +140,67 @@ def init_db():
 
 
     tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-    if "interview" in tables and "interview_session" not in tables:
-        conn.execute("ALTER TABLE interview RENAME TO interview_session")
+    if "interview" in tables:
+        conn.execute("""
+            INSERT OR IGNORE INTO interview_session (
+                id, user_id, candidate_id, interview_type, domain, difficulty, duration, created_at, status, started_at, completed_at, total_score, communication_score, confidence_score, technical_score, professionalism_score, overall_score, performance_rating, strengths_json, weaknesses_json, improvements_json, recommendations_json, resources_json, detailed_parameters_json
+            )
+            SELECT 
+                id, user_id, user_id, interview_type, domain, difficulty, 15, created_at, COALESCE(status, 'created'), started_at, completed_at, total_score, communication_score, confidence_score, technical_score, professionalism_score, overall_score, performance_rating, strengths_json, weaknesses_json, improvements_json, recommendations_json, resources_json, detailed_parameters_json
+            FROM interview
+        """)
+        conn.execute("DROP TABLE interview")
 
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
     if "is_super_admin" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0")
+
+    # Check if interview_session has an old status CHECK constraint that blocks 'paused'
+    table_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='interview_session'").fetchone()
+    if table_sql and table_sql[0] and "CHECK(status IN" in table_sql[0] and "'paused'" not in table_sql[0]:
+        conn.execute("DROP TABLE IF EXISTS interview_session_old")
+        conn.execute("ALTER TABLE interview_session RENAME TO interview_session_old")
+        conn.execute("""
+            CREATE TABLE interview_session (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                candidate_id INTEGER NOT NULL,
+                interview_type TEXT NOT NULL,
+                domain TEXT,
+                difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+                duration INTEGER NOT NULL DEFAULT 15,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT NOT NULL DEFAULT 'created',
+                elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+                current_question_index INTEGER NOT NULL DEFAULT 0,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                total_score REAL,
+                communication_score REAL,
+                confidence_score REAL,
+                technical_score REAL,
+                professionalism_score REAL,
+                overall_score REAL,
+                performance_rating TEXT,
+                strengths_json TEXT,
+                weaknesses_json TEXT,
+                improvements_json TEXT,
+                recommendations_json TEXT,
+                resources_json TEXT,
+                detailed_parameters_json TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        """)
+        old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(interview_session_old)").fetchall()]
+        new_cols = [r["name"] for r in conn.execute("PRAGMA table_info(interview_session)").fetchall()]
+        common_cols = [c for c in old_cols if c in new_cols]
+        cols_str = ", ".join(common_cols)
+        conn.execute(f"INSERT INTO interview_session ({cols_str}) SELECT {cols_str} FROM interview_session_old")
+        conn.execute("DROP TABLE interview_session_old")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_user_id ON interview_session(user_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_candidate_id ON interview_session(candidate_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_type ON interview_session(interview_type);")
 
     session_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_session)").fetchall()}
     if "candidate_id" not in session_cols:
@@ -156,7 +212,11 @@ def init_db():
     conn.execute("UPDATE interview_session SET duration = 15 WHERE duration IS NULL")
 
     if "status" not in session_cols:
-        conn.execute("ALTER TABLE interview_session ADD COLUMN status TEXT NOT NULL DEFAULT 'created' CHECK(status IN ('created', 'in_progress', 'completed'))")
+        conn.execute("ALTER TABLE interview_session ADD COLUMN status TEXT NOT NULL DEFAULT 'created'")
+    if "elapsed_seconds" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN elapsed_seconds INTEGER NOT NULL DEFAULT 0")
+    if "current_question_index" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN current_question_index INTEGER NOT NULL DEFAULT 0")
     if "started_at" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN started_at TIMESTAMP")
     if "completed_at" not in session_cols:
@@ -189,6 +249,39 @@ def init_db():
         conn.execute("ALTER TABLE interview_session ADD COLUMN detailed_parameters_json TEXT")
 
 
+
+    # Fix foreign key constraint if interview_question references old 'interview' table
+    q_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='interview_question'").fetchone()
+    if q_sql and q_sql[0] and "REFERENCES interview(" in q_sql[0]:
+        conn.execute("ALTER TABLE interview_question RENAME TO interview_question_old")
+        conn.execute("""
+            CREATE TABLE interview_question (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                interview_id INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                category TEXT,
+                difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+                sequence_no INTEGER NOT NULL,
+                answer_text TEXT,
+                score REAL,
+                feedback TEXT,
+                communication_score REAL,
+                confidence_score REAL,
+                technical_score REAL,
+                professionalism_score REAL,
+                parameters_json TEXT,
+                FOREIGN KEY (interview_id) REFERENCES interview_session(id) ON DELETE CASCADE
+            );
+        """)
+        old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(interview_question_old)").fetchall()]
+        new_cols = [r["name"] for r in conn.execute("PRAGMA table_info(interview_question)").fetchall()]
+        common_cols = [c for c in old_cols if c in new_cols]
+        cols_str = ", ".join(common_cols)
+        conn.execute(f"INSERT INTO interview_question ({cols_str}) SELECT {cols_str} FROM interview_question_old")
+        conn.execute("DROP TABLE interview_question_old")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_question_interview_id ON interview_question(interview_id);")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_interview_question_sequence ON interview_question(interview_id, sequence_no);")
+
     question_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_question)").fetchall()}
     if "answer_text" not in question_cols:
         conn.execute("ALTER TABLE interview_question ADD COLUMN answer_text TEXT")
@@ -211,4 +304,5 @@ def init_db():
     conn.close()
 
 
-init_db()
+if __name__ == "__main__":
+    init_db()

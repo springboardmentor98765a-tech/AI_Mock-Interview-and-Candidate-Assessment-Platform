@@ -89,7 +89,7 @@ def google_login(req: GoogleLoginRequest):
         if not GOOGLE_CLIENT_ID:
             raise HTTPException(503, "Google OAuth is not configured.")
 
-        idinfo = id_token.verify_oauth2_token(req.credential, grequests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=10)
+        idinfo = id_token.verify_oauth2_token(req.credential, grequests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=60)
         google_id = idinfo["sub"]
         email = idinfo["email"]
         name = idinfo.get("name", email.split("@")[0])

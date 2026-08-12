@@ -6,10 +6,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from contextlib import asynccontextmanager
 from config import PORT
+from database import init_db
 from routes import auth, users, interviews, assessments
 
-app = FastAPI(title="SmartHire AI", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="SmartHire AI", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

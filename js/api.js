@@ -77,6 +77,21 @@ var api = {
   startInterview: function(interviewId) {
     return apiRequest('/interviews/' + interviewId + '/start', { method: 'POST' });
   },
+  pauseInterview: function(id, currentQuestionIndex, elapsedSeconds) {
+    return apiRequest('/interviews/' + id, {
+      method: 'PUT',
+      body: { status: 'paused', current_question_index: currentQuestionIndex, elapsed_seconds: elapsedSeconds }
+    });
+  },
+  resumeInterview: function(id) {
+    return apiRequest('/interviews/' + id + '/resume', { method: 'POST' });
+  },
+  endInterview: function(id, elapsedSeconds) {
+    return apiRequest('/interviews/' + id, {
+      method: 'PUT',
+      body: { status: 'completed', elapsed_seconds: elapsedSeconds }
+    });
+  },
   submitInterviewAnswer: function(interviewId, questionId, answerText) {
     return apiRequest('/interviews/' + interviewId + '/answer', {
       method: 'POST',
@@ -137,6 +152,30 @@ var api = {
   },
   getAssessmentHistory: function() {
     return apiRequest('/assessments/history');
+  },
+  uploadInterviewRecording: function(interviewId, blob, meta) {
+    var formData = new FormData();
+    formData.append('file', blob, 'recording.webm');
+    formData.append('recording_type', (meta && meta.recording_type) || 'video');
+    if (meta && meta.duration) formData.append('duration', String(meta.duration));
+    if (meta && meta.mime_type) formData.append('mime_type', meta.mime_type);
+
+    var token = localStorage.getItem('smarthire_token');
+    var headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(API_BASE + '/interviews/' + interviewId + '/recordings/upload', {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    }).then(async function(res) {
+      var data;
+      try { data = await res.json(); } catch(_) { throw new Error('Recording upload failed.'); }
+      if (!res.ok) throw new Error(data.detail || data.error || data.message || 'Recording upload failed.');
+      return data;
+    });
+  },
+  getInterviewRecordings: function(interviewId) {
+    return apiRequest('/interviews/' + interviewId + '/recordings');
   },
 };
 

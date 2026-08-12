@@ -10,22 +10,32 @@ function candidateOverview() {
   var data = state.analyticsData || { sessions_completed: 0 };
   var hasData = data.sessions_completed > 0;
   var overall = data.avg_overall || 0;
+  var activeRating = data.performance_rating || reportScoreRating(overall);
+  var ratingColor = activeRating === 'Excellent' ? EMERALD : activeRating === 'Good' ? INDIGO : activeRating === 'Average' ? AMBER : ROSE;
   var history = data.history || [];
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
+
+  var rubricTiers = [
+    { range: '90–100%', label: 'Excellent', text: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', activeBg: 'background:rgba(16,185,129,0.22);border:1.5px solid #10b981' },
+    { range: '75–89%', label: 'Good', text: 'text-indigo-300', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', activeBg: 'background:rgba(99,102,241,0.22);border:1.5px solid #818cf8' },
+    { range: '60–74%', label: 'Average', text: 'text-amber-300', bg: 'bg-amber-500/10', border: 'border-amber-500/20', activeBg: 'background:rgba(245,158,11,0.22);border:1.5px solid #fbbf24' },
+    { range: '40–59%', label: 'Needs Improvement', text: 'text-rose-300', bg: 'bg-rose-500/10', border: 'border-rose-500/20', activeBg: 'background:rgba(244,63,94,0.22);border:1.5px solid #f43f5e' },
+    { range: 'Below 40%', label: 'Poor', text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', activeBg: 'background:rgba(225,29,72,0.25);border:1.5px solid #f43f5e' },
+  ];
 
   return `<div class="space-y-6">
     <div><h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Good day, ${userName} 👋</h1><p class="text-white/40 text-sm mt-1">Welcome to your SmartHire AI evaluation dashboard.</p></div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       ${statCard(icon('play', 18), 'Sessions Completed', String(data.sessions_completed), null, INDIGO)}
       ${statCard(icon('star', 18), 'Avg. Score', hasData ? overall.toFixed(1) + '%' : '—', null, CYAN)}
-      ${statCard(icon('activity', 18), 'Rating Rubric', data.performance_rating || '—', null, EMERALD)}
+      ${statCard(icon('activity', 18), 'Rating Rubric', activeRating || '—', null, ratingColor)}
       ${statCard(icon('award', 18), 'Top Parameter', data.top_skill || '—', null, AMBER)}
     </div>
     <div class="grid grid-cols-3 gap-4">
       <div class="col-span-2 rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
         <div class="flex items-center justify-between mb-4">
           <div><p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Assessment Breakdown</p><p class="text-white/35 text-xs mt-0.5">${hasData ? 'Weighted parameter scores across completed sessions' : 'No evaluation data yet'}</p></div>
-          ${hasData ? renderRubricBadge(data.performance_rating, overall) : ''}
+          ${hasData ? renderRubricBadge(activeRating, overall) : ''}
         </div>
         ${hasData ? `<div class="space-y-3 pt-2">
           ${[
@@ -50,10 +60,20 @@ function candidateOverview() {
         <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">Rubric Scale</p>
         <p class="text-white/35 text-xs mb-3">Evaluation grading rubric</p>
         <div class="space-y-2 text-xs">
-          <div class="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex justify-between font-medium"><span>90-100%</span><span>Excellent</span></div>
-          <div class="p-2 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex justify-between font-medium"><span>75-89%</span><span>Good</span></div>
-          <div class="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 flex justify-between font-medium"><span>60-74%</span><span>Average</span></div>
-          <div class="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 flex justify-between font-medium"><span>40-59%</span><span>Needs Imp.</span></div>
+          ${rubricTiers.map(function(rub) {
+            var isCurrent = hasData && (activeRating === rub.label);
+            var styleAttr = isCurrent ? rub.activeBg : '';
+            var classAttr = isCurrent
+              ? 'p-2 rounded flex items-center justify-between font-bold text-white shadow-lg transition-all'
+              : 'p-2 rounded ' + rub.bg + ' border ' + rub.border + ' ' + rub.text + ' flex justify-between font-medium transition-all';
+            return `<div class="${classAttr}" style="${styleAttr}">
+              <span>${rub.range}</span>
+              <span class="flex items-center gap-1.5">
+                ${isCurrent ? `<span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-extrabold bg-white/20 text-white">Current</span>` : ''}
+                ${rub.label}
+              </span>
+            </div>`;
+          }).join('')}
         </div>
       </div>
     </div>
@@ -70,7 +90,7 @@ function candidateOverview() {
                 <span class="text-white font-semibold text-sm uppercase">${h.interview_type} Interview</span>
                 ${renderRubricBadge(h.performance_rating, s)}
               </div>
-              <p class="text-white/40 text-xs mt-0.5">${h.domain || 'General Domain'} &bull; ${h.completed_at || 'Recently'}</p>
+              <p class="text-white/40 text-xs mt-0.5">${h.domain || 'General Domain'} &bull; ${formatDateTime(h.completed_at || h.created_at)}</p>
             </div>
             <div class="flex items-center gap-4">
               <span class="text-white font-bold text-base">${s.toFixed(1)}%</span>
@@ -153,7 +173,9 @@ function renderConfigModal(t) {
   var isQ = state.configMode === 'questions';
   var focusOptions = CONFIG_FOCUS[t.key] || [];
   var configError = state.configError || '';
-  var devReady = state.deviceTested;
+  var webcamReady = state.webcamStatus === 'Ready';
+  var micReady = state.micStatus === 'Ready';
+  var devReady = webcamReady && micReady;
 
   /* ── Active chip class helpers ── */
   function chipClass(isActive, colorName) {
@@ -267,17 +289,17 @@ function renderConfigModal(t) {
       <div class="mic-device-bar">
         <div style="display:flex;align-items:center;gap:1rem">
           <span class="mic-device-indicator">
-            <span class="mic-device-dot ${devReady ? 'ready' : 'warn'}"></span>
-            Webcam: <span class="mic-device-label ${devReady ? 'ready' : 'warn'}">${devReady ? 'Ready' : 'Not tested'}</span>
+            <span class="mic-device-dot ${webcamReady ? 'ready' : 'warn'}"></span>
+            Webcam: <span class="mic-device-label ${webcamReady ? 'ready' : 'warn'}">${state.webcamStatus || 'Not tested'}</span>
           </span>
           <span class="mic-device-indicator">
-            <span class="mic-device-dot ${devReady ? 'ready' : 'warn'}"></span>
-            Mic: <span class="mic-device-label ${devReady ? 'ready' : 'warn'}">${devReady ? 'Ready' : 'Not tested'}</span>
+            <span class="mic-device-dot ${micReady ? 'ready' : 'warn'}"></span>
+            Mic: <span class="mic-device-label ${micReady ? 'ready' : 'warn'}">${state.micStatus || 'Not tested'}</span>
           </span>
         </div>
         <button id="btn-test-devices" class="mic-test-btn">${icon('video', 10)} Test Devices</button>
       </div>
-      <p id="device-status" class="mic-device-msg" role="status">${devReady ? 'Devices verified successfully.' : 'Test your camera and microphone before starting.'}</p>
+      <p id="device-status" class="mic-device-msg" role="status">${devReady ? 'Devices verified successfully.' : (state.deviceError || 'Test your camera and microphone before starting.')}</p>
 
       <!-- Summary -->
       <div class="mic-summary">
@@ -304,58 +326,389 @@ function candidateSession() {
   if (!session || !session.interview || !session.questions || !session.questions.length) {
     return `<div class="flex flex-col items-center justify-center h-80 text-center"><h2 class="text-xl font-semibold text-white mb-2">No active interview</h2><p class="text-white/40 text-sm mb-5">Choose an interview type to generate a session.</p><button id="btn-back-to-interviews" class="px-4 py-2 rounded-lg text-sm text-white" style="background:${INDIGO}">Choose Interview</button></div>`;
   }
-  var question = session.questions[state.currentQuestionIndex];
+
+  var interview = session.interview;
+  var status = interview.status || 'created';
   var total = session.questions.length;
+  var currentIdx = state.currentQuestionIndex || 0;
+  if (currentIdx >= total) currentIdx = total - 1;
+  var question = session.questions[currentIdx];
+  var durationMin = interview.duration || 15;
+  var totalSec = durationMin * 60;
+  var elapsed = state.sessionElapsedSeconds || interview.elapsed_seconds || 0;
+  var remainSec = Math.max(0, totalSec - elapsed);
+  var min = Math.floor(remainSec / 60);
+  var sec = remainSec % 60;
+  var timerStr = (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
+
+  // Case 1: Session is Completed
+  if (status === 'completed') {
+    var answeredCount = session.questions.filter(function(q) { return q.answer_text; }).length;
+    var elMin = Math.floor(elapsed / 60);
+    var elSec = elapsed % 60;
+    var durText = elMin + ' min ' + elSec + ' sec';
+    var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
+
+    return `<div class="max-w-xl mx-auto my-12 p-8 rounded-2xl border border-white/10 text-center space-y-6" style="background:#0c0e1c">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+        ${icon('checkCircle', 32)}
+      </div>
+      <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Interview Completed</h1>
+      <p class="text-white/50 text-sm">Your AI Mock Interview session has been finished and evaluated.</p>
+      
+      <div class="grid grid-cols-2 gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+        <div>
+          <p class="text-white/40 text-xs uppercase font-medium">Questions Completed</p>
+          <p class="text-lg font-bold text-white mt-1">${answeredCount} / ${total}</p>
+        </div>
+        <div>
+          <p class="text-white/40 text-xs uppercase font-medium">Duration</p>
+          <p class="text-lg font-bold text-white mt-1">${durText}</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <button id="btn-view-interview-report" data-id="${interview.id}" class="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white transition-all shadow-lg hover:brightness-110" style="background:${INDIGO}">View Summary</button>
+        <button id="btn-back-to-interviews" class="py-3 px-4 rounded-xl text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20">Back</button>
+      </div>
+    </div>
+    ${modalHtml}`;
+  }
+
+  // Header meta bar
+  var itype = (interview.interview_type || 'technical').toUpperCase();
+  var domain = interview.domain || 'General';
+  var difficulty = (interview.difficulty || 'medium').toUpperCase();
+
+  var webcamReady = state.webcamStatus === 'Ready';
+  var micReady = state.micStatus === 'Ready';
+  var devReady = webcamReady && micReady;
+  var webcamLabel = state.webcamStatus || 'Requesting...';
+  var micLabel = state.micStatus || 'Requesting...';
+  var webcamDot = webcamReady ? 'bg-emerald-400' : 'bg-rose-400';
+  var micDot = micReady ? 'bg-emerald-400' : 'bg-rose-400';
+  var webcamBadgeStyle = webcamReady
+    ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
+    : 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
+  var micBadgeStyle = micReady
+    ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
+    : 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
+
+  // Recording Status Badge UI
+  var recStatus = state.sessionRecordingStatus || (status === 'created' ? 'ready' : 'idle');
+  var recLabel = 'Ready';
+  var recDot = 'bg-amber-400';
+  var recBadgeStyle = 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)';
+
+  if (recStatus === 'recording') {
+    recLabel = 'Recording';
+    recDot = 'bg-emerald-400 animate-pulse';
+    recBadgeStyle = 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)';
+  } else if (recStatus === 'paused') {
+    recLabel = 'Paused';
+    recDot = 'bg-amber-400';
+    recBadgeStyle = 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)';
+  } else if (recStatus === 'processing') {
+    recLabel = 'Processing...';
+    recDot = 'bg-cyan-400 animate-pulse';
+    recBadgeStyle = 'background:rgba(6,182,212,0.15);color:#67e8f9;border:1px solid rgba(6,182,212,0.3)';
+  } else if (recStatus === 'saved') {
+    recLabel = 'Saved';
+    recDot = 'bg-emerald-400';
+    recBadgeStyle = 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)';
+  } else if (recStatus === 'error') {
+    recLabel = state.sessionRecordingError || 'Upload failed';
+    recDot = 'bg-rose-400';
+    recBadgeStyle = 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
+  }
+
+  // Status Badge UI
+  var statusBadge = '';
+  if (status === 'created') statusBadge = badge('Ready to Start', 'amber');
+  else if (status === 'in_progress') statusBadge = badge('● Live In Progress', 'emerald');
+  else if (status === 'paused') statusBadge = badge('⏸ Paused', 'amber');
+
+  // Case 2: Session is Created (Pre-start)
+  if (status === 'created') {
+    return `<div class="max-w-5xl mx-auto space-y-6">
+      <!-- Live Room Header -->
+      <div class="flex items-center justify-between p-6 rounded-2xl border border-white/8" style="background:#0c0e1c">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            ${badge(itype + ' INTERVIEW', 'indigo')}
+            ${badge(domain, 'indigo')}
+            ${badge(difficulty, 'amber')}
+            ${statusBadge}
+          </div>
+          <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Live AI Interview Room</h1>
+          <p class="text-white/50 text-sm mt-1">Camera and microphone ready. Click <strong>Start Interview</strong> to begin your session.</p>
+        </div>
+        <div class="text-right">
+          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Configured Duration</p>
+          <p class="text-2xl font-bold text-indigo-400 mt-1">${durationMin} min</p>
+        </div>
+      </div>
+
+      <!-- Preview Grid -->
+      <div class="grid grid-cols-2 gap-5">
+        <div class="rounded-xl border border-white/7 overflow-hidden relative flex flex-col justify-between" style="background:#0d0f1e">
+          <div class="relative w-full aspect-video bg-[#141627] flex items-center justify-center overflow-hidden">
+            <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover"></video>
+            ${!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/75 backdrop-blur-sm">
+              <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
+              <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
+              <p class="text-[11px] text-white/50 mt-1 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable video preview.'}</p>
+            </div>` : ''}
+          </div>
+          <div class="p-3 border-t border-white/6 bg-white/[0.02] flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${webcamBadgeStyle}">
+                <span class="w-1.5 h-1.5 rounded-full ${webcamDot}"></span>
+                Webcam: ${webcamLabel}
+              </span>
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${micBadgeStyle}">
+                <span class="w-1.5 h-1.5 rounded-full ${micDot}"></span>
+                Mic: ${micLabel}
+              </span>
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${recBadgeStyle}">
+                <span class="w-1.5 h-1.5 rounded-full ${recDot}"></span>
+                Recording: ${recLabel}
+              </span>
+            </div>
+            <button id="btn-test-room-devices" class="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-1.5 transition-all shrink-0">
+              ${icon('video', 12)} Test Devices
+            </button>
+          </div>
+          ${state.deviceError ? `<p class="px-3 py-2 text-xs text-rose-400 bg-rose-500/10 border-t border-rose-500/20">${state.deviceError}</p>` : ''}
+        </div>
+        
+        <div class="rounded-xl border border-white/7 p-6 flex flex-col justify-between" style="background:#0d0f1e">
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-white">Interview Overview</h3>
+            <div class="space-y-2 text-sm text-white/70">
+              <div class="flex justify-between py-2 border-b border-white/5"><span>Total Questions:</span> <strong class="text-white">${total} Questions</strong></div>
+              <div class="flex justify-between py-2 border-b border-white/5"><span>Time Duration:</span> <strong class="text-white">${durationMin} Minutes</strong></div>
+              <div class="flex justify-between py-2 border-b border-white/5"><span>Difficulty Level:</span> <strong class="text-white">${difficulty}</strong></div>
+            </div>
+          </div>
+          
+          <button id="btn-start-interview-session" class="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.01]" style="background:${INDIGO}">
+            ${icon('play', 18)} Start Interview
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Case 3: Session is in_progress or paused
   var transcriptText = state.currentTranscript || '';
+  var isPaused = status === 'paused';
+
   return `<div class="max-w-5xl mx-auto space-y-6">
-    <div class="flex items-center justify-between"><div><p class="text-white/40 text-xs uppercase tracking-wider">Live ${session.interview.interview_type} interview</p><h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Question ${state.currentQuestionIndex + 1} of ${total}</h1></div><button id="btn-end-session" class="text-xs text-white/50 hover:text-white">End session</button></div>
-    <div class="grid grid-cols-2 gap-5"><div class="rounded-xl border border-white/7 overflow-hidden" style="background:#0d0f1e"><video id="candidate-camera" autoplay muted playsinline class="w-full aspect-video object-cover" style="background:#141627"></video><p class="px-4 py-3 text-xs text-emerald-400">Camera and microphone connected</p></div><div class="rounded-xl border border-white/7 p-6 flex flex-col" style="background:#0d0f1e"><div class="flex items-center gap-2 mb-4">${badge(question.category || 'Interview', 'indigo')}${badge(question.difficulty || 'medium', 'amber')}</div><p class="text-white text-lg leading-relaxed flex-1">${question.question_text}</p></div></div>
+    <!-- Active Room Bar -->
+    <div class="flex items-center justify-between p-5 rounded-2xl border border-white/8" style="background:#0c0e1c">
+      <div class="flex items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-white/40 text-xs uppercase tracking-wider font-semibold">${itype} &bull; ${domain}</span>
+            ${statusBadge}
+          </div>
+          <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Question ${currentIdx + 1} of ${total}</h1>
+        </div>
+      </div>
+
+      <!-- Controls & Timer -->
+      <div class="flex items-center gap-4">
+        <div class="px-4 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-center">
+          <p class="text-white/40 text-[10px] uppercase font-bold tracking-wider">Time Remaining</p>
+          <p id="session-timer-display" class="text-xl font-mono font-bold ${remainSec < 60 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}">${timerStr}</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          ${isPaused ? `
+            <button id="btn-resume-interview-session" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white bg-emerald-600 hover:bg-emerald-500 flex items-center gap-1.5 transition-all">
+              ${icon('play', 14)} Resume Interview
+            </button>
+          ` : `
+            <button id="btn-pause-interview-session" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white/80 hover:text-white bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 flex items-center gap-1.5 transition-all">
+              ${icon('pause', 14)} Pause Interview
+            </button>
+          `}
+
+          <button id="btn-next-question" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white flex items-center gap-1.5 transition-all hover:brightness-110" style="background:${INDIGO}">
+            Next Question ${icon('arrowRight', 14)}
+          </button>
+
+          <button id="btn-end-interview-session" class="px-3.5 py-2.5 rounded-xl font-semibold text-xs text-rose-300 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-all">
+            End Interview
+          </button>
+        </div>
+      </div>
+    </div>
+
+    ${isPaused ? `
+      <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-center font-medium text-sm flex items-center justify-center gap-2">
+        <span>⏸ Interview Paused. Click <strong>Resume Interview</strong> to continue.</span>
+      </div>
+    ` : ''}
+
+    <!-- Live Interview Content Grid -->
+    <div class="grid grid-cols-2 gap-5">
+      <div class="rounded-xl border border-white/7 overflow-hidden relative flex flex-col justify-between" style="background:#0d0f1e">
+        <div class="relative w-full aspect-video bg-[#141627] flex items-center justify-center overflow-hidden">
+          <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover"></video>
+          ${!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/75 backdrop-blur-sm">
+            <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
+            <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
+            <p class="text-[11px] text-white/50 mt-1 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable video preview.'}</p>
+          </div>` : ''}
+        </div>
+        <div class="p-3 border-t border-white/6 bg-white/[0.02] flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${webcamBadgeStyle}">
+              <span class="w-1.5 h-1.5 rounded-full ${webcamDot}"></span>
+              Webcam: ${webcamLabel}
+            </span>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${micBadgeStyle}">
+              <span class="w-1.5 h-1.5 rounded-full ${micDot}"></span>
+              Mic: ${micLabel}
+            </span>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${recBadgeStyle}">
+              <span class="w-1.5 h-1.5 rounded-full ${recDot}"></span>
+              Recording: ${recLabel}
+            </span>
+          </div>
+          <button id="btn-test-room-devices" class="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-1.5 transition-all shrink-0">
+            ${icon('video', 12)} Test Devices
+          </button>
+        </div>
+        ${state.deviceError ? `<p class="px-3 py-2 text-xs text-rose-400 bg-rose-500/10 border-t border-rose-500/20">${state.deviceError}</p>` : ''}
+      </div>
+
+      <div class="rounded-xl border border-white/7 p-6 flex flex-col justify-between" style="background:#0d0f1e">
+        <div class="flex items-center gap-2 mb-4">
+          ${badge(question.category || 'Interview', 'indigo')}
+          ${badge(question.difficulty || 'medium', 'amber')}
+        </div>
+        <p class="text-white text-lg leading-relaxed flex-1">${question.question_text}</p>
+        <div class="mt-4 pt-3 border-t border-white/5 flex justify-between items-center text-xs text-white/40">
+          <span>Question ${currentIdx + 1} of ${total}</span>
+          <span>Current Progress: ${Math.round(((currentIdx + 1) / total) * 100)}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Response Box -->
     <div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
       <p class="text-white/70 text-sm mb-3">Live voice response</p>
       <div id="transcript-box" class="rounded-lg border border-white/6 p-4 min-h-[60px]" style="background:#141627">
-        ${transcriptText ? `<p class="text-white/80 text-sm leading-relaxed">${transcriptText}</p>` : `<p class="text-white/25 text-sm italic">Waiting for interviewer...</p>`}
+        ${transcriptText ? `<p class="text-white/80 text-sm leading-relaxed">${transcriptText}</p>` : `<p class="text-white/25 text-sm italic">${isPaused ? 'Interview paused.' : 'Waiting for interviewer...'}</p>`}
       </div>
       <p id="session-status" class="mt-3 text-xs text-white/40" role="status">${state.sessionMessage || ''}</p>
     </div>
+
+    <!-- Confirmation Modal Container -->
+    ${state.showEndConfirmModal ? `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="w-full max-w-md p-6 rounded-2xl border border-white/10 space-y-5 shadow-2xl" style="background:#0c0e1c">
+          <h3 class="text-xl font-bold text-white">End Interview?</h3>
+          <p class="text-white/60 text-sm leading-relaxed">Are you sure you want to end the interview? Your progress so far will be saved and evaluated.</p>
+          <div class="flex items-center gap-3 pt-2">
+            <button id="modal-confirm-cancel" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20">Cancel</button>
+            <button id="modal-confirm-end" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md">End Interview</button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
   </div>`;
+}
+
+function speakWithWebSpeech(text, callback) {
+  if ('speechSynthesis' in window) {
+    var finished = false;
+    function done() {
+      if (finished) return;
+      finished = true;
+      if (callback) callback();
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+    } catch(e) {}
+
+    var utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.onend = done;
+    utterance.onerror = done;
+
+    setTimeout(done, 12000);
+
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch(e) {
+      done();
+    }
+  } else {
+    if (callback) callback();
+  }
 }
 
 async function speakCurrentQuestion() {
   var session = state.currentInterview;
-  if (!session) return;
+  if (!session || !session.interview || session.interview.status !== 'in_progress') return;
+
+  state.isAiSpeaking = true;
   stopAutoRecording();
   var question = session.questions[state.currentQuestionIndex];
   var done = false;
+
   function onStartListening() {
     if (done) return;
     done = true;
-    startAutoRecording();
+    state.isAiSpeaking = false;
+    if (state.currentInterview && state.currentInterview.interview && state.currentInterview.interview.status === 'in_progress') {
+      startAutoRecording();
+    }
   }
 
   setSessionStatus('AI interviewer is speaking...', 'text-indigo-300');
   var box = document.getElementById('transcript-box');
   if (box) box.innerHTML = '<p class="text-indigo-300 text-sm animate-pulse">AI interviewer is speaking the question...</p>';
 
-  var fallbackTimeout = setTimeout(onStartListening, 10000);
+  var fallbackTimeout = setTimeout(onStartListening, 25000);
+  var questionText = 'Question ' + (question.sequence_no || (state.currentQuestionIndex + 1)) + '. ' + question.question_text;
 
   try {
     var data = await api.speakInterviewQuestion(session.interview.id, question.id);
-    if (state.interviewerAudio) state.interviewerAudio.pause();
+    if (state.interviewerAudio) {
+      try { state.interviewerAudio.pause(); } catch(e) {}
+    }
     var audio = new Audio('data:' + (data.mime_type || 'audio/wav') + ';base64,' + data.audio_base64);
     state.interviewerAudio = audio;
     audio.onended = function() { clearTimeout(fallbackTimeout); onStartListening(); };
-    audio.onerror = function() { clearTimeout(fallbackTimeout); onStartListening(); };
+    audio.onerror = function() {
+      clearTimeout(fallbackTimeout);
+      speakWithWebSpeech(questionText, onStartListening);
+    };
     await audio.play();
   } catch (err) {
     clearTimeout(fallbackTimeout);
-    onStartListening();
+    speakWithWebSpeech(questionText, onStartListening);
   }
 }
 
 function startAutoRecording() {
+  if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress') return;
+  if (state.isAiSpeaking) return;
   if (state.mediaRecorder && state.mediaRecorder.state === 'recording') return;
 
   function doStart() {
+    if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress') return;
+    if (state.isAiSpeaking) return;
+
     setSessionStatus('Listening... Speak your answer.', 'text-emerald-300');
     var box = document.getElementById('transcript-box');
     if (box) box.innerHTML = '<p class="text-emerald-300 text-sm animate-pulse">Listening... Speak your answer now.</p>';
@@ -385,16 +738,20 @@ function startAutoRecording() {
 
     var heard = false, silence = 0, started = Date.now();
     proc.onaudioprocess = function(ev) {
+      if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress' || state.isAiSpeaking) {
+        stopAutoRecording();
+        return;
+      }
       var s = ev.inputBuffer.getChannelData(0), sum = 0;
       for (var i = 0; i < s.length; i++) sum += s[i] * s[i];
       var vol = Math.sqrt(sum / s.length);
       if (vol > 0.008) { heard = true; silence = 0; } else if (heard) silence++;
       if (heard && silence >= 20) stopAutoRecording();
-      if (!heard && Date.now() - started > 7000) stopAutoRecording();
-      if (Date.now() - started > 45000) stopAutoRecording();
+      if (!heard && Date.now() - started > 10000) stopAutoRecording();
+      if (Date.now() - started > 60000) stopAutoRecording();
     };
     state.audioMonitor = { ctx: ctx, src: src, proc: proc, gain: gain };
-    state.autoStopFallback = setTimeout(function() { stopAutoRecording(); }, 30000);
+    state.autoStopFallback = setTimeout(function() { stopAutoRecording(); }, 45000);
   }
 
   if (!state.interviewStream || !state.interviewStream.active) {
@@ -426,6 +783,12 @@ function stopAutoRecording() {
 }
 
 async function onRecordingStop() {
+  if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress' || state.isAiSpeaking) {
+    state.recordedChunks = [];
+    state.mediaRecorder = null;
+    return;
+  }
+
   setSessionStatus('Transcribing with Gemini AI...', 'text-indigo-300');
   var box = document.getElementById('transcript-box');
   if (box) box.innerHTML = '<p class="text-indigo-300 text-sm animate-pulse">Transcribing your answer...</p>';
@@ -438,7 +801,7 @@ async function onRecordingStop() {
 
     var base64Full = await blobToBase64(blob);
     var base64Clean = base64Full.split(',')[1];
-    var transcript;
+    var transcript = '';
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
         var res = await api.transcribeChunk(base64Clean, mimeType);
@@ -449,10 +812,9 @@ async function onRecordingStop() {
       }
     }
 
-    if (!transcript || transcript.length < 2) {
-      setSessionStatus('No speech detected.', 'text-amber-300');
-      if (box) box.innerHTML = '<p class="text-amber-300 text-sm">No speech detected. Moving to next question...</p>';
-      setTimeout(nextQuestion, 2000);
+    if (!transcript || transcript.length < 3) {
+      setSessionStatus('No answer detected. Speak your answer clearly or click Next Question.', 'text-amber-300');
+      if (box) box.innerHTML = '<p class="text-amber-300 text-sm">No answer detected. Speak your answer clearly or click Next Question.</p>';
       return;
     }
 
@@ -523,19 +885,21 @@ async function convertToWav(blob) {
 
 function nextQuestion() {
   stopAutoRecording();
+  if (state.interviewerAudio) {
+    try { state.interviewerAudio.pause(); } catch(e) {}
+  }
+  if (!state.currentInterview || !state.currentInterview.questions) return;
+
   if (state.currentQuestionIndex < state.currentInterview.questions.length - 1) {
     state.currentQuestionIndex += 1;
     state.currentTranscript = '';
     state.sessionMessage = '';
     render();
+    if (state.currentInterview && state.currentInterview.interview && state.currentInterview.interview.status === 'in_progress') {
+      speakCurrentQuestion();
+    }
   } else {
-    stopInterviewDevices();
-    state.analyticsData = null;
-    state.historyData = null;
-    state.reportsData = null;
-    state.sessionMessage = 'Interview complete. Total score: ' + (state.currentInterview.interview.total_score || 0) + '%.';
-    state.section = 'history';
-    render();
+    confirmEndInterviewSession();
   }
 }
 
@@ -571,9 +935,9 @@ async function startCandidateInterview(button) {
     if (state.configResume) payload.resume_context = state.configResume;
 
     var generated = await api.generateInterview(payload);
-    var started = await api.startInterview(generated.interview.id);
-    state.currentInterview = started;
-    state.currentQuestionIndex = 0;
+    state.currentInterview = generated;
+    state.currentQuestionIndex = generated.interview.current_question_index || 0;
+    state.sessionElapsedSeconds = generated.interview.elapsed_seconds || 0;
     state.currentTranscript = '';
     state.sessionMessage = '';
     state.configError = '';
@@ -587,10 +951,429 @@ async function startCandidateInterview(button) {
   }
 }
 
+function startSessionTimer() {
+  stopSessionTimer();
+  state.sessionTimerInterval = setInterval(function() {
+    if (!state.currentInterview || !state.currentInterview.interview) {
+      stopSessionTimer();
+      return;
+    }
+    var interview = state.currentInterview.interview;
+    if (interview.status !== 'in_progress') return;
+
+    state.sessionElapsedSeconds = (state.sessionElapsedSeconds || 0) + 1;
+    var durationMin = interview.duration || 15;
+    var totalSec = durationMin * 60;
+    var remainSec = Math.max(0, totalSec - state.sessionElapsedSeconds);
+
+    var timerEl = document.getElementById('session-timer-display');
+    if (timerEl) {
+      var min = Math.floor(remainSec / 60);
+      var sec = remainSec % 60;
+      timerEl.textContent = (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
+      if (remainSec < 60) {
+        timerEl.className = 'text-xl font-mono font-bold text-rose-400 animate-pulse';
+      }
+    }
+
+    if (state.sessionElapsedSeconds % 10 === 0) {
+      api.updateInterview(interview.id, {
+        elapsed_seconds: state.sessionElapsedSeconds,
+        current_question_index: state.currentQuestionIndex || 0
+      }).catch(function() {});
+    }
+
+    if (remainSec <= 0) {
+      stopSessionTimer();
+      autoEndInterviewTimerExpired();
+    }
+  }, 1000);
+}
+
+function stopSessionTimer() {
+  if (state.sessionTimerInterval) {
+    clearInterval(state.sessionTimerInterval);
+    state.sessionTimerInterval = null;
+  }
+}
+
+function getBestSupportedVideoMimeType() {
+  if (typeof MediaRecorder === 'undefined') return '';
+  var types = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=h264,opus',
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4',
+    'video/webm'
+  ];
+  for (var i = 0; i < types.length; i++) {
+    if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+  }
+  return '';
+}
+
+function startSessionMediaRecorder() {
+  if (typeof MediaRecorder === 'undefined') {
+    state.sessionRecordingStatus = 'unsupported';
+    state.sessionRecordingError = 'MediaRecorder not supported';
+    return;
+  }
+  if (!state.interviewStream || !state.interviewStream.active) {
+    state.sessionRecordingStatus = 'error';
+    state.sessionRecordingError = 'Camera/mic stream not active';
+    return;
+  }
+
+  if (state.sessionMediaRecorder && state.sessionMediaRecorder.state === 'paused') {
+    try {
+      state.sessionMediaRecorder.resume();
+      state.sessionRecordingStatus = 'recording';
+      render();
+    } catch(e) {
+      console.warn('Could not resume session MediaRecorder:', e);
+    }
+    return;
+  }
+
+  if (state.sessionMediaRecorder && state.sessionMediaRecorder.state === 'recording') {
+    return;
+  }
+
+  state.sessionRecordingChunks = [];
+  var mimeType = getBestSupportedVideoMimeType();
+  var options = mimeType ? { mimeType: mimeType } : {};
+
+  try {
+    state.sessionMediaRecorder = new MediaRecorder(state.interviewStream, options);
+  } catch(e1) {
+    try {
+      state.sessionMediaRecorder = new MediaRecorder(state.interviewStream);
+    } catch(e2) {
+      state.sessionRecordingStatus = 'error';
+      state.sessionRecordingError = 'Failed to init recorder';
+      return;
+    }
+  }
+
+  state.sessionMediaRecorder.ondataavailable = function(evt) {
+    if (evt.data && evt.data.size > 0) {
+      if (!state.sessionRecordingChunks) state.sessionRecordingChunks = [];
+      state.sessionRecordingChunks.push(evt.data);
+    }
+  };
+
+  state.sessionMediaRecorder.onerror = function(evt) {
+    console.error('Session MediaRecorder error:', evt);
+    state.sessionRecordingStatus = 'error';
+    state.sessionRecordingError = 'Recording error';
+    render();
+  };
+
+  try {
+    state.sessionMediaRecorder.start(1000);
+    state.sessionRecordingStatus = 'recording';
+    state.sessionRecordingError = '';
+  } catch(e) {
+    state.sessionRecordingStatus = 'error';
+    state.sessionRecordingError = 'Failed to start recorder';
+  }
+}
+
+function pauseSessionMediaRecorder() {
+  if (state.sessionMediaRecorder && state.sessionMediaRecorder.state === 'recording') {
+    try {
+      state.sessionMediaRecorder.pause();
+      state.sessionRecordingStatus = 'paused';
+    } catch(e) {
+      console.warn('Failed to pause session MediaRecorder:', e);
+    }
+  }
+}
+
+async function stopAndUploadSessionRecording(interviewId) {
+  if (!interviewId) return null;
+  state.sessionRecordingStatus = 'processing';
+  render();
+
+  if (!state.sessionMediaRecorder || state.sessionMediaRecorder.state === 'inactive') {
+    if (state.sessionRecordingChunks && state.sessionRecordingChunks.length > 0) {
+      return await finalizeAndUploadBlob(interviewId);
+    }
+    state.sessionRecordingStatus = 'saved';
+    render();
+    return null;
+  }
+
+  return new Promise(function(resolve) {
+    state.sessionMediaRecorder.onstop = async function() {
+      var res = await finalizeAndUploadBlob(interviewId);
+      resolve(res);
+    };
+
+    try {
+      state.sessionMediaRecorder.stop();
+    } catch(e) {
+      state.sessionRecordingStatus = 'error';
+      state.sessionRecordingError = 'Error stopping recorder';
+      render();
+      resolve(null);
+    }
+  });
+}
+
+async function finalizeAndUploadBlob(interviewId) {
+  if (!interviewId || !state.sessionRecordingChunks || state.sessionRecordingChunks.length === 0) {
+    state.sessionRecordingStatus = 'saved';
+    render();
+    return null;
+  }
+
+  var actualMime = (state.sessionMediaRecorder && state.sessionMediaRecorder.mimeType) || 'video/webm';
+  var blob = new Blob(state.sessionRecordingChunks, { type: actualMime });
+  state.sessionRecordingChunks = [];
+
+  state.sessionRecordingStatus = 'processing';
+  render();
+
+  try {
+    var elapsedSec = state.sessionElapsedSeconds || 0;
+    var res = await api.uploadInterviewRecording(interviewId, blob, {
+      recording_type: 'video',
+      duration: elapsedSec,
+      mime_type: actualMime
+    });
+    state.sessionRecordingStatus = 'saved';
+    state.sessionRecordingMeta = res.recording;
+    state.sessionRecordingError = '';
+    render();
+    return res;
+  } catch(err) {
+    console.error('Recording upload error:', err);
+    state.sessionRecordingStatus = 'error';
+    state.sessionRecordingError = err.message || 'Upload failed';
+    render();
+    return null;
+  }
+}
+
+async function autoEndInterviewTimerExpired() {
+  if (!state.currentInterview || !state.currentInterview.interview) return;
+  stopAutoRecording();
+  stopSessionTimer();
+  var id = state.currentInterview.interview.id;
+  await stopAndUploadSessionRecording(id);
+  stopInterviewDevices();
+  try {
+    var res = await api.endInterview(id, state.sessionElapsedSeconds || 0);
+    if (res && res.interview) state.currentInterview.interview = res.interview;
+    else state.currentInterview.interview.status = 'completed';
+    render();
+  } catch(e) {
+    if (state.currentInterview && state.currentInterview.interview) {
+      state.currentInterview.interview.status = 'completed';
+    }
+    render();
+  }
+}
+
+async function startInterviewSession() {
+  if (!state.currentInterview || !state.currentInterview.interview) return;
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.resume(); } catch(e) {}
+  }
+  var id = state.currentInterview.interview.id;
+  try {
+    var started = await api.startInterview(id);
+    state.currentInterview = started;
+    state.currentInterview.interview.status = 'in_progress';
+    state.sessionElapsedSeconds = started.interview.elapsed_seconds || 0;
+    state.currentQuestionIndex = started.interview.current_question_index || 0;
+    startSessionMediaRecorder();
+    render();
+    startSessionTimer();
+    speakCurrentQuestion();
+  } catch (err) {
+    window.alert('Unable to start interview: ' + err.message);
+  }
+}
+
+async function pauseInterviewSession() {
+  if (!state.currentInterview || !state.currentInterview.interview) return;
+  var id = state.currentInterview.interview.id;
+  stopSessionTimer();
+  stopAutoRecording();
+  pauseSessionMediaRecorder();
+  if (state.interviewerAudio) state.interviewerAudio.pause();
+
+  try {
+    var res = await api.pauseInterview(id, state.currentQuestionIndex || 0, state.sessionElapsedSeconds || 0);
+    if (res && res.interview) state.currentInterview.interview = res.interview;
+    else state.currentInterview.interview.status = 'paused';
+    render();
+  } catch(err) {
+    state.currentInterview.interview.status = 'paused';
+    render();
+  }
+}
+
+async function resumeInterviewSession() {
+  if (!state.currentInterview || !state.currentInterview.interview) return;
+  var id = state.currentInterview.interview.id;
+
+  try {
+    var res = await api.resumeInterview(id);
+    if (res && res.interview) state.currentInterview.interview = res.interview;
+    else state.currentInterview.interview.status = 'in_progress';
+    startSessionMediaRecorder();
+    render();
+    startSessionTimer();
+    speakCurrentQuestion();
+  } catch(err) {
+    state.currentInterview.interview.status = 'in_progress';
+    startSessionMediaRecorder();
+    render();
+    startSessionTimer();
+    speakCurrentQuestion();
+  }
+}
+
+function showEndInterviewModal() {
+  state.showEndConfirmModal = true;
+  render();
+}
+
+function closeEndInterviewModal() {
+  state.showEndConfirmModal = false;
+  render();
+}
+
+async function confirmEndInterviewSession() {
+  state.showEndConfirmModal = false;
+  if (!state.currentInterview || !state.currentInterview.interview) return;
+  stopSessionTimer();
+  stopAutoRecording();
+  if (state.interviewerAudio) state.interviewerAudio.pause();
+
+  var id = state.currentInterview.interview.id;
+  await stopAndUploadSessionRecording(id);
+  stopInterviewDevices();
+
+  try {
+    var res = await api.endInterview(id, state.sessionElapsedSeconds || 0);
+    if (res && res.interview) state.currentInterview.interview = res.interview;
+    else state.currentInterview.interview.status = 'completed';
+    render();
+  } catch(err) {
+    if (state.currentInterview && state.currentInterview.interview) {
+      state.currentInterview.interview.status = 'completed';
+    }
+    render();
+  }
+}
+
 async function enableInterviewDevices() {
-  if (state.interviewStream) return;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('This browser does not support camera and microphone access.');
-  state.interviewStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: { echoCancellation: true, noiseSuppression: true } });
+  if (state.interviewStream && state.interviewStream.active) {
+    var vTr = state.interviewStream.getVideoTracks();
+    var aTr = state.interviewStream.getAudioTracks();
+    state.webcamStatus = (vTr.length && vTr[0].readyState === 'live') ? 'Ready' : 'Not available';
+    state.micStatus = (aTr.length && aTr[0].readyState === 'live') ? 'Ready' : 'Not available';
+    return state.interviewStream;
+  }
+
+  state.webcamStatus = 'Requesting access...';
+  state.micStatus = 'Requesting access...';
+  state.deviceError = '';
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    state.webcamStatus = 'Not supported';
+    state.micStatus = 'Not supported';
+    state.deviceError = 'This browser does not support camera and microphone access.';
+    return null;
+  }
+
+  var videoTrack = null;
+  var audioTrack = null;
+  var videoErr = null;
+  var audioErr = null;
+
+  try {
+    var combinedStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: { echoCancellation: true, noiseSuppression: true }
+    });
+    var vTracks = combinedStream.getVideoTracks();
+    var aTracks = combinedStream.getAudioTracks();
+    if (vTracks.length) videoTrack = vTracks[0];
+    if (aTracks.length) audioTrack = aTracks[0];
+  } catch (err) {
+    try {
+      var vStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      var vt = vStream.getVideoTracks();
+      if (vt.length) videoTrack = vt[0];
+    } catch (ve) {
+      videoErr = ve;
+    }
+
+    try {
+      var aStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      var at = aStream.getAudioTracks();
+      if (at.length) audioTrack = at[0];
+    } catch (ae) {
+      audioErr = ae;
+    }
+  }
+
+  if (videoTrack && videoTrack.readyState === 'live') {
+    state.webcamStatus = 'Ready';
+  } else if (videoErr) {
+    if (videoErr.name === 'NotAllowedError' || videoErr.name === 'PermissionDeniedError') {
+      state.webcamStatus = 'Permission denied';
+    } else if (videoErr.name === 'NotFoundError' || videoErr.name === 'DevicesNotFoundError') {
+      state.webcamStatus = 'Not found';
+    } else if (videoErr.name === 'NotReadableError' || videoErr.name === 'TrackStartError') {
+      state.webcamStatus = 'In use by another app';
+    } else {
+      state.webcamStatus = 'Not available';
+    }
+  } else {
+    state.webcamStatus = 'Not available';
+  }
+
+  if (audioTrack && audioTrack.readyState === 'live') {
+    state.micStatus = 'Ready';
+  } else if (audioErr) {
+    if (audioErr.name === 'NotAllowedError' || audioErr.name === 'PermissionDeniedError') {
+      state.micStatus = 'Permission denied';
+    } else if (audioErr.name === 'NotFoundError' || audioErr.name === 'DevicesNotFoundError') {
+      state.micStatus = 'Not found';
+    } else if (audioErr.name === 'NotReadableError' || audioErr.name === 'TrackStartError') {
+      state.micStatus = 'In use by another app';
+    } else {
+      state.micStatus = 'Not available';
+    }
+  } else {
+    state.micStatus = 'Not available';
+  }
+
+  var tracks = [];
+  if (videoTrack) tracks.push(videoTrack);
+  if (audioTrack) tracks.push(audioTrack);
+
+  if (tracks.length > 0) {
+    state.interviewStream = new MediaStream(tracks);
+    state.deviceTested = true;
+  } else {
+    state.interviewStream = null;
+    state.deviceTested = false;
+  }
+
+  var errs = [];
+  if (state.webcamStatus !== 'Ready') errs.push('Camera: ' + state.webcamStatus);
+  if (state.micStatus !== 'Ready') errs.push('Microphone: ' + state.micStatus);
+  state.deviceError = errs.join(' | ');
+
+  return state.interviewStream;
 }
 
 function stopInterviewDevices() {
@@ -598,9 +1381,17 @@ function stopInterviewDevices() {
   if (state.mediaRecorder && state.mediaRecorder.state === 'recording') { try { state.mediaRecorder.stop(); } catch(e) {} }
   state.mediaRecorder = null;
   state.recordedChunks = [];
-  if (state.interviewerAudio) { state.interviewerAudio.pause(); state.interviewerAudio = null; }
-  if (state.interviewStream) state.interviewStream.getTracks().forEach(function(track) { track.stop(); });
+  if (state.interviewerAudio) { try { state.interviewerAudio.pause(); } catch(e) {} state.interviewerAudio = null; }
+  if (state.interviewStream) {
+    state.interviewStream.getTracks().forEach(function(track) {
+      try { track.stop(); } catch(e) {}
+    });
+  }
   state.interviewStream = null;
+  state.webcamStatus = 'Not active';
+  state.micStatus = 'Not active';
+  state.isRequestingDevices = false;
+  state.deviceRequestFailed = false;
 }
 
 function setSessionStatus(message, color) {
@@ -612,33 +1403,41 @@ function setSessionStatus(message, color) {
 
 async function testCandidateDevices() {
   var status = document.getElementById('device-status');
-  var button = document.getElementById('btn-test-devices');
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    status.textContent = 'This browser does not support camera and microphone testing.';
-    status.className = 'mt-3 text-xs text-rose-400';
-    state.deviceTested = false;
-    return;
+  var button = document.getElementById('btn-test-devices') || document.getElementById('btn-test-room-devices');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Testing...';
   }
-  button.disabled = true;
-  button.textContent = 'Testing...';
-  status.textContent = 'Requesting camera and microphone access...';
-  try {
-    var stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    stream.getTracks().forEach(function(track) { track.stop(); });
-    status.textContent = 'Camera and microphone are available.';
-    status.className = 'mt-3 text-xs text-emerald-400';
-    state.deviceTested = true;
-    state.configError = '';
-    render();
-    return;
-  } catch (error) {
-    state.deviceTested = false;
-    status.textContent = error.name === 'NotAllowedError' ? 'Permission was denied. Allow camera and microphone access, then try again.' : 'Unable to access your camera or microphone: ' + error.message;
-    status.className = 'mt-3 text-xs text-rose-400';
-  } finally {
+  if (status) {
+    status.textContent = 'Checking camera and microphone access...';
+    status.className = 'mt-3 text-xs text-indigo-300';
+  }
+
+  state.deviceRequestFailed = false;
+  await enableInterviewDevices();
+
+  var camera = document.getElementById('candidate-camera');
+  if (camera && state.interviewStream) {
+    camera.srcObject = state.interviewStream;
+  }
+
+  if (button) {
     button.disabled = false;
     button.textContent = 'Test Devices';
   }
+
+  var isSuccess = state.webcamStatus === 'Ready' && state.micStatus === 'Ready';
+  if (status) {
+    if (isSuccess) {
+      status.textContent = 'Camera and microphone are ready.';
+      status.className = 'mt-3 text-xs text-emerald-400';
+    } else {
+      status.textContent = state.deviceError || 'Device test completed with warnings.';
+      status.className = 'mt-3 text-xs text-rose-400';
+    }
+  }
+
+  render();
 }
 
 function bindCandidateInterviewEvents() {
@@ -775,23 +1574,52 @@ function bindCandidateInterviewEvents() {
   if (configStart) configStart.addEventListener('click', function() { startCandidateInterview(this); });
   var testDevices = document.getElementById('btn-test-devices');
   if (testDevices) testDevices.addEventListener('click', testCandidateDevices);
+  var testRoomDevices = document.getElementById('btn-test-room-devices');
+  if (testRoomDevices) testRoomDevices.addEventListener('click', testCandidateDevices);
   var backToInterviews = document.getElementById('btn-back-to-interviews');
   if (backToInterviews) backToInterviews.addEventListener('click', function() { state.section = 'interviews'; render(); });
   var endSession = document.getElementById('btn-end-session');
   if (endSession) endSession.addEventListener('click', function() { stopInterviewDevices(); state.section = 'interviews'; render(); });
 
-  document.querySelectorAll('.btn-view-report').forEach(function(btn) {
-    btn.addEventListener('click', async function() {
-      var id = this.dataset.id;
-      try {
-        var report = await api.getInterviewReport(id);
-        state.activeReportModal = report;
-        render();
-      } catch(e) {
-        window.alert('Unable to load report: ' + e.message);
+  var btnStartSession = document.getElementById('btn-start-interview-session');
+  if (btnStartSession) btnStartSession.addEventListener('click', startInterviewSession);
+
+  var btnPauseSession = document.getElementById('btn-pause-interview-session');
+  if (btnPauseSession) btnPauseSession.addEventListener('click', pauseInterviewSession);
+
+  var btnResumeSession = document.getElementById('btn-resume-interview-session');
+  if (btnResumeSession) btnResumeSession.addEventListener('click', resumeInterviewSession);
+
+  var btnEndInterviewSession = document.getElementById('btn-end-interview-session');
+  if (btnEndInterviewSession) btnEndInterviewSession.addEventListener('click', showEndInterviewModal);
+
+  var btnNextQ = document.getElementById('btn-next-question');
+  if (btnNextQ) btnNextQ.addEventListener('click', nextQuestion);
+
+  var modalCancel = document.getElementById('modal-confirm-cancel');
+  if (modalCancel) modalCancel.addEventListener('click', closeEndInterviewModal);
+
+  var modalEnd = document.getElementById('modal-confirm-end');
+  if (modalEnd) modalEnd.addEventListener('click', confirmEndInterviewSession);
+
+  if (!window._reportDelegationBound) {
+    window._reportDelegationBound = true;
+    document.addEventListener('click', async function(e) {
+      var btn = e.target.closest('.btn-view-report, #btn-view-interview-report, .history-report-btn');
+      if (btn) {
+        e.preventDefault();
+        var id = btn.dataset.id || btn.dataset.reportId;
+        if (!id) return;
+        try {
+          var report = await api.getInterviewReport(id);
+          state.activeReportModal = report;
+          render();
+        } catch(err) {
+          window.alert('Unable to load report: ' + (err.message || 'Report not found'));
+        }
       }
     });
-  });
+  }
 
   var reportClose = document.getElementById('report-modal-close');
   if (reportClose) reportClose.addEventListener('click', function() { state.activeReportModal = null; render(); });
@@ -880,9 +1708,27 @@ function bindCandidateInterviewEvents() {
     ], labels);
   }
 
-  var camera = document.getElementById('candidate-camera');
-  if (camera && state.interviewStream) camera.srcObject = state.interviewStream;
-  if (camera && state.interviewStream) speakCurrentQuestion();
+  /* ── Camera Stream Binding & Lifecycle ── */
+  if (state.section === 'session' && !state.interviewStream && !state.isRequestingDevices && !state.deviceRequestFailed) {
+    state.isRequestingDevices = true;
+    enableInterviewDevices().then(function(stream) {
+      state.isRequestingDevices = false;
+      var cam = document.getElementById('candidate-camera');
+      if (cam && stream) cam.srcObject = stream;
+      render();
+    }).catch(function() {
+      state.isRequestingDevices = false;
+      state.deviceRequestFailed = true;
+      render();
+    });
+  } else if (state.section === 'session' && state.interviewStream) {
+    var cam = document.getElementById('candidate-camera');
+    if (cam && cam.srcObject !== state.interviewStream) {
+      cam.srcObject = state.interviewStream;
+    }
+  } else if (state.section !== 'session' && state.section !== 'assessment-session' && state.interviewStream) {
+    stopInterviewDevices();
+  }
 }
 
 function renderRubricBadge(rating, score) {
@@ -897,11 +1743,11 @@ function renderRubricBadge(rating, score) {
 
 function renderReportModal(report) {
   if (!report) return '';
-  var comm = report.communication_score || report.total_score || 0;
-  var conf = report.confidence_score || report.total_score || 0;
-  var tech = report.technical_score || report.total_score || 0;
-  var prof = report.professionalism_score || report.total_score || 0;
-  var overall = report.overall_score || report.total_score || 0;
+  var comm = (report.communication_score !== null && report.communication_score !== undefined) ? report.communication_score : (report.total_score || 0);
+  var conf = (report.confidence_score !== null && report.confidence_score !== undefined) ? report.confidence_score : (report.total_score || 0);
+  var tech = (report.technical_score !== null && report.technical_score !== undefined) ? report.technical_score : (report.total_score || 0);
+  var prof = (report.professionalism_score !== null && report.professionalism_score !== undefined) ? report.professionalism_score : (report.total_score || 0);
+  var overall = (report.overall_score !== null && report.overall_score !== undefined) ? report.overall_score : (report.total_score || 0);
   var rating = report.performance_rating || reportScoreRating(overall);
 
   var strengths = report.strengths || [];
@@ -911,19 +1757,17 @@ function renderReportModal(report) {
   var resources = report.resources || [];
   var questions = report.questions || [];
   var params = report.detailed_parameters || {};
+  if (!params || Object.keys(params).length === 0) {
+    params = {
+      speech_clarity: comm, grammar_quality: comm, filler_word_freq: comm, speaking_pace: comm, response_completeness: comm,
+      eye_contact_consistency: conf, facial_engagement: conf, response_hesitation: conf, speaking_confidence: conf, attention_level: conf,
+      technical_accuracy: tech, keyword_relevance: tech, problem_solving_ability: tech, domain_knowledge: tech, answer_completeness: tech,
+      time_management: prof, response_organization: prof, professional_communication: prof, interview_etiquette: prof
+    };
+  }
 
   /* ── Format date ── */
-  var dateStr = report.completed_at || report.created_at || '';
-  var dateLine = dateStr;
-  if (dateStr) {
-    try {
-      var d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        dateLine = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + ', ' +
-          d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-      }
-    } catch(e) {}
-  }
+  var dateLine = formatDateTime(report.completed_at || report.created_at);
 
   var itype = report.interview_type ? report.interview_type.charAt(0).toUpperCase() + report.interview_type.slice(1) : 'Interview';
   var diff = report.difficulty ? report.difficulty.charAt(0).toUpperCase() + report.difficulty.slice(1) : 'General';
@@ -983,48 +1827,70 @@ function renderReportModal(report) {
 
       <div class="p-6 lg:p-10 space-y-8">
 
-        <!-- 1. Report header -->
+        <!-- 1. Report Header Bar -->
         <div class="report-section" id="report-overview">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <button id="report-back" class="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-indigo-300 transition-colors mb-3">${icon('arrowLeft', 13)} Back to Interview History</button>
-              <p class="text-xs uppercase tracking-widest text-indigo-400 font-semibold">AI Assessment Report</p>
-              <h2 class="text-2xl lg:text-3xl font-bold text-white mt-1" style="font-family:'Outfit',sans-serif">${itype} Interview</h2>
-              <p class="text-white/40 text-sm mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span class="capitalize">${itype}</span><span class="text-white/20">&bull;</span>
-                <span>${report.domain || 'General'}</span><span class="text-white/20">&bull;</span>
-                <span>${diff}</span><span class="text-white/20">&bull;</span>
-                <span class="inline-flex items-center gap-1">${icon('calendar', 12)} ${dateLine}</span>
-              </p>
-            </div>
-            <div class="text-right shrink-0">
-              ${renderRubricBadge(rating, overall)}
-              <p class="text-3xl font-extrabold text-white mt-2" style="font-family:'Outfit',sans-serif">${overall.toFixed(1)}%</p>
-              <p class="text-white/40 text-xs">Overall Score</p>
+          <div class="p-6 rounded-2xl border border-white/8 relative overflow-hidden" style="background:#0c0e1c">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-cyan-500 to-emerald-500"></div>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <button id="report-back" class="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-indigo-300 transition-colors mb-2">${icon('arrowLeft', 13)} Back to Interview History</button>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">AI Assessment Report</span>
+                  ${renderRubricBadge(rating, overall)}
+                </div>
+                <h2 class="text-2xl font-bold text-white mt-1" style="font-family:'Outfit',sans-serif">${itype} Interview Assessment</h2>
+                <p class="text-white/40 text-xs mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="capitalize text-white/70 font-medium">${itype}</span><span class="text-white/20">&bull;</span>
+                  <span>${report.domain || 'General'}</span><span class="text-white/20">&bull;</span>
+                  <span>${diff}</span><span class="text-white/20">&bull;</span>
+                  <span class="inline-flex items-center gap-1">${icon('calendar', 12)} ${dateLine}</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 2. Executive summary -->
-        <div class="report-section grid grid-cols-1 md:grid-cols-5 gap-4" id="report-overview2">
-          <div class="md:col-span-2 rounded-xl border border-white/7 p-6 flex flex-col items-center justify-center text-center" style="background:#141627">
-            ${renderScoreRing(overall, rating)}
-            <p class="text-white/60 text-sm mt-3">Overall Performance</p>
+        <!-- 2. Dashboard Score Cards: Overall Score Card + 4 Category Score Cards -->
+        <div class="report-section grid grid-cols-1 lg:grid-cols-12 gap-4" id="report-overview2">
+          
+          <!-- Overall Performance Card (Pure Flow Layout - No Absolute Collisions) -->
+          <div class="lg:col-span-4 rounded-2xl border border-white/8 p-6 flex flex-col items-center justify-between text-center relative overflow-hidden" style="background:#0c0e1c">
+            <div class="w-full">
+              <p class="text-white/50 text-xs font-semibold uppercase tracking-wider">Overall Performance</p>
+            </div>
+            
+            <div class="my-5 flex flex-col items-center justify-center space-y-2">
+              <div class="text-4xl lg:text-5xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${overall.toFixed(1)}%</div>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider" style="${reportRatingStyle(rating)}">${rating}</span>
+            </div>
+
+            <div class="w-full pt-3 border-t border-white/5">
+              <p class="text-white/40 text-xs font-medium">Overall Interview Score</p>
+            </div>
           </div>
-          <div class="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          <!-- Category Score Cards Grid (2x2 Grid) -->
+          <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             ${[
-              { label: 'Communication', val: comm, color: INDIGO, icon: icon('messageSquare', 16), w: '30%' },
-              { label: 'Confidence', val: conf, color: CYAN, icon: icon('activity', 16), w: '25%' },
-              { label: 'Technical Relevance', val: tech, color: EMERALD, icon: icon('cpu', 16), w: '30%' },
-              { label: 'Professionalism', val: prof, color: AMBER, icon: icon('briefcase', 16), w: '15%' },
+              { label: 'Communication', val: comm, color: INDIGO, icon: icon('messageSquare', 15), w: '30%' },
+              { label: 'Confidence', val: conf, color: CYAN, icon: icon('activity', 15), w: '25%' },
+              { label: 'Technical Relevance', val: tech, color: EMERALD, icon: icon('cpu', 15), w: '30%' },
+              { label: 'Professionalism', val: prof, color: AMBER, icon: icon('briefcase', 15), w: '15%' },
             ].map(function(m) {
-              return `<div class="p-4 rounded-xl border border-white/7" style="background:#0d0f1e">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${m.color}1f;color:${m.color}">${m.icon}</span>
-                  <p class="text-white/70 text-xs font-medium">${m.label} <span class="text-white/30">(${m.w})</span></p>
+              var r = reportScoreRating(m.val);
+              return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between space-y-3" style="background:#0c0e1c">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${m.color}1a;color:${m.color};border:1px solid ${m.color}33">${m.icon}</span>
+                    <p class="text-white font-semibold text-xs">${m.label}</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-[11px] font-semibold text-white/40 bg-white/5 border border-white/5">[${m.w}]</span>
                 </div>
-                <p class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">${m.val.toFixed(1)}%</p>
-                <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden mt-2">
+                <div class="flex items-baseline justify-between pt-1">
+                  <span class="text-2xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${m.val.toFixed(1)}%</span>
+                  <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style="${reportRatingStyle(r)}">${r}</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
                   <div class="h-full rounded-full report-progress" data-w="${Math.min(100, Math.max(0, m.val))}" style="background:${m.color}"></div>
                 </div>
               </div>`;
@@ -1034,12 +1900,12 @@ function renderReportModal(report) {
 
         <!-- 3. Performance Breakdown -->
         <div class="report-section" id="report-performance">
-          <h3 class="text-lg font-semibold text-white mb-4" style="font-family:'Outfit',sans-serif">Performance Breakdown</h3>
+          <h3 class="text-base font-semibold text-white mb-3" style="font-family:'Outfit',sans-serif">Performance Breakdown</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             ${dimGroups.map(function(g) {
               var fallback = fallbackFor(g);
               var items = g.keys.map(function(k) { return { name: prettyParam(k), val: params[k] !== undefined ? params[k] : fallback }; });
-              return `<div class="rounded-xl border border-white/7 p-4" style="background:#141627">
+              return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:${g.color}1f;color:${g.color}">${g.icon}</span>
                   <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">${g.name}</p>
@@ -1063,28 +1929,28 @@ function renderReportModal(report) {
           </div>
         </div>
 
-        <!-- 4. Quick performance summary -->
-        <div class="report-section rounded-xl border border-white/7 p-5" style="background:#141627">
+        <!-- 4. Quick Performance Summary -->
+        <div class="report-section rounded-2xl border border-white/8 p-5" style="background:#0c0e1c">
           <p class="text-white font-semibold text-sm mb-3" style="font-family:'Outfit',sans-serif">Performance Summary</p>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+            <div class="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
               <p class="text-white/40 text-[11px]">Strongest Area</p>
-              <p class="text-white text-sm font-semibold mt-1">${strongest ? prettyParam(strongest.key) : '—'}</p>
+              <p class="text-white text-xs font-semibold mt-1">${strongest ? prettyParam(strongest.key) : '—'}</p>
               <p class="text-emerald-400 text-xs font-bold mt-0.5">${strongest ? strongest.val.toFixed(0) + '%' : '—'}</p>
             </div>
-            <div class="p-3 rounded-lg border border-rose-500/20 bg-rose-500/5">
+            <div class="p-3 rounded-xl border border-rose-500/20 bg-rose-500/5">
               <p class="text-white/40 text-[11px]">Needs Most Attention</p>
-              <p class="text-white text-sm font-semibold mt-1">${weakest ? prettyParam(weakest.key) : '—'}</p>
+              <p class="text-white text-xs font-semibold mt-1">${weakest ? prettyParam(weakest.key) : '—'}</p>
               <p class="text-rose-400 text-xs font-bold mt-0.5">${weakest ? weakest.val.toFixed(0) + '%' : '—'}</p>
             </div>
-            <div class="p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
-              <p class="text-white/40 text-[11px]">Overall Performance</p>
-              <p class="text-white text-sm font-semibold mt-1">${overall.toFixed(1)}%</p>
+            <div class="p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5">
+              <p class="text-white/40 text-[11px]">Overall Score</p>
+              <p class="text-white text-xs font-semibold mt-1">${overall.toFixed(1)}%</p>
               <p class="text-indigo-300 text-xs font-bold mt-0.5 capitalize">${rating}</p>
             </div>
-            <div class="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+            <div class="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
               <p class="text-white/40 text-[11px]">Improvement Potential</p>
-              <p class="text-white text-sm font-semibold mt-1">${overall < 60 ? 'High' : overall < 75 ? 'Moderate' : 'Low'}</p>
+              <p class="text-white text-xs font-semibold mt-1">${overall < 60 ? 'High' : overall < 75 ? 'Moderate' : 'Low'}</p>
               <p class="text-amber-400 text-xs font-bold mt-0.5">${overall < 60 ? 'Focus needed' : overall < 75 ? 'Keep growing' : 'Great shape'}</p>
             </div>
           </div>
@@ -1092,64 +1958,64 @@ function renderReportModal(report) {
 
         <!-- 5. Strengths & Weaknesses -->
         <div class="report-section grid grid-cols-1 md:grid-cols-2 gap-4" id="report-gaps">
-          <div class="rounded-xl border border-emerald-500/20 p-5" style="background:linear-gradient(180deg,rgba(16,185,129,0.06),transparent);background-color:#0d0f1e">
+          <div class="rounded-2xl border border-emerald-500/20 p-5" style="background:linear-gradient(180deg,rgba(16,185,129,0.06),transparent);background-color:#0c0e1c">
             <div class="flex items-center gap-2 mb-3">
               <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,0.15);color:#34d399">${icon('checkCircle2', 15)}</span>
-              <p class="text-white text-sm font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Strengths</p>
+              <p class="text-white text-xs font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Strengths</p>
             </div>
             <ul class="space-y-2">
-              ${strengths.length ? strengths.map(function(s) { return `<li class="flex items-start gap-2 text-sm text-white/80 leading-relaxed"><span class="mt-1.5 text-emerald-400">${icon('checkCircle', 13)}</span><span>${s}</span></li>`; }).join('') : '<li class="text-sm text-white/50">Good engagement throughout the interview.</li>'}
+              ${strengths.length ? strengths.map(function(s) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-emerald-400 shrink-0">${icon('checkCircle', 13)}</span><span>${s}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Good engagement throughout the interview.</li>'}
             </ul>
           </div>
-          <div class="rounded-xl border border-amber-500/20 p-5" style="background:linear-gradient(180deg,rgba(245,158,11,0.05),transparent);background-color:#0d0f1e">
+          <div class="rounded-2xl border border-amber-500/20 p-5" style="background:linear-gradient(180deg,rgba(245,158,11,0.05),transparent);background-color:#0c0e1c">
             <div class="flex items-center gap-2 mb-3">
               <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(245,158,11,0.15);color:#fbbf24">${icon('alertTriangle', 15)}</span>
-              <p class="text-white text-sm font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Weaknesses &amp; Gaps</p>
+              <p class="text-white text-xs font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Weaknesses &amp; Gaps</p>
             </div>
             <ul class="space-y-2">
-              ${weaknesses.length ? weaknesses.map(function(w) { return `<li class="flex items-start gap-2 text-sm text-white/80 leading-relaxed"><span class="mt-1.5 text-amber-400">${icon('alertCircle', 13)}</span><span>${w}</span></li>`; }).join('') : '<li class="text-sm text-white/50">Consider elaborating on specific technical metrics.</li>'}
+              ${weaknesses.length ? weaknesses.map(function(w) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-amber-400 shrink-0">${icon('alertCircle', 13)}</span><span>${w}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Consider elaborating on specific technical metrics.</li>'}
             </ul>
           </div>
         </div>
 
         <!-- 6. AI Improvement Plan -->
         <div class="report-section" id="report-plan">
-          <div class="flex items-center gap-2 mb-4">
+          <div class="flex items-center gap-2 mb-3">
             <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${icon('lightbulb', 15)}</span>
-            <h3 class="text-lg font-semibold text-white" style="font-family:'Outfit',sans-serif">AI Improvement Plan</h3>
+            <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">AI Improvement Plan</h3>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="rounded-xl border border-white/7 p-5" style="background:#141627">
+            <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">What to Improve</p>
               <div class="mt-3 space-y-3">
                 ${improvements.length ? improvements.slice(0, 4).map(function(imp, i) {
-                  return `<div class="flex items-start gap-3">
-                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${String(i + 1).padStart(2, '0')}</span>
-                    <p class="text-sm text-white/80 leading-relaxed">${imp}</p>
+                  return `<div class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${String(i + 1).padStart(2, '0')}</span>
+                    <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
                   </div>`;
-                }).join('') : '<p class="text-sm text-white/50">Focus on structured responses.</p>'}
+                }).join('') : '<p class="text-xs text-white/50">Focus on structured responses.</p>'}
               </div>
             </div>
-            <div class="rounded-xl border border-white/7 p-5" style="background:#141627">
+            <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">How to Improve</p>
               <div class="mt-3 space-y-3">
                 ${improvements.length > 4 ? improvements.slice(4).map(function(imp, i) {
-                  return `<div class="flex items-start gap-3">
-                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9">${String(i + 5).padStart(2, '0')}</span>
-                    <p class="text-sm text-white/80 leading-relaxed">${imp}</p>
+                  return `<div class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9">${String(i + 5).padStart(2, '0')}</span>
+                    <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
                   </div>`;
-                }).join('') : '<p class="text-sm text-white/50">Practice delivering complete, structured answers.</p>'}
+                }).join('') : '<p class="text-xs text-white/50">Practice delivering complete, structured answers.</p>'}
               </div>
             </div>
-            <div class="rounded-xl border border-white/7 p-5" style="background:#141627">
+            <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">Practice Next</p>
               <div class="mt-3 space-y-3">
                 ${recommendations.length ? recommendations.map(function(rec, i) {
-                  return `<div class="flex items-start gap-3">
-                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(16,185,129,0.15);color:#34d399">${String(i + 1).padStart(2, '0')}</span>
-                    <p class="text-sm text-white/80 leading-relaxed">${rec}</p>
+                  return `<div class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(16,185,129,0.15);color:#34d399">${String(i + 1).padStart(2, '0')}</span>
+                    <p class="text-xs text-white/80 leading-relaxed">${rec}</p>
                   </div>`;
-                }).join('') : '<p class="text-sm text-white/50">Take another mock interview to keep improving.</p>'}
+                }).join('') : '<p class="text-xs text-white/50">Take another mock interview to keep improving.</p>'}
               </div>
             </div>
           </div>
@@ -1157,18 +2023,18 @@ function renderReportModal(report) {
 
         <!-- 7. Learning Resources -->
         ${resources.length ? `<div class="report-section" id="report-resources">
-          <div class="flex items-center gap-2 mb-4">
+          <div class="flex items-center gap-2 mb-3">
             <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(6,182,212,0.15);color:#67e8f9">${icon('bookOpen', 15)}</span>
-            <h3 class="text-lg font-semibold text-white" style="font-family:'Outfit',sans-serif">Recommended Learning Resources</h3>
+            <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">Recommended Learning Resources</h3>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             ${resources.map(function(res) {
-              return `<div class="p-4 rounded-xl border border-white/7 flex flex-col justify-between transition-colors hover:border-white/15" style="background:#141627">
+              return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between transition-colors hover:border-white/15" style="background:#0c0e1c">
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25)">${res.type || 'Resource'}</span>
                   </div>
-                  <p class="text-white text-sm font-semibold">${res.title}</p>
+                  <p class="text-white text-xs font-semibold">${res.title}</p>
                   <p class="text-white/40 text-xs mt-1 leading-relaxed">${res.description}</p>
                 </div>
                 ${res.link ? `<a href="${res.link}" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300 hover:text-cyan-200 font-medium transition-colors">Explore Resource ${icon('chevronRight', 12)}</a>` : ''}
@@ -1179,10 +2045,10 @@ function renderReportModal(report) {
 
         <!-- 8. Question-by-Question Analysis -->
         ${questions.length ? `<div class="report-section" id="report-questions">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div class="flex items-center gap-2">
               <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${icon('messageSquare', 15)}</span>
-              <h3 class="text-lg font-semibold text-white" style="font-family:'Outfit',sans-serif">Question-by-Question Analysis</h3>
+              <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">Question-by-Question Analysis</h3>
             </div>
             <div class="text-right">
               <p class="text-white/60 text-xs">${questions.length} Questions &bull; Avg Score: <strong class="text-white">${avgQScore.toFixed(0)}%</strong></p>
@@ -1194,18 +2060,18 @@ function renderReportModal(report) {
               var qRating = reportScoreRating(qScore);
               var cat = q.category || 'General';
               var qColor = qScore >= 75 ? EMERALD : qScore >= 60 ? INDIGO : qScore >= 40 ? AMBER : ROSE;
-              return `<div class="rounded-xl border border-white/7 overflow-hidden" style="background:#141627">
+              return `<div class="rounded-2xl border border-white/8 overflow-hidden" style="background:#0c0e1c">
                 <button class="report-accordion w-full flex items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]" data-target=".report-q-body-${idx}">
                   <div class="flex items-center gap-3 min-w-0">
-                    <span class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style="background:${qColor}1f;color:${qColor}">Q${idx + 1}</span>
+                    <span class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0" style="background:${qColor}1f;color:${qColor}">${idx + 1}</span>
                     <div class="min-w-0">
                       <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">${cat}</p>
-                      <p class="text-white text-sm truncate mt-0.5 max-w-md">${q.question_text}</p>
+                      <p class="text-white text-xs font-medium truncate mt-0.5 max-w-md">${q.question_text}</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-4 shrink-0">
                     <div class="text-right hidden sm:block">
-                      <p class="text-white font-bold text-sm">${qScore.toFixed(0)}%</p>
+                      <p class="text-white font-bold text-xs">${qScore.toFixed(0)}%</p>
                       <p class="text-[10px]" style="color:${qColor}">${qRating}</p>
                     </div>
                     <span class="report-chevron text-white/40 transition-transform">${icon('chevronDown', 14)}</span>
@@ -1214,15 +2080,15 @@ function renderReportModal(report) {
                 <div class="report-q-body-${idx} hidden px-5 pb-5 space-y-4 border-t border-white/6 pt-4">
                   <div>
                     <p class="text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1.5">Question</p>
-                    <p class="text-white/80 text-sm leading-relaxed">${q.question_text}</p>
+                    <p class="text-white/80 text-xs leading-relaxed">${q.question_text}</p>
                   </div>
                   <div>
                     <p class="text-[11px] uppercase tracking-wider text-indigo-400 font-semibold mb-1.5">Your Response</p>
-                    <div class="rounded-lg border-l-2 p-3 text-sm text-white/75 leading-relaxed" style="border-color:${INDIGO};background:rgba(99,102,241,0.05)">${q.answer_text || 'No response recorded.'}</div>
+                    <div class="rounded-xl border-l-2 p-3 text-xs text-white/75 leading-relaxed" style="border-color:${INDIGO};background:rgba(99,102,241,0.05)">${q.answer_text || 'No response recorded.'}</div>
                   </div>
                   <div>
                     <p class="text-[11px] uppercase tracking-wider text-emerald-400 font-semibold mb-1.5">AI Feedback</p>
-                    <div class="rounded-lg border border-emerald-500/15 p-3 text-sm text-white/75 leading-relaxed" style="background:rgba(16,185,129,0.04)">${q.feedback || 'Answer evaluated.'}</div>
+                    <div class="rounded-xl border border-emerald-500/15 p-3 text-xs text-white/75 leading-relaxed" style="background:rgba(16,185,129,0.04)">${q.feedback || 'Answer evaluated.'}</div>
                   </div>
                   <div class="flex items-center gap-2 justify-end">
                     <span class="text-xs text-white/40">Question Score</span>
@@ -1250,22 +2116,30 @@ function reportScoreRating(score) {
   return 'Poor';
 }
 
+function reportRatingStyle(r) {
+  if (r === 'Excellent') return 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)';
+  if (r === 'Good') return 'background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3)';
+  if (r === 'Average') return 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)';
+  if (r === 'Needs Improvement') return 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
+  return 'background:rgba(225,29,72,0.2);color:#fda4af;border:1px solid rgba(225,29,72,0.4)';
+}
+
 function renderScoreRing(score, rating) {
   var pct = Math.min(100, Math.max(0, score));
-  var r = 62;
+  var r = 52;
   var c = 2 * Math.PI * r;
   var filled = (pct / 100) * c;
   var color = score >= 75 ? EMERALD : score >= 60 ? INDIGO : score >= 40 ? AMBER : ROSE;
   var ratingColor = rating === 'Excellent' ? EMERALD : rating === 'Good' ? INDIGO : rating === 'Average' ? AMBER : rating === 'Needs Improvement' ? ROSE : '#e11d48';
-  return `<div class="relative w-44 h-44">
-    <svg viewBox="0 0 160 160" class="w-full h-full -rotate-90">
-      <circle cx="80" cy="80" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12" />
-      <circle cx="80" cy="80" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+  return `<div class="relative w-32 h-32">
+    <svg viewBox="0 0 130 130" class="w-full h-full -rotate-90">
+      <circle cx="65" cy="65" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="9" />
+      <circle cx="65" cy="65" r="${r}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"
         stroke-dasharray="${filled} ${c - filled}" style="transition:stroke-dasharray 0.8s cubic-bezier(0.22,1,0.36,1)" />
     </svg>
     <div class="absolute inset-0 flex flex-col items-center justify-center">
-      <span class="text-4xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${score.toFixed(1)}%</span>
-      <span class="text-xs font-semibold mt-1 capitalize" style="color:${ratingColor}">${rating}</span>
+      <span class="text-3xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${score.toFixed(1)}%</span>
+      <span class="text-xs font-semibold mt-0.5 capitalize" style="color:${ratingColor}">${rating}</span>
     </div>
   </div>`;
 }
@@ -1415,8 +2289,8 @@ function candidateHistory() {
     }
     if (state.historyDateFilter !== 'all') {
       var ds = h.completed_at || h.created_at || '';
-      var d = new Date(ds);
-      if (isNaN(d.getTime())) return false;
+      var d = parseUTCDate(ds);
+      if (!d || isNaN(d.getTime())) return false;
       var now = Date.now();
       var days = state.historyDateFilter === '7' ? 7 : state.historyDateFilter === '30' ? 30 : state.historyDateFilter === '90' ? 90 : 365;
       if ((now - d.getTime()) > days * 86400000) return false;
@@ -1550,13 +2424,8 @@ function candidateHistory() {
         var score = i.overall_score || i.total_score || 0;
         var rating = i.performance_rating || '';
         var dateStr = i.completed_at || i.created_at || '';
-        var dateLine = dateStr;
-        var timeLine = '';
-        if (dateStr) {
-          var parts = dateStr.split('T');
-          dateLine = parts[0];
-          timeLine = parts.length > 1 ? parts[1].split('.')[0].slice(0, 5) : '';
-        }
+        var dateLine = formatDate(dateStr);
+        var timeLine = formatTime(dateStr);
         var typeLower = (i.interview_type || '').toLowerCase();
         var typePill = badge(i.interview_type || 'General', typeLower === 'technical' ? 'indigo' : typeLower === 'behavioral' ? 'emerald' : typeLower === 'hr' ? 'cyan' : 'amber');
         return `<tr class="border-b border-white/4 history-row transition-colors">
@@ -1662,7 +2531,7 @@ function candidateReports() {
                 <h3 class="text-white font-semibold text-base uppercase" style="font-family:'Outfit',sans-serif">${r.interview_type} Interview</h3>
                 ${renderRubricBadge(r.performance_rating, score)}
               </div>
-              <p class="text-white/40 text-xs">${r.domain || 'General Domain'} &bull; ${r.completed_at || 'Recently'}</p>
+              <p class="text-white/40 text-xs">${r.domain || 'General Domain'} &bull; ${formatDateTime(r.completed_at || r.created_at)}</p>
             </div>
             <div class="text-right">
               <span class="text-2xl font-bold text-white">${score.toFixed(1)}%</span>
@@ -2040,7 +2909,7 @@ function candidateAssessmentResult() {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Assessment Results</h1>
-        <p class="text-white/40 text-sm mt-1">${a.target_role || 'Technical'} Practice Assessment &bull; Completed ${a.completed_at || 'Recently'}</p>
+        <p class="text-white/40 text-sm mt-1">${a.target_role || 'Technical'} Practice Assessment &bull; Completed ${formatDateTime(a.completed_at || a.created_at)}</p>
       </div>
       <button id="btn-new-assessment" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition-all">
         Configure New Assessment

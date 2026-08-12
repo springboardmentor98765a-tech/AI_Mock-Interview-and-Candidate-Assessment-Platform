@@ -270,3 +270,36 @@ function placeholderSection(title, desc, ic) {
     <p class="text-white/35 text-sm max-w-sm leading-relaxed">${desc}</p>
   </div>`;
 }
+
+/* ── Date/Time Parsing and Local Time Formatting Helpers ── */
+function parseUTCDate(dateStr) {
+  if (!dateStr) return null;
+  var str = String(dateStr).trim();
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/.test(str)) {
+    str = str.replace(' ', 'T') + 'Z';
+  } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(str)) {
+    str = str + 'Z';
+  }
+  var d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(dateStr) {
+  var d = parseUTCDate(dateStr);
+  if (!d) return dateStr || 'Recently';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatTime(dateStr) {
+  var d = parseUTCDate(dateStr);
+  if (!d) return '';
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateTime(dateStr) {
+  var d = parseUTCDate(dateStr);
+  if (!d) return dateStr || 'Recently';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + ' ' +
+         d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}

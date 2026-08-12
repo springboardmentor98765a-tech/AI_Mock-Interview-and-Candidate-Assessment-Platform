@@ -93,6 +93,8 @@ class InterviewUpdateRequest(BaseModel):
     difficulty: Optional[str] = None
     duration: Optional[int] = None
     status: Optional[str] = None
+    elapsed_seconds: Optional[int] = None
+    current_question_index: Optional[int] = None
 
 
 class AnswerSubmitRequest(BaseModel):
@@ -129,6 +131,8 @@ class InterviewResponse(BaseModel):
     difficulty: Optional[str] = None
     duration: int
     status: Optional[str] = None
+    elapsed_seconds: Optional[int] = 0
+    current_question_index: Optional[int] = 0
     total_score: Optional[float] = None
     communication_score: Optional[float] = None
     confidence_score: Optional[float] = None
@@ -143,6 +147,7 @@ class InterviewResponse(BaseModel):
     resources: Optional[list[dict]] = None
     detailed_parameters: Optional[dict] = None
     started_at: Optional[str] = None
+
     completed_at: Optional[str] = None
     created_at: Optional[str] = None
 

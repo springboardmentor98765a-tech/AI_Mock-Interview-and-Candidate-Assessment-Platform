@@ -1,5 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from typing import Optional
+import os
+import time
+import json
 from database import get_db
 from models import (
     InterviewCreateRequest,
@@ -44,6 +48,19 @@ def _safe_json_loads(val, default=None):
         return default
 
 
+def _format_utc_iso(ts) -> str | None:
+    if not ts:
+        return None
+    s = str(ts).strip()
+    if not s:
+        return None
+    if "T" not in s and " " in s:
+        s = s.replace(" ", "T")
+    if not s.endswith("Z") and "+" not in s and "-" not in s[10:]:
+        s += "Z"
+    return s
+
+
 def row_to_interview(row) -> dict:
     d = dict(row)
     return {
@@ -55,6 +72,8 @@ def row_to_interview(row) -> dict:
         "difficulty": d["difficulty"],
         "duration": d.get("duration") or 15,
         "status": d["status"],
+        "elapsed_seconds": d.get("elapsed_seconds") or 0,
+        "current_question_index": d.get("current_question_index") or 0,
         "total_score": d["total_score"],
         "communication_score": d.get("communication_score"),
         "confidence_score": d.get("confidence_score"),
@@ -68,9 +87,9 @@ def row_to_interview(row) -> dict:
         "recommendations": _safe_json_loads(d.get("recommendations_json"), []),
         "resources": _safe_json_loads(d.get("resources_json"), []),
         "detailed_parameters": _safe_json_loads(d.get("detailed_parameters_json"), {}),
-        "started_at": str(d["started_at"]) if d.get("started_at") else None,
-        "completed_at": str(d["completed_at"]) if d.get("completed_at") else None,
-        "created_at": str(d["created_at"]) if d.get("created_at") else None,
+        "started_at": _format_utc_iso(d.get("started_at")),
+        "completed_at": _format_utc_iso(d.get("completed_at")),
+        "created_at": _format_utc_iso(d.get("created_at")),
     }
 
 
@@ -265,7 +284,7 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
         updates.append("duration = ?")
         values.append(req.duration)
     if req.status:
-        if req.status not in ("created", "in_progress", "completed"):
+        if req.status not in ("created", "in_progress", "paused", "completed"):
             conn.close()
             raise HTTPException(400, "Invalid status.")
         updates.append("status = ?")
@@ -274,11 +293,20 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
             updates.append("started_at = CURRENT_TIMESTAMP")
         if req.status == "completed":
             updates.append("completed_at = CURRENT_TIMESTAMP")
+    if req.elapsed_seconds is not None:
+        updates.append("elapsed_seconds = ?")
+        values.append(req.elapsed_seconds)
+    if req.current_question_index is not None:
+        updates.append("current_question_index = ?")
+        values.append(req.current_question_index)
 
     if updates:
         values.append(interview_id)
         conn.execute(f"UPDATE interview_session SET {', '.join(updates)} WHERE id = ?", values)
         conn.commit()
+
+    if req.status == "completed":
+        scoring_engine.generate_final_report(interview_id, conn)
 
     updated = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     conn.close()
@@ -312,12 +340,9 @@ def start_interview(interview_id: int, user: dict = Depends(get_current_user)):
     if row["status"] == "completed":
         conn.close()
         raise HTTPException(400, "Interview already completed.")
-    if row["status"] == "in_progress":
-        conn.close()
-        raise HTTPException(400, "Interview already in progress.")
 
     conn.execute(
-        "UPDATE interview_session SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE interview_session SET status = 'in_progress', started_at = COALESCE(started_at, CURRENT_TIMESTAMP) WHERE id = ?",
         (interview_id,),
     )
     conn.commit()
@@ -333,6 +358,22 @@ def start_interview(interview_id: int, user: dict = Depends(get_current_user)):
         "interview": row_to_interview(updated),
         "questions": [row_to_question(q) for q in questions],
     }
+
+
+@router.post("/{interview_id}/pause")
+def pause_interview(interview_id: int, user: dict = Depends(get_current_user)):
+    return update_interview(interview_id, InterviewUpdateRequest(status="paused"), user)
+
+
+@router.post("/{interview_id}/resume")
+def resume_interview(interview_id: int, user: dict = Depends(get_current_user)):
+    return update_interview(interview_id, InterviewUpdateRequest(status="in_progress"), user)
+
+
+@router.post("/{interview_id}/end")
+def end_interview(interview_id: int, user: dict = Depends(get_current_user)):
+    return update_interview(interview_id, InterviewUpdateRequest(status="completed"), user)
+
 
 
 @router.post("/start")
@@ -484,14 +525,18 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
 def get_interview_report(interview_id: int, user: dict = Depends(get_current_user)):
     """Fetch complete AI Feedback & Scoring Report for a specific completed interview."""
     conn = get_db()
-    row = conn.execute(
-        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
-    ).fetchone()
+    user_role = user.get("role", "candidate")
+    if user_role in ("recruiter", "admin"):
+        row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
+        ).fetchone()
     if not row:
         conn.close()
         raise HTTPException(404, "Interview not found.")
 
-    if row["status"] != "completed":
+    if row["status"] != "completed" or row["total_score"] is None or row["overall_score"] is None:
         scoring_engine.generate_final_report(interview_id, conn)
         row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
 
@@ -622,9 +667,13 @@ def create_recording(interview_id: int, req: InterviewRecordingCreateRequest, us
 @router.get("/{interview_id}/recordings")
 def list_recordings(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
-    interview = conn.execute(
-        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
-    ).fetchone()
+    user_role = user.get("role", "candidate")
+    if user_role in ("recruiter", "admin"):
+        interview = conn.execute("SELECT id FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+    else:
+        interview = conn.execute(
+            "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
+        ).fetchone()
     if not interview:
         conn.close()
         raise HTTPException(404, "Interview not found.")
@@ -633,6 +682,93 @@ def list_recordings(interview_id: int, user: dict = Depends(get_current_user)):
     ).fetchall()
     conn.close()
     return {"recordings": [row_to_recording(r) for r in rows]}
+
+
+@router.post("/{interview_id}/recordings/upload")
+async def upload_recording(
+    interview_id: int,
+    file: UploadFile = File(...),
+    recording_type: str = Form("video"),
+    duration: Optional[int] = Form(None),
+    mime_type: Optional[str] = Form(None),
+    user: dict = Depends(get_current_user)
+):
+    conn = get_db()
+    user_role = user.get("role", "candidate")
+    if user_role in ("recruiter", "admin"):
+        interview = conn.execute("SELECT id FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+    else:
+        interview = conn.execute(
+            "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
+            (interview_id, user["id"], user["id"])
+        ).fetchone()
+
+    if not interview:
+        conn.close()
+        raise HTTPException(404, "Interview session not found or unauthorized.")
+
+    content = await file.read()
+    file_size = len(content)
+    file_mime = mime_type or file.content_type or "video/webm"
+
+    ext = "webm"
+    if "mp4" in file_mime:
+        ext = "mp4"
+    elif "ogg" in file_mime:
+        ext = "ogg"
+    elif "wav" in file_mime:
+        ext = "wav"
+
+    recordings_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "storage", "recordings")
+    os.makedirs(recordings_dir, exist_ok=True)
+
+    filename = f"rec_{interview_id}_{int(time.time())}.{ext}"
+    save_path = os.path.join(recordings_dir, filename)
+
+    with open(save_path, "wb") as f:
+        f.write(content)
+
+    cur = conn.execute(
+        "INSERT INTO interview_recording (session_id, recording_type, file_path, duration, mime_type, file_size_bytes, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (interview_id, recording_type, save_path, duration or 0, file_mime, file_size, "completed"),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM interview_recording WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return {"message": "Recording uploaded successfully.", "recording": row_to_recording(row)}
+
+
+@router.get("/{interview_id}/recordings/{recording_id}/stream")
+def stream_recording(interview_id: int, recording_id: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    user_role = user.get("role", "candidate")
+    if user_role in ("recruiter", "admin"):
+        interview = conn.execute("SELECT id FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+    else:
+        interview = conn.execute(
+            "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
+            (interview_id, user["id"], user["id"])
+        ).fetchone()
+
+    if not interview:
+        conn.close()
+        raise HTTPException(404, "Interview session not found or unauthorized.")
+
+    rec = conn.execute(
+        "SELECT * FROM interview_recording WHERE id = ? AND session_id = ?",
+        (recording_id, interview_id)
+    ).fetchone()
+    conn.close()
+
+    if not rec:
+        raise HTTPException(404, "Recording not found.")
+
+    rec_dict = dict(rec)
+    path = rec_dict["file_path"]
+    if not os.path.exists(path):
+        raise HTTPException(404, "Recording file missing on disk.")
+
+    return FileResponse(path, media_type=rec_dict.get("mime_type") or "video/webm", filename=os.path.basename(path))
 
 
 
