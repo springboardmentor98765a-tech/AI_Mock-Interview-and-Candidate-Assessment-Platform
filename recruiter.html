@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Recruiter Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="dashboard.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <style>
+
+        .recordings-section {
+            margin-top: 30px;
+        }
+
+        .recordings-section h2 {
+            margin-bottom: 20px;
+        }
+
+        .recording-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .recording-info {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .recording-info div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .recording-info strong {
+            font-size: 14px;
+        }
+
+        .recording-info span {
+            color: #666;
+        }
+
+        .watch-btn {
+            border: none;
+            cursor: pointer;
+            padding: 10px 18px;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 14px;
+        }
+
+        .watch-btn:hover {
+            opacity: 0.9;
+        }
+
+        .recording-player {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .recording-player video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 10px;
+        }
+
+        .loading {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .no-recordings {
+            padding: 30px;
+            text-align: center;
+            background: #fff;
+            border-radius: 12px;
+        }
+
+        .error-message {
+            color: red;
+            padding: 15px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<nav class="navbar">
+
+    <div class="logo">
+
+        <i class="fa-solid fa-user-tie"></i>
+
+        SmartHire AI
+
+    </div>
+
+    <button
+        class="btn"
+        onclick="logout()"
+    >
+        Logout
+    </button>
+
+</nav>
+
+
+
+<div class="container">
+
+
+    <!-- =========================
+         PROFILE
+    ========================== -->
+
+    <aside class="profile">
+
+        <i
+            class="fa-solid fa-user-tie profileicon"
+        ></i>
+
+        <h2 id="greeting"></h2>
+
+        <h3>
+            Recruiter Dashboard
+        </h3>
+
+        <p>
+            Demo User
+        </p>
+
+    </aside>
+
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="content">
+
+
+        <h1>
+            Recruiter Dashboard
+        </h1>
+
+
+        <!-- =========================
+             STATISTICS
+        ========================== -->
+
+        <div class="stats">
+
+
+            <div class="stat">
+
+                <h2>
+                    32
+                </h2>
+
+                <p>
+                    Candidates
+                </p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h2>
+                    12
+                </h2>
+
+                <p>
+                    Interviews
+                </p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h2>
+                    8
+                </h2>
+
+                <p>
+                    Shortlisted
+                </p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h2>
+                    5
+                </h2>
+
+                <p>
+                    Templates
+                </p>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- =========================
+             DASHBOARD CARDS
+        ========================== -->
+
+        <div class="cards">
+
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-users"
+                ></i>
+
+                <h3>
+                    Candidates
+                </h3>
+
+                <p>
+                    View candidates
+                </p>
+
+                <button class="btn">
+                    Open
+                </button>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-chart-column"
+                ></i>
+
+                <h3>
+                    Analytics
+                </h3>
+
+                <p>
+                    Candidate analytics
+                </p>
+
+                <button class="btn">
+                    Open
+                </button>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-copy"
+                ></i>
+
+                <h3>
+                    Compare
+                </h3>
+
+                <p>
+                    Compare profiles
+                </p>
+
+                <button class="btn">
+                    Open
+                </button>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-file"
+                ></i>
+
+                <h3>
+                    Templates
+                </h3>
+
+                <p>
+                    Interview templates
+                </p>
+
+                <button class="btn">
+                    Open
+                </button>
+
+            </div>
+
+
+
+            <!-- =========================
+                 SESSIONS
+            ========================== -->
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-video"
+                ></i>
+
+                <h3>
+                    Sessions
+                </h3>
+
+                <p>
+                    Monitor interview sessions
+                </p>
+
+                <button
+                    class="btn"
+                    onclick="loadRecordings()"
+                >
+                    Open
+                </button>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <i
+                    class="fa-solid fa-file-pdf"
+                ></i>
+
+                <h3>
+                    Reports
+                </h3>
+
+                <p>
+                    Generate reports
+                </p>
+
+                <button class="btn">
+                    Open
+                </button>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- =========================
+             RECORDINGS
+        ========================== -->
+
+        <section
+            id="recordingsSection"
+            class="recordings-section"
+            style="display:none;"
+        >
+
+            <h2>
+
+                <i
+                    class="fa-solid fa-video"
+                ></i>
+
+                Interview Recordings
+
+            </h2>
+
+
+            <div
+                id="recordingsContainer"
+            >
+
+                <div class="loading">
+
+                    Loading recordings...
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+</div>
+
+
+
+<script src="script.js"></script>
+
+
+<script>
+
+
+// ============================================
+// RECRUITER RECORDINGS
+// ============================================
+
+async function loadRecordings() {
+
+    const section =
+        document.getElementById(
+            "recordingsSection"
+        );
+
+    const container =
+        document.getElementById(
+            "recordingsContainer"
+        );
+
+
+    section.style.display = "block";
+
+
+    container.innerHTML = `
+
+        <div class="loading">
+
+            <i class="fa-solid fa-spinner fa-spin"></i>
+
+            Loading interview recordings...
+
+        </div>
+
+    `;
+
+
+    const token =
+        localStorage.getItem("token");
+
+
+    if (!token) {
+
+        container.innerHTML = `
+
+            <div class="error-message">
+
+                ❌ Please login again.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:5000/api/interview/recruiter/recordings",
+                {
+                    method: "GET",
+
+                    headers: {
+
+                        Authorization:
+                            `Bearer ${token}`
+
+                    }
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Recruiter recordings:",
+            data
+        );
+
+
+        if (!response.ok || !data.success) {
+
+            container.innerHTML = `
+
+                <div class="error-message">
+
+                    ❌ ${
+                        data.message ||
+                        "Unable to load recordings"
+                    }
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        if (
+            !data.recordings ||
+            data.recordings.length === 0
+        ) {
+
+            container.innerHTML = `
+
+                <div class="no-recordings">
+
+                    <i
+                        class="fa-solid fa-video-slash"
+                        style="font-size:40px;"
+                    ></i>
+
+                    <h3>
+                        No Interview Recordings
+                    </h3>
+
+                    <p>
+                        No candidate recordings
+                        are available yet.
+                    </p>
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        container.innerHTML = "";
+
+
+        data.recordings.forEach(
+            recording => {
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+                card.className =
+                    "recording-card";
+
+
+                card.innerHTML = `
+
+                    <div class="recording-info">
+
+                        <div>
+
+                            <strong>
+                                Candidate
+                            </strong>
+
+                            <span>
+                                ${
+                                    recording.candidate_name ||
+                                    "Unknown"
+                                }
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                Email
+                            </strong>
+
+                            <span>
+                                ${
+                                    recording.candidate_email ||
+                                    "N/A"
+                                }
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                Session ID
+                            </strong>
+
+                            <span>
+                                ${
+                                    recording.session_id
+                                }
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                Status
+                            </strong>
+
+                            <span>
+                                ${
+                                    recording.status ||
+                                    "N/A"
+                                }
+                            </span>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <button
+                        class="watch-btn"
+                        onclick="
+                            watchRecording(
+                                ${recording.recording_id},
+                                this
+                            )
+                        "
+                    >
+
+                        <i
+                            class="fa-solid fa-play"
+                        ></i>
+
+                        Watch Recording
+
+                    </button>
+
+
+                    <div
+                        class="recording-player"
+                    ></div>
+
+                `;
+
+
+                container.appendChild(
+                    card
+                );
+
+            }
+        );
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Recording loading error:",
+            error
+        );
+
+
+        container.innerHTML = `
+
+            <div class="error-message">
+
+                ❌ Failed to connect
+                to the server.
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+
+// ============================================
+// WATCH RECORDING
+// ============================================
+
+async function watchRecording(
+    recordingId,
+    button
+) {
+
+    const token =
+        localStorage.getItem("token");
+
+
+    if (!token) {
+
+        alert(
+            "Please login again."
+        );
+
+        return;
+
+    }
+
+
+    const card =
+        button.closest(
+            ".recording-card"
+        );
+
+
+    const playerContainer =
+        card.querySelector(
+            ".recording-player"
+        );
+
+
+    button.disabled = true;
+
+    button.innerHTML = `
+
+        <i
+            class="fa-solid fa-spinner fa-spin"
+        ></i>
+
+        Loading...
+
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+
+                `http://localhost:5000/api/interview/recruiter/recordings/${recordingId}`,
+
+                {
+
+                    method: "GET",
+
+                    headers: {
+
+                        Authorization:
+                            `Bearer ${token}`
+
+                    }
+
+                }
+
+            );
+
+
+        if (!response.ok) {
+
+            const text =
+                await response.text();
+
+            console.error(
+                "Recording response:",
+                text
+            );
+
+            throw new Error(
+                "Unable to access recording"
+            );
+
+        }
+
+
+        const blob =
+            await response.blob();
+
+
+        const videoURL =
+            URL.createObjectURL(
+                blob
+            );
+
+
+        playerContainer.innerHTML = `
+
+            <video
+                controls
+                autoplay
+                playsinline
+            >
+
+                <source
+                    src="${videoURL}"
+                    type="video/webm"
+                >
+
+                Your browser does not support
+                video playback.
+
+            </video>
+
+        `;
+
+
+        playerContainer.style.display =
+            "block";
+
+
+        button.innerHTML = `
+
+            <i
+                class="fa-solid fa-circle-check"
+            ></i>
+
+            Recording Loaded
+
+        `;
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Video playback error:",
+            error
+        );
+
+
+        alert(
+            "❌ Unable to play recording."
+        );
+
+
+        button.disabled = false;
+
+
+        button.innerHTML = `
+
+            <i
+                class="fa-solid fa-play"
+            ></i>
+
+            Watch Recording
+
+        `;
+
+    }
+
+}
+
+
+
+// ============================================
+// GREETING
+// ============================================
+
+window.addEventListener(
+    "load",
+    () => {
+
+        const greeting =
+            document.getElementById(
+                "greeting"
+            );
+
+
+        if (!greeting)
+            return;
+
+
+        const hour =
+            new Date().getHours();
+
+
+        if (hour < 12) {
+
+            greeting.innerHTML =
+                "🌞 Good Morning";
+
+        }
+
+        else if (hour < 17) {
+
+            greeting.innerHTML =
+                "☀️ Good Afternoon";
+
+        }
+
+        else {
+
+            greeting.innerHTML =
+                "🌙 Good Evening";
+
+        }
+
+    }
+);
+
+
+
+// ============================================
+// LOGOUT
+// ============================================
+
+function logout() {
+
+    localStorage.removeItem(
+        "token"
+    );
+
+    localStorage.removeItem(
+        "user"
+    );
+
+
+    window.location.href =
+        "login.html";
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
