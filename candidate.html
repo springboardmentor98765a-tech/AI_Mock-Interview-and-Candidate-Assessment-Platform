@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Dashboard</title>
+
+    <link rel="stylesheet" href="dashboard.css">
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- ===========================
+         SIDEBAR
+    ============================ -->
+<div class="container">
+    <aside class="profile">
+
+        <div class="logo">
+
+            <i class="fa-solid fa-robot"></i>
+
+            <span>SmartHire AI</span>
+
+        </div>
+
+        <br><br>
+
+        <i class="fa-solid fa-circle-user profileicon"></i>
+
+        <h2 id="greeting"></h2>
+
+        <h3>Candidate</h3>
+
+        <p>AI Recruitment Platform</p>
+
+        <nav class="menu">
+
+            <ul>
+
+                <li>
+
+                    <a href="#" class="active">
+
+                        <i class="fa-solid fa-house"></i>
+
+                        Dashboard
+
+                    </a>
+
+                </li>
+
+                <li>
+
+                    <a href="#resume">
+
+                        <i class="fa-solid fa-file-arrow-up"></i>
+
+                        Resume
+
+                    </a>
+
+                </li>
+
+                <li>
+
+                    <a href="#analysis">
+
+                        <i class="fa-solid fa-brain"></i>
+
+                        AI Analysis
+
+                    </a>
+
+                </li>
+
+                <li>
+
+                    <a href="#interview">
+
+                        <i class="fa-solid fa-comments"></i>
+
+                        Interviews
+
+                    </a>
+
+                </li>
+
+                <li>
+
+                    <a href="#reports">
+
+                        <i class="fa-solid fa-chart-column"></i>
+
+                        Reports
+
+                    </a>
+
+                </li>
+
+                <li>
+
+                    <a href="#analytics">
+
+                        <i class="fa-solid fa-chart-line"></i>
+
+                        Analytics
+
+                    </a>
+
+                </li>
+
+            </ul>
+
+        </nav>
+
+        <div class="profile-card">
+
+            <i class="fa-solid fa-user"></i>
+
+            <h3>Candidate</h3>
+
+            <p>Ready for AI Interviews 🚀</p>
+
+        </div>
+
+    </aside>
+
+    <!-- ===========================
+         MAIN
+    ============================ -->
+
+    <div class="content">
+
+        <!-- NAVBAR -->
+
+        <nav class="navbar">
+
+            <div class="search">
+
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                    type="text"
+                    placeholder="Search Dashboard">
+
+            </div>
+
+            <div class="top-right">
+
+                <div class="notification">
+
+                    <i class="fa-solid fa-bell"></i>
+
+                </div>
+
+                <button
+                    class="btn"
+                    onclick="logout()">
+
+                    Logout
+
+                </button>
+
+            </div>
+
+        </nav>
+
+        <!-- HEADER -->
+
+        <div class="topbar">
+
+            <div>
+
+                <h1>
+
+                    Candidate Dashboard
+
+                </h1>
+
+                <p>
+
+                    Welcome to SmartHire AI
+
+                </p>
+
+            </div>
+
+        </div>
+
+        <!-- STATS -->
+
+        <div class="stats">
+
+            <div class="stat">
+
+                <h2>12</h2>
+
+                <p>Resume Analyses</p>
+
+            </div>
+
+            <div class="stat">
+
+                <h2>24</h2>
+
+                <p>AI Interviews</p>
+
+            </div>
+
+            <div class="stat">
+
+                <h2>92%</h2>
+
+                <p>Overall Score</p>
+
+            </div>
+
+            <div class="stat">
+
+                <h2>Top 10%</h2>
+
+                <p>Ranking</p>
+
+            </div>
+
+        </div>
+
+        <!-- PART 2 WILL START HERE -->
+
+        <div class="cards">
+            <!-- ===========================================
+     Resume Upload
+=========================================== -->
+
+<div class="card" id="resume">
+
+    <i class="fa-solid fa-file-arrow-up"></i>
+
+    <h2>Resume Upload</h2>
+
+    <p>
+        Upload your latest PDF resume for AI analysis.
+    </p>
+
+    <br>
+
+    <input
+        type="file"
+        id="resumeFile"
+        accept=".pdf">
+
+    <button
+        class="btn"
+        onclick="uploadResume()">
+
+        Upload Resume
+
+    </button>
+
+    <br><br>
+
+    <div id="uploadStatus"></div>
+
+</div>
+
+<!-- ===========================================
+     AI Resume Analysis
+=========================================== -->
+
+<div class="card resume-analysis" id="analysis">
+
+    <i class="fa-solid fa-brain"></i>
+
+    <h2>AI Resume Analysis</h2>
+
+    <p>
+
+        Analyze Resume using Gemini AI
+
+    </p>
+
+    <br>
+
+    <button
+
+        class="btn"
+
+        onclick="extractAISkills()">
+
+        Analyze Resume
+
+    </button>
+
+    <br><br>
+
+    <div class="analysis-grid">
+
+        <div class="analysis-box">
+
+            <h3>
+
+                📌 Skills
+
+            </h3>
+
+            <div id="skillsOutput"></div>
+
+        </div>
+
+        <div class="analysis-box">
+
+            <h3>
+
+                💼 Experience
+
+            </h3>
+
+            <div id="experienceOutput"></div>
+
+        </div>
+
+        <div class="analysis-box">
+
+            <h3>
+
+                🖥 Technologies
+
+            </h3>
+
+            <div id="technologyOutput"></div>
+
+        </div>
+
+        <div class="analysis-box">
+
+            <h3>
+
+                🎓 Education
+
+            </h3>
+
+            <div id="educationOutput"></div>
+
+        </div>
+
+    </div>
+
+    <br>
+
+    <div class="summary-box">
+
+        <h3>
+
+            📝 Resume Summary
+
+        </h3>
+
+        <div id="summaryOutput"></div>
+
+    </div>
+
+</div>
+
+<!-- ===========================================
+     AI Interview Generator
+=========================================== -->
+
+<div class="card" id="interview">
+
+    <i class="fa-solid fa-comments"></i>
+
+    <h2>
+
+        AI Interview Generator
+
+    </h2>
+
+    <p>
+
+        Personalized AI Interview
+
+    </p>
+
+    <br>
+
+    <label>
+
+        Interview Type
+
+    </label>
+
+    <select id="interviewType">
+
+        <option value="HR">
+
+            HR
+
+        </option>
+
+        <option value="Technical">
+
+            Technical
+
+        </option>
+
+        <option value="Behavioral">
+
+            Behavioral
+
+        </option>
+
+        <option value="Aptitude">
+
+            Aptitude
+
+        </option>
+
+    </select>
+
+    <label>
+
+        Difficulty
+
+    </label>
+
+    <select id="difficulty">
+
+        <option>
+
+            Easy
+
+        </option>
+
+        <option selected>
+
+            Medium
+
+        </option>
+
+        <option>
+
+            Hard
+
+        </option>
+
+    </select>
+
+    <label>
+
+        Domain
+
+    </label>
+
+    <select id="domain">
+
+        <option>
+
+            General
+
+        </option>
+
+        <option>
+
+            Java
+
+        </option>
+
+        <option>
+
+            Python
+
+        </option>
+
+        <option>
+
+            C++
+
+        </option>
+
+        <option>
+
+            MERN Stack
+
+        </option>
+
+        <option>
+
+            AI / ML
+
+        </option>
+
+        <option>
+
+            Data Structures
+
+        </option>
+
+    </select>
+
+    <br>
+
+    <button
+
+        class="btn"
+
+        onclick="generateInterview()">
+
+        🚀 Generate Interview
+
+    </button>
+    <!-- ==========================================
+     MODULE 4 - WEBCAM & MICROPHONE
+========================================== -->
+
+<div class="recording-panel">
+
+    <h3>🎥 Interview Recording</h3>
+
+    <p id="deviceStatus">
+        Camera and microphone are not started.
+    </p>
+
+    <video
+        id="webcamPreview"
+        autoplay
+        muted
+        playsinline>
+    </video>
+
+    <div class="recording-controls">
+
+        <button
+            class="btn"
+            onclick="startMediaDevices()">
+
+            📷 Enable Camera & Microphone
+
+        </button>
+
+        <button
+            class="btn"
+            onclick="startRecording()">
+
+            🔴 Start Recording
+
+        </button>
+
+        <button
+            class="btn"
+            onclick="stopRecording()">
+
+            ⏹ Stop Recording
+
+        </button>
+
+    </div>
+
+    <p id="recordingStatus">
+        Recording: Not Started
+    </p>
+
+</div>
+
+    <br><br>
+
+    <div id="interviewOutput"></div>
+    <!-- ===========================================
+     Analytics
+=========================================== -->
+</div>
+
+<div class="card" id="analytics">
+
+    <i class="fa-solid fa-chart-line"></i>
+
+    <h2>Performance Analytics</h2>
+
+    <br>
+
+    <div class="stat-mini">
+
+        <span>Resume Score</span>
+
+        <span class="green">92%</span>
+
+    </div>
+
+    <div class="progress">
+
+        <div class="progress-bar green-bar" style="width:92%"></div>
+
+    </div>
+
+    <br>
+
+    <div class="stat-mini">
+
+        <span>Interview Performance</span>
+
+        <span class="blue">88%</span>
+
+    </div>
+
+    <div class="progress">
+
+        <div class="progress-bar blue-bar" style="width:88%"></div>
+
+    </div>
+
+    <br>
+
+    <div class="stat-mini">
+
+        <span>Profile Completion</span>
+
+        <span class="orange">75%</span>
+
+    </div>
+
+    <div class="progress">
+
+        <div class="progress-bar orange-bar" style="width:75%"></div>
+
+    </div>
+
+</div>
+
+<!-- ===========================================
+     Reports
+=========================================== -->
+
+<div class="card" id="reports">
+
+    <i class="fa-solid fa-file-lines"></i>
+
+    <h2>Reports</h2>
+
+    <p>
+
+        Download your AI-generated reports.
+
+    </p>
+
+    <br>
+
+    <button class="btn">
+
+        Download Resume Report
+
+    </button>
+
+    <br><br>
+
+    <button class="btn">
+
+        Download Interview Report
+
+    </button>
+
+</div>
+
+<!-- ===========================================
+     History
+=========================================== -->
+
+<div class="card">
+
+    <i class="fa-solid fa-clock-rotate-left"></i>
+
+    <h2>Recent Activity</h2>
+
+    <br>
+
+    <div class="timeline">
+
+        <div class="timeline-item">
+
+            <div class="timeline-icon">
+
+                <i class="fa-solid fa-file"></i>
+
+            </div>
+
+            <div class="timeline-text">
+
+                <h4>Resume Uploaded</h4>
+
+                <span>Today</span>
+
+            </div>
+
+        </div>
+
+        <div class="timeline-item">
+
+            <div class="timeline-icon">
+
+                <i class="fa-solid fa-brain"></i>
+
+            </div>
+
+            <div class="timeline-text">
+
+                <h4>AI Resume Analysis</h4>
+
+                <span>Today</span>
+
+            </div>
+
+        </div>
+
+        <div class="timeline-item">
+
+            <div class="timeline-icon">
+
+                <i class="fa-solid fa-comments"></i>
+
+            </div>
+
+            <div class="timeline-text">
+
+                <h4>Interview Generated</h4>
+
+                <span>Today</span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- ===========================================
+     Quick Tips
+=========================================== -->
+
+<div class="card">
+
+    <i class="fa-solid fa-lightbulb"></i>
+
+    <h2>AI Career Tips</h2>
+
+    <br>
+
+    <ul class="tips">
+
+        <li>✔ Keep your resume updated.</li>
+
+        <li>✔ Practice AI interviews regularly.</li>
+
+        <li>✔ Improve technical & communication skills.</li>
+
+        <li>✔ Complete your profile for better recommendations.</li>
+
+        <li>✔ Download reports to track your growth.</li>
+
+    </ul>
+
+</div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
+
