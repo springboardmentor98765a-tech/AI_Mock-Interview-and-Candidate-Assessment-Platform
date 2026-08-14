@@ -94,7 +94,7 @@ class RecruiterAnalytics(BaseModel):
 
 
 class LiveInterview(BaseModel):
-    """An interview currently IN_PROGRESS — derived from real status."""
+    """An interview a candidate is partway through — derived from real status."""
 
     interview_id: int
     candidate_id: int
@@ -105,3 +105,6 @@ class LiveInterview(BaseModel):
     questions_total: int
     questions_answered: int
     started_at: Optional[datetime] = None
+    # True when the candidate has paused. They are still in a live session —
+    # this is what tells a watching recruiter why progress has stopped.
+    paused: bool = False

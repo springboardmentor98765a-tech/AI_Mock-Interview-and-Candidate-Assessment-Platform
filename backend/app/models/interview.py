@@ -1,9 +1,12 @@
 import enum
+import uuid
 
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -36,12 +39,31 @@ class Difficulty(str, enum.Enum):
 
 
 class SessionStatus(str, enum.Enum):
-    """Feature 7: where an interview sits in its lifecycle."""
+    """
+    Feature 7: where an interview sits in its lifecycle.
+
+        CREATED ──start──> IN_PROGRESS ──end──> COMPLETED
+                               │  ▲
+                          pause│  │resume
+                               ▼  │
+                            PAUSED ──end──> COMPLETED
+
+    ABANDONED is not a transition anyone requests — it is where a session that
+    was never finished ends up. COMPLETED is terminal: an interview that has
+    been ended cannot be restarted, because the questions have been seen.
+    """
 
     CREATED = "CREATED"
     IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     ABANDONED = "ABANDONED"
+
+
+# The states in which a candidate is partway through: a question may be served,
+# and the interview is neither finished nor unstarted. Defined once because the
+# REST endpoints, the voice socket and analytics all need the same answer.
+ACTIVE_STATUSES = (SessionStatus.IN_PROGRESS, SessionStatus.PAUSED)
 
 
 class QuestionSource(str, enum.Enum):
@@ -55,6 +77,26 @@ class Interview(Base):
     __tablename__ = "interviews"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # An opaque public identifier for this interview session.
+    #
+    # One interview is one session, so this identifies the same run as `id` —
+    # but it is the one that is safe to put in a URL, a log line or a support
+    # ticket. A sequential integer tells anyone who sees it roughly how many
+    # interviews the platform has ever run, and invites guessing at neighbours;
+    # a UUID tells them nothing.
+    #
+    # Generated in Python rather than by the database so it is available
+    # immediately on an unflushed object, and so the SQLite fallback behaves
+    # the same as Postgres.
+    session_id = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -77,6 +119,37 @@ class Interview(Base):
 
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # When the current pause began. Null whenever the interview is not paused —
+    # this is the open half of a pause interval, not a history of them.
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Total time spent paused, accumulated on each resume.
+    #
+    # Without this, pause would be a way to get unlimited thinking time while
+    # the countdown quietly kept running, and the elapsed clock would report a
+    # duration the candidate did not spend interviewing. Both numbers are meant
+    # to describe real time at the keyboard, so paused time is subtracted
+    # rather than ignored.
+    total_paused_seconds = Column(Integer, nullable=False, default=0, server_default="0")
+
+    # How long the interview actually took, in seconds, stamped when it ends.
+    #
+    # Derivable from completed_at - started_at - total_paused_seconds, and it
+    # is derived exactly that way — but it is *stored* because it is a fact
+    # about a finished interview, and a stored fact does not change if the
+    # formula is later corrected or if paused time is adjusted. Null while the
+    # interview is still running: there is no duration until there is an end.
+    duration_seconds = Column(Integer, nullable=True)
+
+    # Module 4: how long the candidate gets per question, in seconds.
+    #
+    # Snapshotted from PlatformSettings.session_minutes when the interview
+    # starts rather than read live, so an administrator editing the platform
+    # setting mid-session cannot move the goalposts under a candidate who is
+    # already answering. Null on interviews created before timing existed —
+    # those simply have no countdown.
+    question_seconds = Column(Integer, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -126,6 +199,23 @@ class InterviewQuestion(Base):
     # parent and is always a name the server chose, never a client filename.
     answer_audio_path = Column(String(512), nullable=True)
     answer_audio_mime = Column(String(80), nullable=True)
+    # How long the candidate actually spoke for, in seconds, as measured by the
+    # browser's recorder.
+    #
+    # Deliberately NOT derived from answered_at - asked_at. That interval also
+    # contains thinking time, re-reading the question and hesitation before
+    # hitting record. Words-per-minute computed against it would be wrong in a
+    # way that always flatters nobody and penalises the careful, so pace uses
+    # this measured speaking time or it is not reported at all.
+    answer_duration_seconds = Column(Float, nullable=True)
+
+    # Module 5 output for this one answer: filler counts, pace, grammar notes,
+    # communication assessment. JSON rather than columns because the shape will
+    # churn as the analysis is tuned — same reasoning as the résumé extraction.
+    # Null means not analysed, which is not the same as "analysed and clean".
+    analysis = Column(JSON, nullable=True)
+    analyzed_at = Column(DateTime(timezone=True), nullable=True)
+
     asked_at = Column(DateTime(timezone=True), nullable=True)
     answered_at = Column(DateTime(timezone=True), nullable=True)
     # Set when the candidate passes on a question. A skip is *not attempted* —
@@ -136,6 +226,23 @@ class InterviewQuestion(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     interview = relationship("Interview", back_populates="questions")
+
+    @property
+    def time_on_question_seconds(self):
+        """
+        Seconds from being asked to being answered or skipped.
+
+        A property rather than a column: it is fully determined by timestamps
+        already stored, so persisting it would create a second copy that could
+        drift. Lives here so the response schemas pick it up through
+        from_attributes without every endpoint recomputing it.
+
+        Imported lazily to keep the model layer free of a service import at
+        module scope.
+        """
+        from app.services.session_timing import question_seconds_spent
+
+        return question_seconds_spent(self)
 
     def __repr__(self) -> str:
         return f"<InterviewQuestion id={self.id} interview_id={self.interview_id} seq={self.sequence_no}>"

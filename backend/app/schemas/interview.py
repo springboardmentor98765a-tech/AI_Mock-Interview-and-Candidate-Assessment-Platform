@@ -66,6 +66,18 @@ class QuestionOut(BaseModel):
     # The recording's path stays server-side; clients get a yes/no and fetch the
     # bytes from /interviews/{id}/answers/{sequence_no}/audio.
     answer_audio_mime: Optional[str] = None
+    # Measured speaking time, not asked-to-answered wall clock. See the column
+    # comment on the model for why the distinction matters to pace.
+    answer_duration_seconds: Optional[float] = None
+    # Time on the question: asked → answered or skipped. Larger than
+    # answer_duration_seconds, which is only how long the candidate spoke —
+    # this one includes reading and thinking. Null while still open.
+    time_on_question_seconds: Optional[float] = None
+    # Module 5 output. Null means this answer was never analysed — which is a
+    # different thing from "analysed and nothing to report", so the client must
+    # not render an absent analysis as a clean one.
+    analysis: Optional[dict] = None
+    analyzed_at: Optional[datetime] = None
     asked_at: Optional[datetime] = None
     answered_at: Optional[datetime] = None
     skipped_at: Optional[datetime] = None
@@ -88,6 +100,9 @@ class InterviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # Opaque public identifier for the session. Same run as `id`, but safe to
+    # put in a URL or a log without leaking how many interviews exist.
+    session_id: str
     user_id: int
     interview_type: InterviewType
     domain: str
@@ -97,8 +112,25 @@ class InterviewOut(BaseModel):
     source: QuestionSource
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    # Module 4: seconds allowed per question, fixed when the session started.
+    # Null on interviews that have not been started, and on ones created before
+    # timing existed — the client shows no countdown rather than inventing one.
+    question_seconds: Optional[int] = None
+    # Set only while the interview is PAUSED — the open half of the current
+    # pause, not a history of them.
+    paused_at: Optional[datetime] = None
+    # Time spent paused, so a client can show elapsed interview time rather
+    # than wall-clock time since the session began.
+    total_paused_seconds: int = 0
+    # Stamped when the interview ends; null while it is still running.
+    duration_seconds: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def is_paused(self) -> bool:
+        return self.status == SessionStatus.PAUSED
 
 
 class InterviewDetail(InterviewOut):

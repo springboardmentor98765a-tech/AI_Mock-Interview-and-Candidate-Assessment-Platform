@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.security import decode_access_token
 from app.db.session import Base, SessionLocal, engine
 from app.models import interview as interview_model  # noqa: F401  (registers the tables)
+from app.models import recording as recording_model  # noqa: F401  (registers the tables)
 from app.models import resume as resume_model  # noqa: F401  (registers the table)
 from app.models import setting as setting_model  # noqa: F401  (registers the table)
 from app.models import ticket as ticket_model  # noqa: F401  (registers the table)

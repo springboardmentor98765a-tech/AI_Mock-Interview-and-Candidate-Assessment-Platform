@@ -15,7 +15,10 @@ class PlatformSettings(Base):
 
     Every field here has a real effect somewhere — none of them are decorative:
       max_questions    caps question_count on POST /interviews/generate
-      session_minutes  drives the interview timer the client counts down
+      session_minutes  whole-interview budget; divided across the questions at
+                       POST /interviews/start and snapshotted onto the
+                       interview as question_seconds, which is what the
+                       candidate's countdown actually reads
       open_signup      when false, public registration returns 403
       maintenance      when true, non-admin API calls return 503
     """

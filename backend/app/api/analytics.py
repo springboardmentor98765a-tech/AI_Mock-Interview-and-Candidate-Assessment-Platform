@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_roles
 from app.db.session import get_db
 from app.models.interview import (
+    ACTIVE_STATUSES,
     QUESTION_ANSWERED,
     QUESTION_SKIPPED,
     Interview,
@@ -189,7 +190,9 @@ def recruiter_analytics(db: Session = Depends(get_db)):
         interviews_completed=interviews.filter(
             Interview.status == SessionStatus.COMPLETED
         ).count(),
-        live_now=interviews.filter(Interview.status == SessionStatus.IN_PROGRESS).count(),
+        # Same definition as GET /analytics/live, so the count and the list it
+        # summarises can never disagree — a paused candidate appears in both.
+        live_now=interviews.filter(Interview.status.in_(ACTIVE_STATUSES)).count(),
         top_technologies=[
             CountPoint(label=label, count=count) for label, count in tech.most_common(10)
         ],
@@ -260,14 +263,19 @@ def recruiter_candidates(
 )
 def live_interviews(db: Session = Depends(get_db)):
     """
-    Interviews currently IN_PROGRESS.
+    Interviews a candidate is currently partway through.
+
+    Includes PAUSED as well as IN_PROGRESS: a paused candidate is still in a
+    live session, and dropping them from this list would make someone who
+    stepped away for a minute silently disappear from the monitor. The `paused`
+    flag on each row is what distinguishes the two.
 
     Progress is counted from real answered questions, not simulated.
     """
     rows = (
         db.query(Interview, User)
         .join(User, Interview.user_id == User.id)
-        .filter(Interview.status == SessionStatus.IN_PROGRESS)
+        .filter(Interview.status.in_(ACTIVE_STATUSES))
         .order_by(Interview.started_at.desc().nullslast())
         .all()
     )
@@ -295,6 +303,7 @@ def live_interviews(db: Session = Depends(get_db)):
                 questions_total=total,
                 questions_answered=answered,
                 started_at=interview.started_at,
+                paused=interview.status == SessionStatus.PAUSED,
             )
         )
     return out

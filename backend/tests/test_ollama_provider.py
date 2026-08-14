@@ -53,6 +53,17 @@ RESUME_JSON = {
     ],
 }
 
+COMMUNICATION_JSON = {
+    "grammar_issues": [
+        {"excerpt": "I has done", "issue": "Subject-verb agreement.", "suggestion": "I have done"}
+    ],
+    "clarity": "Direct and to the point.",
+    "structure": "Opens with the situation and closes with the result.",
+    "conciseness": "A little short — the result needs a sentence more.",
+    "strengths": ["Concrete example"],
+    "improvements": ["Quantify the outcome"],
+}
+
 QUESTIONS_JSON = {
     "questions": [
         {"question_text": "Explain how you would design a caching layer.", "category": "Caching"},
@@ -253,15 +264,60 @@ class TestProviderSelection:
         )
         assert len(questions) == 1
 
-    def test_no_provider_exposes_speech(self):
-        """Speech conversion was removed — no provider should offer it."""
+    def test_no_provider_offers_text_to_speech(self):
+        """Speech runs one way. Nothing reads the questions aloud."""
         for module in (ai_provider, gemini, ollama_provider):
             assert not hasattr(module, "text_to_speech")
-            assert not hasattr(module, "speech_to_text")
+
+    def test_ollama_offers_no_speech_to_text(self):
+        """Ollama serves no speech models, so it must not pretend to."""
+        assert not hasattr(ollama_provider, "speech_to_text")
+        assert not hasattr(ollama_provider, "assess_pronunciation")
+
+    def test_speech_routes_to_gemini_under_ollama(self, monkeypatch, use_ollama):
+        """
+        The load-bearing rule: selecting Ollama for text must not silently
+        disable transcription. Both speech calls go to Gemini regardless.
+        """
+        seen = {}
+        monkeypatch.setattr(
+            gemini, "speech_to_text", lambda a, mime_type="audio/webm": seen.setdefault("stt", mime_type) or "hi"
+        )
+        monkeypatch.setattr(
+            gemini,
+            "assess_pronunciation",
+            lambda a, mime_type="audio/webm": seen.setdefault("pron", mime_type) or object(),
+        )
+
+        ai_provider.speech_to_text(b"audio", mime_type="audio/wav")
+        ai_provider.assess_pronunciation(b"audio", mime_type="audio/wav")
+
+        assert seen == {"stt": "audio/wav", "pron": "audio/wav"}
+
+    def test_communication_review_follows_the_provider(self, monkeypatch, use_ollama):
+        """Grammar review is text, so it stays local when Ollama is selected."""
+        client = install(monkeypatch, FakeClient(COMMUNICATION_JSON))
+        result = ai_provider.analyse_communication(question="Why?", transcript="Because.")
+
+        assert result.clarity == "Direct and to the point."
+        assert isinstance(client.calls[0]["format"], dict), "must use native structured output"
 
     def test_status_shape(self, monkeypatch, use_ollama):
         install(monkeypatch, FakeClient(QUESTIONS_JSON))
         status = ai_provider.provider_status()
         assert status["provider"] == "ollama"
         assert status["model"] == settings.OLLAMA_MODEL
-        assert set(status) == {"provider", "model", "reachable", "detail"}
+        # Speech is reported separately from the text provider: it can be down
+        # while Ollama is perfectly healthy, and the UI needs to say which.
+        assert status["speech_provider"] == "gemini"
+        assert set(status) == {
+            "provider",
+            "model",
+            "reachable",
+            "detail",
+            "speech_provider",
+            "speech_model",
+            "speech_available",
+            "speech_detail",
+            "answer_analysis_enabled",
+        }

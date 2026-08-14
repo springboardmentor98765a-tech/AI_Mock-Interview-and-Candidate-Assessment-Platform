@@ -16,10 +16,13 @@ from app.core.config import settings
 from app.services.providers.base import (
     AIUnavailable,
     AIUnreachable,
+    COMMUNICATION_SYSTEM_PROMPT,
+    CommunicationAssessment,
     GeneratedQuestion,
     GeneratedQuestionSet,
     QUESTION_SYSTEM_PROMPT,
     RESUME_SYSTEM_PROMPT,
+    communication_prompt,
     question_prompt,
     resume_prompt,
     strict_json_schema,
@@ -128,3 +131,25 @@ def extract_resume(resume_text: str):
         return ExtractedResume.model_validate_json(content)
     except Exception as exc:  # noqa: BLE001
         raise AIUnavailable(f"The local model returned unusable résumé data: {exc}") from exc
+
+
+def analyse_communication(*, question: str, transcript: str) -> CommunicationAssessment:
+    """
+    Module 5's grammar and communication review, run locally.
+
+    Only the text half of Module 5 can live here. Pronunciation reads the
+    recording, and Ollama has no speech models — so the facade sends that one
+    to Gemini regardless of AI_PROVIDER.
+    """
+    content = _chat(
+        COMMUNICATION_SYSTEM_PROMPT,
+        communication_prompt(question=question, transcript=transcript),
+        strict_json_schema(CommunicationAssessment),
+    )
+
+    try:
+        return CommunicationAssessment.model_validate_json(content)
+    except Exception as exc:  # noqa: BLE001
+        raise AIUnavailable(
+            f"The local model returned an unusable communication assessment: {exc}"
+        ) from exc

@@ -155,6 +155,51 @@ export const api = {
     return URL.createObjectURL(await response.blob());
   },
 
+  /**
+   * Upload the webcam recording for a session.
+   *
+   * Multipart over HTTP rather than the interview WebSocket: a recording runs
+   * to tens of megabytes, and base64 over the socket would inflate it by a
+   * third and stall the interview while it transferred.
+   */
+  uploadRecording: (interviewId, blob, durationSeconds) => {
+    const form = new FormData();
+    // The server chooses the stored filename; this one is only a label on the
+    // multipart part, so it need not be meaningful.
+    form.append('file', blob, 'session.webm');
+    if (durationSeconds) form.append('duration_seconds', String(durationSeconds));
+    return request(`/interviews/${interviewId}/recording`, {
+      method: 'POST',
+      body: form,
+      auth: true,
+    });
+  },
+
+  /** The stored session recording, as a blob URL. Caller must revoke it. */
+  recordingUrl: async (interviewId) => {
+    const response = await fetch(`${BASE}/interviews/${interviewId}/recording`, {
+      headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+    });
+    if (!response.ok) throw new ApiError(response.status, 'That recording could not be loaded.');
+    return URL.createObjectURL(await response.blob());
+  },
+
+  /* Session control. The live interview drives these over the WebSocket
+     instead; these are for controlling a session from outside it. */
+  pauseInterview: (id) => request(`/interviews/${id}/pause`, { method: 'POST', auth: true }),
+  resumeInterview: (id) => request(`/interviews/${id}/resume`, { method: 'POST', auth: true }),
+  endInterview: (id) => request(`/interviews/${id}/end`, { method: 'POST', auth: true }),
+
+  /**
+   * Module 5: per-answer communication analysis plus a session roll-up.
+   *
+   * Sections come back with available=false and a reason when they could not
+   * be produced — render the reason rather than treating an absent section as
+   * a clean result.
+   */
+  interviewAnalysis: (interviewId) =>
+    request(`/interviews/${interviewId}/analysis`, { auth: true }),
+
   /* ---------------- analytics ---------------- */
 
   adminAnalytics: () => request('/analytics/admin', { auth: true }),

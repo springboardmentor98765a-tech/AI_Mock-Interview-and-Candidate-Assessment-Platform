@@ -48,7 +48,7 @@ registration talked to the API.
 | **M3 — REST APIs** | **FULLY WORKING** | All 8 endpoints, 30 tests pass |
 | **M3 — Voice interviewer** | **FULLY WORKING (backend)** | `api/voice.py` WebSocket; verified end to end with real TTS/STT |
 | **M3 — Voice frontend** | **STUB** | `pages/candidate/LiveSession.jsx` — fake timer, hardcoded question, no webcam, no mic, no WebSocket |
-| **M4-M10 (speech analysis, emotion, scoring, notifications)** | **MISSING** | No code exists |
+| **M4-M10 (speech analysis, emotion, scoring, notifications)** | **MISSING** *(at audit time — M4 and M5 have since been built; see §10-§12)* | No code exists |
 | **Candidate dashboard** | **STUB** | `CandidateHome.jsx` — zero API calls |
 | **Recruiter dashboard** | **STUB** | `RecruiterHome.jsx` — zero API calls |
 | **Admin dashboard** | **STUB** | `AdminHome.jsx` — zero API calls |
@@ -262,7 +262,7 @@ microphone and no WebSocket. The working voice interviewer is at
 
 | Gap | Spec |
 |---|---|
-| No speech analysis (grammar, filler words, pace) | Module 5 |
+| ~~No speech analysis (grammar, filler words, pace)~~ — **RESOLVED**, see below | Module 5 |
 | No emotion detection / eye tracking | Module 6 |
 | No scoring engine or the 30/25/30/15 weighting | Module 7 |
 | No analytics endpoints | Module 8 |
@@ -332,7 +332,7 @@ your approval.
 | A15 | `API_STATS` | **REAL** | `GET /metrics` — measured by timing middleware |
 | A16 | `LATENCY` | **REAL** | Real avg/p95/p99 from measured requests |
 | A17 | `ENDPOINTS` | **REAL** | Actual route templates — the invented `/api/v1/*` paths are gone |
-| A18 | `LiveSession` `METRICS` | **EMPTY** | No eye-contact/confidence/pace analysis exists |
+| A18 | `LiveSession` `METRICS` | **PARTLY REAL** | Pace and filler counts are now measured (Module 5). Eye contact and confidence remain empty — Module 6 is unbuilt |
 | A19 | `LiveSession` hardcoded Q&A | **REAL** | Rewritten on the voice WebSocket — real questions, real mic, real transcripts |
 | A20 | Admin `settings` | **REAL** | `GET/PUT /settings` — persisted **and enforced** |
 
@@ -373,7 +373,7 @@ faked, estimated or seeded — each renders "Not yet available" with the reason.
 | Score breakdown (the 30/25/30/15 weighting) | Module 7 |
 | Score distribution across the pool | Module 7 |
 | Candidate ranking and comparison | Module 7 |
-| Eye contact, emotion, speaking pace | Module 6 |
+| Eye contact, emotion | Module 6 |
 | Administrator audit log | No audit table |
 | Interview templates | No templates table |
 
@@ -398,3 +398,263 @@ The security findings in §5 are **not** addressed by the remediation:
 4. **F1** — Gemini free tier is **20 requests/day**, not 1,500; both modules
    share it
 5. **F2** — a quota 429 is still reported as "check that GEMINI_API_KEY is set"
+
+---
+
+## 10. Modules 4 and 5 (added after the audit)
+
+### Module 4 — Interview Session Management
+
+| Spec bullet | Before | Now |
+|---|---|---|
+| Webcam access | absent | **Built** — preview in the browser |
+| Microphone access | built | unchanged |
+| Video recording | absent | **Built, browser-only** — never uploaded, discarded on leaving the page |
+| Audio recording | built | unchanged |
+| Timer-based workflow | a stopwatch counting up | **Built** — per-question countdown from the admin's session length, soft expiry |
+| Session storage | built | unchanged |
+
+**A defect found and fixed on the way:** `PlatformSettings.session_minutes` was
+admin-editable and its docstring claimed it *"drives the interview timer the
+client counts down"* — but nothing read it. Both that comment and the settings
+endpoint's copy were describing behaviour that did not exist. The setting is now
+actually wired, and the clock is snapshotted onto the interview at start so an
+administrator editing it cannot change the time remaining for a candidate
+mid-answer.
+
+**Video is deliberately not stored server-side.** There is no upload path and no
+endpoint that would accept one. Keeping biometric footage of candidates raises
+consent and retention questions that belong to an explicit decision, not to a
+side effect of ticking off a spec bullet.
+
+### Module 5 — Speech-to-Text & Communication Analysis
+
+All six bullets are built. This reverses commit `12564d5`, which had removed
+transcription — the transcript is now stored **alongside** the recording rather
+than instead of it, so the audio remains the primary record.
+
+| Bullet | Kind |
+|---|---|
+| Real-time speech transcription | Gemini, per answer |
+| Grammar checking | AI assessment, quoting the candidate's own words |
+| Filler-word detection | **measured** |
+| Speech pace analysis | **measured**, against real speaking time |
+| Pronunciation evaluation | AI listening notes — qualitative, no score |
+| Communication quality assessment | AI assessment |
+
+Still **no score anywhere**, in line with §7: filler counts and pace are
+arithmetic, everything else is labelled an opinion, and scoring remains an
+unbuilt module.
+
+### New severity-1 finding, mitigated
+
+**F6. The speech model invents transcripts.** Given audio it cannot decode, it
+returns a fluent, plausible interview answer that nobody said. Verified against
+a real 8 KB recording: three runs produced three completely different "answers",
+and it persisted at `temperature=0` with a prompt explicitly offering a
+`NO_SPEECH` escape.
+
+This is the most dangerous failure mode in the platform so far — an invented
+transcript attached to a candidate's interview record reads exactly like a real
+one.
+
+*Mitigation:* `speech_analysis.transcript_is_plausible()` checks the word count
+against the recording's measured length and discards anything implying more than
+300 words per minute. A transcript that cannot be checked at all is refused
+rather than shown. This is arithmetic rather than another instruction to the
+model, because instructions demonstrably do not hold.
+
+*Residual risk:* a confabulated transcript that happens to be short enough to be
+physically plausible would still pass. The recording is always kept, so the
+transcript can be checked against it — which is the reason audio stays primary.
+
+### Test suite
+
+**204 passing, 0 skipped** (was 159). New coverage: filler/pace arithmetic, the
+plausibility guard and its boundaries, timer snapshot behaviour under a
+concurrent admin change, speech routing to Gemini under `AI_PROVIDER=ollama`,
+and the analysis endpoint's ownership isolation.
+
+---
+
+## 11. Interview Session Management (pause / resume / end)
+
+| Spec bullet | Before | Now |
+|---|---|---|
+| Create a session | built | unchanged |
+| Start | built | unchanged |
+| **Pause / resume** | **absent** | **Built** — `PAUSED` status, REST endpoints and socket actions |
+| **End** | **broken** | **Fixed** — sets a terminal status |
+| Questions one by one | built | unchanged |
+| Maintain session status | built | extended with `PAUSED` |
+| Store start / end times | built | plus `total_paused_seconds` |
+
+### F7 — ending an interview early left it running for ever
+
+The socket's `end` action sent `{"type":"closed"}` and broke the loop **without
+setting any terminal status**. A candidate who stopped early stayed
+`IN_PROGRESS` permanently: in their own history, in the recruiter's live-session
+monitor, and in every count derived from status. There was no REST way to end a
+session at all, so the only route to `COMPLETED` was answering every question.
+
+`end` now sets `COMPLETED` and stamps `completed_at`, over REST and over the
+socket, and is idempotent so a retry or a double-click is not an error.
+
+### Design decisions worth recording
+
+- **Paused time is measured, not ignored.** `total_paused_seconds` accumulates
+  on each resume. Without it, pausing would buy unlimited thinking time while
+  the countdown kept running, and the elapsed clock would report time the
+  candidate did not spend interviewing.
+- **The socket refuses `next` / `answer` / `skip` while paused**, or a candidate
+  could read ahead on a stopped clock. `end` still works while paused.
+- **Ending early leaves questions unanswered, never skipped.** "Ran out of time"
+  and "passed on it" are different facts about a candidate, and there is a test
+  asserting the two are not merged.
+- **A paused candidate stays in the live monitor** with a `paused` flag, rather
+  than vanishing from it. `live_now` uses the same definition as the list it
+  summarises, so the count and the list cannot disagree.
+
+**Tests: 229 → 232 passing** for the session-lifecycle work (20 lifecycle + 5
+WebSocket pause + 3 paused-is-live, less a few superseded assertions).
+
+---
+
+## 12. Webcam, microphone and recording
+
+### Webcam & Microphone
+
+| Spec bullet | State |
+|---|---|
+| Request browser permission for camera and microphone | **Built** |
+| Display live webcam preview | **Built** |
+| Capture candidate video | **Built** |
+| Capture candidate audio | **Built** |
+| Handle permission denied / unavailable devices | **Built** — see below |
+
+Device failures previously surfaced the browser's own developer-facing message
+(`"Requested device not found"`), which does not distinguish situations needing
+completely different responses. Each is now named and actionable:
+
+| Failure | What the candidate is told |
+|---|---|
+| `NotAllowedError` / `SecurityError` | how to re-grant from the padlock icon |
+| `NotFoundError` / `OverconstrainedError` | no device — connect one, or carry on without |
+| `NotReadableError` / `AbortError` | in use by another app — close your video call |
+| `getUserMedia` absent | it is an HTTPS-only browser policy, not a bug |
+| `MediaRecorder` absent | caught **before** prompting for a permission that could not be used |
+
+### Recording
+
+| Spec bullet | State |
+|---|---|
+| Record video using MediaRecorder | **Built** |
+| Record audio | **Built** |
+| Store recording securely | **Built** — server-chosen uuid4 filename, streamed size cap, magic-byte check |
+| Associate recordings with the interview session | **Built** — `interview_recordings.interview_id`; answer audio per question |
+| Allow authorized users to access recordings | **PARTIAL — candidate only, by decision** |
+
+**This reverses the earlier "video never leaves the browser" decision.** Video
+is now uploaded and stored server-side. The screen states plainly, before and
+during recording, that it is being stored, who can see it, and that access is
+logged — recording someone's face is not something to do quietly.
+
+### The unmet bullet, stated plainly
+
+Only the candidate who made a recording can play it back. Recruiters and
+administrators receive a 404. That does not satisfy *"allow authorized users to
+access recordings"* on any reading where a recruiter is an authorized user, and
+it is recorded here as a deliberate gap rather than papered over: widening it
+decides who may replay a candidate's face and voice, which is a policy call.
+
+### F8 — deleting an interview with a recording returned 500
+
+Found by testing rather than reading. `InterviewRecording.interview_id` is
+`NOT NULL` with `ON DELETE CASCADE` at the database level, but the ORM
+relationship defaulted to detaching children by setting the foreign key to
+NULL — which that column forbids. Deleting any interview that had a recording
+failed with a `NotNullViolation`, leaving the interview undeleted and its video
+file already removed from disk.
+
+Fixed with `passive_deletes=True` and `cascade="all, delete-orphan"`, so the
+database cascade does the work. Covered by
+`TestDeletion.test_deleting_the_interview_removes_the_recording`.
+
+### Access logging
+
+Every successful playback writes a row to `recording_accesses`. Two properties
+that are easy to get wrong, both tested:
+
+- a refused or missing-recording request is **not** logged as an access;
+- deleting an interview does **not** delete its access log — the rows carry a
+  plain `interview_id` rather than a foreign key, so a cascade cannot erase the
+  record of who had already viewed a recording.
+
+**Tests: +18 for recordings.** Full suite at that point: 250 passing.
+
+---
+
+## 13. Timer-based workflow and session storage
+
+### Section 4 — what is tracked
+
+| Spec bullet | Before | Now |
+|---|---|---|
+| Total interview duration | nothing computed it | **Stored** on the interview, stamped at end, excluding paused time |
+| Time spent per question | timestamps existed, nothing derived from them | **Derived** as `time_on_question_seconds` |
+| Remaining time | **client-side only** | **Computed server-side**, floored at zero with overrun reported separately |
+| Questions completed | recomputed ad-hoc per caller | Part of the session record, partitioned attempted / skipped / unanswered |
+
+The workflow itself (start → timer → question → answer → next → end) was
+already complete; these were the tracking gaps behind it.
+
+### Section 5 — session storage
+
+Every listed field is now stored or derived from stored data. Two additions:
+
+- **`session_id`** — an opaque UUID on the interview. One interview is one
+  session, so it identifies the same run as `id`; the difference is that `id`
+  is sequential and leaks a rough count of every interview ever run, while a
+  UUID leaks nothing. Backfilled across the 25 existing interviews by
+  `scripts/add_session_id_column.py`.
+- **`duration_seconds`** — stamped at the moment of completion at all three
+  places an interview can end (REST `end`, socket `end`, and answering the
+  last question), so no path leaves it null on a finished interview.
+
+### Three times that must not be confused
+
+| Field | Measures |
+|---|---|
+| `answer_duration_seconds` | how long the candidate **spoke** (pace uses this) |
+| `time_on_question_seconds` | asked → answered, **including thinking** |
+| `duration_seconds` | the whole session, **excluding** pauses |
+
+Each is a different number for the same answer, and reporting one as another
+would be wrong in a different direction each time. Kept as three fields rather
+than one convenient average.
+
+### Nothing is estimated
+
+- `duration_seconds` is null while an interview runs, rather than a guess from
+  a partial session.
+- `elapsed_seconds` is null before it starts — zero would claim it began and no
+  time passed.
+- `remaining_seconds` is null when no clock was ever set, rather than defaulting
+  to a budget nobody configured.
+- `video_recording` is null and `audio_recordings` is empty when none exist —
+  never a placeholder.
+
+**Tests: 250 → 278 passing, 0 skipped** — 48 timing unit tests and 12
+session-record HTTP tests, verified on a single clean run (18m52s; most of that
+is real AI calls rather than test overhead).
+
+Notable properties pinned by the new tests, each corresponding to a way the
+numbers could quietly become fiction:
+
+- duration excludes paused time, over a real pause
+- `elapsed_seconds` is null before start, never zero
+- `remaining_seconds` floors at zero and overrun is a separate field
+- `budget_seconds == seconds_per_question × questions_total`
+- attempted + skipped + unanswered always equals the total
+- `session_id` parses as a UUID and differs from the row id
+- a finished interview's duration does not grow as time passes

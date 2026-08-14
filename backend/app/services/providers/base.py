@@ -42,6 +42,73 @@ class GeneratedQuestionSet(BaseModel):
     questions: List[GeneratedQuestion]
 
 
+# --------------------------------------------------------------------------
+# Module 5 — communication analysis
+# --------------------------------------------------------------------------
+
+
+class GrammarIssue(BaseModel):
+    """
+    One grammatical problem, anchored to the words that caused it.
+
+    `excerpt` is mandatory and must be text the candidate actually said. An
+    issue with nothing to point at is unreviewable — the candidate cannot tell
+    whether the model found a real mistake or invented one.
+    """
+
+    excerpt: str = Field(description="The exact phrase from the transcript, quoted verbatim.")
+    issue: str = Field(description="What is wrong with it, in one short sentence.")
+    suggestion: str = Field(description="The corrected phrasing.")
+
+
+class CommunicationAssessment(BaseModel):
+    """
+    The AI-judgement half of Module 5.
+
+    Everything here is an opinion, not a measurement, and the API labels it as
+    such. There is deliberately no overall score: a single number would be read
+    as an interview result, and interview scoring is a separate unbuilt module
+    with its own rubric.
+    """
+
+    grammar_issues: List[GrammarIssue] = Field(
+        default_factory=list,
+        description="Empty when the answer is grammatically sound. Do not pad it.",
+    )
+    clarity: str = Field(description="How clearly the point came across, one or two sentences.")
+    structure: str = Field(description="Whether the answer had a beginning, middle and end.")
+    conciseness: str = Field(description="Whether it rambled or was too terse.")
+    strengths: List[str] = Field(default_factory=list, description="What the candidate did well.")
+    improvements: List[str] = Field(
+        default_factory=list, description="Specific, actionable changes for next time."
+    )
+
+
+class PronunciationNotes(BaseModel):
+    """
+    Listening notes on the recording itself.
+
+    Intentionally qualitative. Real pronunciation scoring needs phoneme-level
+    forced alignment against a reference, which this platform does not do — so
+    the honest output is "here is what was hard to catch", not a number
+    dressed up as a measurement.
+    """
+
+    intelligibility: str = Field(
+        description=(
+            "One of: clear, mostly clear, occasionally unclear, hard to follow. "
+            "Judge only how easy the speech was to understand."
+        )
+    )
+    unclear_words: List[str] = Field(
+        default_factory=list,
+        description="Specific words that were hard to make out. Empty if none were.",
+    )
+    notes: str = Field(
+        description="Brief observations on articulation, volume and delivery. No score."
+    )
+
+
 def strict_json_schema(model: Type[BaseModel]) -> Dict[str, Any]:
     """
     A JSON schema with every property marked required.
@@ -113,6 +180,40 @@ RESUME_SYSTEM_PROMPT = (
     "guessing — an empty list is always better than a plausible fabrication. "
     "Do not infer seniority or skills the candidate has not claimed."
 )
+
+
+COMMUNICATION_SYSTEM_PROMPT = (
+    "You are a communication coach reviewing one spoken interview answer. "
+    "You are given a transcript of speech, not written prose — so ignore "
+    "missing punctuation and capitalisation, which are artefacts of "
+    "transcription rather than mistakes the candidate made. "
+    "Judge only what was said. Never invent a quotation: every excerpt you "
+    "give must appear verbatim in the transcript. If the answer is "
+    "grammatically sound, return an empty list rather than manufacturing an "
+    "issue to look thorough. Do not evaluate whether the answer is factually "
+    "correct or a good interview answer — only how it was communicated."
+)
+
+PRONUNCIATION_SYSTEM_PROMPT = (
+    "You are listening to a recording of one spoken interview answer. Report "
+    "only how intelligible the speech was: articulation, pace of delivery, "
+    "volume, and any specific words that were hard to make out. "
+    "Do not assess accent, and do not treat a regional or non-native accent as "
+    "a defect — an accent is not a pronunciation problem. Do not score the "
+    "speaker, and do not comment on the content of the answer."
+)
+
+
+def communication_prompt(*, question: str, transcript: str) -> str:
+    return (
+        "Review how this answer was communicated.\n\n"
+        f"QUESTION ASKED:\n{question}\n\n"
+        f"TRANSCRIPT OF THE SPOKEN ANSWER:\n{transcript}\n\n"
+        "Give clarity, structure and conciseness as short observations. List "
+        "grammar issues only where the phrasing is genuinely wrong, quoting the "
+        "candidate's own words. Strengths and improvements should be specific "
+        "to this answer — generic advice that would fit any answer is useless."
+    )
 
 
 def question_prompt(*, interview_type: str, domain: str, difficulty: str, count: int) -> str:

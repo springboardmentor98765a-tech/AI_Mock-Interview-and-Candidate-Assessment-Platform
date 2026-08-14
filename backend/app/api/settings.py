@@ -57,7 +57,10 @@ def update_settings(
     Persist settings. Each of these has a real effect:
 
       max_questions    caps question_count on POST /interviews/generate
-      session_minutes  the interview timer the client counts down
+      session_minutes  whole-interview budget, split across the questions at
+                       POST /interviews/start into the per-question countdown.
+                       Applies to interviews started after the change — one
+                       already in progress keeps the clock it began with.
       open_signup      when false, public registration is refused
       maintenance      when true, non-admin API calls are refused
 

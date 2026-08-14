@@ -1,0 +1,140 @@
+"""
+Module 4 — the interview clock.
+
+Two jobs: turning the administrator's session budget into a per-question clock,
+and answering "how long has this taken, and how long is left".
+
+Every figure here excludes paused time. That is the whole reason the pause
+bookkeeping exists — a duration that counts the ten minutes a candidate spent
+away from the keyboard is not a measure of the interview.
+
+`PlatformSettings.session_minutes` is a whole-interview budget. The candidate,
+though, answers one question at a time, so the number that has to appear on
+screen is seconds-per-question. That division happens here, once, so the
+countdown the candidate sees and any later duration checks cannot disagree.
+
+The result is snapshotted onto the Interview row when the session starts. An
+administrator changing the platform setting halfway through must not move the
+goalposts under someone already answering.
+"""
+
+from datetime import datetime, timezone
+from typing import Optional
+
+# A short interview split across many questions can divide down to a few
+# seconds, which is not an interview — it is a stopwatch with a question
+# attached. Floor it at something a person can actually answer in.
+MIN_QUESTION_SECONDS = 30
+
+# The other end: one question should not be allowed to eat a whole afternoon
+# just because an administrator typed 180 minutes and asked for two questions.
+MAX_QUESTION_SECONDS = 10 * 60
+
+
+def per_question_seconds(session_minutes: int, question_count: int) -> int:
+    """
+    Split a whole-session budget evenly across the questions, clamped.
+
+    Returns a value in [MIN_QUESTION_SECONDS, MAX_QUESTION_SECONDS]. A
+    question_count of zero would be a division by zero rather than a
+    meaningful answer, so it is rejected by the caller before reaching here —
+    but guard anyway, because an interview with no questions has no timer.
+    """
+    if question_count <= 0:
+        return MIN_QUESTION_SECONDS
+
+    budget = max(int(session_minutes), 0) * 60
+    share = round(budget / question_count)
+    return max(MIN_QUESTION_SECONDS, min(MAX_QUESTION_SECONDS, share))
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def elapsed_seconds(interview) -> Optional[int]:
+    """
+    Interview time spent so far, excluding pauses.
+
+    For a finished interview this measures to `completed_at`; for a running one,
+    to now. Returns None when the interview has not started — zero would be a
+    claim that it started and no time has passed, which is a different thing
+    from "it has not started".
+    """
+    if interview.started_at is None:
+        return None
+
+    end = interview.completed_at or _now()
+    total = (end - interview.started_at).total_seconds()
+
+    paused = interview.total_paused_seconds or 0
+    # A pause that is still open has not been added to the running total yet,
+    # so count it here — otherwise the clock would tick on while paused.
+    if interview.paused_at is not None:
+        paused += max((_now() - interview.paused_at).total_seconds(), 0)
+
+    return max(int(total - paused), 0)
+
+
+def session_budget_seconds(interview) -> Optional[int]:
+    """
+    The whole-interview time budget: the per-question clock across every
+    question. None when no clock was ever set for this interview.
+    """
+    if not interview.question_seconds:
+        return None
+    return interview.question_seconds * max(len(interview.questions), 0)
+
+
+def remaining_seconds(interview) -> Optional[int]:
+    """
+    Time left in the session budget, floored at zero.
+
+    Floored rather than allowed to go negative: the countdown is soft, so
+    "overrun" is a state the caller reads from `overrun_seconds`, not a
+    negative remaining time that arithmetic elsewhere might trust.
+    """
+    budget = session_budget_seconds(interview)
+    spent = elapsed_seconds(interview)
+    if budget is None or spent is None:
+        return None
+    return max(budget - spent, 0)
+
+
+def overrun_seconds(interview) -> int:
+    """How far past the budget this interview has run. Zero when within it."""
+    budget = session_budget_seconds(interview)
+    spent = elapsed_seconds(interview)
+    if budget is None or spent is None:
+        return 0
+    return max(spent - budget, 0)
+
+
+def question_seconds_spent(question) -> Optional[float]:
+    """
+    Time on one question: from being asked to being answered or skipped.
+
+    Distinct from `answer_duration_seconds`, which is how long the candidate
+    *spoke*. This one includes reading and thinking, and is the larger of the
+    two. Reporting either as the other would be wrong in opposite directions.
+
+    None while a question is still open — an in-flight question has no
+    finished duration, and using "now" would produce a number that changes
+    every time it is read.
+    """
+    if question.asked_at is None:
+        return None
+    finished = question.answered_at or question.skipped_at
+    if finished is None:
+        return None
+    return round(max((finished - question.asked_at).total_seconds(), 0), 1)
+
+
+def finalise_duration(interview) -> int:
+    """
+    The duration to stamp on an interview that is ending.
+
+    Called at the moment of completion, so `elapsed_seconds` is measuring to
+    an end that has just been set.
+    """
+    return elapsed_seconds(interview) or 0

@@ -44,6 +44,7 @@ import sys
 import wave
 from io import BytesIO
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlencode
 
 try:
@@ -92,20 +93,40 @@ def create_interview(host: str, token: str, itype: str, domain: str, difficulty:
     return body["id"]
 
 
-def load_answer_audio(path: str) -> tuple[str, str]:
-    """Send a real recording. Returns (base64, mime type guessed from suffix)."""
+def load_answer_audio(path: str) -> tuple[str, str, Optional[float]]:
+    """
+    Send a real recording. Returns (base64, mime type, duration or None).
+
+    The duration matters: the server checks the transcript against it and
+    discards transcripts implying an impossible speaking rate. Without one, a
+    transcript cannot be verified and is not shown. WAV carries its length in
+    the header; other containers need --duration passed explicitly, because
+    guessing from the file size across codecs would be a fabricated number in
+    the middle of the exact check that exists to catch fabrication.
+    """
     suffix = Path(path).suffix.lower()
     mime = {".wav": "audio/wav", ".webm": "audio/webm", ".ogg": "audio/ogg",
             ".m4a": "audio/mp4", ".mp3": "audio/mpeg"}.get(suffix, "application/octet-stream")
-    return base64.b64encode(Path(path).read_bytes()).decode("ascii"), mime
+
+    duration = None
+    if suffix == ".wav":
+        try:
+            with wave.open(path, "rb") as source:
+                duration = source.getnframes() / float(source.getframerate())
+        except (wave.Error, OSError):
+            duration = None
+
+    return base64.b64encode(Path(path).read_bytes()).decode("ascii"), mime, duration
 
 
 def generate_answer_audio(seconds: float) -> tuple[str, str]:
     """
     A plain 440 Hz WAV tone, built locally with the standard library.
 
-    Nothing transcribes this, so it does not need to contain speech — it only
-    needs to be real audio bytes of a realistic size.
+    This is real audio of a realistic size, but it contains no speech — so
+    Module 5 will transcribe it to nothing and report an empty answer. That is
+    the correct outcome, not a failure. Pass --answer-file with a recording of
+    an actual spoken answer to exercise the analysis properly.
     """
     frames = int(SAMPLE_RATE * seconds)
     samples = b"".join(
@@ -123,6 +144,43 @@ def generate_answer_audio(seconds: float) -> tuple[str, str]:
     return base64.b64encode(buffer.getvalue()).decode("ascii"), "audio/wav"
 
 
+def _print_analysis(message: dict) -> None:
+    """Render the Module 5 frame. Unavailable sections say why, never nothing."""
+    if not message.get("available"):
+        print(f"       analysis unavailable: {message.get('reason')}")
+        return
+
+    transcript = message.get("transcript") or ""
+    print(f'       transcript: "{transcript}"' if transcript else "       transcript: (silence)")
+
+    fillers = message.get("fillers") or {}
+    rate = fillers.get("per_100_words")
+    print(
+        f"       fillers: {fillers.get('total', 0)}"
+        + (f" ({rate}/100 words)" if rate is not None else " (too short for a rate)")
+        + (f"  {fillers.get('by_word')}" if fillers.get("by_word") else "")
+    )
+
+    pace = message.get("pace") or {}
+    if pace.get("available"):
+        print(f"       pace: {pace['words_per_minute']} wpm — {pace['verdict']}")
+    else:
+        print(f"       pace: unavailable — {pace.get('reason')}")
+
+    comms = message.get("communication") or {}
+    if comms.get("available"):
+        print(f"       grammar issues: {len(comms.get('grammar_issues') or [])}")
+        print(f"       clarity: {comms.get('clarity')}")
+    else:
+        print(f"       communication: unavailable — {comms.get('reason')}")
+
+    speech = message.get("pronunciation") or {}
+    if speech.get("available"):
+        print(f"       pronunciation: {speech.get('intelligibility')}")
+    else:
+        print(f"       pronunciation: unavailable — {speech.get('reason')}")
+
+
 async def run(args: argparse.Namespace) -> int:
     print(f"→ logging in as {args.email}")
     token = login(args.host, args.email, args.password)
@@ -138,14 +196,28 @@ async def run(args: argparse.Namespace) -> int:
 
     # The same recording is sent every turn, so build it once.
     try:
-        answer_b64, answer_mime = (
-            load_answer_audio(args.answer_file) if args.answer_file
-            else generate_answer_audio(args.seconds)
-        )
+        if args.answer_file:
+            answer_b64, answer_mime, answer_seconds = load_answer_audio(args.answer_file)
+        else:
+            answer_b64, answer_mime = generate_answer_audio(args.seconds)
+            answer_seconds = args.seconds
     except OSError as exc:
         print(f"\n✗ Could not read the answer audio: {exc}")
         return 1
-    print(f"  answer audio ready: {len(base64.b64decode(answer_b64)):,} bytes ({answer_mime})\n")
+
+    # An explicit --duration always wins: it is the only way to give a real
+    # length for a container this script cannot read one from.
+    if args.duration:
+        answer_seconds = args.duration
+
+    print(f"  answer audio ready: {len(base64.b64decode(answer_b64)):,} bytes ({answer_mime})")
+    if answer_seconds:
+        print(f"  duration: {answer_seconds:.1f}s\n")
+    else:
+        print(
+            "  duration: unknown — pass --duration, or the server will refuse to\n"
+            "  show a transcript it cannot verify against the recording's length.\n"
+        )
 
     async with websockets.connect(
         _ws_url(args.host, interview_id, token), max_size=16 * 1024 * 1024
@@ -182,17 +254,35 @@ async def run(args: argparse.Namespace) -> int:
 
             await ws.send(
                 json.dumps(
-                    {"type": "answer", "audio_b64": answer_b64, "mime_type": answer_mime}
+                    {
+                        "type": "answer",
+                        "audio_b64": answer_b64,
+                        "mime_type": answer_mime,
+                        # A browser measures this from the recorder. Here it is
+                        # whatever the file actually is, so pace is computed
+                        # against a real duration rather than a guess.
+                        "duration_seconds": answer_seconds,
+                    }
                 )
             )
             reply = json.loads(await ws.recv())
 
-            if reply.get("type") == "recorded":
-                print(f"       recorded: {reply['bytes']:,} bytes of {reply['mime_type']}")
-                print(f"       progress: {reply['answered']}/{reply['total']}\n")
-            else:
+            if reply.get("type") != "recorded":
                 print(f"       ✗ {reply.get('detail')}\n")
                 return 1
+
+            print(f"       recorded: {reply['bytes']:,} bytes of {reply['mime_type']}")
+            print(f"       progress: {reply['answered']}/{reply['total']}")
+
+            # Module 5 sends a second frame once transcription finishes. It has
+            # to be consumed here, or it would be read as the reply to the next
+            # "next" and look like a protocol error.
+            if reply.get("analysis_pending"):
+                print("       analysing…")
+                analysis = json.loads(await ws.recv())
+                _print_analysis(analysis)
+
+            print()
 
     print(f"\nInspect the stored answers:  GET /api/interviews/{interview_id}")
     print(f"Play one back:               GET /api/interviews/{interview_id}/answers/1/audio")
@@ -216,6 +306,12 @@ def main() -> int:
                              "generated tone.")
     parser.add_argument("--seconds", type=float, default=3.0,
                         help="Length of the generated answer tone.")
+    parser.add_argument("--duration", type=float, default=None,
+                        help="Real speaking length of --answer-file, in seconds. "
+                             "Read automatically from WAV; required for webm/mp3/m4a, "
+                             "which this script cannot measure. The server checks the "
+                             "transcript against it and discards one implying an "
+                             "impossible speaking rate.")
     args = parser.parse_args()
 
     try:

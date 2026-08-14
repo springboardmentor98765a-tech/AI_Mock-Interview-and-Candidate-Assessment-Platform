@@ -162,3 +162,62 @@ class TestLiveMonitoring:
             assert iid not in [x["interview_id"] for x in live], "completed interview still live"
         finally:
             client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+
+class TestPausedIsStillLive:
+    """
+    A paused candidate is still in a live session. Dropping them from the
+    monitor would make someone who stepped away for a minute silently vanish.
+    """
+
+    def test_paused_interview_stays_in_the_live_list(self, client, candidate_token,
+                                                     recruiter_token):
+        made = client.post("/interviews/generate", headers=auth(candidate_token), json={
+            "interview_type": "HR", "domain": "hr executive",
+            "difficulty": "EASY", "question_count": 2}).json()
+        iid = made["id"]
+        try:
+            client.post("/interviews/start", headers=auth(candidate_token),
+                        json={"interview_id": iid})
+            client.post(f"/interviews/{iid}/pause", headers=auth(candidate_token))
+
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            row = next((r for r in live if r["interview_id"] == iid), None)
+
+            assert row is not None, "a paused candidate vanished from the live monitor"
+            assert row["paused"] is True, "the monitor cannot tell paused from active"
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_live_count_matches_the_live_list(self, client, candidate_token, recruiter_token):
+        """The summary number and the list it summarises must not disagree."""
+        made = client.post("/interviews/generate", headers=auth(candidate_token), json={
+            "interview_type": "HR", "domain": "hr executive",
+            "difficulty": "EASY", "question_count": 2}).json()
+        iid = made["id"]
+        try:
+            client.post("/interviews/start", headers=auth(candidate_token),
+                        json={"interview_id": iid})
+            client.post(f"/interviews/{iid}/pause", headers=auth(candidate_token))
+
+            summary = client.get("/analytics/recruiter", headers=auth(recruiter_token)).json()
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            assert summary["live_now"] == len(live)
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_completed_interview_leaves_the_live_list(self, client, candidate_token,
+                                                      recruiter_token):
+        made = client.post("/interviews/generate", headers=auth(candidate_token), json={
+            "interview_type": "HR", "domain": "hr executive",
+            "difficulty": "EASY", "question_count": 2}).json()
+        iid = made["id"]
+        try:
+            client.post("/interviews/start", headers=auth(candidate_token),
+                        json={"interview_id": iid})
+            client.post(f"/interviews/{iid}/end", headers=auth(candidate_token))
+
+            live = client.get("/analytics/live", headers=auth(recruiter_token)).json()
+            assert iid not in [r["interview_id"] for r in live]
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))

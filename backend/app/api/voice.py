@@ -4,10 +4,14 @@ Feature 9 — the real-time voice interviewer.
 Why voice rather than a written test: the candidate must answer out loud, so
 they cannot paste a question into a chatbot and read back the answer.
 
-The platform performs no speech conversion. Questions are delivered as text and
-the spoken answer is stored as the recording the browser captured — no
-text-to-speech, no transcription. What is kept is therefore exactly what the
-candidate said, in their own voice, rather than a machine's guess at it.
+Questions are delivered as text — there is no text-to-speech. The candidate's
+answer is kept as the recording the browser captured, which stays the primary
+artefact: exactly what they said, in their own voice.
+
+Module 5 then transcribes that recording and analyses it. The transcript is
+stored *alongside* the audio, never instead of it, so the machine's guess at
+what was said can always be checked against the recording — and an outage in
+the speech service costs the transcript, never the answer.
 
 Protocol (JSON text frames over a WebSocket):
 
@@ -21,9 +25,26 @@ Protocol (JSON text frames over a WebSocket):
     server -> {"type":"question","sequence_no":1,"category":"Introduction",
                "text":"..."}
 
-    client -> {"type":"answer","audio_b64":"<base64>","mime_type":"audio/webm"}
+    client -> {"type":"answer","audio_b64":"<base64>","mime_type":"audio/webm",
+               "duration_seconds":42.5}
     server -> {"type":"recorded","sequence_no":1,"bytes":48213,
-               "answered":1,"skipped":0,"total":5}
+               "analysis_pending":true,"answered":1,"skipped":0,"total":5}
+    server -> {"type":"analysis","sequence_no":1,"transcript":"...",
+               "fillers":{...},"pace":{...},"communication":{...},
+               "pronunciation":{...}}
+
+`duration_seconds` is the browser's measured recording length. It is what pace
+is computed from — see the column comment on answer_duration_seconds for why
+the asked-to-answered interval will not do.
+
+`recorded` is sent as soon as the audio is on disk; `analysis` follows seconds
+later once transcription finishes. A client that ignores `analysis` still runs
+a complete interview.
+
+    client -> {"type":"pause"}       # stop the clock
+    server -> {"type":"paused","interview_id":1,"total_paused_seconds":0}
+    client -> {"type":"resume"}
+    server -> {"type":"resumed","interview_id":1,"total_paused_seconds":94}
 
     client -> {"type":"skip"}        # pass on this one
     server -> {"type":"skipped","sequence_no":2,"attempted":false,
@@ -40,6 +61,11 @@ A skip advances the interview on its own — the client does not send `next`
 afterwards. Skipped questions are *not attempted*: they never count towards
 `answered`, and they are not asked again.
 
+While paused, `next`, `answer` and `skip` are refused: without that, a
+candidate could read ahead on a stopped clock. `end` still works, so someone
+who steps away and decides not to come back need not resume just to stop.
+`end` sets a terminal status — it is a decision, not a disconnection.
+
 Recordings are played back over the sibling REST route in interviews.py:
 GET /api/interviews/{id}/answers/{sequence_no}/audio
 
@@ -47,6 +73,7 @@ Close codes: 4401 bad/missing token, 4404 interview not found, 4409 interview
 has no questions.
 """
 
+import asyncio
 import base64
 import binascii
 import logging
@@ -70,7 +97,11 @@ from app.models.interview import (
     InterviewQuestion,
     SessionStatus,
 )
+from app.models.setting import get_settings
 from app.models.user import User
+from app.services import ai_provider, speech_analysis
+from app.services.session_timing import finalise_duration, per_question_seconds
+from app.services.ai_provider import AIUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +142,129 @@ def _store_answer_audio(audio: bytes, mime_type: str, interview_id: int) -> tupl
     destination = directory / f"{uuid.uuid4()}{extension}"
     destination.write_bytes(audio)
     return str(destination), mime or "application/octet-stream"
+
+
+def _duration(raw) -> Optional[float]:
+    """
+    The client's measured speaking time, sanity-checked.
+
+    It arrives from the browser, so it is a claim rather than a fact. A
+    negative or absurd value would produce a nonsense words-per-minute figure,
+    and a wrong number here is worse than no number — pace is reported as
+    unavailable when this comes back None.
+    """
+    try:
+        seconds = float(raw)
+    except (TypeError, ValueError):
+        return None
+    # Longer than the audio size cap could plausibly hold, so it is not real.
+    if seconds <= 0 or seconds > 60 * 60:
+        return None
+    return round(seconds, 2)
+
+
+async def _analyse_answer(
+    websocket: WebSocket,
+    db: Session,
+    question: InterviewQuestion,
+    audio: bytes,
+    mime: str,
+) -> None:
+    """
+    Module 5: transcribe the recording, analyse it, store both, report back.
+
+    Runs strictly after the audio is on disk and committed. Everything in here
+    is best-effort — the recording is the primary artefact and must survive a
+    transcription outage, a spent quota or a malformed response. A failure
+    costs the transcript and the analysis, never the answer.
+
+    The provider calls are synchronous and slow, so they go through
+    asyncio.to_thread. Calling them inline would block the event loop and the
+    WebSocket would miss its keepalives and drop mid-interview.
+    """
+    try:
+        transcript = await asyncio.to_thread(ai_provider.speech_to_text, audio, mime)
+    except AIUnavailable as exc:
+        logger.warning("Transcription unavailable for question %s: %s", question.id, exc)
+        await websocket.send_json(
+            {
+                "type": "analysis",
+                "sequence_no": question.sequence_no,
+                "available": False,
+                "reason": str(exc),
+            }
+        )
+        return
+    except Exception:  # noqa: BLE001
+        logger.exception("Transcription failed for question %s", question.id)
+        await websocket.send_json(
+            {
+                "type": "analysis",
+                "sequence_no": question.sequence_no,
+                "available": False,
+                "reason": "The answer was recorded, but it could not be transcribed.",
+            }
+        )
+        return
+
+    # Before the transcript is stored or shown, check it could physically have
+    # been said in the recording's length. The speech model invents fluent
+    # answers for audio it cannot make out, and an invented transcript attached
+    # to a candidate's interview is worse than no transcript at all — so a
+    # failed check discards it rather than storing it with a caveat.
+    plausible, reason = speech_analysis.transcript_is_plausible(
+        transcript, question.answer_duration_seconds
+    )
+    if not plausible:
+        logger.warning(
+            "Discarding implausible transcript for question %s: %s", question.id, reason
+        )
+        question.analysis = {"available": False, "reason": reason}
+        question.analyzed_at = datetime.now(timezone.utc)
+        db.commit()
+        await websocket.send_json(
+            {
+                "type": "analysis",
+                "sequence_no": question.sequence_no,
+                "available": False,
+                "reason": reason,
+            }
+        )
+        return
+
+    # An empty transcript is a real outcome, not a failure: the candidate may
+    # have recorded silence. Saying so is more useful than a generic error.
+    question.answer_text = transcript
+    db.commit()
+
+    try:
+        analysis = await asyncio.to_thread(
+            speech_analysis.analyse_answer,
+            question_text=question.question_text,
+            transcript=transcript,
+            duration_seconds=question.answer_duration_seconds,
+            audio=audio,
+            audio_mime=mime,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Answer analysis failed for question %s", question.id)
+        analysis = {
+            "available": False,
+            "reason": "The answer was transcribed, but the analysis could not be completed.",
+        }
+
+    question.analysis = analysis
+    question.analyzed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    await websocket.send_json(
+        {
+            "type": "analysis",
+            "sequence_no": question.sequence_no,
+            "transcript": transcript,
+            **analysis,
+        }
+    )
 
 
 def _authenticate(token: Optional[str], db: Session) -> Optional[User]:
@@ -317,6 +471,16 @@ async def voice_interview(
         interview.started_at = interview.started_at or datetime.now(timezone.utc)
         db.commit()
 
+    # Connecting here bypasses POST /interviews/start, which is where the clock
+    # is normally snapshotted. Without this an interview begun straight from the
+    # socket would have no countdown at all — so set it the same way, once, and
+    # never overwrite a value an earlier start already fixed.
+    if interview.question_seconds is None:
+        interview.question_seconds = per_question_seconds(
+            get_settings(db).session_minutes, progress["total"]
+        )
+        db.commit()
+
     await websocket.send_json(
         {
             "type": "ready",
@@ -324,6 +488,14 @@ async def voice_interview(
             "interview_type": interview.interview_type.value,
             "domain": interview.domain,
             "difficulty": interview.difficulty.value,
+            "status": interview.status.value,
+            "paused": interview.status == SessionStatus.PAUSED,
+            "total_paused_seconds": interview.total_paused_seconds or 0,
+            # Module 4: seconds per question, fixed when the session started.
+            # Null means this interview predates the timer — the client shows
+            # no countdown rather than inventing a limit.
+            "question_seconds": interview.question_seconds,
+            "analysis_enabled": settings.ANALYSE_ANSWERS,
             **progress,
         }
     )
@@ -343,6 +515,7 @@ async def voice_interview(
         if question is None:
             interview.status = SessionStatus.COMPLETED
             interview.completed_at = datetime.now(timezone.utc)
+            interview.duration_seconds = finalise_duration(interview)
             db.commit()
             await websocket.send_json(
                 {
@@ -369,6 +542,18 @@ async def voice_interview(
         while True:
             message = await websocket.receive_json()
             action = message.get("type")
+
+            # A paused interview accepts only the actions that get it out of
+            # being paused. Serving the next question while paused would defeat
+            # the point — the candidate could read ahead on a stopped clock.
+            if interview.status == SessionStatus.PAUSED and action in ("next", "answer", "skip"):
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "detail": "This interview is paused. Resume it to carry on.",
+                    }
+                )
+                continue
 
             # ---------------------------------------------------- next question
             if action == "next":
@@ -427,18 +612,29 @@ async def voice_interview(
 
                 current.answer_audio_path = path
                 current.answer_audio_mime = mime
+                current.answer_duration_seconds = _duration(message.get("duration_seconds"))
                 current.answered_at = datetime.now(timezone.utc)
                 db.commit()
 
+                # Acknowledge the recording before analysing it. Transcription
+                # takes seconds; making the candidate stare at a dead screen
+                # until it finishes would be worse than telling them their
+                # answer is safely stored and following up.
                 await websocket.send_json(
                     {
                         "type": "recorded",
                         "sequence_no": current.sequence_no,
                         "bytes": len(audio_bytes),
                         "mime_type": mime,
+                        "duration_seconds": current.answer_duration_seconds,
+                        "analysis_pending": settings.ANALYSE_ANSWERS,
                         **_progress(db, interview.id),
                     }
                 )
+
+                if settings.ANALYSE_ANSWERS:
+                    await _analyse_answer(websocket, db, current, audio_bytes, mime)
+
                 current = None
 
             # -------------------------------------------------------- skip
@@ -468,9 +664,90 @@ async def voice_interview(
                 if finished:
                     break
 
+            # ------------------------------------------------ pause / resume
+            elif action == "pause":
+                if interview.status != SessionStatus.IN_PROGRESS:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "detail": f"Cannot pause an interview that is {interview.status.value}.",
+                        }
+                    )
+                    continue
+
+                interview.status = SessionStatus.PAUSED
+                interview.paused_at = datetime.now(timezone.utc)
+                db.commit()
+                await websocket.send_json(
+                    {
+                        "type": "paused",
+                        "interview_id": interview.id,
+                        "total_paused_seconds": interview.total_paused_seconds or 0,
+                    }
+                )
+
+            elif action == "resume":
+                if interview.status != SessionStatus.PAUSED:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "detail": f"This interview is not paused (it is {interview.status.value}).",
+                        }
+                    )
+                    continue
+
+                if interview.paused_at is not None:
+                    paused_for = (
+                        datetime.now(timezone.utc) - interview.paused_at
+                    ).total_seconds()
+                    interview.total_paused_seconds = int(
+                        (interview.total_paused_seconds or 0) + max(paused_for, 0)
+                    )
+
+                interview.status = SessionStatus.IN_PROGRESS
+                interview.paused_at = None
+                db.commit()
+                await websocket.send_json(
+                    {
+                        "type": "resumed",
+                        "interview_id": interview.id,
+                        "total_paused_seconds": interview.total_paused_seconds,
+                    }
+                )
+
             # -------------------------------------------------------- close
             elif action == "end":
-                await websocket.send_json({"type": "closed", "interview_id": interview.id})
+                # Ending is a decision, so it has to leave a terminal state
+                # behind. Previously this closed the socket and left the
+                # interview IN_PROGRESS for ever, which meant a candidate who
+                # stopped early stayed "in progress" in every list and count.
+                #
+                # Unanswered questions are left untouched: not skipped, not
+                # back-filled. "Ran out of time" and "passed on it" are
+                # different facts and ending must not merge them.
+                if interview.status == SessionStatus.PAUSED and interview.paused_at is not None:
+                    paused_for = (
+                        datetime.now(timezone.utc) - interview.paused_at
+                    ).total_seconds()
+                    interview.total_paused_seconds = int(
+                        (interview.total_paused_seconds or 0) + max(paused_for, 0)
+                    )
+
+                if interview.status != SessionStatus.COMPLETED:
+                    interview.status = SessionStatus.COMPLETED
+                    interview.completed_at = datetime.now(timezone.utc)
+                    interview.paused_at = None
+                    interview.duration_seconds = finalise_duration(interview)
+                    db.commit()
+
+                await websocket.send_json(
+                    {
+                        "type": "closed",
+                        "interview_id": interview.id,
+                        "status": interview.status.value,
+                        **_progress(db, interview.id),
+                    }
+                )
                 break
 
             else:

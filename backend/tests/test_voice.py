@@ -293,3 +293,126 @@ class TestVoiceFlow:
             assert msg["type"] == "error"
         finally:
             client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+
+class TestPauseOverTheSocket:
+    """Pause, resume and a genuinely-terminal end, driven from the socket."""
+
+    def _interview(self, client, token, count=2):
+        r = client.post("/interviews/generate", headers=auth(token), json={
+            "interview_type": "HR", "domain": "hr executive",
+            "difficulty": "EASY", "question_count": count})
+        return r.json()["id"]
+
+    def test_pause_blocks_the_next_question(self, client, candidate_token):
+        """
+        The point of pausing: a candidate must not be able to read ahead while
+        the clock is stopped.
+        """
+        iid = self._interview(client, candidate_token)
+
+        async def run():
+            url = f"{WS_BASE}/interviews/voice/{iid}?token={candidate_token}"
+            async with websockets.connect(url, max_size=16 * 1024 * 1024) as ws:
+                await asyncio.wait_for(ws.recv(), timeout=20)  # ready
+
+                await ws.send(json.dumps({"type": "pause"}))
+                paused = json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+                await ws.send(json.dumps({"type": "next"}))
+                refused = json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+                await ws.send(json.dumps({"type": "resume"}))
+                resumed = json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+                await ws.send(json.dumps({"type": "next"}))
+                question = json.loads(await asyncio.wait_for(ws.recv(), timeout=90))
+                return paused, refused, resumed, question
+
+        try:
+            paused, refused, resumed, question = asyncio.run(run())
+            assert paused["type"] == "paused"
+            assert refused["type"] == "error"
+            assert "paused" in refused["detail"].lower()
+            assert resumed["type"] == "resumed"
+            assert question["type"] == "question", "resume did not restore normal service"
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_resume_records_paused_time(self, client, candidate_token):
+        iid = self._interview(client, candidate_token)
+
+        async def run():
+            url = f"{WS_BASE}/interviews/voice/{iid}?token={candidate_token}"
+            async with websockets.connect(url, max_size=16 * 1024 * 1024) as ws:
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await ws.send(json.dumps({"type": "pause"}))
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await asyncio.sleep(2)
+                await ws.send(json.dumps({"type": "resume"}))
+                return json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+        try:
+            resumed = asyncio.run(run())
+            assert resumed["total_paused_seconds"] >= 2
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_end_marks_the_session_completed(self, client, candidate_token):
+        """
+        The regression this replaces: `end` used to close the socket and leave
+        the interview IN_PROGRESS for ever, so a candidate who stopped early
+        stayed "in progress" in every list and count.
+        """
+        iid = self._interview(client, candidate_token)
+
+        async def run():
+            url = f"{WS_BASE}/interviews/voice/{iid}?token={candidate_token}"
+            async with websockets.connect(url, max_size=16 * 1024 * 1024) as ws:
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await ws.send(json.dumps({"type": "end"}))
+                return json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+        try:
+            closed = asyncio.run(run())
+            assert closed["type"] == "closed"
+            assert closed["status"] == "COMPLETED"
+
+            body = client.get(f"/interviews/{iid}", headers=auth(candidate_token)).json()
+            assert body["status"] == "COMPLETED"
+            assert body["completed_at"] is not None
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_end_works_while_paused(self, client, candidate_token):
+        iid = self._interview(client, candidate_token)
+
+        async def run():
+            url = f"{WS_BASE}/interviews/voice/{iid}?token={candidate_token}"
+            async with websockets.connect(url, max_size=16 * 1024 * 1024) as ws:
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await ws.send(json.dumps({"type": "pause"}))
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await ws.send(json.dumps({"type": "end"}))
+                return json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+        try:
+            closed = asyncio.run(run())
+            assert closed["status"] == "COMPLETED"
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))
+
+    def test_resume_without_pause_is_an_error(self, client, candidate_token):
+        iid = self._interview(client, candidate_token)
+
+        async def run():
+            url = f"{WS_BASE}/interviews/voice/{iid}?token={candidate_token}"
+            async with websockets.connect(url, max_size=16 * 1024 * 1024) as ws:
+                await asyncio.wait_for(ws.recv(), timeout=20)
+                await ws.send(json.dumps({"type": "resume"}))
+                return json.loads(await asyncio.wait_for(ws.recv(), timeout=20))
+
+        try:
+            assert asyncio.run(run())["type"] == "error"
+        finally:
+            client.delete(f"/interviews/{iid}", headers=auth(candidate_token))

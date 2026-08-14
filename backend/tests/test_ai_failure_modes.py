@@ -185,6 +185,17 @@ class TestModelConfiguration:
     def test_default_is_a_lite_model(self):
         assert "lite" in settings.GEMINI_MODEL, "generation should default to a high-quota model"
 
-    def test_no_speech_settings_remain(self):
-        """Speech conversion was removed; its configuration must not linger."""
-        assert not [name for name in type(settings).model_fields if "TTS" in name or "STT" in name]
+    def test_speech_to_text_is_configured(self):
+        """Module 5 transcribes answers, so an STT model must be configured."""
+        assert settings.GEMINI_STT_MODEL
+
+    def test_stt_is_not_the_lite_model(self):
+        """Transcription needs native audio, which the lite tiers do not give."""
+        assert "lite" not in settings.GEMINI_STT_MODEL
+
+    def test_no_text_to_speech_settings_remain(self):
+        """
+        Speech runs one way only. Questions are delivered as text — there is no
+        spoken interviewer — so TTS configuration must not creep back in.
+        """
+        assert not [name for name in type(settings).model_fields if "TTS" in name]

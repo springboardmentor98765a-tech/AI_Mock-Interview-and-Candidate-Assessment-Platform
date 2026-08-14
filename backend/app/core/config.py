@@ -56,6 +56,21 @@ class Settings(BaseSettings):
     # trusting any number written in this repo.
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
 
+    # Module 5. Transcription and the pronunciation notes both read the
+    # recording itself, which needs native audio understanding — deliberately
+    # NOT a "lite" model, as the lite tiers do not reliably accept audio.
+    #
+    # This is a per-answer call, so an 8-question interview is 8 requests
+    # against the Gemini free tier even when AI_PROVIDER=ollama is handling
+    # every text operation. Ollama has no speech models, so there is no local
+    # alternative; set ANALYSE_ANSWERS=false to run interviews without it.
+    GEMINI_STT_MODEL: str = "gemini-3.6-flash"
+
+    # Master switch for Module 5. Off means answers are recorded and stored
+    # exactly as before, with no transcription and no analysis — useful when
+    # the Gemini quota is spent and an interview still has to run.
+    ANALYSE_ANSWERS: bool = True
+
     # Résumé upload (Module 2). Files are stored on disk under this directory;
     # the size cap is enforced server-side, not just in the browser.
     RESUME_UPLOAD_DIR: str = "uploads/resumes"
@@ -65,6 +80,17 @@ class Settings(BaseSettings):
     # résumés: bytes on disk, a row in the database pointing at them.
     ANSWER_AUDIO_DIR: str = "uploads/answers"
     MAX_ANSWER_AUDIO_MB: int = 8
+
+    # Session webcam video. Same arrangement again — bytes on disk, a row
+    # pointing at them — but the cap is much larger because video is:
+    # a ten-minute WebM session runs to tens of megabytes where the audio for
+    # the same interview is a couple.
+    #
+    # This is a person's face, kept on disk. Only the candidate who recorded it
+    # can fetch it back (see the recording endpoints), and every playback is
+    # written to recording_accesses.
+    VIDEO_RECORDING_DIR: str = "uploads/recordings"
+    MAX_VIDEO_RECORDING_MB: int = 200
 
     FRONTEND_URL: str = "http://localhost:5455"
     BACKEND_CORS_ORIGINS: List[str] = [
