@@ -36,6 +36,34 @@ async def main():
             print("[SmartHire] Migration 002 applied successfully!")
 
             
+        mig3_path = os.path.join(base_dir, "Database", "migrations", "003_add_recordings_and_session_fields.sql")
+        if os.path.exists(mig3_path):
+            print("[SmartHire] Applying migration 003_add_recordings_and_session_fields.sql...")
+            with open(mig3_path, "r", encoding="utf-8") as f:
+                await conn.execute(f.read())
+            print("[SmartHire] Migration 003 applied successfully!")
+
+        mig4_path = os.path.join(base_dir, "Database", "migrations", "004_add_question_timings.sql")
+        if os.path.exists(mig4_path):
+            print("[SmartHire] Applying migration 004_add_question_timings.sql...")
+            with open(mig4_path, "r", encoding="utf-8") as f:
+                await conn.execute(f.read())
+            print("[SmartHire] Migration 004 applied successfully!")
+
+        mig5_path = os.path.join(base_dir, "Database", "migrations", "005_create_interview_results.sql")
+        if os.path.exists(mig5_path):
+            print("[SmartHire] Applying migration 005_create_interview_results.sql...")
+            with open(mig5_path, "r", encoding="utf-8") as f:
+                await conn.execute(f.read())
+            print("[SmartHire] Migration 005 applied successfully!")
+
+        mig6_path = os.path.join(base_dir, "Database", "migrations", "006_create_interview_audio_answers.sql")
+        if os.path.exists(mig6_path):
+            print("[SmartHire] Applying migration 006_create_interview_audio_answers.sql...")
+            with open(mig6_path, "r", encoding="utf-8") as f:
+                await conn.execute(f.read())
+            print("[SmartHire] Migration 006 applied successfully!")
+
         await conn.close()
         print("[SmartHire] All database tables & migrations ready!")
 

@@ -155,11 +155,53 @@ class CandidateUserResponse(BaseModel):
 class SubmitAnswerRequest(BaseModel):
     question_id: UUID
     user_answer: str
+    started_at: Optional[datetime] = None
+    answered_at: Optional[datetime] = None
 
 
 class UpdateSessionRequest(BaseModel):
     status: Optional[str] = None
     score: Optional[float] = None
+    current_question_index: Optional[int] = None
+
+
+class PauseSessionRequest(BaseModel):
+    current_question_index: Optional[int] = 0
+
+
+class RecordingResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    candidate_id: Optional[UUID] = None
+    interview_id: Optional[UUID] = None
+    recording_type: str = "video_audio"
+    mime_type: str = "video/webm"
+    file_size: int = 0
+    duration: Optional[int] = 0
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SubmitTimingRequest(BaseModel):
+    question_id: Optional[UUID] = None
+    question_number: int
+    started_at: Optional[datetime] = None
+    answered_at: Optional[datetime] = None
+    time_spent: int = 0
+
+
+class QuestionTimingResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    question_id: Optional[UUID] = None
+    question_number: int
+    started_at: Optional[datetime] = None
+    answered_at: Optional[datetime] = None
+    time_spent: int = 0
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class QuestionResponse(BaseModel):
@@ -176,6 +218,7 @@ class QuestionResponse(BaseModel):
     sample_answer: Optional[str] = None
     feedback: Optional[str] = None
     score: Optional[float] = None
+    time_spent: Optional[int] = 0
 
     model_config = {"from_attributes": True}
 
@@ -198,12 +241,121 @@ class SessionResponse(BaseModel):
     score: Optional[float] = None
     total_questions: int
     completed_questions: int
+    current_question_index: Optional[int] = 0
     started_at: Optional[datetime] = None
+    paused_at: Optional[datetime] = None
+    resumed_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
+    duration: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
+    has_recording: Optional[bool] = False
+    recording_id: Optional[UUID] = None
     questions: Optional[list[QuestionResponse]] = None
+    timings: Optional[list[QuestionTimingResponse]] = None
+    result: Optional["InterviewResultResponse"] = None
+    question_results: Optional[list["QuestionResultResponse"]] = None
 
     model_config = {"from_attributes": True}
+
+
+class InterviewResultResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    candidate_id: Optional[UUID] = None
+    interview_id: Optional[UUID] = None
+    total_questions: int
+    questions_completed: int
+    completion_percentage: float
+    total_duration: int
+    average_question_time: float
+    technical_score: Optional[float] = None
+    communication_score: Optional[float] = None
+    behavioral_score: Optional[float] = None
+    aptitude_score: Optional[float] = None
+    problem_solving_score: Optional[float] = None
+    culture_fit_score: Optional[float] = None
+    motivation_score: Optional[float] = None
+    leadership_score: Optional[float] = None
+    adaptability_score: Optional[float] = None
+    logical_reasoning_score: Optional[float] = None
+    quantitative_score: Optional[float] = None
+    overall_score: float
+    recommendation: Optional[str] = None
+    completed_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class QuestionResultResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    result_id: Optional[UUID] = None
+    question_id: Optional[UUID] = None
+    question_number: int
+    question_text: str
+    answer_status: str
+    time_spent: int
+    answer_type: Optional[str] = None
+    user_answer: Optional[str] = None
+    score: Optional[float] = None
+    evaluation: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class RecruiterAnalyticsResponse(BaseModel):
+    total_interviews: int
+    completed_interviews: int
+    in_progress_interviews: int
+    pending_interviews: int
+    average_score: float
+    average_duration: int
+
+
+class RecruiterCandidateInterviewResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    candidate_id: Optional[UUID] = None
+    candidate_name: str
+    candidate_email: str
+    job_role: str
+    domain: str
+    interview_type: str
+    difficulty: str
+    experience_level: Optional[str] = None
+    status: str
+    total_questions: int
+    completed_questions: int
+    completion_percentage: float
+    duration: int
+    overall_score: Optional[float] = None
+    recommendation: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AudioAnswerResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    candidate_id: Optional[UUID] = None
+    question_id: UUID
+    question_number: int
+    storage_location: str
+    mime_type: str
+    file_size: int
+    duration: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+
+
 
 

@@ -146,7 +146,7 @@ Respond ONLY with valid JSON in format:
   "feedback": "<detailed feedback on strengths and areas of improvement>",
   "sample_answer": "<model answer illustrating ideal response structure>"
 }}"""
-                models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]
+                models = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
                 for model_name in models:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
                     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -180,7 +180,7 @@ Respond ONLY with valid JSON in format:
     async def _generate_with_gemini(cls, job_role, domain, interview_type, difficulty, num_questions, user_skills, job_description, resume_text, gemini_key: str, generation_seed: str | None = None):
         logger.info(f"[Gemini AI] Request received: Role='{job_role}', Domain='{domain}', Type='{interview_type}', Difficulty='{difficulty}', Seed='{generation_seed}'")
         prompt = cls._build_prompt(job_role, domain, interview_type, difficulty, num_questions, user_skills, job_description, resume_text, generation_seed)
-        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]
+        models = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
         
         last_error = None
         has_quota_error = False

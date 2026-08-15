@@ -1,39 +1,56 @@
 // ============================================================
 //  InterviewSummary.jsx — Comprehensive Post-Interview Breakdown
 // ============================================================
-import { Award, CheckCircle, AlertTriangle, ArrowLeft, RefreshCw, BarChart2, BookOpen, Clock, Tag } from 'lucide-react';
+import { useState } from 'react';
+import { Award, CheckCircle, AlertTriangle, ArrowLeft, RefreshCw, BarChart2, BookOpen, Clock, Tag, Video, VideoOff } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function InterviewSummary({ session, onBack }) {
+  const [videoError, setVideoError] = useState(false);
+
   const {
+    id,
     job_role,
     domain,
     interview_type,
     difficulty,
     score,
+    duration,
     questions = [],
-    created_at,
     started_at,
     ended_at,
+    has_recording,
+    auto_expired,
   } = session;
 
   const totalQuestions = questions.length;
   const answeredQuestions = questions.filter(q => q.user_answer && q.user_answer.trim() !== '');
 
-  // Calculate duration if timestamps present
-  let durationMinutes = 0;
-  if (started_at && ended_at) {
-    const s = new Date(started_at);
-    const e = new Date(ended_at);
-    durationMinutes = Math.max(1, Math.round((e - s) / 60000));
-  } else {
-    durationMinutes = totalQuestions * 3;
+  // Calculate duration in seconds & formatted string
+  let totalDurationSecs = duration || 0;
+  if (!totalDurationSecs && started_at && ended_at) {
+    const s = new Date(started_at).getTime();
+    const e = new Date(ended_at).getTime();
+    totalDurationSecs = Math.max(0, Math.floor((e - s) / 1000));
   }
 
-  const finalScore = score !== null && score !== undefined ? parseFloat(score).toFixed(1) : '85.0';
+  const formatSecs = (secs) => {
+    const m = Math.floor((secs || 0) / 60);
+    const s = (secs || 0) % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
-  const scoreColor =
-    finalScore >= 80 ? 'var(--accent-green)' :
-    finalScore >= 60 ? 'var(--accent-amber)' : 'var(--accent-rose)';
+  const avgTimePerQuestion = totalQuestions > 0 ? Math.round(totalDurationSecs / totalQuestions) : 0;
+
+  const resultData = session.result;
+  const rawScore = resultData?.overall_score ?? score;
+  const hasScore = rawScore !== null && rawScore !== undefined && parseFloat(rawScore) > 0;
+  const finalScoreDisplay = hasScore ? `${parseFloat(rawScore).toFixed(1)}%` : 'Evaluation Pending';
+
+  const scoreColor = !hasScore ? 'var(--text-muted)' :
+    parseFloat(rawScore) >= 80 ? 'var(--accent-green)' :
+    parseFloat(rawScore) >= 60 ? 'var(--accent-amber)' : 'var(--accent-rose)';
 
   return (
     <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
@@ -48,6 +65,23 @@ export default function InterviewSummary({ session, onBack }) {
       >
         <ArrowLeft size={16} /> Back to Dashboard
       </button>
+
+      {/* Auto Expiration Banner if applicable */}
+      {auto_expired && (
+        <div style={{
+          background: 'hsla(38,95%,60%,0.15)', border: '1px solid var(--accent-amber)',
+          borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 20,
+          color: 'var(--accent-amber)', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 10
+        }}>
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Interview time has ended.</strong>
+            <p style={{ fontSize: '0.82rem', margin: 0, opacity: 0.9 }}>
+              The interview timer reached zero. All recorded answers, timing data, and media stream recordings were automatically saved.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Score Hero Card */}
       <div style={{
@@ -83,8 +117,8 @@ export default function InterviewSummary({ session, onBack }) {
           background: 'var(--bg-elevated)', padding: '20px 32px', borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-medium)', boxShadow: 'var(--shadow-md)'
         }}>
-          <span style={{ fontSize: '2.5rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: scoreColor }}>
-            {finalScore}%
+          <span style={{ fontSize: hasScore ? '2.5rem' : '1.5rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: scoreColor }}>
+            {finalScoreDisplay}
           </span>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Overall AI Assessment
@@ -105,26 +139,64 @@ export default function InterviewSummary({ session, onBack }) {
 
         <div className="card" style={{ padding: '18px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
-            <Clock size={16} /> <span style={{ fontSize: '0.8rem' }}>Duration</span>
+            <Clock size={16} /> <span style={{ fontSize: '0.8rem' }}>Total Duration</span>
           </div>
           <p style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
-            ~{durationMinutes} mins
+            {formatSecs(totalDurationSecs)}
           </p>
         </div>
 
         <div className="card" style={{ padding: '18px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
-            <Tag size={16} /> <span style={{ fontSize: '0.8rem' }}>Domain Skill Focus</span>
+            <Clock size={16} /> <span style={{ fontSize: '0.8rem' }}>Average Time / Question</span>
           </div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent-teal)' }}>
-            {domain}
+          <p style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--accent-teal)' }}>
+            {formatSecs(avgTimePerQuestion)}
           </p>
         </div>
       </div>
 
+      {/* Authorized Video Recording Playback Section */}
+      <div className="card" style={{ padding: '24px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', marginBottom: 28, border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Video size={20} color="var(--accent-primary)" />
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700 }}>
+            Recorded Session Playback
+          </h3>
+        </div>
+
+        {id && !videoError ? (
+          <div style={{
+            width: '100%', maxHeight: '400px', borderRadius: 'var(--radius-md)', overflow: 'hidden',
+            background: 'hsl(222,47%,5%)', border: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'center', alignItems: 'center'
+          }}>
+            <video
+              controls
+              crossOrigin="use-credentials"
+              src={`${API_BASE}/api/interviews/sessions/${id}/recording`}
+              onError={() => setVideoError(true)}
+              style={{ width: '100%', maxHeight: '380px', borderRadius: 'var(--radius-sm)' }}
+            />
+          </div>
+        ) : (
+          <div style={{
+            padding: '30px', textAlign: 'center', background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-muted)'
+          }}>
+            <VideoOff size={32} style={{ margin: '0 auto 8px', opacity: 0.6 }} />
+            <p style={{ fontSize: '0.95rem', fontWeight: 600 }}>Recording unavailable.</p>
+          </div>
+        )}
+
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 10 }}>
+          🔒 Recording access is protected by backend role-based authorization. Only authorized candidates, recruiters, and admins can view this media stream.
+        </p>
+      </div>
+
       {/* Question Breakdown */}
       <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700, marginBottom: 16 }}>
-        Question Performance Breakdown
+        Question Timing &amp; Performance Breakdown
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -132,7 +204,7 @@ export default function InterviewSummary({ session, onBack }) {
           const qScore = q.score !== null && q.score !== undefined ? parseFloat(q.score) : 80;
           return (
             <div key={idx} className="card" style={{ padding: '20px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <span style={{
                     width: 28, height: 28, borderRadius: 'var(--radius-full)',
@@ -145,6 +217,11 @@ export default function InterviewSummary({ session, onBack }) {
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--bg-surface)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
                     {q.category || domain}
                   </span>
+                  {q.time_spent > 0 && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--accent-teal)', background: 'hsla(174,80%,55%,0.1)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontWeight: 600 }}>
+                      ⏱ Time spent: {formatSecs(q.time_spent)}
+                    </span>
+                  )}
                 </div>
 
                 <div style={{

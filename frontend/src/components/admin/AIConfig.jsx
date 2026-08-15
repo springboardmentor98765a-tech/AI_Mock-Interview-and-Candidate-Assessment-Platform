@@ -11,7 +11,7 @@ export default function AIConfig() {
   const [geminiKey, setGeminiKey]             = useState('');
   const [openaiKey, setOpenaiKey]             = useState('');
   const [ollamaUrl, setOllamaUrl]             = useState('http://localhost:11434');
-  const [defaultModel, setDefaultModel]       = useState('gemini-1.5-flash');
+  const [defaultModel, setDefaultModel]       = useState('gemini-3.5-flash');
   const [temperature, setTemperature]         = useState(0.7);
   const [maxTokens, setMaxTokens]             = useState(2048);
   const [enableGeneration, setEnableGeneration] = useState(true);

@@ -55,7 +55,7 @@ class AIConfigRequest(BaseModel):
     gemini_api_key: str = ""
     openai_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
-    default_model: str = "gemini-1.5-flash"
+    default_model: str = "gemini-3.5-flash"
     temperature: float = 0.7
     max_tokens: int = 2048
     enable_ai_generation: bool = True
