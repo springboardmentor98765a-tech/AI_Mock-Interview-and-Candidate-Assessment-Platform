@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS interviews (
     mode                   VARCHAR(20) NOT NULL DEFAULT 'online'
                                CHECK (mode IN ('online', 'offline')),
     status                 VARCHAR(20) NOT NULL DEFAULT 'scheduled'
-                               CHECK (status IN ('scheduled', 'completed', 'cancelled')),
+                               CHECK (status IN ('scheduled', 'in_progress', 'paused', 'completed', 'cancelled')),
     score                  INTEGER CHECK (score BETWEEN 0 AND 100),
     skill_communication    INTEGER CHECK (skill_communication BETWEEN 0 AND 100),
     skill_technical        INTEGER CHECK (skill_technical BETWEEN 0 AND 100),
@@ -80,6 +80,74 @@ ALTER TABLE interviews ADD COLUMN IF NOT EXISTS question_count INTEGER NOT NULL 
 -- multi-face / look-away warnings raised during a live AI interview
 -- session. Written by POST /api/interviews/:id/violation (Python service).
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS proctoring_violations INTEGER NOT NULL DEFAULT 0;
+
+-- Module 4 additions: explicit session lifecycle (start / pause / resume /
+-- end) for the live proctored interview page, distinct from the coarser
+-- scheduled/completed/cancelled states above. started_at/completed_at give
+-- the true wall-clock start and end of the session; paused_at/paused_seconds
+-- let the UI show accurate "active" elapsed time across one or more pauses.
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_seconds INTEGER NOT NULL DEFAULT 0;
+
+-- Existing databases created before 'in_progress'/'paused' were added to
+-- the status enum still have the old CHECK constraint — widen it here so
+-- this file stays safe to re-run on both fresh and pre-existing installs.
+ALTER TABLE interviews DROP CONSTRAINT IF EXISTS interviews_status_check;
+ALTER TABLE interviews ADD CONSTRAINT interviews_status_check
+    CHECK (status IN ('scheduled', 'in_progress', 'paused', 'completed', 'cancelled'));
+
+-- Module 4/5 additions: an explicit, externally-referenceable session
+-- identifier (separate from the numeric interview_id primary key —
+-- used wherever the *session*, not the interview record, needs to be
+-- named, e.g. in recording/report links), the total active session
+-- duration in seconds (started_at → completed_at, minus paused_seconds,
+-- frozen once the session finishes so it never needs recomputing), and
+-- a running count of how many questions the candidate has actually
+-- answered (kept separate from question_count, which is the *target*
+-- number of questions for the session).
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS session_id VARCHAR(36) UNIQUE;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS questions_attempted INTEGER NOT NULL DEFAULT 0;
+
+-- ============================================================
+-- Interview Recordings — Module 5 (Recording). The proctored live
+-- session's combined video+audio, captured client-side with the
+-- MediaRecorder API from the same webcam/mic stream already used for
+-- proctoring (frontend/js/interview-session.js), uploaded once when
+-- the candidate finishes.
+--
+-- The actual video FILE lives on disk under backend-python/recordings/
+-- (see app/recording_store.py) rather than as a bytea blob in this
+-- table — Postgres isn't a good fit for large binary video (it bloats
+-- the DB and every read/write goes through the connection pool
+-- instead of being streamed straight off disk/through a CDN later).
+-- This table is the database-side source of truth: it's what proves
+-- a recording exists, who it belongs to, and — via the access checks
+-- in the Python service — who's allowed to open it, without anyone
+-- having to touch the filesystem directly.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS interview_recordings (
+    id                SERIAL PRIMARY KEY,
+    interview_id      INTEGER NOT NULL UNIQUE REFERENCES interviews(id) ON DELETE CASCADE,
+    file_path         VARCHAR(500) NOT NULL,     -- combined video+audio file, relative to backend-python/
+    mime_type         VARCHAR(100) NOT NULL DEFAULT 'video/webm',
+    size_bytes        BIGINT NOT NULL DEFAULT 0,
+    duration_seconds  INTEGER,
+    started_at        TIMESTAMP,
+    ended_at          TIMESTAMP,
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Module 5 addition: an audio-only reference alongside the combined
+-- video file. Extracted server-side (ffmpeg, see recording_store.py)
+-- from the uploaded video the moment it's saved, so callers that only
+-- need the audio track (e.g. a future transcript/analysis feature)
+-- don't have to demux the video themselves.
+ALTER TABLE interview_recordings ADD COLUMN IF NOT EXISTS audio_file_path VARCHAR(500);
+ALTER TABLE interview_recordings ADD COLUMN IF NOT EXISTS audio_mime_type VARCHAR(100);
+
+CREATE INDEX IF NOT EXISTS idx_interview_recordings_interview ON interview_recordings (interview_id);
 
 -- ============================================================
 -- Interview Questions — AI-generated questions belonging to an

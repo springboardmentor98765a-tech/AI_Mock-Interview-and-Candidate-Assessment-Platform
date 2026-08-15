@@ -205,16 +205,30 @@ def generate_questions_llm(
     difficulty: str,
     domain: Optional[str],
     count: int,
+    exclude_texts: Optional[set] = None,
 ) -> Optional[list[dict]]:
     """Asks the LLM chain for `count` fresh interview questions.
     Returns a list of {"text","category","difficulty"} dicts, or None
     if every provider failed / returned unusable output."""
     domain_clause = f" in the {domain} domain" if domain and category == "Technical" else ""
+    # Tell the model what this candidate has already been asked (across
+    # their past sessions) so a fresh /generate call doesn't hand them
+    # the same questions again. Capped so the prompt doesn't grow
+    # unbounded for a candidate with a long history.
+    avoid_clause = ""
+    if exclude_texts:
+        sample = list(exclude_texts)[:25]
+        avoid_list = "\n".join(f"- {t}" for t in sample)
+        avoid_clause = (
+            "\n\nDo NOT repeat or closely paraphrase any of these questions this "
+            f"candidate has already been asked before:\n{avoid_list}"
+        )
     prompt = (
         f"You are an expert technical interviewer. Generate exactly {count} unique, "
         f"non-repetitive {difficulty}-difficulty {category} interview questions for a "
         f'candidate applying for a "{interview_type}" role{domain_clause}. '
-        "Vary the phrasing and topics so no two questions are similar. "
+        "Vary the phrasing and topics so no two questions are similar."
+        f"{avoid_clause}\n\n"
         'Respond with ONLY a raw JSON array, no markdown, no commentary, in this exact '
         'shape: [{"text": "..."}, {"text": "..."}]'
     )

@@ -52,6 +52,13 @@ TTS_TLD = os.getenv("TTS_TLD", "co.in")
 
 TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+# Module 5 (Recording): where proctored-session video+audio recordings
+# are stored on disk. See app/recording_store.py for why this is a
+# file on disk rather than a bytea column in Postgres.
+RECORDINGS_DIR = BASE_DIR / os.getenv("RECORDINGS_DIR", "recordings")
+RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+MAX_RECORDING_SIZE_MB = int(os.getenv("MAX_RECORDING_SIZE_MB", "300"))
+
 # ============================================================
 # Multi-provider AI engine (app/ai_providers.py)
 # ------------------------------------------------------------

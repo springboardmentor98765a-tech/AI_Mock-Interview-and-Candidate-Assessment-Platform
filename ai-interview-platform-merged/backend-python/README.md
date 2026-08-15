@@ -123,8 +123,19 @@ local/free.
 `frontend/candidate.html` → "✨ Generate AI Questions" now drops the
 candidate straight into `frontend/interview-session.html`, which:
 
-- Requests camera + full-screen on start (camera is required to
-  begin; full-screen is best-effort).
+- Requests camera + microphone + full-screen on start (camera and
+  mic are both required to begin; full-screen is best-effort). Denied
+  permission, no such device, and device-already-in-use are each
+  reported with a specific message so the candidate knows what to
+  fix. A live mic-level bar next to the webcam preview confirms audio
+  is actually being captured, not just requested.
+- Marks the session `in_progress` and records `started_at` via
+  `PATCH /api/interviews/:id/begin` once camera/mic access is
+  granted. The candidate can pause at any time (`PATCH
+  /api/interviews/:id/pause`, status → `paused`) and resume (`PATCH
+  /api/interviews/:id/resume`, status → back to `in_progress`) —
+  both question and total-session timers freeze while paused, and
+  proctoring warnings are suspended for that time.
 - Runs client-side face detection every ~1.5s via `face-api.js`
   (loaded from a CDN) — flags no face, more than one face, or
   looking away from the screen. If the CDN/model can't load, this
@@ -133,8 +144,14 @@ candidate straight into `frontend/interview-session.html`, which:
   copy/paste as proctoring violations, logged via
   `POST /api/interviews/:id/violation`; 5 violations auto-submits
   the interview.
-- Gives each question its own countdown (90/120/150s by difficulty)
-  plus a running total-session timer.
+- One countdown for the **whole session** (no per-question timer) —
+  its length is computed once at the start by summing a time "weight"
+  per question based on category + difficulty (quick-recall HR/
+  Aptitude ≈ 60–120s each, Behavioral stories ≈ 90–180s, open-ended
+  Technical ≈ 90–240s, plus a small bonus for unusually long question
+  text), so a 5-question set and a 30-question set each get a total
+  that actually fits their size and mix — not a flat per-question
+  window multiplied by count. Auto-submits when it hits zero.
 - Lets the candidate answer by typing, by voice (Web Speech API —
   Chrome/Edge; transcribes live into the textbox, editable before
   submitting), or both. Each answer is saved via

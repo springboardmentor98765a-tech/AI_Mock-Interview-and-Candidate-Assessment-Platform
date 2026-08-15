@@ -17,10 +17,12 @@
       <h2>🎤 Live Proctored Mock Interview</h2>
       <p id="sessionInterviewType" class="prestart-track">—</p>
       <ul class="prestart-checklist">
-        <li>📷 Your webcam will stay on for face-presence monitoring.</li>
+        <li>📷🎙️ Your camera and microphone will stay on for monitoring.</li>
         <li>🖥️ The session runs in full-screen mode.</li>
-        <li>⏱️ Each question has its own countdown timer.</li>
+        <li>⏱️ The whole session has one countdown, sized to the number and mix of questions.</li>
         <li>⌨️🎙️ Answer by typing or speaking — your choice, per question.</li>
+        <li>🎥 Your video and audio will be recorded for this session and stored securely for review.</li>
+        <li>⏸️ You can pause the session at any time and resume later.</li>
         <li>⚠️ Switching tabs, exiting full-screen, or multiple faces on camera count as proctoring warnings.</li>
       </ul>
       <div id="preStartError" class="prestart-error" style="display:none"></div>
@@ -35,15 +37,26 @@
     <div class="session-header">
       <div class="session-header-left">
         <span class="session-logo">🤖 AI Interview</span>
+        <span id="sessionStatusBadge" class="badge badge-primary">In Progress</span>
         <span id="sessionProgress" class="badge badge-primary">Question 1 / 1</span>
       </div>
       <div class="session-header-right">
         <span id="overallTimer" class="session-timer">Total 00:00</span>
+        <span id="recordingIndicator" class="session-recording-live" style="display:none">🔴 REC</span>
         <span id="strikeBadge" class="session-strikes">⚠ 0/5 warnings</span>
+        <button type="button" id="pauseBtn" class="btn-ghost" onclick="togglePauseSession()">⏸ Pause</button>
       </div>
     </div>
 
     <div id="warningBanner" class="warning-banner" style="display:none"></div>
+
+    <div id="pausedOverlay" class="paused-overlay" style="display:none">
+      <div class="paused-overlay-box">
+        <h3>⏸ Interview Paused</h3>
+        <p>Your timers are frozen and no answers are being recorded. Click Resume when you're ready to continue.</p>
+        <button type="button" class="btn-primary" onclick="togglePauseSession()">▶ Resume</button>
+      </div>
+    </div>
 
     <div class="session-container">
 
@@ -51,6 +64,11 @@
       <aside class="proctor-panel">
         <div class="webcam-wrap">
           <video id="webcamVideo" autoplay muted playsinline></video>
+        </div>
+
+        <div class="mic-level-row">
+          <span class="mic-level-label">🎙️ Mic</span>
+          <div class="mic-level-track"><div id="micLevelBar" class="mic-level-fill"></div></div>
         </div>
 
         <div class="face-status-row">
@@ -78,7 +96,6 @@
           <div class="question-meta">
             <span id="qCategoryBadge" class="badge badge-primary">Category</span>
             <span id="qDifficultyBadge" class="badge">difficulty</span>
-            <span id="questionTimer" class="question-timer">⏱ 02:00</span>
           </div>
           <p id="questionText" class="question-text">Loading question…</p>
           <button type="button" id="playAudioBtn" class="btn-ghost" onclick="playCurrentQuestionAudio()">🔊 Play question</button>

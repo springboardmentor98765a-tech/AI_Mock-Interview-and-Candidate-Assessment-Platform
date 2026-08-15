@@ -4,7 +4,44 @@
 // for questions / answers / violations / finishing the session.
 // ============================================================
 
-const DIFFICULTY_SECONDS = { easy: 90, medium: 120, hard: 150 };
+// Per-question time "weight" by category + difficulty — used only to
+// build the overall session time budget below, not shown per-question.
+// Categories aren't interchangeable: a quick HR/Aptitude question
+// deserves far less of the budget than a Behavioral story or an
+// open-ended Technical design question.
+const CATEGORY_DIFFICULTY_SECONDS = {
+  HR: { easy: 60, medium: 90, hard: 120 },
+  Aptitude: { easy: 60, medium: 90, hard: 120 },
+  Behavioral: { easy: 90, medium: 120, hard: 180 },
+  Technical: { easy: 90, medium: 150, hard: 240 }, // hard tier is largely
+  // open-ended system-design questions (see question_bank.py) — these
+  // need real thinking + explaining time, not a quick-recall window.
+};
+const DEFAULT_DIFFICULTY_SECONDS = { easy: 90, medium: 120, hard: 150 }; // fallback for unknown categories
+const LONG_QUESTION_BONUS_SECONDS = 20; // extra reading/thinking time for a longer prompt
+const LONG_QUESTION_WORD_THRESHOLD = 22;
+
+function getQuestionTimeWeight(question) {
+  const byCategory = CATEGORY_DIFFICULTY_SECONDS[question.category];
+  const table = byCategory || DEFAULT_DIFFICULTY_SECONDS;
+  let seconds = table[question.difficulty] || table.medium || 120;
+
+  const wordCount = (question.question_text || '').trim().split(/\s+/).filter(Boolean).length;
+  if (wordCount > LONG_QUESTION_WORD_THRESHOLD) {
+    seconds += LONG_QUESTION_BONUS_SECONDS;
+  }
+  return seconds;
+}
+
+// The whole session gets ONE countdown, not one per question — its
+// length is just each question's weight added up, so a 5-question set
+// and a 30-question set each get a total that actually fits their mix
+// of categories/difficulties (e.g. five easy HR questions total far
+// less time than five hard Technical ones would).
+function computeSessionTimeBudget(qs) {
+  return qs.reduce((sum, q) => sum + getQuestionTimeWeight(q), 0);
+}
+
 const MAX_STRIKES = 5;
 const VIOLATION_COOLDOWN_MS = 8000; // don't spam the same violation type more than once per 8s
 const FACE_CHECK_INTERVAL_MS = 1500;
@@ -22,12 +59,43 @@ let faceApiReady = false;
 let faceCheckTimer = null;
 let noFaceStreak = 0;
 
-let questionTimerInterval = null;
-let questionSecondsLeft = 0;
-let questionStartedAt = 0;
+// ---------------------------------------------------------------
+// Recording — MediaRecorder captures the SAME webcamStream already
+// used for proctoring/webcam preview (no second getUserMedia call).
+// One recording per session: started once camera/mic access is
+// granted, paused/resumed alongside the session itself, stopped and
+// uploaded exactly once when the session ends (Finish, timeout
+// auto-submit, or violation auto-submit all funnel through
+// finishInterview() below).
+// ---------------------------------------------------------------
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingMimeType = '';
+let recordingStartedAt = null;
+let recordingSecondsRecorded = 0; // wall-clock seconds actually spent recording (excludes pauses)
+let recordingSegmentStartedAt = null;
+
+// Tried in order — the browser picks the first one it actually supports.
+const RECORDING_MIME_CANDIDATES = [
+  'video/webm;codecs=vp9,opus',
+  'video/webm;codecs=vp8,opus',
+  'video/webm',
+];
+
+// Microphone level meter (Web Audio API) — proves the audio track is
+// actually being captured, not just requested.
+let micAudioCtx = null;
+let micAnalyser = null;
+let micLevelTimer = null;
+
+// Pause/resume — sessionPaused is checked by the timers and by every
+// proctoring listener so nothing ticks or fires warnings while paused.
+let sessionPaused = false;
+let pauseInProgress = false;
 
 let overallTimerInterval = null;
-let overallSecondsElapsed = 0;
+let overallSecondsLeft = 0; // counts DOWN from the whole-session budget
+let questionStartedAt = 0; // still tracked per-question for the answers' timeTakenSeconds field
 
 let strikeCount = 0;
 let lastViolationAt = {}; // type -> timestamp
@@ -131,13 +199,40 @@ async function beginProctoredSession() {
   const errBox = document.getElementById('preStartError');
   errBox.style.display = 'none';
   btn.disabled = true;
-  btn.textContent = 'Requesting camera…';
+  btn.textContent = 'Requesting camera & microphone…';
+
+  // Best-effort pre-check so we can give a specific message ("no camera
+  // found" vs "no microphone found") before even prompting for
+  // permission — device labels aren't available pre-permission, but
+  // kind/count are, which is enough to catch the "no such device" case.
+  let missingCamera = false;
+  let missingMic = false;
+  try {
+    if (navigator.mediaDevices.enumerateDevices) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      missingCamera = !devices.some((d) => d.kind === 'videoinput');
+      missingMic = !devices.some((d) => d.kind === 'audioinput');
+    }
+  } catch (e) {
+    /* enumeration isn't critical — fall through to getUserMedia */
+  }
+
+  if (missingCamera || missingMic) {
+    const what = missingCamera && missingMic ? 'camera or microphone' : missingCamera ? 'camera' : 'microphone';
+    errBox.textContent = `No ${what} was found on this device. Please connect one and try again.`;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '▶ Enable Camera & Start';
+    return;
+  }
 
   try {
-    webcamStream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 }, audio: false });
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 480, height: 360 },
+      audio: true,
+    });
   } catch (err) {
-    errBox.textContent =
-      'Camera access is required for this proctored assessment. Please allow camera permission and try again.';
+    errBox.textContent = preStartErrorMessage(err);
     errBox.style.display = 'block';
     btn.disabled = false;
     btn.textContent = '▶ Enable Camera & Start';
@@ -146,6 +241,8 @@ async function beginProctoredSession() {
 
   const video = document.getElementById('webcamVideo');
   video.srcObject = webcamStream;
+  startMicLevelMeter();
+  startRecording();
 
   // Fullscreen is best-effort — some browsers/embedded contexts block it,
   // so a failure here doesn't stop the interview, it just skips that check.
@@ -155,14 +252,44 @@ async function beginProctoredSession() {
     console.warn('Fullscreen request failed/denied:', err);
   }
 
+  try {
+    const updated = await apiFetchPy(`/interviews/${interviewId}/begin`, { method: 'PATCH' });
+    interview = updated;
+  } catch (err) {
+    // Non-fatal — the candidate already has camera/mic access, so let
+    // them proceed locally even if the status update didn't stick;
+    // /finish will still succeed at the end.
+    console.warn('Could not mark interview as started:', err);
+  }
+
   document.getElementById('preStartOverlay').style.display = 'none';
   document.getElementById('sessionShell').style.display = 'flex';
   sessionActive = true;
+  sessionPaused = false;
+  updateSessionStatusBadge();
 
   attachProctoringListeners();
   setupFaceDetection(); // async, non-blocking
-  startOverallTimer();
+  startOverallTimer(computeSessionTimeBudget(questions));
   renderQuestion(0);
+}
+
+// Maps getUserMedia failures to a message that tells the candidate
+// what actually went wrong and what to do about it.
+function preStartErrorMessage(err) {
+  switch (err && err.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Camera and microphone access were denied. Please allow both permissions in your browser and try again.';
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'No camera or microphone could be found on this device. Please connect one and try again.';
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return 'Your camera or microphone is already in use by another application. Close it and try again.';
+    default:
+      return 'Camera and microphone access are required for this proctored assessment. Please allow both permissions and try again.';
+  }
 }
 
 // ---------------------------------------------------------------
@@ -185,44 +312,41 @@ function renderQuestion(index) {
   document.getElementById('nextBtn').textContent =
     index === questions.length - 1 ? 'Finish Interview ✔' : 'Save & Next ▶';
 
-  questionStartedAt = Date.now();
-  startQuestionTimer(DIFFICULTY_SECONDS[q.difficulty] || 120);
+  questionStartedAt = Date.now(); // still used for the per-answer timeTakenSeconds field
 }
 
-function startQuestionTimer(seconds) {
-  clearInterval(questionTimerInterval);
-  questionSecondsLeft = seconds;
-  updateQuestionTimerDisplay();
-  questionTimerInterval = setInterval(() => {
-    questionSecondsLeft -= 1;
-    updateQuestionTimerDisplay();
-    if (questionSecondsLeft <= 0) {
-      clearInterval(questionTimerInterval);
-      showToast("Time's up for this question — moving on.", 'info');
-      advanceFromTimeout();
+// One countdown for the whole session — sized once at the start from
+// computeSessionTimeBudget(questions), so it already scales with the
+// question count and its mix of categories/difficulties (5 easy HR
+// questions vs. 30 mixed questions each get an appropriately sized
+// total instead of a per-question clock).
+function startOverallTimer(seconds) {
+  clearInterval(overallTimerInterval);
+  if (typeof seconds === 'number') overallSecondsLeft = seconds;
+  updateOverallTimerDisplay();
+  overallTimerInterval = setInterval(() => {
+    overallSecondsLeft -= 1;
+    updateOverallTimerDisplay();
+    if (overallSecondsLeft <= 0) {
+      clearInterval(overallTimerInterval);
+      showToast("Time's up for the interview — auto-submitting.", 'info');
+      autoSubmitDueToTimeout();
     }
   }, 1000);
 }
 
-function updateQuestionTimerDisplay() {
-  const el = document.getElementById('questionTimer');
-  const m = Math.floor(Math.max(0, questionSecondsLeft) / 60)
-    .toString()
-    .padStart(2, '0');
-  const s = Math.max(0, questionSecondsLeft % 60)
-    .toString()
-    .padStart(2, '0');
-  el.textContent = `⏱ ${m}:${s}`;
-  el.classList.toggle('session-timer-low', questionSecondsLeft <= 10);
+function updateOverallTimerDisplay() {
+  const el = document.getElementById('overallTimer');
+  const m = Math.floor(Math.max(0, overallSecondsLeft) / 60).toString().padStart(2, '0');
+  const s = Math.max(0, overallSecondsLeft % 60).toString().padStart(2, '0');
+  el.textContent = `Total ${m}:${s}`;
+  el.classList.toggle('session-timer-low', overallSecondsLeft <= 30);
 }
 
-function startOverallTimer() {
-  overallTimerInterval = setInterval(() => {
-    overallSecondsElapsed += 1;
-    const m = Math.floor(overallSecondsElapsed / 60).toString().padStart(2, '0');
-    const s = (overallSecondsElapsed % 60).toString().padStart(2, '0');
-    document.getElementById('overallTimer').textContent = `Total ${m}:${s}`;
-  }, 1000);
+async function autoSubmitDueToTimeout() {
+  if (finishInProgress || sessionFinished) return;
+  await saveCurrentAnswer();
+  finishInterview();
 }
 
 async function saveCurrentAnswer() {
@@ -261,15 +385,6 @@ async function goToNextQuestion() {
   }
 }
 
-async function advanceFromTimeout() {
-  await saveCurrentAnswer();
-  if (currentIndex === questions.length - 1) {
-    finishInterview();
-  } else {
-    renderQuestion(currentIndex + 1);
-  }
-}
-
 // ---------------------------------------------------------------
 // Finish
 // ---------------------------------------------------------------
@@ -278,12 +393,15 @@ async function finishInterview() {
   finishInProgress = true;
   sessionActive = false;
 
-  clearInterval(questionTimerInterval);
   clearInterval(overallTimerInterval);
   clearInterval(faceCheckTimer);
   stopVoiceInputIfActive();
+
+  // Stop the recorder first (while the stream is still live) so its
+  // final chunk flushes cleanly, then release the camera/mic.
+  const recordingBlob = await stopRecordingAndGetBlob();
   stopWebcamTracks(); // turn the camera off right away — proctoring listeners (incl. the
-                       // leave-page guard) stay armed until the /finish call below settles
+                       // leave-page guard) stay armed until everything below settles
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   }
@@ -306,12 +424,17 @@ async function finishInterview() {
     document.getElementById('finishHeading').textContent = '⚠️ Could not score interview';
     document.getElementById('finishSubtext').textContent =
       err.message || 'Something went wrong while scoring. Your answers were saved — try again from the dashboard.';
-  } finally {
-    // Only now is it safe to let the candidate navigate away freely.
-    sessionFinished = true;
-    finishInProgress = false;
-    removeProctoringListeners();
   }
+
+  // Uploading the recording never blocks or fails the score above —
+  // it's a best-effort add-on, handled (and reported) entirely inside
+  // uploadRecording() itself.
+  await uploadRecording(recordingBlob);
+
+  // Only now is it safe to let the candidate navigate away freely.
+  sessionFinished = true;
+  finishInProgress = false;
+  removeProctoringListeners();
 }
 
 async function autoSubmitDueToViolations() {
@@ -459,7 +582,7 @@ async function logViolation(type, message) {
   appendWarningLog(message);
   showToast(message, 'error');
 
-  if (!sessionActive) return;
+  if (!sessionActive || sessionPaused) return;
 
   try {
     const result = await apiFetchPy(`/interviews/${interviewId}/violation`, {
@@ -517,7 +640,7 @@ function attachProctoringListeners() {
 }
 
 function handleVisibilityChange() {
-  if (!sessionActive) return;
+  if (!sessionActive || sessionPaused) return;
   if (document.hidden) {
     setChecklistState('chkTab', 'bad', 'Switched away');
     logViolation('tab_switch', 'You switched away from the interview tab.');
@@ -527,13 +650,13 @@ function handleVisibilityChange() {
 }
 
 function handleWindowBlur() {
-  if (!sessionActive) return;
+  if (!sessionActive || sessionPaused) return;
   setChecklistState('chkTab', 'bad', 'Lost focus');
   logViolation('tab_switch', 'The interview window lost focus.');
 }
 
 function handleFullscreenChange() {
-  if (!sessionActive) return;
+  if (!sessionActive || sessionPaused) return;
   if (!document.fullscreenElement) {
     setChecklistState('chkFullscreen', 'bad', 'Exited');
     logViolation('fullscreen_exit', 'You exited fullscreen mode.');
@@ -543,7 +666,7 @@ function handleFullscreenChange() {
 }
 
 function handleCopyPasteBlock(e) {
-  if (!sessionActive) return;
+  if (!sessionActive || sessionPaused) return;
   e.preventDefault();
   logViolation('copy_paste', 'Copy/paste/right-click is disabled during the assessment.');
 }
@@ -565,10 +688,284 @@ function setChecklistState(id, state, label) {
 }
 
 function stopWebcamTracks() {
+  stopMicLevelMeter();
   if (webcamStream) {
     webcamStream.getTracks().forEach((t) => t.stop());
     webcamStream = null;
   }
+}
+
+// ---------------------------------------------------------------
+// Microphone level meter — small live bar showing the mic is
+// actually picking up audio, driven by the same stream's audio track.
+// ---------------------------------------------------------------
+function startMicLevelMeter() {
+  if (!webcamStream || webcamStream.getAudioTracks().length === 0) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+
+  try {
+    micAudioCtx = new AudioCtx();
+    const source = micAudioCtx.createMediaStreamSource(webcamStream);
+    micAnalyser = micAudioCtx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    source.connect(micAnalyser);
+
+    const data = new Uint8Array(micAnalyser.frequencyBinCount);
+    const bar = document.getElementById('micLevelBar');
+
+    micLevelTimer = setInterval(() => {
+      if (!micAnalyser) return;
+      micAnalyser.getByteFrequencyData(data);
+      const avg = data.reduce((sum, v) => sum + v, 0) / data.length;
+      const pct = Math.min(100, Math.round((avg / 160) * 100));
+      if (bar) bar.style.width = `${pct}%`;
+    }, 150);
+  } catch (err) {
+    console.warn('Mic level meter unavailable:', err);
+  }
+}
+
+function stopMicLevelMeter() {
+  clearInterval(micLevelTimer);
+  micLevelTimer = null;
+  micAnalyser = null;
+  if (micAudioCtx) {
+    micAudioCtx.close().catch(() => {});
+    micAudioCtx = null;
+  }
+}
+
+// ---------------------------------------------------------------
+// Recording — captures the session's webcam/mic stream to a single
+// video file, uploaded once when the session ends. Pausing the
+// session pauses the recorder too (MediaRecorder.pause()), so paused
+// time isn't captured, matching the "no answers are being recorded"
+// message already shown on the paused overlay.
+// ---------------------------------------------------------------
+function pickRecordingMimeType() {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+  return RECORDING_MIME_CANDIDATES.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+}
+
+function startRecording() {
+  if (typeof MediaRecorder === 'undefined') {
+    console.warn('MediaRecorder is not supported in this browser — session will not be recorded.');
+    return;
+  }
+  if (!webcamStream || webcamStream.getTracks().length === 0) return;
+
+  recordingMimeType = pickRecordingMimeType();
+  recordedChunks = [];
+
+  try {
+    mediaRecorder = recordingMimeType
+      ? new MediaRecorder(webcamStream, { mimeType: recordingMimeType })
+      : new MediaRecorder(webcamStream);
+  } catch (err) {
+    console.warn('Could not start session recording:', err);
+    mediaRecorder = null;
+    return;
+  }
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onerror = (e) => {
+    console.warn('Recording error:', e.error || e);
+  };
+
+  recordingMimeType = recordingMimeType || mediaRecorder.mimeType || 'video/webm';
+  recordingStartedAt = new Date();
+  recordingSegmentStartedAt = Date.now();
+  recordingSecondsRecorded = 0;
+
+  // 1s timeslices so ondataavailable fires incrementally rather than
+  // only at stop() — keeps memory bounded for longer sessions and
+  // means a crash/tab-close still leaves earlier chunks recoverable
+  // in principle, even though today only the final upload uses them.
+  mediaRecorder.start(1000);
+  updateRecordingIndicator(true);
+}
+
+function pauseRecording() {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+  try {
+    mediaRecorder.pause();
+  } catch (err) {
+    console.warn('Could not pause recording:', err);
+    return;
+  }
+  if (recordingSegmentStartedAt) {
+    recordingSecondsRecorded += Math.round((Date.now() - recordingSegmentStartedAt) / 1000);
+    recordingSegmentStartedAt = null;
+  }
+  updateRecordingIndicator(false);
+}
+
+function resumeRecording() {
+  if (!mediaRecorder || mediaRecorder.state !== 'paused') return;
+  try {
+    mediaRecorder.resume();
+  } catch (err) {
+    console.warn('Could not resume recording:', err);
+    return;
+  }
+  recordingSegmentStartedAt = Date.now();
+  updateRecordingIndicator(true);
+}
+
+function updateRecordingIndicator(active) {
+  const el = document.getElementById('recordingIndicator');
+  if (!el) return;
+  el.style.display = mediaRecorder ? 'inline-flex' : 'none';
+  el.classList.toggle('session-recording-live', !!active);
+  el.textContent = active ? '🔴 REC' : '⏸ REC paused';
+}
+
+// Stops the recorder (if any) and resolves with the finished Blob —
+// or null if recording never started/isn't supported, so callers can
+// treat "no recording" as a non-fatal, expected case.
+function stopRecordingAndGetBlob() {
+  return new Promise((resolve) => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+      resolve(null);
+      return;
+    }
+    mediaRecorder.onstop = () => {
+      if (recordingSegmentStartedAt) {
+        recordingSecondsRecorded += Math.round((Date.now() - recordingSegmentStartedAt) / 1000);
+        recordingSegmentStartedAt = null;
+      }
+      const blob = recordedChunks.length
+        ? new Blob(recordedChunks, { type: recordingMimeType || 'video/webm' })
+        : null;
+      resolve(blob);
+    };
+    try {
+      mediaRecorder.stop();
+    } catch (err) {
+      console.warn('Could not stop recording cleanly:', err);
+      resolve(null);
+    }
+  });
+}
+
+// Uploads the recording blob. Failure here is logged and surfaced as
+// a toast but never blocks scoring — the interview's answers/score
+// are the part that matters most, and a recording upload issue
+// shouldn't strand the candidate on the finish screen.
+async function uploadRecording(blob) {
+  if (!blob || blob.size === 0) return;
+  const heading = document.getElementById('finishHeading');
+  const previousHeading = heading ? heading.textContent : '';
+  if (heading) heading.textContent = '💾 Saving your session recording…';
+
+  try {
+    const formData = new FormData();
+    const ext = (recordingMimeType || 'video/webm').includes('mp4') ? 'mp4' : 'webm';
+    formData.append('file', blob, `session.${ext}`);
+    if (recordingStartedAt) formData.append('startedAt', recordingStartedAt.toISOString());
+    formData.append('endedAt', new Date().toISOString());
+    formData.append('durationSeconds', String(recordingSecondsRecorded));
+    await apiUploadPy(`/interviews/${interviewId}/recording`, formData);
+  } catch (err) {
+    console.warn('Recording upload failed:', err);
+    showToast('Your answers were saved, but the session recording could not be uploaded.', 'error');
+  } finally {
+    if (heading) heading.textContent = previousHeading;
+  }
+}
+
+// ---------------------------------------------------------------
+// Pause / resume — freezes both timers and suspends proctoring
+// warnings until resumed. Webcam preview stays visible throughout.
+// ---------------------------------------------------------------
+async function togglePauseSession() {
+  if (pauseInProgress || !sessionActive) return;
+  if (sessionPaused) {
+    await resumeSession();
+  } else {
+    await pauseSession();
+  }
+}
+
+async function pauseSession() {
+  pauseInProgress = true;
+  const btn = document.getElementById('pauseBtn');
+  if (btn) btn.disabled = true;
+
+  try {
+    await apiFetchPy(`/interviews/${interviewId}/pause`, { method: 'PATCH' });
+  } catch (err) {
+    console.error('Failed to pause interview:', err);
+    showToast(err.message || 'Could not pause the interview — check your connection.', 'error');
+    pauseInProgress = false;
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  sessionPaused = true;
+  clearInterval(overallTimerInterval);
+  clearInterval(faceCheckTimer);
+  stopVoiceInputIfActive();
+  pauseRecording();
+
+  document.getElementById('nextBtn').disabled = true;
+  document.getElementById('answerText').disabled = true;
+  document.getElementById('micBtn').disabled = true;
+  document.getElementById('pausedOverlay').style.display = 'flex';
+  updateSessionStatusBadge();
+
+  pauseInProgress = false;
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '▶ Resume';
+  }
+}
+
+async function resumeSession() {
+  pauseInProgress = true;
+  const btn = document.getElementById('pauseBtn');
+  if (btn) btn.disabled = true;
+
+  try {
+    await apiFetchPy(`/interviews/${interviewId}/resume`, { method: 'PATCH' });
+  } catch (err) {
+    console.error('Failed to resume interview:', err);
+    showToast(err.message || 'Could not resume the interview — check your connection.', 'error');
+    pauseInProgress = false;
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  sessionPaused = false;
+  document.getElementById('pausedOverlay').style.display = 'none';
+  document.getElementById('nextBtn').disabled = false;
+  document.getElementById('answerText').disabled = false;
+  document.getElementById('micBtn').disabled = false;
+  updateSessionStatusBadge();
+
+  // Resume the overall session countdown from wherever it was frozen,
+  // and restart proctoring rather than re-rendering the question (which
+  // would reset the candidate's in-progress answer text).
+  startOverallTimer();
+  setupFaceDetection();
+  resumeRecording();
+
+  pauseInProgress = false;
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '⏸ Pause';
+  }
+}
+
+function updateSessionStatusBadge() {
+  const el = document.getElementById('sessionStatusBadge');
+  if (!el) return;
+  const label = sessionPaused ? 'Paused' : sessionActive ? 'In Progress' : 'Scheduled';
+  el.textContent = label;
+  el.classList.toggle('session-status-paused', sessionPaused);
 }
 
 function removeProctoringListeners() {
@@ -614,7 +1011,7 @@ async function setupFaceDetection() {
   const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
 
   faceCheckTimer = setInterval(async () => {
-    if (!sessionActive || !faceApiReady) return;
+    if (!sessionActive || sessionPaused || !faceApiReady) return;
     try {
       const detections = await faceapi.detectAllFaces(video, options);
       handleFaceDetections(detections, video);

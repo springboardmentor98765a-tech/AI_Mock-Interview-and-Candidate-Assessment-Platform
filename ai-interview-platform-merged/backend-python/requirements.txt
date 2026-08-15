@@ -8,6 +8,9 @@ psycopg2-binary>=2.9.10
 PyJWT==2.9.0
 python-dotenv==1.0.1
 pydantic==2.9.2
+# Required by FastAPI to parse multipart/form-data (UploadFile, Form) —
+# used by the recording upload endpoint (POST /interviews/{id}/recording).
+python-multipart==0.0.12
 
 # Text-to-Speech (Module 3 enhancement)
 # gTTS = free, high quality, needs internet access at request time.

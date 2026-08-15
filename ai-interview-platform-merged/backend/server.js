@@ -12,7 +12,6 @@ const jobRoutes = require('./routes/jobRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
-const chatRoutes = require('./routes/chatRoutes');
 const { applySchemaPatches } = require('./utils/schemaPatches');
 
 const app = express();
@@ -34,7 +33,6 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/chat', chatRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

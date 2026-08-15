@@ -12,17 +12,19 @@ backend. Two enhancements on top:
   * GET /{id}/questions/{qid}/tts   — text-to-speech audio for a question
   * GET /{id}/tts                   — manifest of audio URLs for a whole session
 """
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import ai_providers
+from app import ai_providers, recording_store
+from app.config import BASE_DIR, MAX_RECORDING_SIZE_MB
 from app.database import get_db
-from app.models import Interview, InterviewAnswer, InterviewQuestion, User
+from app.models import Interview, InterviewAnswer, InterviewQuestion, InterviewRecording, User
 from app.notify import notify
 from app.question_bank import (
     VALID_CATEGORIES,
@@ -40,6 +42,7 @@ from app.schemas import (
     InterviewWithQuestionsOut,
     OverviewOut,
     QuestionOut,
+    RecordingOut,
     ReviewRequest,
     ScheduleInterviewRequest,
     StartInterviewRequest,
@@ -79,6 +82,28 @@ def _get_own_editable_interview(db: Session, interview_id: int, user: CurrentUse
     return interview
 
 
+def _previously_asked_texts(db: Session, candidate_id: int, exclude_interview_id: Optional[int] = None) -> set[str]:
+    """Normalized text of every question this candidate has already
+    been asked, across their past sessions — passed to
+    question_bank.generate_questions() so a new /generate (or
+    regenerate) call doesn't hand back the same questions again. This
+    is what actually fixes repeats: the curated fallback bank only has
+    5 questions per category/difficulty/domain bucket, so without this
+    a candidate sees the same set almost immediately whenever no real
+    AI provider key is configured (the bank is a last-resort fallback,
+    not the primary source)."""
+    from app.question_bank import _norm_text  # local import avoids a circular import at module load
+
+    q = (
+        db.query(InterviewQuestion.question_text)
+        .join(Interview, Interview.id == InterviewQuestion.interview_id)
+        .filter(Interview.candidate_id == candidate_id)
+    )
+    if exclude_interview_id is not None:
+        q = q.filter(Interview.id != exclude_interview_id)
+    return {_norm_text(text) for (text,) in q.all()}
+
+
 # =================================================================
 # Candidate — generate / start / schedule
 # =================================================================
@@ -102,10 +127,12 @@ def generate_interview(
         count=safe_count,
         interview_type=body.interviewType,
         use_ai=True,
+        exclude_texts=_previously_asked_texts(db, user.id),
     )
 
     interview = Interview(
         candidate_id=user.id,
+        session_id=str(uuid.uuid4()),
         interview_type=body.interviewType,
         mode=_safe_mode(body.mode),
         status="scheduled",
@@ -153,6 +180,7 @@ def start_interview(
     now = datetime.now(timezone.utc)
     interview = Interview(
         candidate_id=user.id,
+        session_id=str(uuid.uuid4()),
         interview_type=body.interviewType,
         mode=_safe_mode(body.mode),
         status="completed",
@@ -186,6 +214,7 @@ def schedule_interview(
 ):
     interview = Interview(
         candidate_id=user.id,
+        session_id=str(uuid.uuid4()),
         interview_type=body.interviewType,
         mode=_safe_mode(body.mode),
         status="scheduled",
@@ -344,6 +373,7 @@ def update_interview(
             count=safe_count,
             interview_type=interview.interview_type,
             use_ai=True,
+            exclude_texts=_previously_asked_texts(db, user.id, exclude_interview_id=interview.id),
         )
 
         db.query(InterviewQuestion).filter(InterviewQuestion.interview_id == interview_id).delete()
@@ -442,6 +472,83 @@ def cancel_interview(interview_id: int, db: Session = Depends(get_db), user: Cur
 
 
 # =================================================================
+# MODULE 4 — live session lifecycle: begin / pause / resume
+# (finish, further down, already ends the session)
+# =================================================================
+@router.patch("/{interview_id}/begin", response_model=InterviewOut)
+def begin_interview(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles("candidate")),
+):
+    """Marks the live session as actually underway. Called once the
+    candidate has granted camera/microphone access and the proctored
+    session shell is shown (see beginProctoredSession() in
+    interview-session.js) — distinct from /generate, which merely
+    creates the session and its question set ahead of time."""
+    interview = _get_own_editable_interview(db, interview_id, user)
+    if interview.status not in ("scheduled", "in_progress", "paused"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This interview cannot be started from its current state")
+
+    # Covers a candidate reloading the pre-start page while the session
+    # was paused — treat re-granting camera/mic as an implicit resume
+    # rather than leaving a stale paused_at behind.
+    if interview.status == "paused" and interview.paused_at is not None:
+        elapsed = datetime.now(timezone.utc) - interview.paused_at.replace(tzinfo=timezone.utc)
+        interview.paused_seconds = (interview.paused_seconds or 0) + max(0, int(elapsed.total_seconds()))
+        interview.paused_at = None
+
+    interview.status = "in_progress"
+    if interview.started_at is None:
+        interview.started_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(interview)
+    return interview
+
+
+@router.patch("/{interview_id}/pause", response_model=InterviewOut)
+def pause_interview(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles("candidate")),
+):
+    """Pauses an in-progress session — question/overall timers and
+    proctoring warnings stop on the client until /resume is called."""
+    interview = _get_own_editable_interview(db, interview_id, user)
+    if interview.status != "in_progress":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only an in-progress interview can be paused")
+
+    interview.status = "paused"
+    interview.paused_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(interview)
+    return interview
+
+
+@router.patch("/{interview_id}/resume", response_model=InterviewOut)
+def resume_interview(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles("candidate")),
+):
+    """Resumes a paused session, accumulating however long it was
+    paused into paused_seconds so reporting can reflect true active
+    time later if needed."""
+    interview = _get_own_editable_interview(db, interview_id, user)
+    if interview.status != "paused":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only a paused interview can be resumed")
+
+    if interview.paused_at is not None:
+        elapsed = datetime.now(timezone.utc) - interview.paused_at.replace(tzinfo=timezone.utc)
+        interview.paused_seconds = (interview.paused_seconds or 0) + max(0, int(elapsed.total_seconds()))
+    interview.paused_at = None
+    interview.status = "in_progress"
+    db.commit()
+    db.refresh(interview)
+    return interview
+
+
+# =================================================================
 # ENHANCEMENT 3 — live interview session: answers, proctoring
 # violations, and real (LLM-scored) session completion
 # =================================================================
@@ -470,6 +577,7 @@ def submit_answer(
         .filter(InterviewAnswer.interview_id == interview.id, InterviewAnswer.question_id == body.questionId)
         .first()
     )
+    is_new_answer = answer is None
     if answer is None:
         answer = InterviewAnswer(interview_id=interview.id, question_id=body.questionId)
         db.add(answer)
@@ -477,6 +585,11 @@ def submit_answer(
     answer.answer_text = body.answerText or ""
     answer.input_mode = safe_mode
     answer.time_taken_seconds = body.timeTakenSeconds
+    # questions_attempted counts distinct questions answered at least
+    # once — not edits to an already-answered question — so moving
+    # back to revise an earlier answer doesn't inflate the count.
+    if is_new_answer:
+        interview.questions_attempted = (interview.questions_attempted or 0) + 1
     db.commit()
     db.refresh(answer)
     return answer
@@ -561,6 +674,17 @@ def finish_interview(
     interview.skill_problem_solving = assessment["skill_problem_solving"]
     interview.ai_feedback = assessment["ai_feedback"]
     interview.completed_at = datetime.now(timezone.utc)
+
+    # Total active session duration: wall-clock start → end, minus any
+    # time spent paused. Frozen here (rather than computed on every
+    # read) so it stays stable once the session is over. Only
+    # meaningful for the live proctored flow (started_at set via
+    # /begin) — instant/unstarted sessions leave this as None.
+    if interview.started_at is not None:
+        started = interview.started_at.replace(tzinfo=timezone.utc)
+        elapsed = (interview.completed_at - started).total_seconds()
+        interview.duration_seconds = max(0, int(elapsed) - (interview.paused_seconds or 0))
+
     db.commit()
     db.refresh(interview)
 
@@ -571,6 +695,168 @@ def finish_interview(
         message=f'Your "{interview.interview_type}" interview scored {interview.score}%. Report is ready.',
     )
     return interview
+
+
+# =================================================================
+# RECORDING — proctored session video+audio capture
+#
+# The candidate's browser records the same webcam/mic MediaStream
+# already used for proctoring (via the MediaRecorder API), and
+# uploads the finished blob once, right when the session ends —
+# whether that's the candidate clicking Finish, the overall timer
+# hitting zero, or the proctoring-violation auto-submit, since all
+# three funnel through finishInterview() in interview-session.js.
+#
+# The file is stored on disk (see app/recording_store.py for why);
+# this table/row is the metadata + access-control record.
+# =================================================================
+ALLOWED_RECORDING_MIME_TYPES = {"video/webm", "video/mp4", "video/ogg"}
+MAX_RECORDING_BYTES = MAX_RECORDING_SIZE_MB * 1024 * 1024
+
+
+@router.post("/{interview_id}/recording", response_model=RecordingOut, status_code=201)
+async def upload_recording(
+    interview_id: int,
+    file: UploadFile = File(...),
+    startedAt: Optional[datetime] = Form(None),
+    endedAt: Optional[datetime] = Form(None),
+    durationSeconds: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles("candidate")),
+):
+    """Uploads the finished MediaRecorder blob for a live proctored
+    session. Only the candidate who owns the session can upload to
+    it — same ownership check as every other write on an interview —
+    so nobody can attach (or overwrite) a recording on a session that
+    isn't theirs. A second upload for the same interview replaces the
+    first (there's only ever one recording per session)."""
+    interview = _get_own_editable_interview(db, interview_id, user)
+
+    mime_type = file.content_type if file.content_type in ALLOWED_RECORDING_MIME_TYPES else "video/webm"
+    dest_path = recording_store.recording_path(interview.id, mime_type)
+    recording_store.delete_existing_recording(interview.id)
+
+    size_bytes = 0
+    too_large = False
+    with open(dest_path, "wb") as out:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            size_bytes += len(chunk)
+            if size_bytes > MAX_RECORDING_BYTES:
+                too_large = True
+                break
+            out.write(chunk)
+    await file.close()
+
+    if too_large:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"Recording exceeds the {MAX_RECORDING_SIZE_MB}MB limit.",
+        )
+    if size_bytes == 0:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Uploaded recording was empty.")
+
+    relative_path = str(dest_path.relative_to(BASE_DIR))
+
+    # Pull the audio track out into its own file so it can be served
+    # (or later transcribed) without demuxing the combined video. Best
+    # effort only — a missing/failed extraction (e.g. ffmpeg not on
+    # PATH) must never fail the video upload that already succeeded.
+    recording_store.delete_existing_audio(interview.id)
+    audio_dest = recording_store.extract_audio_track(dest_path, interview.id, mime_type)
+    audio_relative_path = str(audio_dest.relative_to(BASE_DIR)) if audio_dest else None
+    audio_mime = recording_store.audio_media_type_for(audio_dest) if audio_dest else None
+
+    recording = db.query(InterviewRecording).filter(InterviewRecording.interview_id == interview.id).first()
+    if recording is None:
+        recording = InterviewRecording(interview_id=interview.id)
+        db.add(recording)
+
+    recording.file_path = relative_path
+    recording.mime_type = mime_type
+    recording.size_bytes = size_bytes
+    recording.duration_seconds = durationSeconds
+    recording.started_at = startedAt
+    recording.ended_at = endedAt
+    recording.audio_file_path = audio_relative_path
+    recording.audio_mime_type = audio_mime
+    db.commit()
+    db.refresh(recording)
+    return recording
+
+
+@router.get("/{interview_id}/recording/meta", response_model=RecordingOut)
+def recording_meta(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Lightweight existence/metadata check — dashboards call this to
+    decide whether to render a 'View Recording' button, without
+    pulling the video itself. Same owner-or-staff access rule as
+    streaming the actual file below."""
+    interview = _get_owned_or_staff_interview(db, interview_id, user)
+    recording = db.query(InterviewRecording).filter(InterviewRecording.interview_id == interview.id).first()
+    if recording is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No recording for this interview")
+    return recording
+
+
+@router.get("/{interview_id}/recording")
+def stream_recording(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Streams the session recording. Access is restricted to the
+    owning candidate or coach/recruiter/admin staff — the same rule
+    every other per-interview read in this file uses — so a
+    candidate's proctored video is never reachable by anyone outside
+    that circle, including other candidates."""
+    interview = _get_owned_or_staff_interview(db, interview_id, user)
+    recording = db.query(InterviewRecording).filter(InterviewRecording.interview_id == interview.id).first()
+    if recording is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No recording for this interview")
+
+    full_path = BASE_DIR / recording.file_path
+    if not full_path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Recording file is missing from storage")
+
+    return FileResponse(
+        path=str(full_path),
+        media_type=recording.mime_type or recording_store.media_type_for(full_path),
+        filename=f"interview_{interview.id}_recording{full_path.suffix}",
+    )
+
+
+@router.get("/{interview_id}/recording/audio")
+def stream_recording_audio(
+    interview_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Streams the audio-only sidecar extracted from the session
+    recording, if one exists (requires ffmpeg on the server — see
+    recording_store.extract_audio_track). Same owner-or-staff access
+    rule as the video stream above."""
+    interview = _get_owned_or_staff_interview(db, interview_id, user)
+    recording = db.query(InterviewRecording).filter(InterviewRecording.interview_id == interview.id).first()
+    if recording is None or not recording.audio_file_path:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No audio track available for this interview")
+
+    full_path = BASE_DIR / recording.audio_file_path
+    if not full_path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Audio file is missing from storage")
+
+    return FileResponse(
+        path=str(full_path),
+        media_type=recording.audio_mime_type or recording_store.audio_media_type_for(full_path),
+        filename=f"interview_{interview.id}_audio{full_path.suffix}",
+    )
 
 
 # =================================================================

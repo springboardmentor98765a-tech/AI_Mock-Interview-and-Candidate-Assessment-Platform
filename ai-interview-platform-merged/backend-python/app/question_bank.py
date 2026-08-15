@@ -239,25 +239,58 @@ def _bank_for(category: str, domain: Optional[str]) -> dict:
     return TECHNICAL_QUESTIONS.get(normalize_domain(domain), TECHNICAL_QUESTIONS["general"])
 
 
+def _norm_text(text: str) -> str:
+    """Loose match key for de-duplication — case/whitespace-insensitive
+    so 'What is REST?' and 'what is rest?' are treated as the same
+    question even if punctuation/casing differs slightly."""
+    return " ".join((text or "").lower().split())
+
+
 def pick_questions(
-    category: str, difficulty: str, domain: Optional[str], count: int
+    category: str,
+    difficulty: str,
+    domain: Optional[str],
+    count: int,
+    exclude_texts: Optional[set[str]] = None,
 ) -> list[GeneratedQuestion]:
     """Pulls `count` questions for a single category/difficulty/domain
     combination, filling in from adjacent difficulty tiers if the
-    primary pool runs short (keeps output count consistent)."""
+    primary pool runs short (keeps output count consistent).
+
+    `exclude_texts` (normalized question text) is used to skip
+    anything this candidate has already been asked before, so the
+    bank doesn't repeat the same set every time a new session is
+    generated — the pool is small (5 per bucket), so without this a
+    candidate sees the exact same questions almost immediately.
+    Exclusions are dropped (not enforced) only as an absolute last
+    resort, once every bucket is exhausted, so `count` is still met
+    rather than returning fewer questions than asked for."""
+    excluded = exclude_texts or set()
     bank = _bank_for(category, domain)
-    pool = list(bank[difficulty])
-    random.shuffle(pool)
-    picked = pool[:count]
+
+    def fresh_pool(*diffs: str) -> list[str]:
+        pool: list[str] = []
+        for d in diffs:
+            pool.extend(bank.get(d, []))
+        random.shuffle(pool)
+        return [t for t in pool if _norm_text(t) not in excluded]
+
+    picked = fresh_pool(difficulty)[:count]
 
     if len(picked) < count:
-        extras: list[str] = []
-        for d in VALID_DIFFICULTIES:
-            if d != difficulty:
-                extras.extend(bank.get(d, []))
-        random.shuffle(extras)
+        other_diffs = [d for d in VALID_DIFFICULTIES if d != difficulty]
         needed = count - len(picked)
-        picked = picked + extras[:needed]
+        picked += fresh_pool(*other_diffs)[:needed]
+
+    if len(picked) < count:
+        # Every unseen question in this bucket is used up — repeat
+        # rather than short-change the requested count.
+        all_texts = list(bank.get(difficulty, [])) + [
+            t for d in VALID_DIFFICULTIES if d != difficulty for t in bank.get(d, [])
+        ]
+        random.shuffle(all_texts)
+        needed = count - len(picked)
+        picked += all_texts[:needed]
 
     return [{"text": text, "category": category, "difficulty": difficulty} for text in picked]
 
@@ -269,6 +302,7 @@ def _generate_for_category(
     count: int,
     interview_type: Optional[str],
     use_ai: bool,
+    exclude_texts: Optional[set[str]] = None,
 ) -> list[GeneratedQuestion]:
     """Tries the LLM provider chain first (fresh, non-repetitive
     questions); falls back to the curated bank — in full, or to top
@@ -282,18 +316,24 @@ def _generate_for_category(
                 difficulty=difficulty,
                 domain=domain,
                 count=count,
+                exclude_texts=exclude_texts,
             )
         except Exception:
             ai_questions = None
 
         if ai_questions:
+            # Belt-and-braces: drop anything the AI returned that
+            # matches an already-asked question despite the prompt
+            # instruction, then top up from the bank if that leaves us short.
+            excluded = exclude_texts or set()
+            ai_questions = [q for q in ai_questions if _norm_text(q["text"]) not in excluded]
             if len(ai_questions) < count:
                 ai_questions = ai_questions + pick_questions(
-                    category, difficulty, domain, count - len(ai_questions)
+                    category, difficulty, domain, count - len(ai_questions), exclude_texts
                 )
             return ai_questions[:count]
 
-    return pick_questions(category, difficulty, domain, count)
+    return pick_questions(category, difficulty, domain, count, exclude_texts)
 
 
 def generate_questions(
@@ -303,6 +343,7 @@ def generate_questions(
     count: int = 5,
     interview_type: Optional[str] = None,
     use_ai: bool = True,
+    exclude_texts: Optional[set[str]] = None,
 ) -> list[GeneratedQuestion]:
     safe_difficulty = difficulty if difficulty in VALID_DIFFICULTIES else "medium"
     safe_count = max(1, min(int(count or 5), 20))
@@ -312,17 +353,23 @@ def generate_questions(
         questions: list[GeneratedQuestion] = []
         for cat in VALID_CATEGORIES:
             questions.extend(
-                _generate_for_category(cat, safe_difficulty, domain, per_category, interview_type, use_ai)
+                _generate_for_category(
+                    cat, safe_difficulty, domain, per_category, interview_type, use_ai, exclude_texts
+                )
             )
         while len(questions) < safe_count:
             questions.extend(
-                _generate_for_category("HR", safe_difficulty, domain, 1, interview_type, use_ai)
+                _generate_for_category(
+                    "HR", safe_difficulty, domain, 1, interview_type, use_ai, exclude_texts
+                )
             )
         random.shuffle(questions)
         return questions[:safe_count]
 
     safe_category = category if category in VALID_CATEGORIES else "Technical"
-    return _generate_for_category(safe_category, safe_difficulty, domain, safe_count, interview_type, use_ai)
+    return _generate_for_category(
+        safe_category, safe_difficulty, domain, safe_count, interview_type, use_ai, exclude_texts
+    )
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:

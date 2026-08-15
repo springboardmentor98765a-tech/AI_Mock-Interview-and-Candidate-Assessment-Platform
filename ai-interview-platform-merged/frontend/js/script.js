@@ -333,6 +333,39 @@ async function apiUpload(path, formData) {
   return data;
 }
 
+// ---------------- Multipart upload helper, pointed at the Python
+// service (recording uploads) — same shape as apiUpload above, just a
+// different base URL and no forced JSON Content-Type. ----------------
+async function apiUploadPy(path, formData) {
+  const token = getToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  let res;
+  try {
+    res = await fetch(`${PY_API_BASE_URL}${path}`, { method: 'POST', body: formData, headers });
+  } catch (networkErr) {
+    throw new Error("Could not reach the AI interview service (port 8001). Make sure it's running.");
+  }
+
+  if (res.status === 401) {
+    clearSession();
+    window.location.href = 'login.html';
+    throw new Error('Session expired');
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (e) {
+    data = null;
+  }
+
+  if (!res.ok) {
+    throw new Error((data && data.message) || (data && data.detail) || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
 // ---------------- Toast (lightweight, non-blocking feedback) ----------------
 function showToast(message, type = 'info') {
   const el = document.createElement('div');
@@ -708,7 +741,6 @@ async function initCandidateDashboard() {
     loadCandidateStats(),
     loadCandidateHistory(),
     loadNotificationsInto('candidateNotifications'),
-    loadChatContacts(),
   ]);
 }
 
@@ -828,6 +860,10 @@ async function loadCandidateHistory() {
         }${
           iv.status === 'completed'
             ? `<button style="margin-left:6px;margin-top:4px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewFeedback(${iv.id})">💬 View Feedback</button>`
+            : ''
+        }${
+          iv.status === 'completed' && Number(iv.question_count) > 0
+            ? `<button style="margin-left:6px;margin-top:4px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${iv.id})">🎥 View Recording</button>`
             : ''
         }${
           iv.status !== 'completed'
@@ -1245,6 +1281,74 @@ async function playQuestionAudio(interviewId, questionId, btnEl) {
   }
 }
 
+// ---------------- Session recording playback (Recording feature) ----------------
+// Same authenticated-blob approach as playQuestionAudio above: a
+// <video src="..."> can't send an Authorization header, so the file
+// is fetched as a blob first and played from an object URL.
+async function viewInterviewRecording(interviewId) {
+  try {
+    await apiFetchPy(`/interviews/${interviewId}/recording/meta`);
+  } catch (err) {
+    showToast('No recording is available for this interview.', 'info');
+    return;
+  }
+  showRecordingModal(interviewId);
+}
+
+function showRecordingModal(interviewId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width:640px;">
+      <h3>🎥 Session Recording</h3>
+      <div id="recordingModalBody" style="margin-top:10px;min-height:200px;display:flex;align-items:center;justify-content:center;">
+        <p style="color:var(--ink-soft);">⏳ Loading recording…</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel">Close</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  let objectUrl = null;
+  const close = () => {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    overlay.remove();
+  };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  overlay.querySelector('.btn-cancel').addEventListener('click', close);
+
+  (async () => {
+    const body = document.getElementById('recordingModalBody');
+    try {
+      const token = getToken();
+      let res;
+      try {
+        res = await fetch(`${PY_API_BASE_URL}/interviews/${interviewId}/recording`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch (networkErr) {
+        throw new Error("Could not reach the AI interview service (port 8001). Make sure it's running.");
+      }
+      if (!res.ok) {
+        throw new Error('Could not load this recording.');
+      }
+      const blob = await res.blob();
+      objectUrl = URL.createObjectURL(blob);
+      if (body) {
+        body.innerHTML = `<video src="${objectUrl}" controls style="width:100%;max-height:60vh;border-radius:8px;background:#000;"></video>`;
+      }
+    } catch (err) {
+      if (body) {
+        body.innerHTML = `<p style="color:var(--danger,#d33);">${escapeHtml(err.message || 'Could not load this recording.')}</p>`;
+      }
+    }
+  })();
+}
+
 function promptScheduleInterview() {
   openFormModal({
     title: '📅 Schedule an Interview',
@@ -1276,7 +1380,6 @@ async function initCoachDashboard() {
     loadCandidateSummaries('coachCandidatesBody', '📝 Review', 'coach'),
     loadSchedule('coachScheduleBody', 'today'),
     loadNotificationsInto('coachNotifications'),
-    loadChatContacts(),
   ]);
 }
 
@@ -1374,10 +1477,17 @@ async function openReviewPicker(candidateId, candidateName) {
                 <strong>${escapeHtml(iv.interview_type)}</strong><br>
                 <span style="font-size:0.78rem;color:var(--ink-soft)">${formatDate(iv.scheduled_at || iv.created_at)} • ${statusBadge(iv.status)}${iv.score !== null ? ` • ${iv.score}%` : ''}</span>
               </div>
-              <button ${iv.status !== 'completed' ? 'disabled title="Only completed interviews can be reviewed"' : ''}
-                onclick="this.closest('.modal-overlay').remove(); promptReview(${iv.id}, '${escapeHtml(candidateName).replace(/'/g, "\\'")}')">
-                Give Feedback
-              </button>
+              <div>
+                <button ${iv.status !== 'completed' ? 'disabled title="Only completed interviews can be reviewed"' : ''}
+                  onclick="this.closest('.modal-overlay').remove(); promptReview(${iv.id}, '${escapeHtml(candidateName).replace(/'/g, "\\'")}')">
+                  Give Feedback
+                </button>
+                ${
+                  iv.status === 'completed' && Number(iv.question_count) > 0
+                    ? `<button style="margin-left:6px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${iv.id})">🎥 Recording</button>`
+                    : ''
+                }
+              </div>
             </div>`
             )
             .join('')}
@@ -1416,6 +1526,11 @@ async function viewCandidateProfile(candidateId, interviewId, candidateName) {
         <h4 style="margin-bottom:4px;">🧑‍🏫 Coach Feedback</h4>
         <p style="color:var(--ink-soft);font-size:0.88rem;">${feedback.has_feedback ? escapeHtml(feedback.recruiter_feedback) : 'No coach feedback on this session yet.'}</p>
         <div class="modal-actions" style="margin-top:14px;">
+          ${
+            feedback.status === 'completed'
+              ? `<button type="button" style="background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${interviewId})">🎥 View Recording</button>`
+              : ''
+          }
           <button type="button" class="btn-cancel">Close</button>
         </div>
       </div>`;
@@ -1442,105 +1557,6 @@ function promptReview(interviewId, candidateName) {
       showToast('Feedback saved.', 'success');
     },
   });
-}
-
-// ============================================================
-// CHAT (candidate <-> coach)
-// ============================================================
-let chatActiveContactId = null;
-let chatPollInterval = null;
-let CHAT_CONTACTS_CACHE = [];
-
-async function loadChatContacts() {
-  const listEl = document.getElementById('chatContactsList');
-  if (!listEl) return; // page has no chat widget (recruiter/admin)
-  try {
-    const { contacts } = await apiFetch('/chat/contacts');
-    CHAT_CONTACTS_CACHE = contacts;
-    if (!contacts.length) {
-      listEl.innerHTML = '<p style="padding:14px;color:var(--ink-soft);font-size:0.85rem;">No contacts yet.</p>';
-      return;
-    }
-    listEl.innerHTML = contacts
-      .map((c) => {
-        const avatarSrc = c.profile_picture ? `${NODE_ORIGIN}${c.profile_picture}` : 'images/profile.png';
-        return `
-        <div class="chat-contact${c.id === chatActiveContactId ? ' active' : ''}" onclick="selectChatContact(${c.id}, '${escapeHtml(c.full_name).replace(/'/g, "\\'")}')">
-          <img src="${avatarSrc}" alt="">
-          <div style="min-width:0;">
-            <div class="chat-contact-name">${escapeHtml(c.full_name)}</div>
-            <div class="chat-contact-preview">${c.last_message ? escapeHtml(c.last_message) : 'Say hello 👋'}</div>
-          </div>
-          ${c.unread_count > 0 ? `<span class="chat-contact-unread">${c.unread_count}</span>` : ''}
-        </div>`;
-      })
-      .join('');
-  } catch (err) {
-    console.error('Failed to load chat contacts:', err);
-    listEl.innerHTML = '<p style="padding:14px;color:var(--ink-soft);font-size:0.85rem;">Could not load contacts.</p>';
-  }
-}
-
-function selectChatContact(userId, name) {
-  chatActiveContactId = userId;
-  document.getElementById('chatActiveContactName').textContent = name;
-  document.querySelectorAll('.chat-contact').forEach((el) => el.classList.remove('active'));
-
-  const input = document.getElementById('chatMessageInput');
-  const sendBtn = document.querySelector('.chat-input-row button');
-  if (input) input.disabled = false;
-  if (sendBtn) sendBtn.disabled = false;
-
-  // loadChatMessages() marks this contact's messages as read server-side —
-  // refresh the contact list after it settles so the unread badge clears.
-  loadChatMessages().then(loadChatContacts);
-  clearInterval(chatPollInterval);
-  chatPollInterval = setInterval(loadChatMessages, 5000);
-}
-
-async function loadChatMessages() {
-  if (!chatActiveContactId) return;
-  const container = document.getElementById('chatMessages');
-  try {
-    const { messages } = await apiFetch(`/chat/${chatActiveContactId}`);
-    const me = getStoredUser();
-    if (!messages.length) {
-      container.innerHTML = '<p style="color:var(--ink-soft);text-align:center;margin-top:40px;">No messages yet — say hello 👋</p>';
-      return;
-    }
-    const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 40;
-    container.innerHTML = messages
-      .map((m) => {
-        const mine = m.sender_id === me.id;
-        const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        return `<div class="chat-bubble ${mine ? 'mine' : 'theirs'}">${escapeHtml(m.message)}<span class="chat-bubble-time">${time}</span></div>`;
-      })
-      .join('');
-    if (wasNearBottom) container.scrollTop = container.scrollHeight;
-  } catch (err) {
-    console.error('Failed to load messages:', err);
-  }
-}
-
-async function submitChatMessage(e) {
-  e.preventDefault();
-  if (!chatActiveContactId) return false;
-  const input = document.getElementById('chatMessageInput');
-  const text = input.value.trim();
-  if (!text) return false;
-  input.value = '';
-  try {
-    await apiFetch(`/chat/${chatActiveContactId}`, {
-      method: 'POST',
-      body: JSON.stringify({ message: text }),
-    });
-    loadChatMessages();
-    loadChatContacts();
-  } catch (err) {
-    showToast(err.message, 'error');
-    input.value = text; // restore so they don't lose it
-  }
-  return false;
 }
 
 // ============================================================
