@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interview In Progress | AI Interview Pro</title>
+
+    <link rel="stylesheet" href="candidate.css" />
+    <link rel="stylesheet" href="interview-session.css" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="interview-session-body">
+    <div class="interview-session-shell">
+
+      <!-- ================= TOP BAR ================= -->
+      <header class="interview-session-topbar">
+        <div class="brand">🤖 AI Interview Pro</div>
+
+        <div class="interview-session-controls" id="liveControls" style="display:none;">
+          <span id="violationBadge" class="violation-badge" style="display:none;">Violations: 0/3</span>
+          <span id="sessionTimer" class="session-timer" style="display:none;">⏱ --:--</span>
+          <button id="pauseResumeBtn" type="button" class="pause-resume-btn" style="display:none;">⏸ Pause</button>
+          <button id="endSessionBtn" type="button" class="end-session-btn">🚪 End Session</button>
+        </div>
+      </header>
+
+      <main class="interview-session-main">
+
+        <!-- ================= PRE-FLIGHT (device check + begin) ================= -->
+        <div class="preflight-panel" id="preflightPanel">
+          <h2 id="preflightTitle">Preparing your interview...</h2>
+          <p class="hint" id="preflightSubtitle"></p>
+
+          <ul class="preflight-rules">
+            <li>🖥️ This interview runs in <strong>full screen</strong>. Please don't exit it once you begin.</li>
+            <li>⚠️ You get up to <strong>3</strong> full-screen exits. A 4th will auto-submit your interview.</li>
+            <li>⏸ You can pause at any time - the timer freezes until you resume.</li>
+            <li>🚪 You can end the session early with the "End Session" button - whatever you've answered will be scored.</li>
+          </ul>
+
+          <!-- ============ DEVICE CHECK (Module 4 - Webcam / Microphone access) ============ -->
+          <div class="device-check-panel" id="deviceCheckPanel">
+            <h4>📷 Camera &amp; Microphone Check</h4>
+            <p class="hint">Enable your camera and mic so this session can be recorded for later review (optional - you can still take the interview without it).</p>
+
+            <div class="device-check-row">
+              <div class="device-preview-box">
+                <video id="devicePreviewVideo" autoplay muted playsinline></video>
+                <span class="device-preview-placeholder" id="devicePreviewPlaceholder">No preview yet</span>
+              </div>
+
+              <div class="device-check-status">
+                <div class="device-status-line">
+                  <span class="status-dot" id="cameraStatusDot"></span>
+                  Camera: <strong id="cameraStatusText">Not enabled</strong>
+                </div>
+                <div class="device-status-line">
+                  <span class="status-dot" id="micStatusDot"></span>
+                  Microphone: <strong id="micStatusTextCheck">Not enabled</strong>
+                </div>
+
+                <button id="enableDevicesBtn" type="button">🎥 Enable Camera &amp; Microphone</button>
+                <p id="deviceCheckError" class="form-error"></p>
+              </div>
+            </div>
+          </div>
+
+          <p id="preflightError" class="form-error"></p>
+
+          <button id="beginInterviewBtn" type="button">🚀 Begin Interview (Full Screen)</button>
+          <a href="candidate.html" class="preflight-cancel-link">Cancel and go back to dashboard</a>
+        </div>
+
+        <!-- ================= AI INTERVIEW LIVE SESSION ================= -->
+        <div class="ai-interview-session interview-session-live" id="aiInterviewSession" style="display:none;">
+
+          <div class="session-progress">
+            <span id="sessionProgressText">Question 1</span>
+            <div class="session-progress-bar"><div id="sessionProgressFill"></div></div>
+          </div>
+
+          <!-- Module 4 - live webcam preview + recording indicator -->
+          <div class="session-camera-box" id="sessionCameraBox" style="display:none;">
+            <video id="sessionCameraPreview" autoplay muted playsinline></video>
+            <span class="rec-indicator" id="recIndicator" style="display:none;">🔴 REC</span>
+          </div>
+
+          <div class="session-question-card">
+            <div class="question-category" id="questionCategory"></div>
+            <p id="questionText">...</p>
+            <button id="speakQuestionBtn" type="button">🔊 Repeat Question</button>
+          </div>
+
+          <div class="session-answer-area">
+            <div class="mic-controls">
+              <button id="micBtn" type="button">🎤 Speak Your Answer</button>
+              <span id="micStatus"></span>
+            </div>
+
+            <textarea id="answerText" placeholder="Your spoken answer appears here - or just type it directly."></textarea>
+
+            <p id="answerError" class="form-error"></p>
+
+            <button id="submitAnswerBtn" type="button">Submit Answer ✅</button>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- ================= FULL-SCREEN VIOLATION OVERLAY ================= -->
+      <div class="violation-overlay" id="violationOverlay" style="display:none;">
+        <div class="violation-overlay-card">
+          <h2>⚠️ You exited full screen</h2>
+          <p id="violationOverlayText">This counts as a violation.</p>
+          <button id="returnFullscreenBtn" type="button">🔒 Return to Full Screen</button>
+        </div>
+      </div>
+
+      <!-- ================= FINISHING OVERLAY ================= -->
+      <div class="finishing-overlay" id="finishingOverlay" style="display:none;">
+        <div class="finishing-overlay-card">
+          <h2 id="finishingTitle">Wrapping up your interview...</h2>
+          <p id="finishingSubtitle">Saving your answers and recording.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <script src="auth-common.js"></script>
+    <script src="interview-session.js"></script>
+  </body>
+</html>

@@ -1,0 +1,222 @@
+/* ==========================================================
+    INTERVIEW SESSION PAGE - LAYOUT
+    (candidate.css supplies the shared component styles:
+    device-check-panel, session-question-card, mic-controls,
+    session-camera-box, pause-resume-btn, session-timer, etc.)
+========================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+.interview-session-body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Poppins", sans-serif;
+  background: radial-gradient(circle at top left, #1e293b, #0f172a 60%);
+  color: #f3f4f6;
+}
+
+.interview-session-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.interview-session-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.interview-session-topbar .brand {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.interview-session-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.violation-badge {
+  background: #7f1d1d;
+  color: #fecaca;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.end-session-btn {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.end-session-btn:hover {
+  background: #b91c1c;
+}
+
+.interview-session-main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* ---------------- Pre-flight panel ---------------- */
+
+.preflight-panel {
+  max-width: 620px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 32px;
+  text-align: center;
+}
+
+.preflight-panel h2 {
+  margin-top: 0;
+}
+
+.preflight-rules {
+  text-align: left;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.preflight-rules li {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+.device-check-panel {
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+#beginInterviewBtn {
+  margin-top: 10px;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  width: 100%;
+}
+
+#beginInterviewBtn:hover {
+  filter: brightness(1.08);
+}
+
+#beginInterviewBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.preflight-cancel-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: #93c5fd;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.preflight-cancel-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------------- Live session ---------------- */
+
+.interview-session-live {
+  max-width: 720px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 32px;
+}
+
+/* ---------------- Full-screen violation overlay ---------------- */
+
+.violation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.violation-overlay-card {
+  max-width: 420px;
+  text-align: center;
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 32px;
+}
+
+.violation-overlay-card h2 {
+  margin-top: 0;
+  color: #f87171;
+}
+
+#returnFullscreenBtn {
+  margin-top: 16px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  border: none;
+  padding: 12px 26px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ---------------- Finishing overlay ---------------- */
+
+.finishing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.finishing-overlay-card {
+  text-align: center;
+}
+
+.finishing-overlay-card h2 {
+  margin-bottom: 8px;
+}

@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "AI Interview Pro API",
+    "_postman_id": "ai-interview-pro-collection",
+    "description": "Auth, resume, interview generation, and Module 4 (session management / recordings) endpoints. Set {{base_url}} to your running backend, e.g. http://127.0.0.1:8000. Login first to populate {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "token", "value": "" },
+    { "key": "interview_id", "value": "" },
+    { "key": "session_id", "value": "" },
+    { "key": "question_id", "value": "" },
+    { "key": "recording_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (candidate)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test Candidate\",\n  \"email\": \"candidate@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"candidate\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('token', data.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"candidate@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interviews (Module 3)",
+      "item": [
+        {
+          "name": "Generate interview",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('interview_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"interview_type\": \"technical\",\n  \"domain\": \"Python\",\n  \"difficulty\": \"medium\",\n  \"num_questions\": 3,\n  \"duration_minutes\": 0\n}"
+            },
+            "url": { "raw": "{{base_url}}/interviews/generate", "host": ["{{base_url}}"], "path": ["interviews", "generate"] }
+          }
+        },
+        {
+          "name": "Start interview (creates session)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.session) pm.collectionVariables.set('session_id', data.session.id);",
+                  "  if (data.first_question) pm.collectionVariables.set('question_id', data.first_question.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/interviews/start?interview_id={{interview_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["interviews", "start"],
+              "query": [{ "key": "interview_id", "value": "{{interview_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get interview session (poll current question)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/interviews/{{interview_id}}/session",
+              "host": ["{{base_url}}"],
+              "path": ["interviews", "{{interview_id}}", "session"]
+            }
+          }
+        },
+        {
+          "name": "Submit answer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answer_text\": \"Python is a dynamically typed, interpreted language...\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/interviews/{{interview_id}}/questions/{{question_id}}/answer",
+              "host": ["{{base_url}}"],
+              "path": ["interviews", "{{interview_id}}", "questions", "{{question_id}}", "answer"]
+            }
+          }
+        },
+        {
+          "name": "Force timeout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/interviews/{{interview_id}}/timeout",
+              "host": ["{{base_url}}"],
+              "path": ["interviews", "{{interview_id}}", "timeout"]
+            }
+          }
+        },
+        {
+          "name": "Interview history",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/interviews/history", "host": ["{{base_url}}"], "path": ["interviews", "history"] }
+          }
+        },
+        {
+          "name": "Analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/interviews/analytics", "host": ["{{base_url}}"], "path": ["interviews", "analytics"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions (Module 4)",
+      "item": [
+        {
+          "name": "Create session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"interview_id\": \"{{interview_id}}\"\n}" },
+            "url": { "raw": "{{base_url}}/sessions", "host": ["{{base_url}}"], "path": ["sessions"] }
+          }
+        },
+        {
+          "name": "List sessions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions", "host": ["{{base_url}}"], "path": ["sessions"] }
+          }
+        },
+        {
+          "name": "Get session detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}"] }
+          }
+        },
+        {
+          "name": "Start session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/start", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "start"] }
+          }
+        },
+        {
+          "name": "Pause session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/pause", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "pause"] }
+          }
+        },
+        {
+          "name": "Resume session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/resume", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "resume"] }
+          }
+        },
+        {
+          "name": "End session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/end", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "end"] }
+          }
+        },
+        {
+          "name": "Update device status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"camera_enabled\": true,\n  \"microphone_enabled\": true\n}" },
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/devices", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "devices"] }
+          }
+        },
+        {
+          "name": "Report full-screen violation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/violations", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "violations"] }
+          }
+        },
+        {
+          "name": "Upload recording",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "recording_type", "value": "video", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/recordings", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "recordings"] }
+          }
+        },
+        {
+          "name": "List recordings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/sessions/{{session_id}}/recordings", "host": ["{{base_url}}"], "path": ["sessions", "{{session_id}}", "recordings"] }
+          }
+        },
+        {
+          "name": "Delete recording",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}/recordings/{{recording_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "{{session_id}}", "recordings", "{{recording_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

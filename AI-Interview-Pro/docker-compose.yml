@@ -1,0 +1,61 @@
+# Module 4 tech stack calls for "Containerization: Docker & Docker Compose".
+#
+# Usage:
+#   1. cp backend/.env.example backend/.env and fill in JWT_SECRET_KEY /
+#      SESSION_SECRET_KEY (openssl rand -hex 32 each). Leave DATABASE_URL
+#      as-is below - compose overrides it to point at the postgres service.
+#   2. docker compose up --build
+#   3. Frontend: http://localhost:5500   Backend/API docs: http://localhost:8000/docs
+#
+# First run auto-creates all tables (SQLAlchemy create_all). If you're
+# attaching this to an existing database instead of the `postgres`
+# service below, run backend/sql/create_db.sql against it once.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: AI_Interview_Pro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overrides whatever is in .env so it always points at the
+      # postgres service above instead of localhost.
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/AI_Interview_Pro
+      FRONTEND_URL: http://localhost:5500
+      CORS_ORIGINS: http://localhost:5500
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - recordings_data:/app/media
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5500:80"
+
+volumes:
+  postgres_data:
+  recordings_data:
