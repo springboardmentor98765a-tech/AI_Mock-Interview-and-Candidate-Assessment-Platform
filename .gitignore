@@ -27,3 +27,21 @@ backend/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual environments
+tts-venv/
+.venv/
+venv/
+
+# Generated media and recordings
+backend/uploads/
+backend/output.wav
+*.wav
+*.m4a
+
+# Local secrets / API key configuration
+backend/config/geminiKeys.js
+
+# Python cache
+__pycache__/
+*.pyc

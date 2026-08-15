@@ -1,0 +1,983 @@
+/* ==========================================================================
+   Conversational AI Video Interview Stage Stylesheet
+   Dark theme background (#070a12) with radial lighting gradients, 
+   glassmorphism, 30% enlarged AI Avatar (~220px core sphere), and centered captions.
+   ========================================================================== */
+
+/* Root design variables */
+:root {
+  --civ-bg: #070a12;
+  --civ-bg-card: rgba(15, 23, 42, 0.75);
+  --civ-bg-glass: rgba(255, 255, 255, 0.05);
+  --civ-border-glass: rgba(255, 255, 255, 0.1);
+  --civ-border-highlight: rgba(99, 102, 241, 0.35);
+  
+  --civ-primary: #6366f1;
+  --civ-primary-glow: rgba(99, 102, 241, 0.45);
+  --civ-accent: #38bdf8;
+  --civ-emerald: #10b981;
+  --civ-emerald-glow: rgba(16, 185, 129, 0.4);
+  --civ-rose: #f43f5e;
+  --civ-amber: #f59e0b;
+  
+  --civ-text-main: #f8fafc;
+  --civ-text-muted: #94a3b8;
+  --civ-text-subtle: #64748b;
+  
+  --civ-radius-sm: 8px;
+  --civ-radius-md: 14px;
+  --civ-radius-lg: 20px;
+  --civ-radius-full: 9999px;
+  
+  --civ-backdrop-blur: blur(20px);
+  --civ-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --civ-transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   1. Base Reset & Full-Screen Container (.civ-container)
+   -------------------------------------------------------------------------- */
+.civ-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--civ-bg);
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.18) 0%, transparent 60%),
+    radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.10) 0%, transparent 50%),
+    radial-gradient(circle at 15% 75%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 50%);
+  display: flex;
+  flex-direction: column;
+  color: var(--civ-text-main);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.civ-container * {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   2. Top Frosted Glass Header Bar (.civ-header)
+   -------------------------------------------------------------------------- */
+.civ-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(7, 10, 18, 0.65);
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  border-bottom: 1px solid var(--civ-border-glass);
+}
+
+.civ-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.civ-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.civ-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--civ-radius-sm);
+  background: linear-gradient(135deg, var(--civ-primary), var(--civ-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #ffffff;
+  box-shadow: 0 0 16px var(--civ-primary-glow);
+}
+
+.civ-header-title,
+.civ-role-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--civ-text-main);
+  letter-spacing: -0.01em;
+}
+
+.civ-role-subtitle {
+  font-size: 12px;
+  color: var(--civ-text-muted);
+}
+
+.civ-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--civ-text-main);
+  border: 1px solid var(--civ-border-glass);
+  padding: 7px 14px;
+  border-radius: var(--civ-radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--civ-transition-fast);
+}
+
+.civ-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.civ-header-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.civ-progress-box,
+.civ-progress-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--civ-border-glass);
+  padding: 6px 16px;
+  border-radius: var(--civ-radius-full);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--civ-text-muted);
+}
+
+.civ-progress-bar {
+  width: 90px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.civ-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--civ-primary), var(--civ-accent));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.civ-progress-label {
+  font-weight: 600;
+  color: var(--civ-text-main);
+  font-size: 13px;
+}
+
+.civ-progress-pill span.active {
+  color: var(--civ-accent);
+  font-weight: 700;
+}
+
+.civ-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.civ-timer-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--civ-amber);
+  padding: 6px 14px;
+  border-radius: var(--civ-radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.civ-total-timer {
+  font-size: 12px;
+  color: var(--civ-text-subtle);
+  font-family: monospace;
+}
+
+.civ-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--civ-rose);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 8px 16px;
+  border-radius: var(--civ-radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--civ-transition-fast);
+}
+
+.civ-exit-btn:hover {
+  background: rgba(244, 63, 94, 0.22);
+  border-color: rgba(244, 63, 94, 0.5);
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   3. Main Centered Video Stage (.civ-stage)
+   -------------------------------------------------------------------------- */
+.civ-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 72px);
+  margin-top: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 32px 100px 32px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   4. Centered AI Avatar (~220px Diameter Core Sphere) (.civ-avatar-wrapper / .civ-avatar-center)
+   -------------------------------------------------------------------------- */
+.civ-avatar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.civ-avatar-wrapper {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.civ-avatar-wrapper.speaking {
+  transform: scale(1.08);
+}
+
+/* Core sphere enlarged 30% to ~220px diameter */
+.civ-avatar-sphere,
+.civ-avatar-core {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #818cf8, #4f46e5 55%, #1e1b4b);
+  box-shadow: 0 0 50px var(--civ-primary-glow), inset 0 0 30px rgba(255, 255, 255, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Pulsing Glowing Aura Rings */
+.civ-avatar-ring {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: linear-gradient(135deg, var(--civ-primary), var(--civ-accent)) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  opacity: 0.8;
+  animation: pulse-ring 3s infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.civ-avatar-glow {
+  position: absolute;
+  inset: -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--civ-primary-glow) 0%, transparent 70%);
+  opacity: 0.65;
+  filter: blur(24px);
+  transition: var(--civ-transition-normal);
+}
+
+.civ-avatar-wrapper.speaking .civ-avatar-glow {
+  opacity: 0.95;
+  inset: -42px;
+}
+
+.civ-avatar-img-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  background-color: #070a12;
+}
+
+.civ-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Waveform / Equalizer bars */
+.civ-waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  margin-top: 14px;
+}
+
+.civ-waveform-bar {
+  width: 4px;
+  height: 10px;
+  background: linear-gradient(to top, var(--civ-primary), var(--civ-accent));
+  border-radius: 4px;
+  animation: waveform-bounce 1.2s ease-in-out infinite;
+}
+
+.civ-waveform-bar:nth-child(1) { animation-delay: 0.0s; }
+.civ-waveform-bar:nth-child(2) { animation-delay: 0.15s; }
+.civ-waveform-bar:nth-child(3) { animation-delay: 0.3s; }
+.civ-waveform-bar:nth-child(4) { animation-delay: 0.45s; }
+.civ-waveform-bar:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.45;
+    box-shadow: 0 0 35px var(--civ-primary-glow);
+  }
+  100% {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+}
+
+@keyframes waveform-bounce {
+  0%, 100% {
+    height: 8px;
+  }
+  50% {
+    height: 30px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. Candidate Webcam PiP Preview Box (.civ-candidate-pip)
+   -------------------------------------------------------------------------- */
+.civ-candidate-pip {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 220px;
+  height: 140px;
+  border-radius: var(--civ-radius-md);
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  border: 1.5px solid var(--civ-border-glass);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  transition: var(--civ-transition-normal);
+}
+
+.civ-candidate-pip:hover {
+  border-color: var(--civ-border-highlight);
+  transform: scale(1.03);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+.civ-pip-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.civ-pip-avatar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--civ-text-subtle);
+}
+
+.civ-pip-label,
+.civ-pip-badge {
+  position: relative;
+  z-index: 2;
+  align-self: flex-start;
+  background: rgba(7, 10, 18, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 3px 9px;
+  border-radius: var(--civ-radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--civ-text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.civ-pip-dot,
+.civ-pip-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--civ-emerald);
+  box-shadow: 0 0 8px var(--civ-emerald);
+}
+
+.civ-pip-voice-meter {
+  position: relative;
+  z-index: 2;
+  align-self: flex-end;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  background: rgba(7, 10, 18, 0.65);
+  padding: 3px 6px;
+  border-radius: var(--civ-radius-sm);
+}
+
+.civ-pip-bar {
+  width: 3px;
+  border-radius: 2px;
+  transition: height 0.15s ease, background 0.15s ease;
+}
+
+/* --------------------------------------------------------------------------
+   6. Center-Aligned Subtitle Box (.civ-subtitle-card / .civ-subtitle-wrapper)
+   -------------------------------------------------------------------------- */
+.civ-subtitle-wrapper,
+.civ-subtitle-card {
+  position: relative;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.civ-subtitle-card {
+  background: var(--civ-bg-card);
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  border: 1px solid var(--civ-border-glass);
+  border-radius: var(--civ-radius-lg);
+  padding: 24px 32px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  transition: var(--civ-transition-normal);
+}
+
+.civ-subtitle-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5);
+}
+
+.civ-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--civ-radius-full);
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.civ-subtitle-text {
+  font-size: 22px;
+  line-height: 1.65;
+  color: var(--civ-text-main);
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Progressive Text Reveal effect styling */
+.civ-subtitle-text .word-reveal {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: word-fade-in 0.25s forwards cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes word-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. Bottom-Center Live Candidate Caption Pill (.civ-user-caption-pill / .civ-candidate-caption)
+   -------------------------------------------------------------------------- */
+.civ-user-caption-pill,
+.civ-candidate-caption {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: auto;
+  max-width: 720px;
+  margin: 14px auto 0 auto;
+  padding: 10px 22px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--civ-radius-full);
+  box-shadow: 0 0 20px var(--civ-emerald-glow), inset 0 0 10px rgba(16, 185, 129, 0.1);
+  color: #a7f3d0;
+  font-size: 15px;
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  transition: var(--civ-transition-normal);
+}
+
+.civ-user-caption-pill.listening,
+.civ-candidate-caption.listening {
+  border-color: var(--civ-emerald);
+  box-shadow: 0 0 28px rgba(16, 185, 129, 0.5);
+}
+
+.civ-mic-indicator {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.civ-mic-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--civ-emerald);
+  box-shadow: 0 0 12px var(--civ-emerald);
+}
+
+.civ-mic-dot.active,
+.civ-mic-indicator.active .civ-mic-dot {
+  animation: mic-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes mic-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8);
+  }
+  70% {
+    transform: scale(1.45);
+    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.civ-live-text {
+  flex: 1;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+/* --------------------------------------------------------------------------
+   8. Bottom Floating Control Bar (.civ-controls)
+   -------------------------------------------------------------------------- */
+.civ-controls {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  border: 1px solid var(--civ-border-glass);
+  border-radius: var(--civ-radius-full);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.civ-mic-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--civ-border-glass);
+  border-radius: var(--civ-radius-full);
+}
+
+.civ-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--civ-text-subtle);
+  transition: var(--civ-transition-fast);
+}
+
+.civ-status-dot.active {
+  background-color: var(--civ-emerald);
+  box-shadow: 0 0 10px var(--civ-emerald);
+  animation: mic-pulse 1.5s infinite;
+}
+
+.civ-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--civ-text-muted);
+}
+
+.civ-ctrl-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.civ-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--civ-radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--civ-border-glass);
+  cursor: pointer;
+  transition: var(--civ-transition-fast);
+  color: var(--civ-text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.civ-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.civ-ctrl-btn.active,
+.civ-ctrl-btn.active-mic {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+}
+
+.civ-ctrl-btn.muted-mic {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: rgba(244, 63, 94, 0.45);
+  color: #fda4af;
+}
+
+.civ-btn-primary,
+.civ-ctrl-btn.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: var(--civ-radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--civ-primary), #4f46e5);
+  color: #ffffff;
+  box-shadow: 0 4px 16px var(--civ-primary-glow);
+  transition: var(--civ-transition-fast);
+}
+
+.civ-btn-primary:hover,
+.civ-ctrl-btn.primary:hover {
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.65);
+  transform: translateY(-2px);
+}
+
+.civ-btn-primary:disabled,
+.civ-ctrl-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   9. Fallback Manual Typing Glassmorphic Modal (.civ-typing-modal)
+   -------------------------------------------------------------------------- */
+.civ-typing-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(7, 10, 18, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--civ-transition-normal);
+}
+
+.civ-typing-modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.civ-typing-modal {
+  width: 100%;
+  max-width: 580px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: var(--civ-backdrop-blur);
+  -webkit-backdrop-filter: var(--civ-backdrop-blur);
+  border: 1px solid var(--civ-border-highlight);
+  border-radius: var(--civ-radius-lg);
+  padding: 28px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: scale(0.95);
+  transition: var(--civ-transition-normal);
+}
+
+.civ-typing-modal-overlay.open .civ-typing-modal {
+  transform: scale(1);
+}
+
+.civ-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--civ-border-glass);
+  padding-bottom: 12px;
+}
+
+.civ-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--civ-text-main);
+}
+
+.civ-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--civ-text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  transition: var(--civ-transition-fast);
+}
+
+.civ-modal-close:hover {
+  color: var(--civ-text-main);
+}
+
+.civ-modal-textarea {
+  width: 100%;
+  min-height: 130px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--civ-border-glass);
+  border-radius: var(--civ-radius-md);
+  padding: 16px;
+  color: var(--civ-text-main);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: var(--civ-transition-fast);
+}
+
+.civ-modal-textarea:focus {
+  border-color: var(--civ-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+.civ-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   10. Utility Glow Badges & Indicators
+   -------------------------------------------------------------------------- */
+.civ-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--civ-radius-full);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.civ-badge-glow-emerald {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+  box-shadow: 0 0 12px var(--civ-emerald-glow);
+}
+
+.civ-badge-glow-primary {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  box-shadow: 0 0 12px var(--civ-primary-glow);
+}
+
+/* --------------------------------------------------------------------------
+   11. Responsive Breakpoints (Laptop, Tablet, Mobile)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .civ-subtitle-card {
+    max-width: 90%;
+    padding: 20px 24px;
+  }
+  .civ-subtitle-text {
+    font-size: 20px;
+  }
+  .civ-avatar-wrapper {
+    width: 280px;
+    height: 280px;
+  }
+  .civ-avatar-sphere,
+  .civ-avatar-core {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .civ-header {
+    padding: 0 16px;
+  }
+  .civ-header-center {
+    display: none;
+  }
+  .civ-candidate-pip {
+    top: 14px;
+    right: 14px;
+    width: 150px;
+    height: 96px;
+  }
+  .civ-avatar-wrapper {
+    width: 230px;
+    height: 230px;
+  }
+  .civ-avatar-sphere,
+  .civ-avatar-core {
+    width: 170px;
+    height: 170px;
+  }
+  .civ-subtitle-text {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .civ-user-caption-pill,
+  .civ-candidate-caption {
+    font-size: 13px;
+    padding: 8px 16px;
+    max-width: 90%;
+  }
+  .civ-controls {
+    width: 92%;
+    justify-content: space-around;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  .civ-mic-status {
+    display: none;
+  }
+  .civ-ctrl-btn,
+  .civ-btn-primary {
+    padding: 0 14px;
+    font-size: 12px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .civ-candidate-pip {
+    width: 120px;
+    height: 80px;
+    top: 10px;
+    right: 10px;
+  }
+  .civ-avatar-wrapper {
+    width: 190px;
+    height: 190px;
+  }
+  .civ-avatar-sphere,
+  .civ-avatar-core {
+    width: 140px;
+    height: 140px;
+  }
+  .civ-subtitle-card {
+    padding: 16px;
+  }
+  .civ-subtitle-text {
+    font-size: 16px;
+  }
+}

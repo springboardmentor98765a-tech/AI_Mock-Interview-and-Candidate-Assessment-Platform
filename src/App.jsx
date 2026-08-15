@@ -12,6 +12,7 @@ import NotFound           from './pages/NotFound'
 import MockInterview      from './pages/MockInterview'
 import SettingsPage       from './pages/Settings'
 import OAuthCallback      from './pages/OAuthCallback'
+import ResumeAnalysis     from './pages/ResumeAnalysis'
 import './styles/global.css'
 
 function ProtectedRoute({ children, allowedRole }) {
@@ -32,9 +33,12 @@ function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRole && user?.role !== allowedRole) {
-    const roleMap = { ADMIN: '/admin', RECRUITER: '/recruiter', USER: '/student' }
-    return <Navigate to={roleMap[user?.role] || '/login'} replace />
+  if (allowedRole) {
+    const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole]
+    if (!roles.includes(user?.role)) {
+      const roleMap = { ADMIN: '/admin', RECRUITER: '/recruiter', USER: '/student' }
+      return <Navigate to={roleMap[user?.role] || '/login'} replace />
+    }
   }
 
   return children
@@ -67,7 +71,11 @@ function AppRoutes() {
       } />
 
       <Route path="/mock-interview" element={
-        <ProtectedRoute allowedRole="USER"><MockInterview /></ProtectedRoute>
+        <ProtectedRoute><MockInterview /></ProtectedRoute>
+      } />
+
+      <Route path="/resume-analysis" element={
+        <ProtectedRoute><ResumeAnalysis /></ProtectedRoute>
       } />
 
       <Route path="*" element={<NotFound />} />
