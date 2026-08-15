@@ -18,6 +18,8 @@ from config import (
     GEMINI_RESUME_KEY_2,
     GEMINI_QUESTION_KEY,
     GEMINI_QUESTION_KEY_2,
+    GEMINI_QUESTION_MODEL,
+    GEMINI_QUESTION_MODEL_2,
     GEMINI_QUIZ_KEY,
     GEMINI_QUIZ_KEY_2,
     GEMINI_API_KEY,
@@ -30,8 +32,10 @@ class LLMError(RuntimeError):
 
 
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dict:
+    req_headers = {"User-Agent": "SmartHireAI/1.0 (Windows NT 10.0; Win64; x64)"}
+    req_headers.update(headers)
     body = json.dumps(payload).encode("utf-8")
-    request = Request(url, data=body, headers=headers, method="POST")
+    request = Request(url, data=body, headers=req_headers, method="POST")
     with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -44,13 +48,13 @@ def _gemini_chat(prompt: str, is_resume: bool = False, is_quiz: bool = False) ->
         ]
     elif is_resume:
         key_tuples = [
-            (GEMINI_RESUME_KEY, GEMINI_MODEL or "gemini-3.6-flash"),
-            (GEMINI_RESUME_KEY_2, GEMINI_MODEL or "gemini-3.6-flash"),
+            (GEMINI_RESUME_KEY, "gemini-3.5-flash-lite"),
+            (GEMINI_RESUME_KEY_2, "gemini-3.1-flash-lite"),
         ]
     else:
         key_tuples = [
-            (GEMINI_QUESTION_KEY, "gemini-flash-latest"),
-            (GEMINI_QUESTION_KEY_2, "gemini-flash-lite-latest"),
+            (GEMINI_QUESTION_KEY, GEMINI_QUESTION_MODEL or "gemini-3.6-flash"),
+            (GEMINI_QUESTION_KEY_2, GEMINI_QUESTION_MODEL_2 or "gemini-3.5-flash"),
         ]
     errors = []
     for key, model in key_tuples:

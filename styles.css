@@ -1842,3 +1842,26 @@ h1, h2, h3, h4, h5, h6 {
     align-self: flex-end;
   }
 }
+
+/* ── Global Dark Theme Form Control Overrides ── */
+select, input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea {
+  background-color: #0d0f1e !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+select option {
+  background-color: #0d0f1e !important;
+  color: #ffffff !important;
+  padding: 8px 12px !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: #6366f1 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}

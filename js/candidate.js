@@ -1000,11 +1000,13 @@ function stopSessionTimer() {
 function getBestSupportedVideoMimeType() {
   if (typeof MediaRecorder === 'undefined') return '';
   var types = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=h264,aac',
+    'video/mp4',
+    'video/x-matroska;codecs=avc1,opus',
+    'video/x-matroska',
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
-    'video/webm;codecs=h264,opus',
-    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-    'video/mp4',
     'video/webm'
   ];
   for (var i = 0; i < types.length; i++) {
@@ -1146,6 +1148,7 @@ async function finalizeAndUploadBlob(interviewId) {
     state.sessionRecordingStatus = 'saved';
     state.sessionRecordingMeta = res.recording;
     state.sessionRecordingError = '';
+    state.recordingsData = null;
     render();
     return res;
   } catch(err) {
@@ -1617,6 +1620,42 @@ function bindCandidateInterviewEvents() {
         } catch(err) {
           window.alert('Unable to load report: ' + (err.message || 'Report not found'));
         }
+      }
+
+      var playBtn = e.target.closest('.btn-play-video');
+      if (playBtn) {
+        e.preventDefault();
+        var sessionId = playBtn.dataset.sessionId;
+        var recId = playBtn.dataset.recId;
+        var recordings = state.recordingsData || [];
+        var found = recordings.find(function(r) { return String(r.id) === String(recId) || String(r.session_id) === String(sessionId); });
+        if (found) {
+          state.activeVideoModal = found;
+          render();
+        }
+      }
+
+      var closeVideo = e.target.closest('#video-modal-close, #video-modal-close-btn');
+      if (closeVideo) {
+        e.preventDefault();
+        state.activeVideoModal = null;
+        render();
+      }
+
+      var videoOverlay = document.getElementById('video-modal-overlay');
+      if (videoOverlay && e.target === videoOverlay) {
+        state.activeVideoModal = null;
+        render();
+      }
+    });
+  }
+
+  if (!window._videoEscBound) {
+    window._videoEscBound = true;
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && state.activeVideoModal) {
+        state.activeVideoModal = null;
+        render();
       }
     });
   }
@@ -2550,6 +2589,186 @@ function candidateReports() {
       <p class="text-white/30 text-sm">No reports available yet. Complete interviews to generate reports.</p>
     </div>`}
   </div>${modalHtml}`;
+}
+
+function candidateRecordings() {
+  if ((state.recordingsData === null || state.recordingsData === undefined) && !state._fetchingRecordings) {
+    state._fetchingRecordings = true;
+    api.getAllRecordings().then(function(res) {
+      state._fetchingRecordings = false;
+      state.recordingsData = res.recordings || [];
+      render();
+    }).catch(function() {
+      state._fetchingRecordings = false;
+      state.recordingsData = [];
+      render();
+    });
+  }
+  var recordings = state.recordingsData || [];
+  var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
+  var videoModalHtml = state.activeVideoModal ? renderVideoPlayerModal(state.activeVideoModal) : '';
+
+  var totalSec = recordings.reduce(function(acc, r) { return acc + (r.duration || 0); }, 0);
+  var totalMin = Math.round(totalSec / 60);
+
+  return `<div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Interview Recordings</h1>
+        <p class="text-white/40 text-sm mt-1">Access, review, and playback full video & audio recordings from your completed mock interviews.</p>
+      </div>
+    </div>
+
+    <!-- Stat Header Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          ${icon('film', 20)}
+        </div>
+        <div>
+          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Saved Recordings</p>
+          <p class="text-xl font-bold text-white mt-0.5">${recordings.length} ${recordings.length === 1 ? 'Session' : 'Sessions'}</p>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          ${icon('clock', 20)}
+        </div>
+        <div>
+          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Total Video Time</p>
+          <p class="text-xl font-bold text-white mt-0.5">${totalMin} Minutes</p>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          ${icon('shield', 20)}
+        </div>
+        <div>
+          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Storage Privacy</p>
+          <p class="text-xs font-semibold text-cyan-300 mt-1">Encrypted JWT Access Control</p>
+        </div>
+      </div>
+    </div>
+
+    ${recordings.length ? `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      ${recordings.map(function(rec) {
+        var score = rec.overall_score || 0;
+        var durStr = Math.floor(rec.duration / 60) + 'm ' + (rec.duration % 60) + 's';
+        var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : 'Video';
+        return `<div class="rounded-xl border border-white/10 overflow-hidden space-y-0 flex flex-col justify-between hover:border-indigo-500/30 transition-all duration-300 shadow-lg" style="background:#0d0f1e">
+          <div>
+            <!-- Video Thumbnail Header -->
+            <div class="relative w-full aspect-video bg-gradient-to-br from-[#121528] via-[#090b16] to-[#181b36] flex flex-col items-center justify-center group overflow-hidden cursor-pointer btn-play-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
+              <div class="w-12 h-12 rounded-full bg-indigo-600/90 group-hover:bg-indigo-500 group-hover:scale-110 flex items-center justify-center text-white shadow-lg shadow-indigo-500/40 transition-all duration-300 z-10">
+                ${icon('play', 20)}
+              </div>
+              <span class="text-xs font-semibold text-white/90 mt-2 z-10 group-hover:text-indigo-200 transition-colors">Watch Session Recording</span>
+
+              <div class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[10px] font-medium text-emerald-300 backdrop-blur-md z-10 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>HD RECORDING</span>
+              </div>
+
+              <div class="absolute bottom-3 right-3 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90 backdrop-blur-sm z-10">${durStr}</div>
+            </div>
+
+            <!-- Card Content -->
+            <div class="p-5 space-y-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h3 class="text-white font-bold text-sm uppercase tracking-wide" style="font-family:'Outfit',sans-serif">${rec.interview_type} Interview</h3>
+                  <p class="text-white/40 text-xs mt-0.5">${rec.domain || 'General'} &bull; <span class="capitalize text-indigo-300/80">${rec.difficulty || 'medium'}</span></p>
+                </div>
+                ${score ? renderRubricBadge(rec.performance_rating, score) : ''}
+              </div>
+
+              <div class="p-3 rounded-lg border border-white/6 space-y-1.5 text-xs" style="background:#141627">
+                <div class="flex justify-between text-white/60"><span>Candidate:</span> <strong class="text-white font-medium">${rec.candidate_name || 'Candidate'}</strong></div>
+                <div class="flex justify-between text-white/60"><span>Recorded:</span> <span class="text-white/80">${formatDateTime(rec.created_at)}</span></div>
+                <div class="flex justify-between text-white/60"><span>Size:</span> <span class="text-white/80">${sizeMb}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Actions -->
+          <div class="p-5 pt-0 grid grid-cols-2 gap-2.5">
+            <button class="btn-play-video px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
+              ${icon('play', 14)} Watch Video
+            </button>
+            <button class="btn-view-report px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all" data-id="${rec.session_id}">
+              ${icon('fileText', 14)} Report
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-white/7 p-8" style="background:#0d0f1e">
+      <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 mb-3">${icon('film', 28)}</div>
+      <h3 class="text-white font-semibold text-base mb-1">No Recordings Available Yet</h3>
+      <p class="text-white/40 text-xs max-w-md">Attend and complete mock interview sessions with your webcam enabled to view saved session recordings here.</p>
+    </div>`}
+  </div>${modalHtml}`;
+}
+
+function renderVideoPlayerModal(rec) {
+  if (!rec) return '';
+  var token = localStorage.getItem('smarthire_token') || (state && state.token) || '';
+  var streamUrl = '/api/interviews/' + rec.session_id + '/recordings/' + rec.id + '/stream?token=' + encodeURIComponent(token);
+  var dlExt = 'webm';
+  if (rec.file_path && rec.file_path.lastIndexOf('.') !== -1) {
+    dlExt = rec.file_path.split('.').pop();
+  } else if (rec.mime_type && rec.mime_type.indexOf('mp4') !== -1) {
+    dlExt = 'mp4';
+  } else if (rec.mime_type && (rec.mime_type.indexOf('matroska') !== -1 || rec.mime_type.indexOf('mkv') !== -1)) {
+    dlExt = 'mkv';
+  }
+
+  var durSec = rec.duration || 0;
+  var durStr = Math.floor(durSec / 60) + 'm ' + String(durSec % 60).padStart(2, '0') + 's';
+  var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A';
+  var interviewTypeTitle = (rec.interview_type || 'Technical') + ' Session Recording';
+  var dateStr = formatDateTime(rec.created_at || rec.session_created_at);
+
+  return `<div id="video-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:999999;background:rgba(4,6,14,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box">
+    <div id="video-modal-container" class="animate-in fade-in zoom-in-95 duration-200" style="position:relative;width:min(1000px,100%);max-height:calc(100vh - 48px);background:#0d0f1e;border:1px solid rgba(255,255,255,0.12);border-radius:1rem;box-shadow:0 25px 50px -12px rgba(0,0,0,0.85);display:flex;flex-direction:column;overflow:hidden;margin:auto">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-white/8 flex items-start justify-between shrink-0" style="background:#090a15">
+        <div>
+          <h3 class="text-white font-bold text-base capitalize tracking-wide" style="font-family:'Outfit',sans-serif">${interviewTypeTitle}</h3>
+          <p class="text-white/40 text-xs mt-0.5">${rec.domain || 'General Domain'} &bull; Candidate: <strong class="text-white/80 font-medium">${rec.candidate_name || 'Candidate'}</strong> &bull; ${dateStr}</p>
+        </div>
+        <button id="video-modal-close" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-xl font-bold ml-4" title="Close (Esc)">&times;</button>
+      </div>
+
+      <!-- HTML5 Video Player Container -->
+      <div class="relative w-full flex-1 bg-black flex items-center justify-center overflow-hidden min-h-[220px]" style="max-height:calc(100vh - 200px);aspect-ratio:16/9;background:#000">
+        <video controls autoplay class="w-full h-full object-contain" style="max-height:calc(100vh - 200px);aspect-ratio:16/9;background:#000">
+          <source src="${streamUrl}" type="${rec.mime_type || 'video/webm'}">
+          Your browser does not support HTML5 video streaming.
+        </video>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-white/8 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0" style="background:#090a15">
+        <div class="flex items-center gap-4 text-xs text-white/50 font-medium">
+          <span>Session ID: <strong class="text-indigo-300 font-semibold">#${rec.session_id}</strong></span>
+          <span>Size: <strong class="text-white/80 font-semibold">${sizeMb}</strong></span>
+          <span>Duration: <strong class="text-white/80 font-semibold">${durStr}</strong></span>
+        </div>
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <a href="${streamUrl}" download="interview_session_${rec.session_id}.${dlExt}" target="_blank" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold flex items-center gap-2 transition-all">
+            ${icon('downloadLg', 14)} Download Recording (.${dlExt.toUpperCase()})
+          </a>
+          <button id="video-modal-close-btn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-600/30">
+            Close
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
 }
 
 

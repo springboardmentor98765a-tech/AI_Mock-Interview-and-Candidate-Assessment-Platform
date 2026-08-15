@@ -136,7 +136,52 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_interview_recording_session_id ON interview_recording(session_id);
+
+        CREATE TABLE IF NOT EXISTS recruiter_candidate_status (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recruiter_id INTEGER NOT NULL,
+            candidate_id INTEGER NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('shortlisted', 'under_review', 'rejected')),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(recruiter_id, candidate_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_recruiter_status_recruiter ON recruiter_candidate_status(recruiter_id);
+        CREATE INDEX IF NOT EXISTS idx_recruiter_status_candidate ON recruiter_candidate_status(candidate_id);
+
+        CREATE TABLE IF NOT EXISTS interview_template (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recruiter_id INTEGER,
+            title TEXT NOT NULL,
+            interview_type TEXT NOT NULL,
+            domain TEXT,
+            difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+            duration_minutes INTEGER NOT NULL DEFAULT 15,
+            num_questions INTEGER NOT NULL DEFAULT 5,
+            topics_json TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_interview_template_recruiter ON interview_template(recruiter_id);
     """)
+
+    # Seed initial standard templates if table is empty
+    t_count = conn.execute("SELECT COUNT(*) FROM interview_template").fetchone()[0]
+    if t_count == 0:
+        conn.execute("""
+            INSERT INTO interview_template (recruiter_id, title, interview_type, domain, difficulty, duration_minutes, num_questions, topics_json, description)
+            VALUES 
+            (NULL, 'Fullstack Software Engineer', 'Technical Interview', 'Software Engineering', 'medium', 15, 5, '["Data Structures", "Algorithms", "System Design", "REST APIs"]', 'Assesses Data Structures, Algorithms, REST APIs, and System Design.'),
+            (NULL, 'Senior Leadership & Culture', 'Behavioral Interview', 'Human Resources', 'easy', 15, 4, '["Leadership", "Conflict Resolution", "Teamwork", "Ethics"]', 'Evaluates leadership capabilities, conflict management, and culture fit.'),
+            (NULL, 'AI / Machine Learning Engineer', 'Technical Interview', 'Data Science', 'hard', 20, 5, '["Python", "Machine Learning", "Deep Learning", "Statistics"]', 'Evaluates Python, Model Training, Neural Networks, and ML evaluation metrics.')
+        """)
+        conn.commit()
 
 
     tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
@@ -201,6 +246,55 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_user_id ON interview_session(user_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_candidate_id ON interview_session(candidate_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_interview_session_type ON interview_session(interview_type);")
+
+    # Fix any foreign keys on dependent tables (interview_question, interview_recording) automatically updated by SQLite to interview_session_old
+    for t_name in ("interview_question", "interview_recording"):
+        t_sql = conn.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{t_name}'").fetchone()
+        if t_sql and t_sql[0] and "interview_session_old" in t_sql[0]:
+            conn.execute(f"DROP TABLE IF EXISTS {t_name}_old")
+            conn.execute(f"ALTER TABLE {t_name} RENAME TO {t_name}_old")
+            if t_name == "interview_question":
+                conn.execute("""
+                    CREATE TABLE interview_question (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        interview_id INTEGER NOT NULL,
+                        question_text TEXT NOT NULL,
+                        category TEXT,
+                        difficulty TEXT CHECK(difficulty IN ('easy', 'medium', 'hard')),
+                        sequence_no INTEGER NOT NULL,
+                        candidate_answer TEXT,
+                        score REAL,
+                        communication_score REAL,
+                        confidence_score REAL,
+                        technical_score REAL,
+                        professionalism_score REAL,
+                        parameters_json TEXT,
+                        feedback TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (interview_id) REFERENCES interview_session(id) ON DELETE CASCADE
+                    );
+                """)
+            elif t_name == "interview_recording":
+                conn.execute("""
+                    CREATE TABLE interview_recording (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL,
+                        recording_type TEXT NOT NULL DEFAULT 'video',
+                        file_path TEXT NOT NULL,
+                        duration INTEGER,
+                        mime_type TEXT,
+                        file_size_bytes INTEGER,
+                        status TEXT DEFAULT 'completed',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (session_id) REFERENCES interview_session(id) ON DELETE CASCADE
+                    );
+                """)
+            old_cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({t_name}_old)").fetchall()]
+            new_cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({t_name})").fetchall()]
+            common_cols = [c for c in old_cols if c in new_cols]
+            cols_str = ", ".join(common_cols)
+            conn.execute(f"INSERT INTO {t_name} ({cols_str}) SELECT {cols_str} FROM {t_name}_old")
+            conn.execute(f"DROP TABLE {t_name}_old")
 
     session_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_session)").fetchall()}
     if "candidate_id" not in session_cols:

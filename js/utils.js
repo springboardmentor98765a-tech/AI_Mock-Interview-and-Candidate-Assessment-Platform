@@ -231,6 +231,7 @@ function chartOpts(legend, horizontal) {
 function renderDashboardLayout(navItems, content, username, avatar) {
   var roleColor = state.role === 'candidate' ? INDIGO : state.role === 'recruiter' ? CYAN : EMERALD;
   var badgeColor = state.role === 'candidate' ? 'indigo' : state.role === 'recruiter' ? 'cyan' : 'emerald';
+
   return `<div class="flex h-screen overflow-hidden" style="font-family:'Inter',sans-serif;background:#06070f">
     <div class="sidebar flex flex-col border-r border-white/6" style="background:#09091a">
       <div class="p-5 border-b border-white/6">

@@ -10,7 +10,11 @@ import zipfile
 import urllib.request
 import xml.etree.ElementTree as ET
 from fastapi import HTTPException
-from config import GEMINI_RESUME_KEY, GEMINI_RESUME_KEY_2, GEMINI_API_KEY, GEMINI_MODEL
+from config import (
+    GEMINI_RESUME_KEY, GEMINI_RESUME_KEY_2,
+    GEMINI_RESUME_MODEL, GEMINI_RESUME_MODEL_2,
+    GEMINI_API_KEY, GEMINI_MODEL
+)
 
 
 def extract_docx_text(content_bytes: bytes) -> str:
@@ -98,29 +102,35 @@ def parse_resume_content(filename: str, content_bytes: bytes) -> dict:
     )
 
     resume_data = None
-    keys_to_try = [GEMINI_RESUME_KEY, GEMINI_RESUME_KEY_2]
-    model_name = GEMINI_MODEL or "gemini-3.6-flash"
+    key_configs = [
+        (GEMINI_RESUME_KEY, GEMINI_RESUME_MODEL or "gemini-3.5-flash-lite"),
+        (GEMINI_RESUME_KEY_2, GEMINI_RESUME_MODEL_2 or "gemini-3.1-flash-lite"),
+    ]
 
-    for key in keys_to_try:
+    for key, primary_model in key_configs:
         if not key:
             continue
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        models_to_try = [primary_model, "gemini-2.0-flash-lite", "gemini-1.5-flash-lite", "gemini-flash-latest"]
+        for model_name in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=12) as resp:
-                res = json.loads(resp.read().decode("utf-8"))
-                text_out = res["candidates"][0]["content"]["parts"][0]["text"]
-                clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", text_out.strip(), flags=re.IGNORECASE)
-                resume_data = json.loads(clean_json)
-                break
-        except Exception:
-            continue
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    res = json.loads(resp.read().decode("utf-8"))
+                    text_out = res["candidates"][0]["content"]["parts"][0]["text"]
+                    clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", text_out.strip(), flags=re.IGNORECASE)
+                    resume_data = json.loads(clean_json)
+                    break
+            except Exception:
+                continue
+        if resume_data:
+            break
 
     if not resume_data or not isinstance(resume_data, dict):
         # Fallback structured resume object if LLM API is unavailable

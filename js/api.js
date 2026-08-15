@@ -177,5 +177,46 @@ var api = {
   getInterviewRecordings: function(interviewId) {
     return apiRequest('/interviews/' + interviewId + '/recordings');
   },
+  getAllRecordings: function() {
+    return apiRequest('/interviews/recordings/all');
+  },
+  getRecruiterSummary: function() {
+    return apiRequest('/recruiter/summary');
+  },
+  getRecruiterCandidates: function(params) {
+    var q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiRequest('/recruiter/candidates' + q);
+  },
+  updateCandidateStatus: function(candidateId, status, notes) {
+    return apiRequest('/recruiter/candidates/' + candidateId + '/status', {
+      method: 'PUT',
+      body: { status: status, notes: notes }
+    });
+  },
+  getRecruiterLiveSessions: function() {
+    return apiRequest('/recruiter/sessions/live');
+  },
+  getRecruiterSessions: function(statusFilter) {
+    var q = statusFilter ? '?status_filter=' + encodeURIComponent(statusFilter) : '';
+    return apiRequest('/recruiter/sessions' + q);
+  },
+  getRecruiterTemplates: function() {
+    return apiRequest('/recruiter/templates');
+  },
+  createInterviewTemplate: function(payload) {
+    return apiRequest('/recruiter/templates', {
+      method: 'POST',
+      body: payload
+    });
+  },
+  deleteInterviewTemplate: function(templateId) {
+    return apiRequest('/recruiter/templates/' + templateId, {
+      method: 'DELETE'
+    });
+  },
+  getRecruiterCompare: function(candidateIds) {
+    var idsStr = Array.isArray(candidateIds) ? candidateIds.join(',') : candidateIds;
+    return apiRequest('/recruiter/compare?candidate_ids=' + encodeURIComponent(idsStr));
+  },
 };
 

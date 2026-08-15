@@ -664,6 +664,62 @@ def create_recording(interview_id: int, req: InterviewRecordingCreateRequest, us
     return {"message": "Recording saved.", "recording": row_to_recording(row)}
 
 
+@router.get("/recordings/all")
+def list_all_recordings(user: dict = Depends(get_current_user)):
+    """List all interview recordings accessible to the current user.
+    Candidates see their own session recordings. Recruiters and Admins see all recordings.
+    """
+    conn = get_db()
+    user_role = user.get("role", "candidate")
+    if user_role in ("recruiter", "admin"):
+        query = """
+            SELECT r.*, s.interview_type, s.domain, s.difficulty, s.created_at as session_created_at,
+                   s.overall_score, s.performance_rating, u.name as candidate_name, u.email as candidate_email
+            FROM interview_recording r
+            LEFT JOIN interview_session s ON s.id = r.session_id
+            LEFT JOIN users u ON u.id = COALESCE(s.candidate_id, s.user_id)
+            ORDER BY r.created_at DESC
+        """
+        rows = conn.execute(query).fetchall()
+    else:
+        query = """
+            SELECT r.*, s.interview_type, s.domain, s.difficulty, s.created_at as session_created_at,
+                   s.overall_score, s.performance_rating, u.name as candidate_name, u.email as candidate_email
+            FROM interview_recording r
+            LEFT JOIN interview_session s ON s.id = r.session_id
+            LEFT JOIN users u ON u.id = COALESCE(s.candidate_id, s.user_id)
+            WHERE s.user_id = ? OR s.candidate_id = ? OR r.session_id IN (SELECT id FROM interview_session WHERE user_id = ? OR candidate_id = ?)
+            ORDER BY r.created_at DESC
+        """
+        rows = conn.execute(query, (user["id"], user["id"], user["id"], user["id"])).fetchall()
+
+    conn.close()
+
+    results = []
+    for r in rows:
+        d = dict(r)
+        results.append({
+            "id": d["id"],
+            "session_id": d["session_id"],
+            "recording_type": d["recording_type"],
+            "file_path": d["file_path"],
+            "duration": d.get("duration") or 0,
+            "mime_type": d.get("mime_type") or "video/webm",
+            "file_size_bytes": d.get("file_size_bytes") or 0,
+            "status": d.get("status") or "completed",
+            "created_at": str(d["created_at"]) if d.get("created_at") else None,
+            "interview_type": d.get("interview_type") or "Technical",
+            "domain": d.get("domain") or "General",
+            "difficulty": d.get("difficulty") or "medium",
+            "overall_score": d.get("overall_score"),
+            "performance_rating": d.get("performance_rating"),
+            "candidate_name": d.get("candidate_name") or "Candidate",
+            "candidate_email": d.get("candidate_email") or "",
+        })
+
+    return {"recordings": results}
+
+
 @router.get("/{interview_id}/recordings")
 def list_recordings(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
@@ -714,6 +770,8 @@ async def upload_recording(
     ext = "webm"
     if "mp4" in file_mime:
         ext = "mp4"
+    elif "matroska" in file_mime or "mkv" in file_mime:
+        ext = "mkv"
     elif "ogg" in file_mime:
         ext = "ogg"
     elif "wav" in file_mime:

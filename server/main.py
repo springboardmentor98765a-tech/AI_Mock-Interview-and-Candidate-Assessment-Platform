@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from config import PORT
 from database import init_db
-from routes import auth, users, interviews, assessments
+from routes import auth, users, interviews, assessments, recruiter
 
 
 @asynccontextmanager
@@ -32,9 +32,17 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(interviews.router)
 app.include_router(assessments.router)
+app.include_router(recruiter.router, prefix="/api/recruiter", tags=["Recruiter"])
 
 
 frontend_dir = os.path.join(os.path.dirname(__file__), "..")
+
+
+from fastapi.responses import FileResponse, Response
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
 
 
 @app.get("/api/health")

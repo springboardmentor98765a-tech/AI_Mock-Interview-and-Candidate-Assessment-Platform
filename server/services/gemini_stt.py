@@ -1,4 +1,4 @@
-"""Speech-to-text service: Gemini 2.0 Flash (multiple API keys) → Sarvam Saaras V3 fallback."""
+"""Speech-to-text service: Multi-model Gemini STT → Sarvam Saaras V3 fallback."""
 import base64
 import json
 import uuid
@@ -7,18 +7,25 @@ from urllib.request import Request, urlopen
 
 from config import (
     GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4,
-    GEMINI_MODEL, SARVAM_API_KEY, SARVAM_BASE_URL,
+    GEMINI_MODEL, GEMINI_MODEL_2, GEMINI_MODEL_3, GEMINI_MODEL_4,
+    SARVAM_API_KEY, SARVAM_BASE_URL,
 )
 
-GEMINI_KEYS = [k for k in [GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4] if k]
+# Key to Model mappings as specified by user
+GEMINI_KEY_CONFIGS = [
+    (GEMINI_API_KEY, GEMINI_MODEL or "gemini-3.6-flash"),
+    (GEMINI_API_KEY_2, GEMINI_MODEL_2 or "gemini-3.5-flash"),
+    (GEMINI_API_KEY_3, GEMINI_MODEL_3 or "gemini-3.5-flash-lite"),
+    (GEMINI_API_KEY_4, GEMINI_MODEL_4 or "gemini-3.1-flash-lite"),
+]
 
 
 class STTError(RuntimeError):
     pass
 
 
-def _gemini_transcribe(audio_base64: str, mime_type: str, api_key: str) -> str:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+def _gemini_transcribe(audio_base64: str, mime_type: str, api_key: str, model_name: str) -> str:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     payload = json.dumps({
         "contents": [{"parts": [
             {"text": "Transcribe this audio exactly as spoken. Return ONLY the transcribed text, nothing else."},
@@ -75,14 +82,23 @@ def _sarvam_transcribe(audio_base64: str, mime_type: str) -> str:
 
 
 def transcribe_audio(audio_base64: str, mime_type: str = "audio/wav") -> str:
-    """Transcribe audio trying each Gemini API key, then fall back to Sarvam."""
+    """Transcribe audio trying each Gemini API key with its specific model, then fall back to Sarvam."""
     errors = []
 
-    for i, key in enumerate(GEMINI_KEYS):
-        try:
-            return _gemini_transcribe(audio_base64, mime_type, key)
-        except Exception as e:
-            errors.append(f"Gemini key {i + 1}: {e}")
+    for i, (key, primary_model) in enumerate(GEMINI_KEY_CONFIGS):
+        if not key:
+            continue
+        # Try specified model, then standard fallbacks if model name is unavailable
+        models_to_try = [primary_model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]
+        seen = set()
+        for model in models_to_try:
+            if model in seen:
+                continue
+            seen.add(model)
+            try:
+                return _gemini_transcribe(audio_base64, mime_type, key, model)
+            except Exception as e:
+                errors.append(f"Gemini Key {i + 1} ({model}): {e}")
 
     if SARVAM_API_KEY:
         try:
@@ -91,3 +107,4 @@ def transcribe_audio(audio_base64: str, mime_type: str = "audio/wav") -> str:
             errors.append(f"Sarvam: {e}")
 
     raise STTError("Transcription failed: " + "; ".join(errors))
+

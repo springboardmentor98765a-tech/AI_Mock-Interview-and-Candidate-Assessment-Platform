@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRES_IN_MINUTES, ADMIN_EMAILS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -34,8 +34,20 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token.")
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    token_user = decode_token(credentials.credentials)
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = None
+) -> dict:
+    raw_token = None
+    if credentials:
+        raw_token = credentials.credentials
+    elif token:
+        raw_token = token
+
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    token_user = decode_token(raw_token)
 
     # Roles in a JWT can become stale after an admin changes a user. Always load
     # the current role from the database and enforce the server-only allowlist.
