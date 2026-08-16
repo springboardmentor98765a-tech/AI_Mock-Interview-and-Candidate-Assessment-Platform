@@ -180,6 +180,10 @@ var api = {
   getAllRecordings: function() {
     return apiRequest('/interviews/recordings/all');
   },
+  deleteRecording: function(recordingId, interviewId) {
+    var url = interviewId ? ('/interviews/' + interviewId + '/recordings/' + recordingId) : ('/interviews/recordings/' + recordingId);
+    return apiRequest(url, { method: 'DELETE' });
+  },
   getRecruiterSummary: function() {
     return apiRequest('/recruiter/summary');
   },

@@ -829,6 +829,39 @@ def stream_recording(interview_id: int, recording_id: int, user: dict = Depends(
     return FileResponse(path, media_type=rec_dict.get("mime_type") or "video/webm", filename=os.path.basename(path))
 
 
+@router.delete("/{interview_id}/recordings/{recording_id}")
+@router.delete("/recordings/{recording_id}")
+def delete_recording(recording_id: int, interview_id: Optional[int] = None, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    rec = conn.execute("SELECT * FROM interview_recording WHERE id = ?", (recording_id,)).fetchone()
+    if not rec:
+        conn.close()
+        raise HTTPException(404, "Recording not found.")
+    rec_dict = dict(rec)
+    sess_id = rec_dict["session_id"]
+    user_role = user.get("role", "candidate")
+    if user_role not in ("recruiter", "admin"):
+        sess = conn.execute(
+            "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
+            (sess_id, user["id"], user["id"])
+        ).fetchone()
+        if not sess:
+            conn.close()
+            raise HTTPException(403, "Unauthorized to delete this recording.")
+
+    file_path = rec_dict.get("file_path")
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+
+    conn.execute("DELETE FROM interview_recording WHERE id = ?", (recording_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Recording deleted successfully."}
+
+
 
 
 def evaluate_answer(answer: str, question: str, category: str, difficulty: str) -> float:

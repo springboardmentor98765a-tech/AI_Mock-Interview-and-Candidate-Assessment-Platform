@@ -1635,6 +1635,25 @@ function bindCandidateInterviewEvents() {
         }
       }
 
+      var deleteBtn = e.target.closest('.btn-delete-video');
+      if (deleteBtn) {
+        e.preventDefault();
+        var delSessionId = deleteBtn.dataset.sessionId;
+        var delRecId = deleteBtn.dataset.recId;
+        if (window.confirm('Are you sure you want to delete this interview recording?')) {
+          api.deleteRecording(delRecId, delSessionId).then(function() {
+            if (state.recordingsData) {
+              state.recordingsData = state.recordingsData.filter(function(r) {
+                return String(r.id) !== String(delRecId);
+              });
+            }
+            render();
+          }).catch(function(err) {
+            window.alert('Failed to delete recording: ' + (err.message || 'Error'));
+          });
+        }
+      }
+
       var closeVideo = e.target.closest('#video-modal-close, #video-modal-close-btn');
       if (closeVideo) {
         e.preventDefault();
@@ -2608,107 +2627,93 @@ function candidateRecordings() {
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
   var videoModalHtml = state.activeVideoModal ? renderVideoPlayerModal(state.activeVideoModal) : '';
 
-  var totalSec = recordings.reduce(function(acc, r) { return acc + (r.duration || 0); }, 0);
-  var totalMin = Math.round(totalSec / 60);
-
   return `<div class="space-y-6">
     <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Interview Recordings</h1>
-        <p class="text-white/40 text-sm mt-1">Access, review, and playback full video & audio recordings from your completed mock interviews.</p>
-      </div>
-    </div>
-
-    <!-- Stat Header Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
+      <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-          ${icon('film', 20)}
+          ${icon('film', 22)}
         </div>
         <div>
-          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Saved Recordings</p>
-          <p class="text-xl font-bold text-white mt-0.5">${recordings.length} ${recordings.length === 1 ? 'Session' : 'Sessions'}</p>
+          <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">My Recordings</h1>
+          <p class="text-white/40 text-sm mt-0.5">Review your completed mock interview video recordings</p>
         </div>
       </div>
-
-      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-          ${icon('clock', 20)}
-        </div>
-        <div>
-          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Total Video Time</p>
-          <p class="text-xl font-bold text-white mt-0.5">${totalMin} Minutes</p>
-        </div>
-      </div>
-
-      <div class="rounded-xl border border-white/7 p-5 flex items-center gap-4" style="background:#0d0f1e">
-        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-          ${icon('shield', 20)}
-        </div>
-        <div>
-          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Storage Privacy</p>
-          <p class="text-xs font-semibold text-cyan-300 mt-1">Encrypted JWT Access Control</p>
-        </div>
+      <div class="text-right">
+        <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white/70">
+          ${recordings.length} ${recordings.length === 1 ? 'Recording' : 'Recordings'}
+        </span>
       </div>
     </div>
 
-    ${recordings.length ? `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    ${recordings.length ? `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       ${recordings.map(function(rec) {
-        var score = rec.overall_score || 0;
-        var durStr = Math.floor(rec.duration / 60) + 'm ' + (rec.duration % 60) + 's';
-        var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : 'Video';
-        return `<div class="rounded-xl border border-white/10 overflow-hidden space-y-0 flex flex-col justify-between hover:border-indigo-500/30 transition-all duration-300 shadow-lg" style="background:#0d0f1e">
-          <div>
-            <!-- Video Thumbnail Header -->
-            <div class="relative w-full aspect-video bg-gradient-to-br from-[#121528] via-[#090b16] to-[#181b36] flex flex-col items-center justify-center group overflow-hidden cursor-pointer btn-play-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
-              <div class="w-12 h-12 rounded-full bg-indigo-600/90 group-hover:bg-indigo-500 group-hover:scale-110 flex items-center justify-center text-white shadow-lg shadow-indigo-500/40 transition-all duration-300 z-10">
-                ${icon('play', 20)}
-              </div>
-              <span class="text-xs font-semibold text-white/90 mt-2 z-10 group-hover:text-indigo-200 transition-colors">Watch Session Recording</span>
+        var durSec = rec.duration || 0;
+        var durStr = durSec > 0 ? (Math.floor(durSec / 60) + ':' + String(durSec % 60).padStart(2, '0')) : 'HD';
+        var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(2) + ' MB' : '0.67 MB';
+        var title = (rec.interview_type || 'Technical') + ' Interview';
+        var domain = rec.domain || 'Software Engineering';
+        var dateFormatted = rec.created_at ? formatDateTime(rec.created_at) : 'Recent';
 
-              <div class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[10px] font-medium text-emerald-300 backdrop-blur-md z-10 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>HD RECORDING</span>
-              </div>
-
-              <div class="absolute bottom-3 right-3 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90 backdrop-blur-sm z-10">${durStr}</div>
+        return `<div class="sh-recording-card group">
+          <!-- Dark Video Thumbnail Top Area -->
+          <div class="sh-recording-thumb btn-play-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
+            <div class="sh-play-trigger">
+              ${icon('play', 20)}
+            </div>
+            
+            <div class="sh-recording-badge-hd">
+              <span class="sh-dot"></span>
+              <span>HD 1080p</span>
             </div>
 
-            <!-- Card Content -->
-            <div class="p-5 space-y-4">
-              <div class="flex items-start justify-between">
-                <div>
-                  <h3 class="text-white font-bold text-sm uppercase tracking-wide" style="font-family:'Outfit',sans-serif">${rec.interview_type} Interview</h3>
-                  <p class="text-white/40 text-xs mt-0.5">${rec.domain || 'General'} &bull; <span class="capitalize text-indigo-300/80">${rec.difficulty || 'medium'}</span></p>
-                </div>
-                ${score ? renderRubricBadge(rec.performance_rating, score) : ''}
-              </div>
+            <!-- Bottom Right Duration Chip -->
+            <div class="sh-recording-badge-dur">
+              ${durStr}
+            </div>
+          </div>
 
-              <div class="p-3 rounded-lg border border-white/6 space-y-1.5 text-xs" style="background:#141627">
-                <div class="flex justify-between text-white/60"><span>Candidate:</span> <strong class="text-white font-medium">${rec.candidate_name || 'Candidate'}</strong></div>
-                <div class="flex justify-between text-white/60"><span>Recorded:</span> <span class="text-white/80">${formatDateTime(rec.created_at)}</span></div>
-                <div class="flex justify-between text-white/60"><span>Size:</span> <span class="text-white/80">${sizeMb}</span></div>
+          <!-- Bottom Card Content Area -->
+          <div class="sh-recording-body">
+            <div class="sh-recording-header">
+              <div>
+                <h3 class="sh-recording-title">${title}</h3>
+                <span class="text-white/40 text-xs mt-0.5 inline-block capitalize">${domain}</span>
+              </div>
+              <span class="sh-recording-domain-tag">${rec.difficulty || 'medium'}</span>
+            </div>
+
+            <div class="sh-recording-meta-box">
+              <div class="sh-recording-meta-row">
+                <span>Recorded On</span>
+                <span class="sh-recording-meta-val">${icon('calendar', 12)} ${dateFormatted}</span>
+              </div>
+              <div class="sh-recording-meta-row">
+                <span>Video Size</span>
+                <span class="sh-recording-meta-val">${icon('hardDrive', 12)} ${sizeMb}</span>
               </div>
             </div>
           </div>
 
-          <!-- Card Actions -->
-          <div class="p-5 pt-0 grid grid-cols-2 gap-2.5">
-            <button class="btn-play-video px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
-              ${icon('play', 14)} Watch Video
+          <!-- Action Buttons Row -->
+          <div class="sh-recording-actions">
+            <button class="sh-btn-watch btn-play-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
+              ${icon('play', 13)} Watch
             </button>
-            <button class="btn-view-report px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all" data-id="${rec.session_id}">
-              ${icon('fileText', 14)} Report
+            <button class="sh-btn-report btn-view-report" data-id="${rec.session_id}" title="View Assessment Report">
+              ${icon('fileText', 13)} Report
+            </button>
+            <button class="sh-btn-del btn-delete-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}" title="Delete Recording">
+              ${icon('trash', 14)}
             </button>
           </div>
         </div>`;
       }).join('')}
-    </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-white/7 p-8" style="background:#0d0f1e">
+    </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-white/7 p-8" style="background:#0d0f1e">
       <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 mb-3">${icon('film', 28)}</div>
       <h3 class="text-white font-semibold text-base mb-1">No Recordings Available Yet</h3>
       <p class="text-white/40 text-xs max-w-md">Attend and complete mock interview sessions with your webcam enabled to view saved session recordings here.</p>
     </div>`}
-  </div>${modalHtml}`;
+  </div>${modalHtml}${videoModalHtml}`;
 }
 
 function renderVideoPlayerModal(rec) {
