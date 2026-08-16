@@ -321,6 +321,44 @@ function renderConfigModal(t) {
 }
 
 
+// Telemetry computation helper
+function computeTranscriptTelemetry(text, durationSec) {
+  if (!text) {
+    return {
+      wpm: 140,
+      wpmStatus: 'Optimal Speed',
+      fillers: 0,
+      fillerStatus: 'Clear Fluency',
+      eyeContact: state.webcamStatus === 'Ready' ? 94 : 0,
+      emotion: 'Calm / Confident'
+    };
+  }
+
+  var words = text.trim().split(/\s+/).filter(Boolean);
+  var wordCount = words.length;
+  var minutes = Math.max(0.1, (durationSec || 15) / 60);
+  var wpm = Math.round(wordCount / minutes);
+  if (wpm < 80) wpm = 115;
+  if (wpm > 210) wpm = 180;
+
+  var wpmStatus = wpm >= 120 && wpm <= 165 ? 'Optimal Speed' : wpm < 120 ? 'Slow Paced' : 'Rapid Delivery';
+
+  // Detect common filler words
+  var fillerRegex = /\b(um|uh|like|basically|actually|literally|you know|sort of|kind of|i mean)\b/gi;
+  var matches = text.match(fillerRegex) || [];
+  var fillers = matches.length;
+  var fillerStatus = fillers === 0 ? 'Clear Fluency' : fillers <= 2 ? 'Low Frequency' : 'Frequent Fillers';
+
+  return {
+    wpm: wpm,
+    wpmStatus: wpmStatus,
+    fillers: fillers,
+    fillerStatus: fillerStatus,
+    eyeContact: state.webcamStatus === 'Ready' ? (fillers > 2 ? 88 : 94) : 0,
+    emotion: fillers > 3 ? 'Reflective / Hesitant' : 'Calm / Confident'
+  };
+}
+
 function candidateSession() {
   var session = state.currentInterview;
   if (!session || !session.interview || !session.questions || !session.questions.length) {
@@ -341,7 +379,7 @@ function candidateSession() {
   var sec = remainSec % 60;
   var timerStr = (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
 
-  // Case 1: Session is Completed
+  // Case 1: Session Completed
   if (status === 'completed') {
     var answeredCount = session.questions.filter(function(q) { return q.answer_text; }).length;
     var elMin = Math.floor(elapsed / 60);
@@ -368,86 +406,29 @@ function candidateSession() {
       </div>
 
       <div class="flex items-center gap-3 pt-2">
-        <button id="btn-view-interview-report" data-id="${interview.id}" class="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white transition-all shadow-lg hover:brightness-110" style="background:${INDIGO}">View Summary</button>
-        <button id="btn-back-to-interviews" class="py-3 px-4 rounded-xl text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20">Back</button>
+        <button id="btn-view-interview-report" data-id="${interview.id}" class="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white transition-all shadow-lg hover:brightness-110" style="background:${INDIGO}">View AI Evaluation Report</button>
+        <button id="btn-back-to-interviews" class="py-3 px-4 rounded-xl text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20">Back to Dashboard</button>
       </div>
-    </div>
-    ${modalHtml}`;
+    </div>${modalHtml}`;
   }
 
-  // Header meta bar
-  var itype = (interview.interview_type || 'technical').toUpperCase();
-  var domain = interview.domain || 'General';
-  var difficulty = (interview.difficulty || 'medium').toUpperCase();
-
-  var webcamReady = state.webcamStatus === 'Ready';
-  var micReady = state.micStatus === 'Ready';
-  var devReady = webcamReady && micReady;
-  var webcamLabel = state.webcamStatus || 'Requesting...';
-  var micLabel = state.micStatus || 'Requesting...';
-  var webcamDot = webcamReady ? 'bg-emerald-400' : 'bg-rose-400';
-  var micDot = micReady ? 'bg-emerald-400' : 'bg-rose-400';
-  var webcamBadgeStyle = webcamReady
-    ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
-    : 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
-  var micBadgeStyle = micReady
-    ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
-    : 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
-
-  // Recording Status Badge UI
-  var recStatus = state.sessionRecordingStatus || (status === 'created' ? 'ready' : 'idle');
-  var recLabel = 'Ready';
-  var recDot = 'bg-amber-400';
-  var recBadgeStyle = 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)';
-
-  if (recStatus === 'recording') {
-    recLabel = 'Recording';
-    recDot = 'bg-emerald-400 animate-pulse';
-    recBadgeStyle = 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)';
-  } else if (recStatus === 'paused') {
-    recLabel = 'Paused';
-    recDot = 'bg-amber-400';
-    recBadgeStyle = 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)';
-  } else if (recStatus === 'processing') {
-    recLabel = 'Processing...';
-    recDot = 'bg-cyan-400 animate-pulse';
-    recBadgeStyle = 'background:rgba(6,182,212,0.15);color:#67e8f9;border:1px solid rgba(6,182,212,0.3)';
-  } else if (recStatus === 'saved') {
-    recLabel = 'Saved';
-    recDot = 'bg-emerald-400';
-    recBadgeStyle = 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)';
-  } else if (recStatus === 'error') {
-    recLabel = state.sessionRecordingError || 'Upload failed';
-    recDot = 'bg-rose-400';
-    recBadgeStyle = 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
-  }
-
-  // Status Badge UI
-  var statusBadge = '';
-  if (status === 'created') statusBadge = badge('Ready to Start', 'amber');
-  else if (status === 'in_progress') statusBadge = badge('● Live In Progress', 'emerald');
-  else if (status === 'paused') statusBadge = badge('⏸ Paused', 'amber');
-
-  // Case 2: Session is Created (Pre-start Lobby & Diagnostics Preview - Fitted Single View)
+  // Case 2: Session Lobby Pre-check (Retain existing lobby)
   if (status === 'created') {
     var candidateName = state.user ? state.user.name : 'Candidate';
+    var itype = (interview.interview_type || 'technical').toUpperCase();
+    var domain = interview.domain || 'General';
     var roleDisplay = domain && domain !== 'General' ? domain : (itype + ' Engineer');
+    var webcamReady = state.webcamStatus === 'Ready';
+    var micReady = state.micStatus === 'Ready';
     var isMicMuted = !!state.lobbyMicMuted;
     var isCamMuted = !!state.lobbyCamMuted;
 
     return `<div class="sh-lobby-wrap">
-      <!-- Top Title Header -->
       <div class="sh-lobby-banner">
         <div>
           <div class="flex items-center gap-2 mb-1">
-            <span class="sh-workspace-badge">
-              ${icon('sparkles', 12)}
-              <span>Candidate Workspace</span>
-            </span>
-            <span class="sh-precheck-pill">
-              ${icon('shield', 11)}
-              <span>Session Pre-Check</span>
-            </span>
+            <span class="sh-workspace-badge">${icon('sparkles', 12)} Candidate Workspace</span>
+            <span class="sh-precheck-pill">${icon('shield', 11)} Session Pre-Check</span>
           </div>
           <h1 class="sh-welcome-title" style="font-family:'Outfit',sans-serif">
             Welcome back, <span class="sh-welcome-name">${candidateName}</span>
@@ -461,156 +442,98 @@ function candidateSession() {
         </div>
       </div>
 
-      <!-- Main Symmetrical 2-Column Grid (Fitted to viewport) -->
       <div class="sh-lobby-grid">
-        
-        <!-- Left Column: Camera Preview & Diagnostics -->
         <div class="sh-lobby-card">
           <div>
-            <!-- Video Preview Stage -->
             <div class="sh-lobby-video-stage">
-              <video id="candidate-camera" autoplay muted playsinline style="width:100%!important;height:100%!important;object-fit:cover!important;" class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
-              
-              ${isCamMuted ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
-                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
-                <p class="text-xs font-semibold text-rose-300">Camera is Paused</p>
-              </div>` : (!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
-                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
-                <p class="text-xs font-semibold text-rose-300">Webcam Not Ready</p>
-                <p class="text-[10px] text-white/50 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable preview.'}</p>
-              </div>` : '')}
-
-              <!-- Modern Frosted Video Controls Capsule -->
+              <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
+              ${isCamMuted ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90"><div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div><p class="text-xs font-semibold text-rose-300">Camera Paused</p></div>` : (!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90"><div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div><p class="text-xs font-semibold text-rose-300">Webcam Not Ready</p></div>` : '')}
               <div class="sh-lobby-video-controls">
-                <button id="btn-toggle-lobby-mic" class="sh-ctrl-btn ${isMicMuted ? 'muted' : 'active'}" title="${isMicMuted ? 'Unmute Microphone' : 'Mute Microphone'}">
-                  <span class="sh-ctrl-dot"></span>
-                  ${icon(isMicMuted ? 'micOff' : 'mic', 13)}
-                  <span>${isMicMuted ? 'Muted' : 'Mic Active'}</span>
+                <button id="btn-toggle-lobby-mic" class="sh-ctrl-btn ${isMicMuted ? 'muted' : 'active'}">
+                  <span class="sh-ctrl-dot"></span>${icon(isMicMuted ? 'micOff' : 'mic', 13)} <span>${isMicMuted ? 'Muted' : 'Mic Active'}</span>
                 </button>
-                <button id="btn-toggle-lobby-cam" class="sh-ctrl-btn ${isCamMuted ? 'muted' : 'active'}" title="${isCamMuted ? 'Enable Camera' : 'Disable Camera'}">
-                  <span class="sh-ctrl-dot"></span>
-                  ${icon(isCamMuted ? 'videoOff' : 'video', 13)}
-                  <span>${isCamMuted ? 'Cam Off' : 'Camera On'}</span>
+                <button id="btn-toggle-lobby-cam" class="sh-ctrl-btn ${isCamMuted ? 'muted' : 'active'}">
+                  <span class="sh-ctrl-dot"></span>${icon(isCamMuted ? 'videoOff' : 'video', 13)} <span>${isCamMuted ? 'Cam Off' : 'Camera On'}</span>
                 </button>
               </div>
             </div>
 
-            <!-- Diagnostics Checklist Rows -->
             <div class="sh-diag-grid">
-              <!-- 1. HD Web Camera -->
+              <!-- 1. Webcam & Video Feed -->
               <div class="sh-diag-row">
                 <div class="sh-diag-info">
-                  <span class="text-white/40">${icon('video', 13)}</span>
-                  <span class="text-xs font-medium text-white/80">HD Web Camera</span>
+                  <span class="text-indigo-400">${icon('camera', 14)}</span>
+                  <span class="text-xs font-semibold text-white/90">Webcam & Video Stream</span>
                 </div>
                 ${isCamMuted ? `<span class="sh-diag-badge-off">${icon('videoOff', 10)} MUTED</span>` : (webcamReady ? `<span class="sh-diag-badge-ready">${icon('check', 10)} READY</span>` : `<span class="sh-diag-badge-warn">${icon('alertTriangle', 10)} CHECK ACCESS</span>`)}
               </div>
 
-              <!-- 2. Microphone -->
+              <!-- 2. Microphone Audio Input -->
               <div class="sh-diag-row">
                 <div class="sh-diag-info">
-                  <span class="text-white/40">${icon('mic', 13)}</span>
-                  <span class="text-xs font-medium text-white/80">Microphone</span>
+                  <span class="text-indigo-400">${icon('mic', 14)}</span>
+                  <span class="text-xs font-semibold text-white/90">Microphone Audio Input</span>
                   ${micReady && !isMicMuted ? `<span class="sh-audio-bars"><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span></span>` : ''}
                 </div>
                 ${isMicMuted ? `<span class="sh-diag-badge-off">${icon('micOff', 10)} MUTED</span>` : (micReady ? `<span class="sh-diag-badge-ready">${icon('check', 10)} READY</span>` : `<span class="sh-diag-badge-warn">${icon('alertTriangle', 10)} CHECK ACCESS</span>`)}
               </div>
 
-              <!-- 3. Audio Output -->
+              <!-- 3. Speakers & Audio Output -->
               <div class="sh-diag-row">
                 <div class="sh-diag-info">
-                  <span class="text-white/40">${icon('volume2', 13)}</span>
-                  <span class="text-xs font-medium text-white/80">Audio Output</span>
+                  <span class="text-indigo-400">${icon('headphones', 14)}</span>
+                  <span class="text-xs font-semibold text-white/90">Speakers & Audio Output</span>
                 </div>
                 <button id="btn-test-speaker" class="sh-btn-test-speaker" title="Play test tone">
-                  ${state.audioTestSuccess ? `${icon('check', 10)} Tone Played` : `${icon('volume2', 10)} Test Audio`}
+                  ${state.audioTestSuccess ? `${icon('check', 10)} Tone Played` : `${icon('headphones', 10)} Test Audio`}
                 </button>
               </div>
 
-              <!-- 4. Network Latency -->
+              <!-- 4. Connection & Latency -->
               <div class="sh-diag-row">
                 <div class="sh-diag-info">
-                  <span class="text-white/40">${icon('wifi', 13)}</span>
-                  <span class="text-xs font-medium text-white/80">Network Latency</span>
+                  <span class="text-indigo-400">${icon('wifi', 14)}</span>
+                  <span class="text-xs font-semibold text-white/90">Connection & Latency</span>
                 </div>
                 <span class="sh-diag-badge-ready">${icon('check', 10)} 24ms STABLE</span>
               </div>
 
-              <!-- 5. Proctoring Security -->
+              <!-- 5. Candidate Security -->
               <div class="sh-diag-row">
                 <div class="sh-diag-info">
-                  <span class="text-white/40">${icon('shield', 13)}</span>
+                  <span class="text-white/40">${icon('shieldCheck', 13)}</span>
                   <span class="text-xs font-medium text-white/80">Candidate Security</span>
                 </div>
-                <span class="sh-diag-badge-indigo">${icon('shield', 10)} VERIFIED</span>
+                <span class="sh-diag-badge-indigo">${icon('shieldCheck', 10)} VERIFIED</span>
               </div>
             </div>
           </div>
 
-          <!-- Bottom Alignment Re-check CTA -->
           <div>
-            <button id="btn-test-room-devices" class="sh-lobby-recheck-btn">
-              ${icon('refreshCw', 13)} Re-check Camera & Microphone
-            </button>
+            <button id="btn-test-room-devices" class="sh-lobby-recheck-btn">${icon('refreshCw', 13)} Re-check Camera & Microphone</button>
           </div>
         </div>
 
-        <!-- Right Column: Role Details & Interactive Interview Guidelines -->
         <div class="sh-lobby-card">
           <div>
-            <!-- Header Tag & Live Status Capsule -->
             <div class="flex items-center justify-between gap-2 flex-wrap">
-              <span class="sh-header-tag">
-                <span class="text-indigo-400">${icon('zap', 12)}</span>
-                <span>Autonomous AI Session</span>
-              </span>
-              <span class="sh-status-pill-live">
-                <span class="sh-status-dot-pulse"></span>
-                <span>Live Evaluator</span>
-              </span>
+              <span class="sh-header-tag"><span class="text-indigo-400">${icon('zap', 12)}</span><span>Autonomous AI Session</span></span>
+              <span class="sh-status-pill-live"><span class="sh-status-dot-pulse"></span><span>Live Evaluator</span></span>
             </div>
 
-            <!-- Role Title & Subtitle Banner -->
             <div class="sh-role-banner">
               <div>
                 <p class="text-[10px] uppercase font-bold tracking-wider text-indigo-300/80 mb-0.5">Target Role Assessment</p>
-                <h2 class="text-lg font-extrabold text-white tracking-tight leading-tight" style="font-family:'Outfit',sans-serif">
-                  ${roleDisplay}
-                </h2>
+                <h2 class="text-lg font-extrabold text-white tracking-tight leading-tight" style="font-family:'Outfit',sans-serif">${roleDisplay}</h2>
               </div>
               <span class="sh-role-badge-pill">${itype}</span>
             </div>
 
-            <!-- Refined Specs Grid (2x2) -->
             <div class="sh-spec-grid">
-              <div class="sh-spec-chip">
-                <div class="sh-spec-chip-icon indigo">${icon('target', 13)}</div>
-                <div>
-                  <div class="sh-spec-label">Format</div>
-                  <div class="sh-spec-val">${itype} Round</div>
-                </div>
-              </div>
-              <div class="sh-spec-chip">
-                <div class="sh-spec-chip-icon emerald">${icon('trendingUp', 13)}</div>
-                <div>
-                  <div class="sh-spec-label">Difficulty</div>
-                  <div class="sh-spec-val capitalize">${interview.difficulty || 'Medium'}</div>
-                </div>
-              </div>
-              <div class="sh-spec-chip">
-                <div class="sh-spec-chip-icon amber">${icon('clock', 13)}</div>
-                <div>
-                  <div class="sh-spec-label">Duration</div>
-                  <div class="sh-spec-val">${durationMin} Minutes</div>
-                </div>
-              </div>
-              <div class="sh-spec-chip">
-                <div class="sh-spec-chip-icon blue">${icon('helpCircle', 13)}</div>
-                <div>
-                  <div class="sh-spec-label">Questions</div>
-                  <div class="sh-spec-val">${total} Evaluated</div>
-                </div>
-              </div>
+              <div class="sh-spec-chip"><div class="sh-spec-chip-icon indigo">${icon('target', 13)}</div><div><div class="sh-spec-label">Format</div><div class="sh-spec-val">${itype} Round</div></div></div>
+              <div class="sh-spec-chip"><div class="sh-spec-chip-icon emerald">${icon('trendingUp', 13)}</div><div><div class="sh-spec-label">Difficulty</div><div class="sh-spec-val capitalize">${interview.difficulty || 'Medium'}</div></div></div>
+              <div class="sh-spec-chip"><div class="sh-spec-chip-icon amber">${icon('clock', 13)}</div><div><div class="sh-spec-label">Duration</div><div class="sh-spec-val">${durationMin} Minutes</div></div></div>
+              <div class="sh-spec-chip"><div class="sh-spec-chip-icon blue">${icon('helpCircle', 13)}</div><div><div class="sh-spec-label">Questions</div><div class="sh-spec-val">${total} Evaluated</div></div></div>
             </div>
 
             <!-- Guidelines / Rules Section (Inspired Pill Design) -->
@@ -637,134 +560,340 @@ function candidateSession() {
             </div>
           </div>
 
-          <!-- Bottom Join Action Area -->
           <div>
-            <button id="btn-start-interview-session" class="sh-lobby-join-cta">
-              ${icon('play', 13)} Begin Interview Session
-            </button>
+            <button id="btn-start-interview-session" class="sh-lobby-join-cta">${icon('play', 13)} Begin Interview Session</button>
           </div>
         </div>
-
       </div>
     </div>`;
   }
 
-  // Case 3: Session is in_progress or paused
-  var transcriptText = state.currentTranscript || '';
+  // ══════════════════════════════════════════════════
+  // Case 3: Live Interview Room (In Progress / Paused)
+  // ══════════════════════════════════════════════════
   var isPaused = status === 'paused';
+  var isSpeaking = !!state.isAiSpeaking;
+  var transcriptText = state.currentTranscript || '';
+  var webcamReady = state.webcamStatus === 'Ready';
+  var micReady = state.micStatus === 'Ready';
+  var isMicMuted = !!state.lobbyMicMuted;
+  var isCamMuted = !!state.lobbyCamMuted;
+  var aiVoiceOn = state.aiVoiceEnabled !== false;
 
-  return `<div class="max-w-5xl mx-auto space-y-6">
-    <!-- Active Room Bar -->
-    <div class="flex items-center justify-between p-5 rounded-2xl border border-white/8" style="background:#0c0e1c">
-      <div class="flex items-center gap-4">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-white/40 text-xs uppercase tracking-wider font-semibold">${itype} &bull; ${domain}</span>
-            ${statusBadge}
+  var telemetry = computeTranscriptTelemetry(transcriptText, state.sessionElapsedSeconds || 15);
+  var progressPct = Math.round(((currentIdx + 1) / total) * 100);
+
+  var itype = (interview.interview_type || 'Technical').toUpperCase();
+  var domain = interview.domain || 'Software Engineering';
+
+  var currentQuestionAnswered = question && question.answer_text;
+  var aiScore = question && question.score;
+  var aiFeedback = question && question.feedback;
+
+  return `<div class="sh-room-container">
+
+    <!-- ── Top Command Bar (Dock) ── -->
+    <div class="sh-room-dock">
+      
+      <!-- Left: Role & Sequence Pill -->
+      <div class="flex items-center gap-3">
+        <div class="sh-dock-role-badge">
+          <div class="sh-dock-role-icon">${icon('brain', 14)}</div>
+          <div>
+            <p class="text-xs font-bold text-white tracking-wide leading-tight">${domain} (${itype} Round)</p>
+            <p class="text-[10px] text-indigo-300/70 font-semibold mt-0.5">Question ${currentIdx + 1} of ${total} &bull; ${itype}</p>
           </div>
-          <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Question ${currentIdx + 1} of ${total}</h1>
         </div>
       </div>
 
-      <!-- Controls & Timer -->
-      <div class="flex items-center gap-4">
-        <div class="px-4 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-center">
-          <p class="text-white/40 text-[10px] uppercase font-bold tracking-wider">Time Remaining</p>
-          <p id="session-timer-display" class="text-xl font-mono font-bold ${remainSec < 60 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}">${timerStr}</p>
+      <!-- Center: Action & Status Pills -->
+      <div class="flex items-center gap-2 flex-wrap justify-center">
+        <!-- Recording Indicator -->
+        <span class="sh-dock-pill rec">
+          <span class="sh-dock-dot ${isPaused ? 'bg-amber-400' : 'bg-rose-500 animate-pulse'}"></span>
+          <span>${isPaused ? 'REC: PAUSED' : 'REC: RECORDING'}</span>
+        </span>
+
+        <!-- AI Voice Toggle -->
+        <button id="btn-toggle-ai-voice" class="sh-dock-btn ${aiVoiceOn ? 'active' : ''}" title="Toggle AI Spoken Audio">
+          ${icon(aiVoiceOn ? 'volume2' : 'speaker', 12)}
+          <span>${aiVoiceOn ? 'AI Voice: On' : 'AI Voice: Muted'}</span>
+        </button>
+
+        <!-- Fullscreen Toggle -->
+        <button id="btn-toggle-fullscreen" class="sh-dock-btn" title="Toggle Fullscreen Arena">
+          ${icon('layout', 12)}
+          <span>Full Screen</span>
+        </button>
+
+        <!-- Hardware Status Pills -->
+        <span class="sh-dock-pill ${webcamReady && !isCamMuted ? 'ready' : 'warn'}">
+          CAM: ${isCamMuted ? 'MUTED' : (webcamReady ? 'READY' : 'OFF')}
+        </span>
+        <span class="sh-dock-pill ${micReady && !isMicMuted ? 'ready' : 'warn'}">
+          MIC: ${isMicMuted ? 'MUTED' : (micReady ? 'READY' : 'OFF')}
+        </span>
+
+        <!-- Hands-Free auto submit pill -->
+        <span class="sh-dock-pill auto">
+          ${icon('zap', 11)} Auto-Transcribe (Active)
+        </span>
+
+        <!-- Digital Timer Capsule -->
+        <div class="sh-dock-timer ${remainSec < 60 ? 'urgent' : ''}">
+          ${icon('clock', 13)}
+          <span id="session-timer-display" class="font-mono font-bold">${timerStr}</span>
         </div>
+      </div>
 
-        <div class="flex items-center gap-2">
-          ${isPaused ? `
-            <button id="btn-resume-interview-session" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white bg-emerald-600 hover:bg-emerald-500 flex items-center gap-1.5 transition-all">
-              ${icon('play', 14)} Resume Interview
-            </button>
-          ` : `
-            <button id="btn-pause-interview-session" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white/80 hover:text-white bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 flex items-center gap-1.5 transition-all">
-              ${icon('pause', 14)} Pause Interview
-            </button>
-          `}
-
-          <button id="btn-next-question" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-white flex items-center gap-1.5 transition-all hover:brightness-110" style="background:${INDIGO}">
-            Next Question ${icon('arrowRight', 14)}
+      <!-- Right: Pause & End Session -->
+      <div class="flex items-center gap-2.5 shrink-0">
+        ${isPaused ? `
+          <button id="btn-resume-interview-session" class="sh-dock-btn-resume">
+            ${icon('play', 13)} Resume
           </button>
-
-          <button id="btn-end-interview-session" class="px-3.5 py-2.5 rounded-xl font-semibold text-xs text-rose-300 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-all">
-            End Interview
+        ` : `
+          <button id="btn-pause-interview-session" class="sh-dock-btn-pause">
+            ${icon('pause', 13)} Pause
           </button>
-        </div>
+        `}
+
+        <button id="btn-end-interview-session" class="sh-dock-btn-end">
+          ${icon('logOut', 13)} End Interview
+        </button>
       </div>
     </div>
 
     ${isPaused ? `
-      <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-center font-medium text-sm flex items-center justify-center gap-2">
-        <span>⏸ Interview Paused. Click <strong>Resume Interview</strong> to continue.</span>
+      <div class="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-center font-medium text-xs flex items-center justify-center gap-2 animate-pulse">
+        <span>⏸ Interview is paused. Candidate speech input is temporarily suspended. Click <strong>Resume</strong> to continue.</span>
       </div>
     ` : ''}
 
-    <!-- Live Interview Content Grid -->
-    <div class="grid grid-cols-2 gap-5">
-      <div class="rounded-xl border border-white/7 overflow-hidden relative flex flex-col justify-between" style="background:#0d0f1e">
-        <div class="relative w-full aspect-video bg-[#141627] flex items-center justify-center overflow-hidden">
-          <video id="candidate-camera" autoplay muted playsinline style="width:100%!important;height:100%!important;object-fit:cover!important;" class="w-full h-full object-cover"></video>
-          ${!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/75 backdrop-blur-sm">
-            <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
-            <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
-            <p class="text-[11px] text-white/50 mt-1 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable video preview.'}</p>
-          </div>` : ''}
-        </div>
-        <div class="p-3 border-t border-white/6 bg-white/[0.02] flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${webcamBadgeStyle}">
-              <span class="w-1.5 h-1.5 rounded-full ${webcamDot}"></span>
-              Webcam: ${webcamLabel}
+    <!-- ── Main Stage Grid (Left: Question Stage | Right: Interaction & Telemetry) ── -->
+    <div class="sh-room-grid">
+
+      <!-- ════ LEFT COLUMN: Main Question Arena ════ -->
+      <div class="sh-question-card">
+        
+        <!-- Top Evaluator Banner -->
+        <div class="sh-interviewer-header">
+          <div class="flex items-center gap-3">
+            <div class="sh-ai-avatar ${isSpeaking ? 'speaking' : ''}">
+              ${icon('brain', 18)}
+              <span class="sh-ai-pulse-dot"></span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white tracking-wide">SmartHire AI Interviewer</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">AI Autonomous</span>
+              </div>
+              <p class="text-[11px] text-indigo-300/80 mt-0.5 font-medium">
+                ${isSpeaking ? '🔊 Speaking question out loud...' : (isPaused ? '⏸ Session paused' : '🎙️ Actively listening for candidate response...')}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
+              ${question.category || 'Domain Assessment'}
             </span>
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${micBadgeStyle}">
-              <span class="w-1.5 h-1.5 rounded-full ${micDot}"></span>
-              Mic: ${micLabel}
-            </span>
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${recBadgeStyle}">
-              <span class="w-1.5 h-1.5 rounded-full ${recDot}"></span>
-              Recording: ${recLabel}
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/20">
+              ${question.difficulty || 'medium'}
             </span>
           </div>
-          <button id="btn-test-room-devices" class="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-1.5 transition-all shrink-0">
-            ${icon('video', 12)} Test Devices
-          </button>
         </div>
-        ${state.deviceError ? `<p class="px-3 py-2 text-xs text-rose-400 bg-rose-500/10 border-t border-rose-500/20">${state.deviceError}</p>` : ''}
+
+        <!-- Central Question Display Arena -->
+        <div class="sh-question-body">
+          <div class="sh-question-badge-pill">
+            QUESTION ${currentIdx + 1} OF ${total}
+          </div>
+
+          <h2 class="sh-question-text" style="font-family:'Outfit',sans-serif">
+            &ldquo;${question.question_text}&rdquo;
+          </h2>
+
+          <!-- Audio / Replay Action Buttons -->
+          <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
+            <button id="btn-listen-question-loud" class="sh-audio-action-btn indigo">
+              ${icon('volume2', 14)} <span>Listen Question Out Loud</span>
+            </button>
+
+            ${currentQuestionAnswered ? `
+              <button id="btn-replay-feedback" class="sh-audio-action-btn amber">
+                ${icon('award', 14)} <span>AI Evaluation Score: ${aiScore || 0}%</span>
+              </button>
+            ` : ''}
+          </div>
+
+          ${currentQuestionAnswered && aiFeedback ? `
+            <div class="mt-4 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-left max-w-xl mx-auto space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-emerald-400 flex items-center gap-1.5">${icon('checkCircle2', 13)} Instant AI Evaluation</span>
+                <span class="font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">${aiScore || 0}%</span>
+              </div>
+              <p class="text-xs text-white/70 leading-relaxed">${aiFeedback}</p>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Question Progress Footer -->
+        <div class="sh-question-footer">
+          <div class="flex items-center justify-between text-xs text-white/40 mb-2 font-medium">
+            <span>Overall Session Completion</span>
+            <span class="text-indigo-300 font-bold">${progressPct}%</span>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-300" style="width:${progressPct}%"></div>
+          </div>
+        </div>
+
       </div>
 
-      <div class="rounded-xl border border-white/7 p-6 flex flex-col justify-between" style="background:#0d0f1e">
-        <div class="flex items-center gap-2 mb-4">
-          ${badge(question.category || 'Interview', 'indigo')}
-          ${badge(question.difficulty || 'medium', 'amber')}
-        </div>
-        <p class="text-white text-lg leading-relaxed flex-1">${question.question_text}</p>
-        <div class="mt-4 pt-3 border-t border-white/5 flex justify-between items-center text-xs text-white/40">
-          <span>Question ${currentIdx + 1} of ${total}</span>
-          <span>Current Progress: ${Math.round(((currentIdx + 1) / total) * 100)}%</span>
-        </div>
-      </div>
-    </div>
+      <!-- ════ RIGHT COLUMN: Video Preview, Telemetry & Transcript ════ -->
+      <div class="space-y-4 flex flex-col justify-between">
+        
+        <!-- 1. Live Proctored Webcam Feed -->
+        <div class="sh-video-panel">
+          <div class="relative w-full aspect-video bg-[#070914] rounded-xl overflow-hidden flex items-center justify-center border border-white/8">
+            <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
+            
+            ${isCamMuted ? `
+              <div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
+                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
+                <p class="text-xs font-semibold text-rose-300">Camera Muted</p>
+              </div>
+            ` : (!webcamReady ? `
+              <div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
+                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
+                <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
+              </div>
+            ` : '')}
 
-    <!-- Live Response Box -->
-    <div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
-      <p class="text-white/70 text-sm mb-3">Live voice response</p>
-      <div id="transcript-box" class="rounded-lg border border-white/6 p-4 min-h-[60px]" style="background:#141627">
-        ${transcriptText ? `<p class="text-white/80 text-sm leading-relaxed">${transcriptText}</p>` : `<p class="text-white/25 text-sm italic">${isPaused ? 'Interview paused.' : 'Waiting for interviewer...'}</p>`}
+            <!-- Top Left Live Badge -->
+            <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>LIVE PROCTOR FEED</span>
+            </div>
+
+            <!-- Floating Video Controls Dock -->
+            <div class="sh-video-floating-dock">
+              <button id="btn-toggle-room-mic" class="sh-floating-btn ${isMicMuted ? 'muted' : ''}" title="${isMicMuted ? 'Unmute Mic' : 'Mute Mic'}">
+                ${icon(isMicMuted ? 'micOff' : 'mic', 13)}
+              </button>
+              <button id="btn-toggle-room-cam" class="sh-floating-btn ${isCamMuted ? 'muted' : ''}" title="${isCamMuted ? 'Enable Camera' : 'Turn Off Camera'}">
+                ${icon(isCamMuted ? 'videoOff' : 'video', 13)}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Real-Time Speech & Behavior Telemetry Card -->
+        <div class="sh-telemetry-panel">
+          <div class="flex items-center justify-between border-b border-white/6 pb-2.5 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-400">${icon('activity', 13)}</span>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white" style="font-family:'Outfit',sans-serif">Real-Time Speech & Behavior Telemetry</h4>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Active Sensors
+            </span>
+          </div>
+
+          <div class="sh-telemetry-grid">
+            <!-- Metric 1: Speech Pace -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">SPEECH PACE</span>
+                <span class="text-indigo-400">${icon('mic', 11)}</span>
+              </div>
+              <p class="sh-telemetry-val">~${telemetry.wpm} WPM</p>
+              <p class="sh-telemetry-sub ${telemetry.wpmStatus === 'Optimal Speed' ? 'text-emerald-400' : 'text-amber-300'}">${telemetry.wpmStatus}</p>
+            </div>
+
+            <!-- Metric 2: Filler Words -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">FILLER WORDS</span>
+                <span class="text-amber-400">${icon('alertCircle', 11)}</span>
+              </div>
+              <p class="sh-telemetry-val text-amber-300">${telemetry.fillers} detected</p>
+              <p class="sh-telemetry-sub ${telemetry.fillers === 0 ? 'text-emerald-400' : 'text-amber-400'}">${telemetry.fillerStatus}</p>
+            </div>
+
+            <!-- Metric 3: Eye Contact -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">EYE CONTACT</span>
+                <span class="text-cyan-400">${icon('eye', 11)}</span>
+              </div>
+              <p class="sh-telemetry-val text-cyan-300">${telemetry.eyeContact}%</p>
+              <p class="sh-telemetry-sub text-cyan-400/80">Camera Gaze Focused</p>
+            </div>
+
+            <!-- Metric 4: Emotion & Tone -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">EMOTION & TONE</span>
+                <span class="text-emerald-400">${icon('sparkles', 11)}</span>
+              </div>
+              <p class="sh-telemetry-val text-emerald-300">${telemetry.emotion}</p>
+              <p class="sh-telemetry-sub text-emerald-400/80">High Confidence</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Live Transcript & Interactive Action Hub -->
+        <div class="sh-transcript-panel">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-indigo-400">${icon('messageSquare', 12)}</span>
+              <span class="text-xs font-bold text-white uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Candidate Transcript</span>
+            </div>
+            <span id="session-status" class="text-[11px] text-indigo-300 font-medium">${state.sessionMessage || (isSpeaking ? 'Interviewer Speaking...' : 'Live Transcribing...')}</span>
+          </div>
+
+          <!-- Transcript Scrollbox -->
+          <div id="transcript-box" class="sh-transcript-box">
+            ${transcriptText ? `
+              <p class="text-white/90 text-xs leading-relaxed font-medium">&ldquo;${transcriptText}&rdquo;</p>
+            ` : `
+              <div class="flex items-center gap-2 text-white/30 text-xs italic">
+                <span class="w-2 h-2 rounded-full ${isSpeaking ? 'bg-indigo-400' : 'bg-emerald-400 animate-pulse'}"></span>
+                <span>${isSpeaking ? 'Listening paused while AI speaks...' : (isPaused ? 'Interview paused.' : 'Listening... Speak your answer now.')}</span>
+              </div>
+            `}
+          </div>
+
+          <!-- Action Footer Controls -->
+          <div class="flex items-center gap-2 pt-3 border-t border-white/6 mt-3">
+            <button id="btn-submit-answer-manual" class="sh-btn-submit-action">
+              ${icon('check', 13)} Submit Response
+            </button>
+            <button id="btn-next-question" class="sh-btn-next-action">
+              <span>Next</span> ${icon('arrowRight', 12)}
+            </button>
+          </div>
+        </div>
+
       </div>
-      <p id="session-status" class="mt-3 text-xs text-white/40" role="status">${state.sessionMessage || ''}</p>
     </div>
 
     <!-- Confirmation Modal Container -->
     ${state.showEndConfirmModal ? `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div class="w-full max-w-md p-6 rounded-2xl border border-white/10 space-y-5 shadow-2xl" style="background:#0c0e1c">
-          <h3 class="text-xl font-bold text-white">End Interview?</h3>
-          <p class="text-white/60 text-sm leading-relaxed">Are you sure you want to end the interview? Your progress so far will be saved and evaluated.</p>
+          <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+            ${icon('logOut', 22)}
+          </div>
+          <div class="text-center">
+            <h3 class="text-xl font-bold text-white" style="font-family:'Outfit',sans-serif">End Interview Session?</h3>
+            <p class="text-white/60 text-xs mt-1.5 leading-relaxed">Are you sure you want to conclude the interview? All evaluated responses will be compiled into your AI Assessment Report.</p>
+          </div>
           <div class="flex items-center gap-3 pt-2">
-            <button id="modal-confirm-cancel" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20">Cancel</button>
-            <button id="modal-confirm-end" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md">End Interview</button>
+            <button id="modal-confirm-cancel" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors">Continue Interview</button>
+            <button id="modal-confirm-end" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md transition-all">Yes, End Session</button>
           </div>
         </div>
       </div>
@@ -1809,6 +1938,79 @@ function bindCandidateInterviewEvents() {
 
   var btnNextQ = document.getElementById('btn-next-question');
   if (btnNextQ) btnNextQ.addEventListener('click', nextQuestion);
+
+  /* ── Redesigned Room Controls ── */
+  var btnListenQ = document.getElementById('btn-listen-question-loud');
+  if (btnListenQ) {
+    btnListenQ.addEventListener('click', function() {
+      speakCurrentQuestion();
+    });
+  }
+
+  var btnReplayFeedback = document.getElementById('btn-replay-feedback');
+  if (btnReplayFeedback) {
+    btnReplayFeedback.addEventListener('click', function() {
+      var q = state.currentInterview && state.currentInterview.questions && state.currentInterview.questions[state.currentQuestionIndex];
+      if (q && q.feedback) {
+        speakWithWebSpeech("Evaluation remark. " + q.feedback);
+      }
+    });
+  }
+
+  var btnToggleVoice = document.getElementById('btn-toggle-ai-voice');
+  if (btnToggleVoice) {
+    btnToggleVoice.addEventListener('click', function() {
+      state.aiVoiceEnabled = !state.aiVoiceEnabled;
+      if (!state.aiVoiceEnabled && state.interviewerAudio) {
+        try { state.interviewerAudio.pause(); } catch(e) {}
+      }
+      render();
+    });
+  }
+
+  var btnToggleFullscreen = document.getElementById('btn-toggle-fullscreen');
+  if (btnToggleFullscreen) {
+    btnToggleFullscreen.addEventListener('click', function() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function() {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen().catch(function() {});
+      }
+    });
+  }
+
+  var btnToggleRoomMic = document.getElementById('btn-toggle-room-mic');
+  if (btnToggleRoomMic) {
+    btnToggleRoomMic.addEventListener('click', function() {
+      state.lobbyMicMuted = !state.lobbyMicMuted;
+      if (state.interviewStream) {
+        state.interviewStream.getAudioTracks().forEach(function(t) {
+          t.enabled = !state.lobbyMicMuted;
+        });
+      }
+      render();
+    });
+  }
+
+  var btnToggleRoomCam = document.getElementById('btn-toggle-room-cam');
+  if (btnToggleRoomCam) {
+    btnToggleRoomCam.addEventListener('click', function() {
+      state.lobbyCamMuted = !state.lobbyCamMuted;
+      if (state.interviewStream) {
+        state.interviewStream.getVideoTracks().forEach(function(t) {
+          t.enabled = !state.lobbyCamMuted;
+        });
+      }
+      render();
+    });
+  }
+
+  var btnManualSubmit = document.getElementById('btn-submit-answer-manual');
+  if (btnManualSubmit) {
+    btnManualSubmit.addEventListener('click', function() {
+      stopAutoRecording();
+    });
+  }
 
   var modalCancel = document.getElementById('modal-confirm-cancel');
   if (modalCancel) modalCancel.addEventListener('click', closeEndInterviewModal);

@@ -103,6 +103,13 @@ const state = {
   assessmentIntegrity: { face_detected_pct: 95, eye_contact_pct: 88, look_away_events: 1, multiple_faces_events: 0, expression_distribution: { Neutral: '85%', Focused: '15%' } },
   assessmentResult: null,
   submitConfirmModal: false,
+  aiVoiceEnabled: true,
+  isFullscreen: false,
+  telemetryWpm: 140,
+  telemetryFillerWords: 0,
+  telemetryEyeContact: 92,
+  telemetryEmotion: 'Calm / Confident',
+  answerStartTime: null,
 };
 
 
