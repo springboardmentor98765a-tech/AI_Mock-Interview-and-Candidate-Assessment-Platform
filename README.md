@@ -37,9 +37,9 @@ Production-ready AI Mock Interview and Candidate Assessment platform with integr
 - GitHub Actions CI for build, test, and package
 
 ## Run Locally
-1. Configure backend in `smarthire-backend/smarthire-backend/src/main/resources/application.properties`.
+1. Configure backend in `smarthire-backend/src/main/resources/application.properties`.
 2. Start backend:
-	 - `cd smarthire-backend/smarthire-backend`
+	 - `cd smarthire-backend`
 	 - `mvn clean package`
 	 - `mvn spring-boot:run`
 3. Serve frontend root and open `index.html`.

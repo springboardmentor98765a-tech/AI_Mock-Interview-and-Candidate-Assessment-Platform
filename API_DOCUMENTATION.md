@@ -34,3 +34,31 @@
 
 ## Admin
 - GET `/api/admin/dashboard`
+
+
+## Authentication Management
+- POST `/api/auth/forgot-password`
+- POST `/api/auth/reset-password`
+- GET `/oauth2/authorization/google` (when the `oauth` Spring profile is enabled)
+
+## Speech AI
+- POST `/api/ai/speech/transcribe`
+
+## Recruiter Jobs
+- GET `/api/recruiter/jobs`
+- POST `/api/recruiter/jobs`
+- PUT `/api/recruiter/jobs/{id}`
+- DELETE `/api/recruiter/jobs/{id}`
+
+## Recruiter Interview Templates
+- GET `/api/recruiter/templates`
+- POST `/api/recruiter/templates`
+- PUT `/api/recruiter/templates/{id}`
+- DELETE `/api/recruiter/templates/{id}`
+
+## Admin User Management
+- GET `/api/admin/users`
+- POST `/api/admin/users`
+- PUT `/api/admin/users/{id}`
+- DELETE `/api/admin/users/{id}`
+- POST `/api/admin/actions/{action}`

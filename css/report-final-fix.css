@@ -1,0 +1,79 @@
+
+/* Final report visibility fixes */
+body.dark-mode.report-dark,
+.dark-mode .report-shell{color:#e6edf7}
+body.dark-mode.report-dark{background:#0b1020}
+.dark-mode .report-title{color:#f8fafc!important}
+.dark-mode .report-subtitle{color:#aebbd0!important}
+.dark-mode .report-card{
+  background:#141a2a!important;
+  border-color:#2b3650!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.28);
+  color:#e6edf7!important;
+}
+.dark-mode .report-card h2,
+.dark-mode .report-card h3,
+.dark-mode .report-card h4,
+.dark-mode .report-card strong,
+.dark-mode .report-card label{
+  color:#f8fafc!important;
+}
+.dark-mode .report-card p,
+.dark-mode .report-card span,
+.dark-mode .report-card div,
+.dark-mode .timeline-meta,
+.dark-mode #reportSummary,
+.dark-mode #reportRecording,
+.dark-mode #reportTimeline,
+.dark-mode #reportSpeechInsights{
+  color:#d6deea!important;
+}
+.dark-mode .score-chip{
+  background:#0f1524!important;
+  border-color:#2b3650!important;
+}
+.dark-mode .score-chip span{color:#9fb0c7!important}
+.dark-mode .score-chip strong{color:#b9c7ff!important}
+.dark-mode .timeline-item{border-bottom-color:#2b3650!important}
+.dark-mode .transcript-box{
+  background:#0f1524!important;
+  border-color:#2b3650!important;
+  color:#dce5f2!important;
+}
+.dark-mode .preview-box{
+  background:#0f1524!important;
+  border-color:#475569!important;
+  color:#dce5f2!important;
+}
+.dark-mode #reportError{
+  color:#fecaca!important;
+  background:#35151a!important;
+  border-color:#7f1d1d!important;
+}
+.dark-mode #reportLoading{
+  color:#d6deea!important;
+}
+
+/* Same-element body selector fixes for saved theme state. */
+body.dark-mode.report-dark{background:#0b1020!important;color:#e6edf7!important}
+body.dark-mode.report-dark .report-shell{color:#e6edf7!important}
+body.dark-mode.report-dark .report-card{background:#141a2a!important;border-color:#2b3650!important;color:#e6edf7!important}
+body.dark-mode.report-dark .report-title{color:#f8fafc!important}
+body.dark-mode.report-dark .report-subtitle{color:#aebbd0!important}
+body.dark-mode.report-dark .report-card h2,body.dark-mode.report-dark .report-card h3,body.dark-mode.report-dark .report-card h4,body.dark-mode.report-dark .report-card strong,body.dark-mode.report-dark .report-card label{color:#f8fafc!important}
+body.dark-mode.report-dark .report-card p,body.dark-mode.report-dark .report-card span,body.dark-mode.report-dark .report-card div,body.dark-mode.report-dark .timeline-meta{color:#d6deea!important}
+body.dark-mode.report-dark .score-chip{background:#0f1524!important;border-color:#2b3650!important}
+body.dark-mode.report-dark .score-chip span{color:#9fb0c7!important}
+body.dark-mode.report-dark .score-chip strong{color:#b9c7ff!important}
+body.dark-mode.report-dark .transcript-box,body.dark-mode.report-dark .preview-box{background:#0f1524!important;border-color:#39465f!important;color:#dce5f2!important}
+body.dark-mode.report-dark .timeline-item{border-bottom-color:#2b3650!important}
+
+/* Final same-body dark report readability: beats inline light-theme declarations. */
+body.dark-mode.report-dark .report-section,
+body.dark-mode.report-dark .report-grid,
+body.dark-mode.report-dark #reportContent{color:#eef3fb!important}
+body.dark-mode.report-dark .report-card *{text-shadow:none!important}
+body.dark-mode.report-dark .report-card a{color:#cbbcff!important}
+body.dark-mode.report-dark .report-card button.secondary-btn{background:#1a2338!important;color:#eef3ff!important;border-color:#3b496b!important}
+body.dark-mode.report-dark .report-card button.primary-btn{background:linear-gradient(135deg,#7b4dff,#9a76ff)!important;color:#fff!important}
+body.dark-mode.report-dark #reportSpeechInsights{color:#c7d3e5!important}

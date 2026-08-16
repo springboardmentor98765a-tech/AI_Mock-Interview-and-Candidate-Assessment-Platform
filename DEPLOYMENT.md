@@ -19,3 +19,19 @@
 - Use managed PostgreSQL and backups.
 - Enable HTTPS via reverse proxy.
 - Monitor logs and JVM memory.
+
+## Troubleshooting: `interviews` Table Schema Drift
+If the backend logs `column i1_0.experience_level does not exist` (or a
+similar "column does not exist" error for another `interviews` column),
+your database was created before that field existed on `Interview.java`.
+`spring.jpa.hibernate.ddl-auto=update` cannot add a NOT NULL column to a
+table that already has rows, so it is skipped automatically. Run the
+one-time, idempotent, data-preserving repair script once against your
+existing database, then restart the backend:
+
+```
+psql -U postgres -d smarthire -f smarthire-backend/db/repair_interviews_schema.sql
+```
+
+See the comments at the top of that script for full details.
+

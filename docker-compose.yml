@@ -16,7 +16,7 @@ services:
 
   backend:
     build:
-      context: ./smarthire-backend/smarthire-backend
+      context: ./smarthire-backend
       dockerfile: Dockerfile
     container_name: smarthire-backend
     restart: unless-stopped
@@ -28,10 +28,37 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_WHISPER_URL: ${AI_WHISPER_URL:-http://whisper:8091}
+      AI_WHISPER_ENABLED: ${AI_WHISPER_ENABLED:-true}
+      AI_DEEPFACE_URL: ${AI_DEEPFACE_URL:-http://deepface:8092}
+      AI_DEEPFACE_ENABLED: ${AI_DEEPFACE_ENABLED:-true}
+      AI_MEDIAPIPE_URL: ${AI_MEDIAPIPE_URL:-http://mediapipe:8093}
+      AI_MEDIAPIPE_ENABLED: ${AI_MEDIAPIPE_ENABLED:-true}
       APP_JWT_SECRET: ${APP_JWT_SECRET:-smarthire-secret-key-smarthire-secret-key-123456}
       APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
     ports:
       - "8080:8080"
+
+  whisper:
+    build: ./ai-services/whisper-service
+    container_name: smarthire-whisper
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+
+  deepface:
+    build: ./ai-services/deepface-service
+    container_name: smarthire-deepface
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+
+  mediapipe:
+    build: ./ai-services/mediapipe-service
+    container_name: smarthire-mediapipe
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
 
   frontend:
     build:

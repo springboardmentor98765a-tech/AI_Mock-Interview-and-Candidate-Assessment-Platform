@@ -1,0 +1,7 @@
+package com.smarthire.backend.recruiter.entity;
+import jakarta.persistence.*; import java.time.LocalDateTime;
+@Entity @Table(name="job_postings") public class JobPosting {
+ @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; @Column(nullable=false) private Long recruiterId; @Column(nullable=false) private String title; private String department; private String location; @Column(columnDefinition="TEXT") private String description; private String status="ACTIVE"; private LocalDateTime createdAt; private LocalDateTime updatedAt;
+ @PrePersist void create(){createdAt=LocalDateTime.now();updatedAt=createdAt;} @PreUpdate void update(){updatedAt=LocalDateTime.now();}
+ public Long getId(){return id;} public void setId(Long v){id=v;} public Long getRecruiterId(){return recruiterId;} public void setRecruiterId(Long v){recruiterId=v;} public String getTitle(){return title;} public void setTitle(String v){title=v;} public String getDepartment(){return department;} public void setDepartment(String v){department=v;} public String getLocation(){return location;} public void setLocation(String v){location=v;} public String getDescription(){return description;} public void setDescription(String v){description=v;} public String getStatus(){return status;} public void setStatus(String v){status=v;} public LocalDateTime getCreatedAt(){return createdAt;} public void setCreatedAt(LocalDateTime v){createdAt=v;} public LocalDateTime getUpdatedAt(){return updatedAt;} public void setUpdatedAt(LocalDateTime v){updatedAt=v;}
+}

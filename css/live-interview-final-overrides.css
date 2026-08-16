@@ -1,0 +1,192 @@
+/* SmartHire Live Interview - final visual isolation and usability overrides */
+html, body.live-room-clean { min-height:100%; }
+body.live-room-clean {
+  margin:0 !important;
+  background:#090d18 !important;
+  color:#edf2ff !important;
+  overflow-x:hidden !important;
+}
+body.live-room-clean .clean-live-main {
+  width:min(1500px, calc(100% - 32px)) !important;
+  max-width:1500px !important;
+  margin:0 auto !important;
+  padding:28px 0 150px !important;
+}
+body.live-room-clean .clean-live-header h1,
+body.live-room-clean .clean-card-heading h2,
+body.live-room-clean .clean-question-number,
+body.live-room-clean .clean-question-text,
+body.live-room-clean .sh-advanced-head h3,
+body.live-room-clean .clean-answer-heading h3,
+body.live-room-clean .clean-live-header p { color:#f5f7ff !important; }
+body.live-room-clean .clean-live-header p { color:#aeb9d3 !important; }
+body.live-room-clean .clean-eyebrow.dark { color:#9d8cff !important; }
+
+body.live-room-clean .clean-video-card,
+body.live-room-clean .clean-question-card,
+body.live-room-clean .sh-live-advanced-card {
+  background:#11182b !important;
+  border:1px solid #283452 !important;
+  color:#edf2ff !important;
+  box-shadow:0 18px 48px rgba(0,0,0,.24) !important;
+}
+body.live-room-clean .clean-video-frame { background:#060a13 !important; border-color:#2b3654 !important; }
+body.live-room-clean .clean-video-placeholder strong { color:#edf2ff !important; }
+body.live-room-clean .clean-video-placeholder span { color:#93a0bb !important; }
+body.live-room-clean .clean-device-status,
+body.live-room-clean .sh-insight-metrics > div,
+body.live-room-clean .sh-system-list > div {
+  background:#0d1424 !important;
+  border-color:#293654 !important;
+  color:#dce5f7 !important;
+}
+body.live-room-clean .clean-device-status span,
+body.live-room-clean .sh-insight-metrics span,
+body.live-room-clean .sh-system-list span { color:#93a0bb !important; }
+body.live-room-clean .clean-device-status strong,
+body.live-room-clean .sh-insight-metrics strong,
+body.live-room-clean .sh-system-list strong { color:#eef3ff !important; }
+body.live-room-clean .sh-ai-tip,
+body.live-room-clean .sh-system-note { background:#171d34 !important; border-color:#354265 !important; color:#dce4f6 !important; }
+body.live-room-clean .sh-ai-tip p { color:#aeb9d3 !important; }
+
+body.live-room-clean .clean-question-card { overflow:visible !important; }
+body.live-room-clean .clean-question-tags span { background:#28205a !important; color:#dcd5ff !important; border:1px solid #4b3c86 !important; }
+body.live-room-clean .clean-question-tags span:nth-child(2) { background:#123c2b !important; color:#9de4be !important; border-color:#245f45 !important; }
+body.live-room-clean .clean-question-tags #interviewAnswerMode { background:#392b12 !important; color:#ffd873 !important; border-color:#665124 !important; }
+body.live-room-clean .clean-progress-track { background:#202a42 !important; }
+body.live-room-clean .clean-progress-fill { background:linear-gradient(90deg,#6d35e8,#9b78ff) !important; }
+
+/* MCQ cards */
+body.live-room-clean .clean-mcq-options { display:grid; gap:12px; margin:20px 0 12px; }
+body.live-room-clean .clean-mcq-option {
+  min-height:54px !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:12px !important;
+  padding:14px 16px !important;
+  border:1px solid #34415f !important;
+  border-radius:14px !important;
+  background:#0c1425 !important;
+  color:#eef3ff !important;
+  cursor:pointer !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+body.live-room-clean .clean-mcq-option:hover { border-color:#7658e8 !important; background:#15132d !important; }
+body.live-room-clean .clean-mcq-option.selected { border-color:#8b68ff !important; background:#241b46 !important; box-shadow:0 0 0 3px rgba(139,104,255,.14) !important; }
+body.live-room-clean .clean-mcq-option input { accent-color:#8b68ff !important; width:18px; height:18px; flex:0 0 auto; }
+body.live-room-clean .clean-mcq-option span { color:#eef3ff !important; font-weight:600; line-height:1.45; }
+
+body.live-room-clean .clean-answer-section textarea {
+  background:#0c1425 !important;
+  color:#eef3ff !important;
+  border:1px solid #34415f !important;
+}
+body.live-room-clean .clean-answer-section textarea::placeholder { color:#75839e !important; }
+body.live-room-clean .clean-answer-section { color:#dce5f7 !important; }
+body.live-room-clean .clean-transcript-preview { background:#0b1220 !important; color:#aeb9d3 !important; border-color:#2e3a57 !important; }
+
+/* Fixed interview controls: always reachable, never requires scrolling to the page bottom. */
+body.live-room-clean .clean-interview-footer {
+  position:fixed !important;
+  left:50% !important;
+  bottom:14px !important;
+  transform:translateX(-50%) !important;
+  width:min(1500px, calc(100% - 32px)) !important;
+  margin:0 !important;
+  z-index:5000 !important;
+  padding:12px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+  background:rgba(14,20,36,.94) !important;
+  border:1px solid #3a4665 !important;
+  border-radius:18px !important;
+  box-shadow:0 22px 60px rgba(0,0,0,.48) !important;
+  backdrop-filter:blur(16px) !important;
+}
+body.live-room-clean .clean-interview-footer button {
+  min-height:46px !important;
+  border-radius:12px !important;
+  font-weight:800 !important;
+  white-space:nowrap !important;
+}
+body.live-room-clean .clean-interview-footer .secondary-btn { background:#1a2338 !important; color:#eaf0ff !important; border:1px solid #3b496b !important; }
+body.live-room-clean .clean-interview-footer .primary-btn { background:linear-gradient(135deg,#6d35e8,#8d63ff) !important; color:#fff !important; border:1px solid #8d63ff !important; }
+body.live-room-clean .clean-interview-footer .danger-btn { background:#3b1820 !important; color:#ffb9c0 !important; border:1px solid #8e3d4c !important; }
+body.live-room-clean .clean-interview-footer button:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.06); }
+body.live-room-clean .clean-interview-footer button:disabled { opacity:.45 !important; cursor:not-allowed !important; }
+
+body.live-room-clean .clean-post-interview-actions {
+  background:#11182b !important;
+  border:1px solid #2b3855 !important;
+  border-radius:18px !important;
+}
+body.live-room-clean .clean-post-interview-actions button { min-height:46px !important; }
+
+/* Evaluation is a post-interview surface, not part of the live question workspace. */
+body.live-room-clean #interviewEvaluationResult {
+  background:#11182b !important;
+  border:1px solid #2b3855 !important;
+  color:#edf2ff !important;
+  box-shadow:0 18px 48px rgba(0,0,0,.25) !important;
+}
+body.live-room-clean #interviewEvaluationResult .evaluation-header h3,
+body.live-room-clean #interviewEvaluationResult .evaluation-header p,
+body.live-room-clean #interviewEvaluationResult h4,
+body.live-room-clean #interviewEvaluationResult .evaluation-metric span,
+body.live-room-clean #interviewEvaluationResult .evaluation-list-card p { color:#edf2ff !important; }
+body.live-room-clean #interviewEvaluationResult .evaluation-subtitle,
+body.live-room-clean #interviewEvaluationResult .evaluation-metric span { color:#9eabc2 !important; }
+body.live-room-clean #interviewEvaluationResult .evaluation-breakdown-card,
+body.live-room-clean #interviewEvaluationResult .evaluation-list-card { background:#0d1424 !important; border-color:#2c3957 !important; color:#edf2ff !important; }
+body.live-room-clean #interviewEvaluationResult .evaluation-rating-chip { background:#1d1737 !important; border-color:#4d3c7d !important; color:#dcd4ff !important; }
+
+@media (max-width:900px) {
+  body.live-room-clean .clean-interview-footer { width:calc(100% - 18px) !important; bottom:8px !important; flex-direction:column !important; align-items:stretch !important; }
+  body.live-room-clean .clean-control-group,
+  body.live-room-clean .clean-control-group.right { width:100% !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:8px !important; }
+  body.live-room-clean .clean-control-group button { width:100% !important; }
+  body.live-room-clean .clean-live-main { width:calc(100% - 18px) !important; padding-bottom:250px !important; }
+}
+
+/* Completion dialog must sit above the fixed control bar and every dashboard card. */
+body.live-room-clean .sh-completion-modal { z-index:10000 !important; }
+body.live-room-clean .sh-completion-backdrop { position:absolute !important; inset:0 !important; background:rgba(3,6,14,.78) !important; backdrop-filter:blur(8px) !important; }
+body.live-room-clean .sh-completion-card { z-index:10001 !important; background:#11182b !important; border:1px solid #4a3b73 !important; color:#edf2ff !important; box-shadow:0 35px 100px rgba(0,0,0,.58) !important; }
+body.live-room-clean .sh-completion-card h2 { color:#fff !important; }
+body.live-room-clean .sh-completion-card p { color:#b9c4d9 !important; }
+body.live-room-clean .sh-completion-scores > div { background:#0d1424 !important; border-color:#34415f !important; }
+body.live-room-clean .sh-completion-scores span { color:#93a0bb !important; }
+body.live-room-clean .sh-completion-scores strong { color:#b49bff !important; }
+body.live-room-clean .sh-completion-close { background:#202940 !important; color:#eef3ff !important; }
+
+/* Final light-mode readability and grid hardening */
+body.live-room-clean:not(.dark-mode) .sh-live-advanced-card{background:#ffffff!important;border:1px solid #e5e2ef!important;color:#17152b!important;box-shadow:0 14px 34px rgba(45,34,88,.08)!important;}
+body.live-room-clean:not(.dark-mode) .sh-advanced-head h3{color:#17152b!important;}
+body.live-room-clean:not(.dark-mode) .sh-advanced-head .clean-eyebrow.dark{color:#71688a!important;}
+body.live-room-clean:not(.dark-mode) .sh-context-role{color:#2b2640!important;}
+body.live-room-clean:not(.dark-mode) .sh-context-card>p{color:#5d5870!important;background:#f8f7fc!important;border-color:#e7e2f0!important;}
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid>div,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics>div,
+body.live-room-clean:not(.dark-mode) .sh-system-list>div{background:#f8f8fc!important;border:1px solid #e6e2ee!important;}
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid span,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics span,
+body.live-room-clean:not(.dark-mode) .sh-system-list span{color:#706a81!important;}
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid strong,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics strong{color:#27233a!important;}
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics em{color:#6e6880!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-list strong{color:#198658!important;background:#ecfbf3!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-list strong.warning{color:#a56b08!important;background:#fff7df!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-list strong.error{color:#b4232d!important;background:#fff0f1!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-note{background:#ecfbf3!important;color:#287451!important;border-color:#d3f0df!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-note.warning{background:#fff8e5!important;color:#8a6208!important;border-color:#f6e5b6!important;}
+body.live-room-clean:not(.dark-mode) .sh-system-note.error{background:#fff1f2!important;color:#b4232d!important;border-color:#f2c8cc!important;}
+body.live-room-clean:not(.dark-mode) .sh-pro-controls button{background:#fff!important;color:#493c6c!important;border:1px solid #e1dced!important;}
+body.live-room-clean:not(.dark-mode) .sh-pro-controls button:hover{background:#faf8ff!important;border-color:#cfc0ff!important;color:#6737d9!important;}
+body.live-room-clean .sh-live-advanced-grid{width:100%;min-width:0;align-items:stretch;}
+body.live-room-clean .sh-live-advanced-card{min-width:0;overflow:hidden;}
+@media(max-width:1180px){body.live-room-clean .sh-live-advanced-grid{grid-template-columns:repeat(6,minmax(0,1fr));}body.live-room-clean .sh-progress-card,body.live-room-clean .sh-context-card,body.live-room-clean .sh-insights-card,body.live-room-clean .sh-system-card,body.live-room-clean .sh-controls-card{grid-column:span 6!important;}}
+@media(min-width:1181px){body.live-room-clean .sh-insights-card{grid-column:span 5;}body.live-room-clean .sh-system-card{grid-column:span 4;}body.live-room-clean .sh-controls-card{grid-column:span 3;}}

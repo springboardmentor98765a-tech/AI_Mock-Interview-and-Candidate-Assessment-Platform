@@ -1,428 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Admin Dashboard | SmartHire AI</title>
-
-<link rel="stylesheet" href="../css/style.css">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SmartHire AI Admin Dashboard"><title>Admin Dashboard | SmartHire AI</title>
+  <link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/candidate-dashboard.css"><link rel="stylesheet" href="../css/role-dashboards.css"><link rel="stylesheet" href="../css/smarthire-popups.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
-
-<body>
-
-<!-- =========================
-        SIDEBAR
-========================= -->
-
-<aside class="sidebar">
-
-<div class="sidebar-logo">
-
-        <h4>Total Users</h4>
-        <h2><span id="adminTotalUsers" class="counter" data-target="0">0</span></h2>
-        <span>Loading...</span>
-
-</div>
-
-<ul>
-
-<li class="active">
-        <h4>Recruiters</h4>
-        <h2><span id="adminRecruitersCount" class="counter" data-target="0">0</span></h2>
-        <span>Loading...</span>
-<span>Dashboard</span>
-
-</li>
-
-<li>
-
-        <h4>AI Requests</h4>
-        <h2><span id="adminAiRequests" class="counter" data-target="0">0</span></h2>
-        <span>Loading...</span>
-
-</li>
-
-<li>
-
-<i class="fa-solid fa-user-tie"></i>
-        <h4>System Health</h4>
-        <h2 id="adminSystemHealthValue">-</h2>
-        <span id="adminSystemHealthHint" style="color:#22c55e;">Loading...</span>
-</li>
-                <tr>
-                    <td colspan="6" style="text-align:center; color:#64748b;">Loading users from backend...</td>
-                </tr>
-
-<li>
-
-<i class="fa-solid fa-robot"></i>
-
-<span>AI Settings</span>
-
-</li>
-
-<li>
-
-<i class="fa-solid fa-chart-column"></i>
-
-<span>Reports</span>
-
-</li>
-
-<li>
-
-<i class="fa-solid fa-gear"></i>
-
-<span>System</span>
-
-</li>
-
-<li>
-
-<i class="fa-solid fa-right-from-bracket"></i>
-
-<span>Logout</span>
-
-</li>
-
-            </tbody>
-
-</aside>
-
-<!-- =========================
-        MAIN
-========================= -->
-
-<div class="dashboard">
-
-<header class="topbar">
-
-<div class="search-box">
-
-<i class="fa-solid fa-magnifying-glass"></i>
-
-<input type="text" placeholder="Search users...">
-
-</div>
-
-<div class="top-icons">
-
-<i class="fa-regular fa-bell"></i>
-
-<i class="fa-regular fa-envelope"></i>
-
-<div class="profile">
-
-<img src="https://i.pravatar.cc/100?img=12">
-
-<div>
-
-<h4 id="dashboardUserName">Admin</h4>
-
-<p id="dashboardUserRole">System Administrator</p>
-
-</div>
-
-</div>
-
-</div>
-
-</header>
-
-<section class="dashboard-header">
-
-<h1 id="welcomeHeading">Admin Dashboard ⚙️</h1>
-
-<p id="welcomeSubtitle">
-
-Manage users, recruiters, AI modules, reports, and monitor the complete SmartHire AI platform.
-
-</p>
-
-</section>
-<!--=========================================
-        ADMIN STATISTICS
-==========================================-->
-
-<section class="admin-cards">
-
-    <div class="admin-card">
-
-        <div class="admin-icon users-icon">
-            <i class="fa-solid fa-users"></i>
-        </div>
-
-        <div>
-            <h4>Total Users</h4>
-            <h2><span id="adminTotalUsers" class="counter" data-target="1248">0</span></h2>
-            <span>+36 This Month</span>
-        </div>
-
+<body class="candidate-dashboard-page role-dashboard-page admin-dashboard-page">
+  <aside class="candidate-sidebar" id="candidateSidebar">
+    <div class="brand-row"><a class="brand" href="admin.html"><span class="brand-mark"><i class="fa-solid fa-sparkles"></i></span><span>SmartHire <b>AI</b></span></a><button class="sidebar-collapse" id="sidebarCollapse" type="button"><i class="fa-solid fa-chevron-left"></i></button></div>
+    <div class="sidebar-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search platform..."><span>⌘K</span></div>
+    <nav class="candidate-nav" aria-label="Admin navigation">
+      <a class="candidate-nav-link active" href="admin.html"><i class="fa-solid fa-house"></i><span>Dashboard</span></a>
+      <a class="candidate-nav-link" href="#user-management"><i class="fa-solid fa-users"></i><span>Users</span><span class="role-nav-badge">2.4k</span></a>
+      <a class="candidate-nav-link" href="#recruiter-operations"><i class="fa-solid fa-user-tie"></i><span>Recruiters</span></a>
+      <a class="candidate-nav-link" href="#platform-analytics"><i class="fa-solid fa-chart-column"></i><span>Platform Analytics</span></a>
+      <a class="candidate-nav-link" href="#ai-config"><i class="fa-solid fa-robot"></i><span>AI Configuration</span></a>
+      <a class="candidate-nav-link" href="#system-activity"><i class="fa-solid fa-list-check"></i><span>System Activity</span></a>
+      <a class="candidate-nav-link" href="#system-controls"><i class="fa-solid fa-gear"></i><span>System Settings</span></a>
+      <a class="candidate-nav-link" href="#admin-reports"><i class="fa-solid fa-file-lines"></i><span>Reports</span></a>
+    </nav>
+    <div class="sidebar-upgrade"><div class="upgrade-spark"><i class="fa-solid fa-shield-halved"></i></div><strong>Platform Control Center</strong><p>Monitor users, AI services and system health from one workspace.</p><a href="#system-activity">View system health <i class="fa-solid fa-arrow-right"></i></a></div>
+    <div class="workspace-switcher" aria-label="Switch workspace">
+      <a href="candidate.html" data-workspace="candidate"><i class="fa-solid fa-user-graduate"></i><span>Candidate Workspace</span></a>
+      <a href="recruiter.html" data-workspace="recruiter"><i class="fa-solid fa-user-tie"></i><span>Recruiter Workspace</span></a>
     </div>
+  </aside>
 
-    <div class="admin-card">
+  <main class="candidate-main">
+    <header class="candidate-header"><button class="mobile-menu" id="mobileMenu" type="button"><i class="fa-solid fa-bars"></i></button><div class="breadcrumb"><span>Admin</span><i class="fa-solid fa-chevron-right"></i><strong>Dashboard</strong></div><div class="header-actions"><button class="header-icon notification-button" type="button"><i class="fa-regular fa-bell"></i><span>6</span></button><button class="header-theme" id="candidateThemeToggle" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><div class="header-profile"><div class="profile-avatar small"><i class="fa-solid fa-user-shield"></i></div><div><strong id="dashboardUserName">Admin</strong><span id="dashboardUserRole">Administrator</span></div><i class="fa-solid fa-chevron-down"></i></div></div></header>
 
-        <div class="admin-icon recruiter-icon">
-            <i class="fa-solid fa-user-tie"></i>
-        </div>
+    <div class="candidate-content">
+      <section class="role-hero"><div><span class="eyebrow">ADMIN CONTROL CENTER</span><h1 id="welcomeHeading">Welcome Admin ⚙️</h1><p id="welcomeSubtitle">Monitor the SmartHire platform, manage users and recruiters, and keep AI services healthy and reliable.</p><div class="role-quick-actions" style="margin-top:16px"><a class="primary" href="#user-management"><i class="fa-solid fa-users"></i> Manage Users</a><a class="ghost" href="#ai-config"><i class="fa-solid fa-robot"></i> AI Configuration</a><a class="ghost" href="#system-activity"><i class="fa-solid fa-heart-pulse"></i> System Health</a></div></div><div class="hero-meta"><span class="hero-pill"><i class="fa-solid fa-circle-check"></i> Platform Operational</span><span class="hero-pill"><i class="fa-solid fa-shield-halved"></i> Security Monitored</span></div></section>
 
-        <div>
-            <h4>Recruiters</h4>
-            <h2><span id="adminRecruitersCount" class="counter" data-target="86">0</span></h2>
-            <span>12 Active Today</span>
-        </div>
+      <section class="role-stat-grid">
+        <div class="role-stat"><div class="role-stat-top"><span>Total Users</span><span class="role-stat-icon"><i class="fa-solid fa-users"></i></span></div><div class="role-stat-value" id="adminTotalUsers">0</div><div class="role-stat-meta">+36 this month</div></div>
+        <div class="role-stat"><div class="role-stat-top"><span>Recruiters</span><span class="role-stat-icon"><i class="fa-solid fa-user-tie"></i></span></div><div class="role-stat-value" id="adminRecruitersCount">0</div><div class="role-stat-meta">12 active today</div></div>
+        <div class="role-stat"><div class="role-stat-top"><span>AI Requests</span><span class="role-stat-icon"><i class="fa-solid fa-robot"></i></span></div><div class="role-stat-value" id="adminAiRequests">0</div><div class="role-stat-meta">Today across services</div></div>
+        <div class="role-stat"><div class="role-stat-top"><span>System Health</span><span class="role-stat-icon"><i class="fa-solid fa-server"></i></span></div><div class="role-stat-value" id="adminSystemHealthValue">99%</div><div class="role-stat-meta" id="adminSystemHealthHint">All systems stable</div></div>
+      </section>
 
+      <section id="platform-analytics" class="role-section-grid two-col">
+        <div class="role-card"><div class="role-card-head"><div><h2>Platform Performance</h2><p>Real-time capacity across SmartHire services.</p></div><a href="#system-activity">View health</a></div><div class="bar-list"><div class="bar-row"><span>Server Usage</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><strong>72%</strong></div><div class="bar-row"><span>Database Load</span><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div><strong>58%</strong></div><div class="bar-row"><span>AI Engine</span><div class="bar-track"><div class="bar-fill" style="width:96%"></div></div><strong>96%</strong></div><div class="bar-row"><span>Storage</span><div class="bar-track"><div class="bar-fill" style="width:64%"></div></div><strong>64%</strong></div></div><div id="adminPlatformStats" class="role-note" style="margin-top:14px">Loading live platform metrics...</div></div>
+        <div class="role-card"><div class="role-card-head"><div><h2>Platform Insights</h2><p>High-level operational picture.</p></div></div><div class="ai-summary"><div class="ai-summary-head"><div class="ai-summary-icon"><i class="fa-solid fa-chart-pie"></i></div><strong>Healthy platform trend</strong></div><p>User activity and AI requests are growing steadily. Keep an eye on AI engine capacity before peak interview hours.</p><div class="ai-chip-row"><span class="ai-chip">99% uptime</span><span class="ai-chip">+12% activity</span><span class="ai-chip">No critical alerts</span></div></div></div>
+      </section>
+
+      <section id="user-management" class="role-card" style="margin-bottom:14px"><div class="role-card-head"><div><h2><i class="fa-solid fa-users" style="color:#6d35e8;margin-right:8px"></i>User Management</h2><p>Manage candidates, recruiters and administrators.</p></div><button id="addUserButton" class="table-btn primary" type="button">+ Add User</button></div><div class="filter-row" style="margin-bottom:13px"><input id="adminUserSearch" class="search-inline" placeholder="Search name or email"><select id="adminRoleFilter" class="search-inline"><option value="all">All roles</option><option value="candidate">Candidate</option><option value="recruiter">Recruiter</option><option value="admin">Admin</option></select><select id="adminStatusFilter" class="search-inline"><option value="all">All statuses</option><option value="ACTIVE">Active</option><option value="PENDING">Pending</option><option value="SUSPENDED">Suspended</option></select></div><div class="table-shell"><table class="admin-table"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Last Login</th><th>Action</th></tr></thead><tbody id="adminUserTableBody"><tr><td colspan="5">Loading users from SmartHire AI...</td></tr></tbody></table></div></section>
+
+      <section id="recruiter-operations" class="role-section-grid two-col"><div class="role-card"><div class="role-card-head"><div><h2>Recruiter Operations</h2><p>Monitor recruiter activity and hiring throughput.</p></div></div><div class="pipeline"><div class="pipeline-step"><strong>Recruiters</strong><span>Registered</span><b>86</b></div><div class="pipeline-step"><strong>Active</strong><span>Today</span><b>72</b></div><div class="pipeline-step"><strong>Interviews</strong><span>Today</span><b>312</b></div><div class="pipeline-step"><strong>Shortlists</strong><span>Today</span><b>48</b></div><div class="pipeline-step"><strong>Offers</strong><span>Pending</span><b>18</b></div></div></div><div class="role-card"><div class="role-card-head"><div><h2>Recruiter Health</h2><p>Operational status of hiring teams.</p></div></div><div class="health-grid"><div class="health-item"><span>Accounts</span><strong><i class="health-dot"></i>Healthy</strong></div><div class="health-item"><span>Interview Usage</span><strong><i class="health-dot"></i>Healthy</strong></div><div class="health-item"><span>Reports</span><strong><i class="health-dot"></i>Healthy</strong></div></div></div></section>
+
+      <section id="ai-config" class="role-card" style="margin-bottom:14px"><div class="role-card-head"><div><h2><i class="fa-solid fa-robot" style="color:#6d35e8;margin-right:8px"></i>AI Configuration Center</h2><p>Configure defaults used by SmartHire AI workflows.</p></div><span class="hero-pill" style="color:#6d35e8;background:#f2edff;border-color:#e7ddff">Gemini / AI Services</span></div><div class="control-grid"><div class="control-card"><div class="control-top"><span class="control-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span><strong>Question Generation</strong></div><p>Generate role-aware questions.</p><button class="toggle on" type="button"></button></div><div class="control-card"><div class="control-top"><span class="control-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></span><strong>Resume Analysis</strong></div><p>Analyze resume and ATS signals.</p><button class="toggle on" type="button"></button></div><div class="control-card"><div class="control-top"><span class="control-icon"><i class="fa-solid fa-ranking-star"></i></span><strong>AI Evaluation</strong></div><p>Score interview performance.</p><button class="toggle on" type="button"></button></div><div class="control-card"><div class="control-top"><span class="control-icon"><i class="fa-solid fa-microphone-lines"></i></span><strong>Voice Features</strong></div><p>Enable voice interview tools.</p><button class="toggle on" type="button"></button></div></div></section>
+
+      <section id="system-activity" class="role-section-grid two-col"><div class="role-card"><div class="role-card-head"><div><h2><i class="fa-solid fa-heart-pulse" style="color:#6d35e8;margin-right:8px"></i>System Health</h2><p>Critical services and availability.</p></div><a href="#system-controls">Controls</a></div><div class="health-grid"><div class="health-item"><span>Backend API</span><strong><i class="health-dot"></i>Operational</strong></div><div class="health-item"><span>Database</span><strong><i class="health-dot"></i>Operational</strong></div><div class="health-item"><span>AI Service</span><strong><i class="health-dot"></i>Operational</strong></div><div class="health-item"><span>Auth</span><strong><i class="health-dot"></i>Operational</strong></div><div class="health-item"><span>Storage</span><strong><i class="health-dot"></i>Operational</strong></div></div></div><div class="role-card"><div class="role-card-head"><div><h2>Recent Activity</h2><p>Latest platform events.</p></div></div><div id="adminRecentActivity" class="activity-list"><div class="activity-item"><div class="activity-top"><span>New recruiter account approved</span><time>5m</time></div><p>Recruiter onboarding completed successfully.</p></div><div class="activity-item"><div class="activity-top"><span>Resume database updated</span><time>20m</time></div><p>Candidate analysis data synchronized.</p></div><div class="activity-item"><div class="activity-top"><span>AI model health check passed</span><time>1h</time></div><p>All configured AI services responded within threshold.</p></div></div></div></section>
+
+      <section id="admin-reports" class="role-section-grid two-col"><div class="role-card"><div class="role-card-head"><div><h2>Platform Reports</h2><p>Operational reports for admin review.</p></div></div><div class="activity-list"><div class="activity-item"><div class="activity-top"><span>Monthly platform usage</span><time>Ready</time></div><p>Users, interviews, AI requests and completion rates.</p></div><div class="activity-item"><div class="activity-top"><span>Recruiter performance</span><time>Ready</time></div><p>Hiring throughput and interview activity summary.</p></div></div></div><div id="system-controls" class="role-card"><div class="role-card-head"><div><h2>System Controls</h2><p>Administrative actions.</p></div></div><div class="role-quick-actions"><button class="table-btn primary" type="button" id="backupButton">Backup Database</button><button class="table-btn" type="button" id="restartAiButton">Restart AI</button><button class="table-btn" type="button" id="generateReportButton">Generate Report</button><button class="table-btn" type="button" id="viewLogsButton">View Logs</button></div><div class="role-note">Destructive or infrastructure actions should be wired to protected admin APIs before production use.</div></div></section>
+
+      <div class="role-footer-note">SmartHire AI admin workspace • Platform controls require authorized administrator access.</div>
     </div>
+  </main>
 
-    <div class="admin-card">
-
-        <div class="admin-icon ai-icon">
-            <i class="fa-solid fa-robot"></i>
-        </div>
-
-        <div>
-            <h4>AI Requests</h4>
-            <h2><span id="adminAiRequests" class="counter" data-target="18975">0</span></h2>
-            <span>Today</span>
-        </div>
-
-    </div>
-
-    <div class="admin-card">
-
-        <div class="admin-icon server-icon">
-            <i class="fa-solid fa-server"></i>
-        </div>
-
-        <div>
-            <h4>System Health</h4>
-            <h2>99%</h2>
-            <span>Running Stable</span>
-        </div>
-
-    </div>
-
-</section>
-<!--=========================================
-        USER MANAGEMENT
-==========================================-->
-
-<section class="user-management">
-
-    <div class="analytics-card">
-
-        <div class="table-header">
-
-            <h2>
-                <i class="fa-solid fa-users"></i>
-                User Management
-            </h2>
-
-            <button class="primary-btn">
-                <i class="fa-solid fa-user-plus"></i>
-                Add User
-            </button>
-
-        </div>
-
-        <table class="admin-table">
-
-            <thead>
-
-                <tr>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th>Action</th>
-                </tr>
-
-            </thead>
-
-            <tbody id="adminUserTableBody">
-                <tr>
-                    <td colspan="5" style="text-align:center; color:#64748b;">Loading users from backend...</td>
-                </tr>
-            </tbody>
-
-        </table>
-
-    </div>
-
-</section>
-<!--=========================================
-        PLATFORM ANALYTICS
-==========================================-->
-
-<section class="admin-analytics">
-
-    <!-- System Performance -->
-
-    <div class="analytics-card">
-
-        <h2>
-            <i class="fa-solid fa-chart-line"></i>
-            Platform Performance
-        </h2>
-
-        <div id="adminPlatformStats" style="margin-bottom:16px; color:#475569; font-weight:600;"></div>
-
-        <div class="funnel-item">
-            <span>Server Usage</span>
-            <progress value="72" max="100"></progress>
-            <strong>72%</strong>
-        </div>
-
-        <div class="funnel-item">
-            <span>Database Load</span>
-            <progress value="58" max="100"></progress>
-            <strong>58%</strong>
-        </div>
-
-        <div class="funnel-item">
-            <span>AI Engine</span>
-            <progress value="96" max="100"></progress>
-            <strong>96%</strong>
-        </div>
-
-        <div class="funnel-item">
-            <span>Storage</span>
-            <progress value="64" max="100"></progress>
-            <strong>64%</strong>
-        </div>
-
-    </div>
-
-    <!-- Recent Activity -->
-
-    <div class="analytics-card">
-
-        <h2>
-            <i class="fa-solid fa-clock-rotate-left"></i>
-            Recent Activity
-        </h2>
-
-        <div id="adminRecentActivity"></div>
-
-        <div class="activity-item">
-            ✅ New recruiter account approved
-            <small>5 mins ago</small>
-        </div>
-
-        <div class="activity-item">
-            📄 Resume database updated
-            <small>20 mins ago</small>
-        </div>
-
-        <div class="activity-item">
-            🤖 AI model retrained successfully
-            <small>1 hour ago</small>
-        </div>
-
-        <div class="activity-item">
-            🔒 Security scan completed
-            <small>Today</small>
-        </div>
-
-    </div>
-
-</section>
-
-<!--=========================================
-        SYSTEM CONTROLS
-==========================================-->
-
-<section class="system-controls">
-
-    <div class="analytics-card">
-
-        <h2>
-            <i class="fa-solid fa-sliders"></i>
-            System Controls
-        </h2>
-
-        <div class="control-buttons">
-
-            <button class="primary-btn">
-                Backup Database
-            </button>
-
-            <button class="secondary-btn">
-                Restart AI
-            </button>
-
-            <button class="primary-btn">
-                Generate Report
-            </button>
-
-            <button class="secondary-btn">
-                View Logs
-            </button>
-
-        </div>
-
-    </div>
-
-</section>
-</div> <!-- dashboard -->
-
-<script src="../js/api-client.js"></script>
-<script src="../js/script.js"></script>
-<script>
-(() => {
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const name = localStorage.getItem("userName") || "Admin";
-    const email = localStorage.getItem("userEmail") || "";
-
-    if (!token) {
-        window.location.href = "../index.html";
-        return;
-    }
-
-    if (role !== "admin") {
-        window.location.href = role === "candidate" ? "candidate.html" : role === "recruiter" ? "recruiter.html" : "../index.html";
-        return;
-    }
-
-    const userNameEl = document.getElementById("dashboardUserName");
-    const userRoleEl = document.getElementById("dashboardUserRole");
-    const welcomeHeading = document.getElementById("welcomeHeading");
-    const welcomeSubtitle = document.getElementById("welcomeSubtitle");
-
-    if (userNameEl) userNameEl.textContent = name;
-    if (userRoleEl) userRoleEl.textContent = "Administrator";
-    if (welcomeHeading) welcomeHeading.textContent = `Welcome ${name} ⚙️`;
-    if (welcomeSubtitle) welcomeSubtitle.textContent = `Hello ${name}${email ? ` (${email})` : ""}. Monitor your platform and keep hiring operations running smoothly.`;
-
-    document.querySelectorAll("li").forEach((item) => {
-        if (item.textContent.includes("Logout")) {
-            item.addEventListener("click", () => {
-                localStorage.removeItem("authToken");
-                localStorage.removeItem("userRole");
-                localStorage.removeItem("userEmail");
-                localStorage.removeItem("userName");
-                window.location.href = "../index.html";
-            });
-        }
-    });
-})();
-</script>
-
-</body>
-
-</html>
+  <script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script><script src="../js/script.js"></script>
+  <script src="../js/role-guard.js"></script><script src="../js/admin-dashboard.js"></script>
+</body></html>

@@ -7,10 +7,10 @@
 - Modern Chromium-based browser
 
 ## Backend Setup
-1. Open `smarthire-backend/smarthire-backend/src/main/resources/application.properties`.
+1. Open `smarthire-backend/src/main/resources/application.properties`.
 2. Update database credentials and Gemini key.
 3. Run:
-   - `cd smarthire-backend/smarthire-backend`
+   - `cd smarthire-backend`
    - `mvn clean package`
    - `mvn spring-boot:run`
 

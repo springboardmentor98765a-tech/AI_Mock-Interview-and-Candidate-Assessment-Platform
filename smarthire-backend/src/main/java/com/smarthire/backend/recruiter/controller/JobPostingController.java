@@ -1,0 +1,10 @@
+package com.smarthire.backend.recruiter.controller;
+import com.smarthire.backend.recruiter.entity.JobPosting; import com.smarthire.backend.recruiter.repository.JobPostingRepository; import com.smarthire.backend.repository.UserRepository; import org.springframework.http.ResponseEntity; import org.springframework.security.core.Authentication; import org.springframework.web.bind.annotation.*; import java.util.List;
+@RestController @RequestMapping("/api/recruiter/jobs") public class JobPostingController{
+ private final JobPostingRepository repo; private final UserRepository users; public JobPostingController(JobPostingRepository repo,UserRepository users){this.repo=repo;this.users=users;}
+ @GetMapping public List<JobPosting> list(Authentication a){return repo.findByRecruiterIdOrderByCreatedAtDesc(owner(a));}
+ @PostMapping public ResponseEntity<?> create(@RequestBody JobPosting job,Authentication a){if(job.getTitle()==null||job.getTitle().isBlank())return ResponseEntity.badRequest().body(java.util.Map.of("message","Job title is required"));job.setId(null);job.setRecruiterId(owner(a));if(job.getStatus()==null)job.setStatus("ACTIVE");return ResponseEntity.ok(repo.save(job));}
+ @PutMapping("/{id}") public ResponseEntity<?> update(@PathVariable Long id,@RequestBody JobPosting input,Authentication a){return repo.findById(id).filter(j->j.getRecruiterId().equals(owner(a))).map(j->{if(input.getTitle()!=null)j.setTitle(input.getTitle());j.setDepartment(input.getDepartment());j.setLocation(input.getLocation());j.setDescription(input.getDescription());if(input.getStatus()!=null)j.setStatus(input.getStatus());return ResponseEntity.ok(repo.save(j));}).orElseGet(()->ResponseEntity.notFound().build());}
+ @DeleteMapping("/{id}") public ResponseEntity<?> delete(@PathVariable Long id,Authentication a){return repo.findById(id).filter(j->j.getRecruiterId().equals(owner(a))).map(j->{repo.delete(j);return ResponseEntity.ok(java.util.Map.of("message","Job deleted"));}).orElseGet(()->ResponseEntity.notFound().build());}
+ private Long owner(Authentication a){return users.findByEmail(a.getName()).orElseThrow().getId();}
+}

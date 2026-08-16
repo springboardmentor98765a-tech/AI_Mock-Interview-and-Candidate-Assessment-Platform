@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: smarthire-backend/smarthire-backend
+        working-directory: SmartHireFinal/smarthire-backend
 
     steps:
       - name: Checkout
@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smarthire-backend-jar
-          path: smarthire-backend/smarthire-backend/target/*.jar
+          path: SmartHireFinal/smarthire-backend/target/*.jar

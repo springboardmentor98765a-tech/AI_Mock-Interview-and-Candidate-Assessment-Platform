@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="../assets/favicon.ico" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live AI Interview | SmartHire AI</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/interview-pages.css">
+  <link rel="stylesheet" href="../css/live-interview-clean.css"><link rel="stylesheet" href="../css/smarthire-popups.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/smarthire-unified-theme.css">
+  <link rel="stylesheet" href="../css/live-interview-final-overrides.css">
+  <link rel="stylesheet" href="../css/live-interview-production.css">
+  <link rel="stylesheet" href="../css/final-theme-contrast.css">
+</head>
+<body class="live-room-clean">
+  <header class="clean-live-topbar">
+    <a href="candidate.html" class="clean-live-brand"><i class="fa-solid fa-brain"></i><span>SmartHire AI</span></a>
+    <div class="clean-live-meta">
+      <span class="clean-live-status"><span class="clean-live-dot"></span> LIVE AI INTERVIEW</span>
+      <span class="clean-live-pill" id="liveRoomRolePill">Frontend Developer</span>
+      <span class="clean-live-pill" id="interviewTopStatus">Question 1 / 10</span>
+      <span class="clean-live-pill" id="topTimerValue">20:00</span>
+    </div>
+    <a href="candidate.html" id="liveExitBtn" class="clean-exit-btn">Exit</a>
+  </header>
+
+  <main class="clean-live-main">
+    <div id="liveRoomSetupNotice" class="clean-alert info" style="display:none;">Preparing your interview room...</div>
+
+    <div class="hidden-interview-launch" aria-hidden="true">
+      <div class="interview-details">
+        <input id="jobRole" value="Frontend Developer">
+        <input id="interviewType" value="technical">
+        <input id="domain" value="software engineering">
+        <input id="experienceLevel" value="mid">
+        <input id="difficulty" value="medium">
+        <button type="button" id="launchExistingInterviewFlow">Start Interview</button>
+      </div>
+    </div>
+
+    <div class="clean-live-header">
+      <div>
+        <span class="clean-eyebrow">FOCUSED INTERVIEW ROOM</span>
+        <h1>Live AI Interview</h1>
+        <p id="liveRoomIntro">Your question, webcam, timer and answer controls are all in one workspace.</p>
+      </div>
+      <div class="clean-header-status">
+        <span class="clean-chip" id="liveRecordingStatus">Idle</span>
+        <span class="clean-timer-chip"><i class="fa-regular fa-clock"></i><span id="interviewTimer">20:00</span> remaining</span><button class="clean-chip sh-help-btn" id="liveHelpBtn" type="button"><i class="fa-solid fa-circle-question"></i> Help</button>
+      </div>
+    </div>
+
+    <p id="interviewLoading" class="clean-alert info" style="display:none;">Generating your AI interview questions...</p>
+    <p id="interviewError" class="clean-alert error" style="display:none;"></p>
+
+    <section class="clean-live-workspace">
+      <article class="clean-video-card">
+        <div class="clean-card-heading">
+          <div>
+            <span class="clean-eyebrow dark">YOUR CAMERA</span>
+            <h2>Live Webcam</h2>
+          </div>
+          <span class="clean-ready-pill" id="liveCameraStatus">Off</span>
+        </div>
+
+        <div class="clean-video-frame">
+          <video id="liveInterviewVideo" autoplay muted playsinline></video>
+          <div class="clean-video-placeholder" id="liveInterviewPlaceholder">
+            <i class="fa-solid fa-video"></i>
+            <strong>Camera preview will appear here</strong>
+            <span>Allow camera and microphone access when prompted.</span>
+          </div>
+        </div>
+
+        <div class="clean-device-grid">
+          <div class="clean-device-status">
+            <span><i class="fa-solid fa-camera"></i> Camera</span>
+            <strong id="liveCameraStatusText">Off</strong>
+          </div>
+          <div class="clean-device-status">
+            <span><i class="fa-solid fa-microphone"></i> Microphone</span>
+            <strong id="liveMicStatus">Muted</strong>
+          </div>
+          <div class="clean-device-status">
+            <span><i class="fa-solid fa-circle-dot"></i> Recording</span>
+            <strong id="liveRecordingStatusText">Idle</strong>
+          </div>
+          <div class="clean-device-status">
+            <span><i class="fa-solid fa-shield-halved"></i> Monitoring</span>
+            <strong>Active</strong>
+          </div>
+        </div>
+
+        <div class="clean-device-actions">
+          <button class="secondary-btn" id="liveCameraToggleBtn" type="button">Turn Camera On</button>
+          <button class="secondary-btn" id="liveMicToggleBtn" type="button">Unmute Microphone</button>
+          <button class="secondary-btn" id="liveRecordingStartBtn" type="button">Start Recording</button>
+          <button class="secondary-btn" id="liveRecordingStopBtn" type="button" disabled>Stop Recording</button>
+        </div>
+
+        <p id="liveInterviewError" class="clean-inline-error" style="display:none;"></p>
+      </article>
+
+      <article class="clean-question-card" id="interviewSession">
+        <div class="clean-question-top">
+          <div>
+            <span class="clean-eyebrow dark">CURRENT QUESTION</span>
+            <div class="clean-question-number" id="interviewQuestionNumber">Question 1 of 10</div>
+          </div>
+          <div class="clean-question-tags">
+            <span id="interviewCategory">General</span>
+            <span id="interviewDifficulty">Medium</span>
+            <span id="interviewAnswerMode" style="display:none">TEXT</span>
+          </div>
+        </div>
+
+        <div class="clean-progress-track">
+          <div id="interviewProgressBar" class="clean-progress-fill"></div>
+        </div>
+
+        <div class="clean-question-content">
+          <div class="clean-question-text" id="interviewQuestionText">Preparing your first AI-generated question...</div>
+          <div id="interviewOptions" class="clean-mcq-options" style="display:none" aria-label="Question options"></div>
+          <button class="secondary-btn clean-play-question" id="liveQuestionPlayBtn" type="button">
+            <i class="fa-solid fa-volume-high"></i> Play Question
+          </button>
+        </div>
+
+        <div class="clean-answer-section">
+          <div class="clean-answer-heading">
+            <div>
+              <span class="clean-eyebrow dark">YOUR ANSWER</span>
+              <h3>Answer / Live Transcript</h3>
+            </div>
+            <span class="clean-chip muted" id="liveSpeechStatus">Not Listening</span>
+          </div>
+
+          <textarea id="interviewAnswerBox" placeholder="Type your answer here or use voice input..." rows="7"></textarea>
+
+          <div class="clean-transcript-preview" id="liveTranscriptText">
+            Your speech will appear here when listening starts.
+          </div>
+
+          <p class="clean-inline-error" id="liveSpeechError" style="display:none;"></p>
+
+          <div class="clean-answer-actions">
+            <button class="secondary-btn" id="liveSpeechStartBtn" type="button">
+              <i class="fa-solid fa-microphone"></i> Start Voice Answer
+            </button>
+            <button class="secondary-btn" id="liveSpeechStopBtn" type="button" disabled>
+              Stop Voice Answer
+            </button>
+            <button class="secondary-btn" id="liveSpeechClearBtn" type="button">
+              Clear Transcript
+            </button>
+          </div>
+        </div>
+
+        <div class="clean-session-status" id="interviewSessionStatusBanner">
+          <i class="fa-solid fa-pause"></i>
+          <span>Interview paused. Resume when you are ready.</span>
+        </div>
+      </article>
+    </section>
+
+    <!-- Advanced Live Interview Experience -->
+    <section class="sh-live-advanced-grid" aria-label="Advanced interview tools">
+      <article class="sh-live-advanced-card sh-progress-card">
+        <div class="sh-advanced-head">
+          <div>
+            <span class="clean-eyebrow dark">INTERVIEW PROGRESS</span>
+            <h3>Question Journey</h3>
+          </div>
+          <span class="sh-advanced-badge" id="shProgressSummary">0 / 0</span>
+        </div>
+        <div class="sh-question-stepper" id="shQuestionStepper"></div>
+        <div class="sh-question-meta-grid">
+          <div><span>Question Type</span><strong id="shQuestionType">General</strong></div>
+          <div><span>Difficulty</span><strong id="shQuestionDifficulty">Medium</strong></div>
+          <div><span>Estimated Time</span><strong id="shQuestionTime">2 min</strong></div>
+        </div>
+      </article>
+
+      <article class="sh-live-advanced-card sh-context-card">
+        <div class="sh-advanced-head">
+          <div>
+            <span class="clean-eyebrow dark">AI INTERVIEWER</span>
+            <h3>Question Context</h3>
+          </div>
+          <div class="sh-ai-avatar"><i class="fa-solid fa-robot"></i></div>
+        </div>
+        <div class="sh-context-role" id="shContextRole">Frontend Developer</div>
+        <div class="sh-context-tags"><span id="shContextType">Technical Interview</span><span id="shContextDifficulty">Medium</span></div>
+        <p id="shContextQuestion">Your current AI-generated question will appear here.</p>
+        <div class="sh-context-actions">
+          <button class="secondary-btn" id="shContextPlay" type="button"><i class="fa-solid fa-volume-high"></i> Play</button>
+          <button class="secondary-btn" id="shContextRepeat" type="button"><i class="fa-solid fa-rotate-right"></i> Repeat</button>
+        </div>
+      </article>
+
+      <article class="sh-live-advanced-card sh-insights-card">
+        <div class="sh-advanced-head">
+          <div>
+            <span class="clean-eyebrow dark">LIVE INTERVIEW INSIGHTS</span>
+            <h3>Response Signals</h3>
+          </div>
+          <span class="sh-ai-status"><i class="fa-solid fa-sparkles"></i> Smart</span>
+        </div>
+        <div class="sh-insight-metrics">
+          <div><span>Answer Length</span><strong id="shAnswerWords">0 words</strong><em id="shAnswerLengthState">Waiting</em></div>
+          <div><span>Response Time</span><strong id="shResponseTime">0:00</strong><em id="shResponseTimeState">Not started</em></div>
+          <div><span>Question Progress</span><strong id="shQuestionProgress">0%</strong><em>Session</em></div>
+        </div>
+        <div class="sh-ai-tip"><i class="fa-solid fa-lightbulb"></i><div><strong>AI Tip</strong><p id="shAiTip">Give a structured answer with a clear situation, action and result.</p></div></div>
+      </article>
+
+      <article class="sh-live-advanced-card sh-system-card">
+        <div class="sh-advanced-head">
+          <div>
+            <span class="clean-eyebrow dark">INTERVIEW ENVIRONMENT</span>
+            <h3>System Status</h3>
+          </div>
+          <span class="sh-system-summary" id="shSystemSummary">Checking</span>
+        </div>
+        <div class="sh-system-list">
+          <div><span><i class="fa-solid fa-camera"></i> Camera</span><strong id="shSystemCamera">Off</strong></div>
+          <div><span><i class="fa-solid fa-microphone"></i> Microphone</span><strong id="shSystemMic">Muted</strong></div>
+          <div><span><i class="fa-solid fa-wifi"></i> Internet</span><strong id="shSystemInternet">Checking</strong></div>
+          <div><span><i class="fa-solid fa-brain"></i> AI Service</span><strong id="shSystemAI">Ready</strong></div>
+          <div><span><i class="fa-solid fa-circle-dot"></i> Recording</span><strong id="shSystemRecording">Idle</strong></div>
+        </div>
+        <div class="sh-system-note" id="shSystemNote"><i class="fa-solid fa-circle-check"></i> Your interview environment is ready.</div>
+      </article>
+
+      <article class="sh-live-advanced-card sh-controls-card">
+        <div class="sh-advanced-head">
+          <div>
+            <span class="clean-eyebrow dark">PRO INTERVIEW CONTROLS</span>
+            <h3>Quick Actions</h3>
+          </div>
+        </div>
+        <div class="sh-pro-controls">
+          <button type="button" data-sh-control="mic" title="Toggle microphone"><i class="fa-solid fa-microphone"></i><span>Mic</span></button>
+          <button type="button" data-sh-control="camera" title="Toggle camera"><i class="fa-solid fa-video"></i><span>Camera</span></button>
+          <button type="button" data-sh-control="play" title="Play question"><i class="fa-solid fa-volume-high"></i><span>Speaker</span></button>
+          <button type="button" data-sh-control="pause" title="Pause interview"><i class="fa-solid fa-pause"></i><span>Pause</span></button>
+          <button type="button" data-sh-control="help" title="Open interview guide"><i class="fa-solid fa-circle-question"></i><span>Guide</span></button>
+        </div>
+      </article>
+    </section>
+
+    <section class="clean-interview-footer">
+      <div class="clean-control-group">
+        <button class="secondary-btn" id="interviewPauseBtn" type="button" title="Pause interview" aria-label="Pause interview"><i class="fa-solid fa-pause"></i> Pause</button>
+        <button class="primary-btn" id="interviewResumeBtn" type="button" title="Resume interview" aria-label="Resume interview" style="display:none;"><i class="fa-solid fa-play"></i> Resume</button>
+      </div>
+      <div class="clean-control-group right">
+        <button class="secondary-btn" id="interviewPrevBtn" type="button" title="Previous question" aria-label="Previous question">Previous</button>
+        <button class="secondary-btn" id="interviewSkipBtn" type="button" title="Skip question" aria-label="Skip question">Skip</button>
+        <button class="primary-btn" id="interviewNextBtn" type="button" title="Next question" aria-label="Next question">Next Question <i class="fa-solid fa-arrow-right"></i></button>
+        <button class="danger-btn" id="interviewEndBtn" type="button" title="End interview" aria-label="End interview"><i class="fa-solid fa-flag-checkered"></i> End Interview</button>
+      </div>
+    </section>
+
+    <div class="clean-post-interview-actions">
+      <button class="primary-btn" id="liveReportBtn" type="button"><i class="fa-solid fa-chart-column"></i> Open Interview Report</button>
+      <button class="secondary-btn" id="liveEmailPreviewBtn" type="button">Email Report Preview</button>
+      <button class="secondary-btn" id="liveTranscriptDownloadBtn" type="button">Download Transcript</button>
+      <button class="secondary-btn" id="liveRecordingDownloadBtn" type="button" disabled>Download Video</button>
+      <button class="secondary-btn" id="liveAudioDownloadBtn" type="button" disabled>Download Audio</button>
+    </div>
+
+    <div id="liveFollowUpQuestionWrap" style="display:none;" class="clean-followup">
+      <span class="clean-eyebrow dark">AI FOLLOW-UP</span>
+      <h3>Follow-up Question</h3>
+      <p id="liveFollowUpQuestionText"></p>
+    </div>
+    <p id="liveFollowUpLoading" class="clean-alert info" style="display:none;">AI is generating a follow-up question...</p>
+    <p id="liveFollowUpError" class="clean-alert error" style="display:none;"></p>
+
+    <div id="interviewEvaluationLoading" style="display:none; margin-top:12px; padding:12px 14px; border-radius:10px; background:#eef5ff; color:#1f4f8a; font-weight:600; border-left:4px solid #1f78d1;">AI is evaluating your interview...</div>
+<div id="interviewEvaluationResult" style="display:none; margin-top:14px; background:#ffffff; border:1px solid #e7ebf4; border-radius:18px; padding:18px; box-shadow:0 12px 28px rgba(20,40,80,.08);">
+<div class="evaluation-header">
+<div>
+<p class="evaluation-kicker">AI Evaluation Dashboard</p>
+<h3>Interview Evaluation Summary</h3>
+<p class="evaluation-subtitle">A weighted view of communication, confidence, technical depth, and professionalism.</p>
+</div>
+<div class="evaluation-rating-chip">
+<span>Rating</span>
+<strong id="evalRating">Pending</strong>
+</div>
+</div>
+<div class="evaluation-ring-grid">
+<div class="evaluation-ring-card evaluation-ring-card-large">
+<div class="evaluation-ring" data-ring-color="#1f78d1" id="evalOverallRing">
+<div class="evaluation-ring-center">
+<span id="evalOverallScore">0%</span>
+<small>Overall</small>
+</div>
+</div>
+<p>Weighted overall score</p>
+</div>
+<div class="evaluation-ring-card">
+<div class="evaluation-ring" data-ring-color="#f08a24" id="evalCommunicationRing">
+<div class="evaluation-ring-center">
+<span id="evalCommunicationScore">0%</span>
+<small>Communication</small>
+</div>
+</div>
+</div>
+<div class="evaluation-ring-card">
+<div class="evaluation-ring" data-ring-color="#2d7a39" id="evalConfidenceRing">
+<div class="evaluation-ring-center">
+<span id="evalConfidenceScore">0%</span>
+<small>Confidence</small>
+</div>
+</div>
+</div>
+<div class="evaluation-ring-card">
+<div class="evaluation-ring" data-ring-color="#1d7f57" id="evalTechnicalRing">
+<div class="evaluation-ring-center">
+<span id="evalTechnicalScore">0%</span>
+<small>Technical</small>
+</div>
+</div>
+</div>
+<div class="evaluation-ring-card">
+<div class="evaluation-ring" data-ring-color="#5f46b3" id="evalProfessionalismRing">
+<div class="evaluation-ring-center">
+<span id="evalProfessionalismScore">0%</span>
+<small>Professionalism</small>
+</div>
+</div>
+</div>
+</div>
+<div class="evaluation-breakdown-grid">
+<div class="evaluation-breakdown-card">
+<h4>Communication Breakdown</h4>
+<div class="evaluation-metric"><span>Grammar</span><strong id="evalGrammarScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalGrammarBar"></div></div>
+<div class="evaluation-metric"><span>Speech Clarity</span><strong id="evalSpeechClarityScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalSpeechClarityBar"></div></div>
+<div class="evaluation-metric"><span>Speaking Pace</span><strong id="evalSpeakingPaceScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalSpeakingPaceBar"></div></div>
+<div class="evaluation-metric"><span>Filler Words</span><strong id="evalFillerWordScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalFillerWordBar"></div></div>
+<div class="evaluation-metric"><span>Response Completeness</span><strong id="evalResponseCompletenessScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalResponseCompletenessBar"></div></div>
+</div>
+<div class="evaluation-breakdown-card">
+<h4>Confidence Breakdown</h4>
+<div class="evaluation-metric"><span>Eye Contact</span><strong id="evalEyeContactScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalEyeContactBar"></div></div>
+<div class="evaluation-metric"><span>Facial Engagement</span><strong id="evalFacialEngagementScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalFacialEngagementBar"></div></div>
+<div class="evaluation-metric"><span>Response Hesitation</span><strong id="evalResponseHesitationScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalResponseHesitationBar"></div></div>
+</div>
+<div class="evaluation-breakdown-card">
+<h4>Technical Breakdown</h4>
+<div class="evaluation-metric"><span>Keyword Matching</span><strong id="evalKeywordMatchingScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalKeywordMatchingBar"></div></div>
+<div class="evaluation-metric"><span>Domain Relevance</span><strong id="evalDomainRelevanceScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalDomainRelevanceBar"></div></div>
+<div class="evaluation-metric"><span>Technical Accuracy</span><strong id="evalTechnicalAccuracyScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalTechnicalAccuracyBar"></div></div>
+<div class="evaluation-metric"><span>Answer Completeness</span><strong id="evalAnswerCompletenessScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalAnswerCompletenessBar"></div></div>
+</div>
+<div class="evaluation-breakdown-card">
+<h4>Professionalism Breakdown</h4>
+<div class="evaluation-metric"><span>Time Management</span><strong id="evalTimeManagementScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalTimeManagementBar"></div></div>
+<div class="evaluation-metric"><span>Answer Organization</span><strong id="evalAnswerOrganizationScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalAnswerOrganizationBar"></div></div>
+<div class="evaluation-metric"><span>Interview Etiquette</span><strong id="evalInterviewEtiquetteScore">0%</strong></div>
+<div class="evaluation-bar"><div id="evalInterviewEtiquetteBar"></div></div>
+</div>
+</div>
+<div class="evaluation-insight-grid">
+<div class="evaluation-list-card">
+<h4>Strengths</h4>
+<ul id="evalStrengths"></ul>
+</div>
+<div class="evaluation-list-card">
+<h4>Weaknesses</h4>
+<ul id="evalWeaknesses"></ul>
+</div>
+<div class="evaluation-list-card">
+<h4>Improvement Suggestions</h4>
+<ul id="evalImprovementSuggestions"></ul>
+</div>
+<div class="evaluation-list-card">
+<h4>Practice Recommendations</h4>
+<ul id="evalPracticeRecommendations"></ul>
+</div>
+<div class="evaluation-list-card">
+<h4>Learning Resources</h4>
+<ul id="evalLearningResources"></ul>
+</div>
+<div class="evaluation-list-card evaluation-list-card-summary">
+<h4>Recommendation</h4>
+<p id="evalRecommendation"></p>
+</div>
+<div class="evaluation-list-card evaluation-list-card-summary">
+<h4>Feedback</h4>
+<ul id="evalFeedback"></ul>
+</div>
+</div>
+<div class="evaluation-list-card" style="margin-top:16px;">
+<h4>Session Timeline</h4>
+<div id="liveSessionTimeline"></div>
+</div>
+<div class="evaluation-list-card" style="margin-top:16px;">
+<h4>Speech Analysis</h4>
+<div class="evaluation-metric"><span>Grammar Quality</span><strong id="speechGrammarQuality">0%</strong></div>
+<div class="evaluation-metric"><span>Speaking Pace</span><strong id="speechPace">0 WPM</strong></div>
+<div class="evaluation-metric"><span>Filler Words</span><strong id="speechFillerWords">0</strong></div>
+<div class="evaluation-metric"><span>Average Response Length</span><strong id="speechAvgResponseLength">0 words</strong></div>
+<p id="speechCommunicationInsights" style="margin:10px 0 0; color:#334155; line-height:1.6;">Communication insights will appear once transcript is available.</p>
+</div>
+</div>
+
+
+    <ul id="interviewQuestions" style="display:none;"></ul>
+  </main>
+
+<div id="interviewCompletionModal" class="sh-completion-modal" role="dialog" aria-modal="true" aria-labelledby="completionTitle" hidden>
+  <div class="sh-completion-backdrop" data-close-completion></div>
+  <div class="sh-completion-card">
+    <button class="sh-completion-close" type="button" data-close-completion aria-label="Close report ready dialog">×</button>
+    <div class="sh-completion-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <span class="clean-eyebrow dark">INTERVIEW COMPLETED</span>
+    <h2 id="completionTitle">Your AI interview report is ready 🎉</h2>
+    <p id="completionSubtitle">Your interview session, answers and evaluation have been saved.</p>
+    <div class="sh-completion-scores">
+      <div><span>Overall</span><strong id="completionOverall">Pending</strong></div>
+      <div><span>Technical</span><strong id="completionTechnical">Pending</strong></div>
+      <div><span>Communication</span><strong id="completionCommunication">Pending</strong></div>
+      <div><span>Problem Solving</span><strong id="completionProblemSolving">Pending</strong></div>
+    </div>
+    <div class="sh-completion-actions">
+      <button class="primary-btn" id="completionReportBtn" type="button"><i class="fa-solid fa-file-lines"></i> View Detailed Report</button>
+      <button class="secondary-btn" id="completionDashboardBtn" type="button">Back to Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="sh-modal-backdrop" id="liveConfirmModal">
+  <div class="sh-modal" role="dialog" aria-modal="true" aria-labelledby="liveConfirmTitle">
+    <div class="sh-modal-head"><div><span class="sh-modal-kicker" id="liveConfirmKicker">INTERVIEW CONTROL</span><h2 id="liveConfirmTitle">Are you sure?</h2></div><button class="sh-modal-close" data-sh-close="liveConfirmModal" type="button"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="sh-modal-body"><p id="liveConfirmText">Your current interview state will be preserved.</p></div>
+    <div class="sh-modal-footer"><button class="secondary-btn" data-sh-close="liveConfirmModal" type="button">Go Back</button><button class="primary-btn" id="liveConfirmAction" type="button">Continue</button></div>
+  </div>
+</div>
+<div class="sh-modal-backdrop" id="liveHelpModal">
+  <div class="sh-modal" role="dialog" aria-modal="true"><div class="sh-modal-head"><div><span class="sh-modal-kicker">SMART HIRE ASSIST</span><h2>Interview room guide</h2></div><button class="sh-modal-close" data-sh-close="liveHelpModal" type="button"><i class="fa-solid fa-xmark"></i></button></div><div class="sh-modal-body"><div class="sh-check-list"><div class="sh-check"><i class="fa-solid fa-volume-high"></i><strong>Use Play Question to hear the AI interviewer.</strong></div><div class="sh-check"><i class="fa-solid fa-microphone"></i><strong>Start Voice Answer to capture a transcript, or type your answer.</strong></div><div class="sh-check"><i class="fa-solid fa-pause"></i><strong>Pause when you need a short break. Your session state is saved.</strong></div><div class="sh-check"><i class="fa-solid fa-forward"></i><strong>Skip a question only when you are ready to move ahead.</strong></div></div><p style="margin:14px 0 0">SmartHire evaluates completed answers after the session. It does not display hidden answer suggestions during the assessment.</p></div><div class="sh-modal-footer"><button class="primary-btn" data-sh-close="liveHelpModal" type="button">Got it</button></div></div>
+</div>
+<div class="sh-modal-backdrop" id="liveCompleteModal">
+  <div class="sh-modal" role="dialog" aria-modal="true"><div class="sh-modal-head"><div><span class="sh-modal-kicker">SESSION COMPLETE</span><h2>Interview completed 🎉</h2></div></div><div class="sh-modal-body"><p>Your answers have been submitted. SmartHire is preparing your detailed AI evaluation.</p><div class="sh-blueprint"><div class="sh-blueprint-row"><span>Role</span><strong id="completeRole">Frontend Developer</strong></div><div class="sh-blueprint-row"><span>Status</span><strong>Evaluation in progress</strong></div><div class="sh-blueprint-row"><span>Next</span><strong>Open detailed report</strong></div></div></div><div class="sh-modal-footer"><button class="secondary-btn" data-sh-close="liveCompleteModal" type="button">Stay Here</button><button class="primary-btn" id="liveCompleteReportBtn" type="button"><i class="fa-solid fa-chart-column"></i> Open Report</button></div></div>
+</div>
+
+  <script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script>
+  <script src="../js/script.js"></script>
+  <script src="../js/live-interview-launch.js"></script><script src="../js/smarthire-live-advanced.js"></script><script src="../js/smarthire-live-popups.js"></script>
+<script src="../js/role-guard.js"></script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+/* SmartHire AI — Unified premium candidate theme for all candidate pages */
+:root{--sh-purple:#6d35e8;--sh-purple2:#8b5cf6;--sh-ink:#17152b;--sh-muted:#77758a;--sh-border:#eceaf3;--sh-bg:#f7f7fb;--sh-card:#fff;--sh-green:#28b67a;--sh-blue:#3b82f6;--sh-orange:#f59e0b;--sh-shadow:0 10px 30px rgba(45,34,88,.06)}
+body.interview-page-shell{margin:0;background:var(--sh-bg);color:var(--sh-ink);font-family:Inter,Poppins,Arial,sans-serif;min-height:100vh}
+body.interview-page-shell .sidebar{position:fixed;inset:0 auto 0 0;width:260px;height:100vh;background:#fff;border-right:1px solid var(--sh-border);color:var(--sh-ink);padding:22px 16px 16px;display:flex;flex-direction:column;overflow-y:auto;z-index:50;box-shadow:none}
+body.interview-page-shell .sidebar-logo{display:flex;align-items:center;gap:10px;margin:0;padding:0 4px 22px}
+body.interview-page-shell .sidebar-logo i{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--sh-purple),#9b6bff);color:#fff;font-size:15px;box-shadow:0 8px 20px rgba(109,53,232,.22)}
+body.interview-page-shell .sidebar-logo h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.5px;color:var(--sh-ink)}
+body.interview-page-shell .sidebar ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:4px}
+body.interview-page-shell .sidebar ul li{display:block;padding:0;margin:0;border-radius:12px;transition:.18s}
+body.interview-page-shell .sidebar ul li:hover{background:#f7f3ff;transform:none}
+body.interview-page-shell .sidebar ul li.active{background:linear-gradient(100deg,#6730e7,#7d43ee);box-shadow:0 8px 20px rgba(109,53,232,.18)}
+body.interview-page-shell .sidebar-link{display:flex;align-items:center;gap:13px;width:100%;padding:12px 13px;border-radius:12px;color:#716f80;text-decoration:none;font-size:13px;font-weight:600}
+body.interview-page-shell .sidebar-link i{width:19px;text-align:center;font-size:14px}
+body.interview-page-shell .sidebar ul li:hover .sidebar-link{color:var(--sh-purple)}
+body.interview-page-shell .sidebar ul li.active .sidebar-link{color:#fff}
+body.interview-page-shell .sidebar-upgrade{margin-top:auto;border-radius:18px;padding:17px;color:#fff;background:linear-gradient(145deg,#6b30e7,#9a5cff);box-shadow:0 15px 28px rgba(109,53,232,.2)}
+body.interview-page-shell .sidebar-upgrade .upgrade-spark{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.18);display:grid;place-items:center;margin-bottom:10px}
+body.interview-page-shell .sidebar-upgrade strong{font-size:13px;display:block}
+body.interview-page-shell .sidebar-upgrade p{font-size:11px;line-height:1.5;color:rgba(255,255,255,.82);margin:7px 0 13px}
+body.interview-page-shell .sidebar-upgrade a{display:flex;justify-content:center;gap:7px;text-decoration:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);padding:9px;border-radius:10px;font-size:11px;font-weight:700;color:#fff}
+body.interview-page-shell .dashboard{margin-left:260px;min-height:100vh;background:var(--sh-bg)}
+body.interview-page-shell .topbar{height:74px;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--sh-border);box-shadow:none;padding:0 32px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:30}
+body.interview-page-shell .search-box{height:40px;width:380px;background:#f8f7fb;border:1px solid #efedf5;border-radius:12px;display:flex;align-items:center;padding:0 12px;box-shadow:none}
+body.interview-page-shell .search-box i{color:#9996a7;margin-right:9px;font-size:12px}
+body.interview-page-shell .search-box input{border:0;outline:0;background:transparent;width:100%;font:inherit;font-size:12px;color:var(--sh-ink)}
+body.interview-page-shell .top-icons{display:flex;align-items:center;gap:12px}
+body.interview-page-shell .top-icons .secondary-btn{height:38px;border:1px solid var(--sh-border);background:#fff;color:#706d7d;border-radius:11px;padding:0 12px;font-size:11px;font-weight:600}
+body.interview-page-shell .profile{display:flex;align-items:center;gap:9px;padding-left:4px}
+body.interview-page-shell .profile h4{font-size:11px;margin:0;color:var(--sh-ink)}
+body.interview-page-shell .profile p{font-size:10px;color:#9996a6;margin:2px 0 0}
+body.interview-page-shell .page-content{padding:27px 32px 38px;max-width:1600px;margin:auto}
+body.interview-page-shell .interview-page-hero{margin:0 0 18px;padding:26px 30px;border-radius:20px;background:linear-gradient(135deg,#6d35e8,#8b5cf6);color:#fff;box-shadow:0 15px 35px rgba(109,53,232,.15);border:0}
+body.interview-page-shell .interview-page-hero h1{margin:5px 0 8px;font-size:28px;letter-spacing:-.5px}
+body.interview-page-shell .interview-page-hero p{margin:0;color:rgba(255,255,255,.84);font-size:12px}
+body.interview-page-shell .eyebrow{font-size:9px;letter-spacing:.14em;font-weight:800;color:#e5dcff}
+body.interview-page-shell .hero-badge{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.14);font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.12)}
+body.interview-page-shell .setup-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px}
+body.interview-page-shell .setup-card,body.interview-page-shell .setup-side-card,body.interview-page-shell .history-page-card{background:#fff;border:1px solid var(--sh-border);border-radius:17px;box-shadow:var(--sh-shadow);padding:20px}
+body.interview-page-shell .setup-card-title{display:flex;align-items:center;gap:12px;margin-bottom:18px}.setup-card-title i{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#f0eaff;color:var(--sh-purple)}.setup-card-title h2{margin:0;font-size:16px}
+body.interview-page-shell .form-grid{gap:14px}.form-grid label{font-size:11px;color:#4e4a5e}.form-grid input,.form-grid select{height:44px;border:1px solid #e4e1ec;border-radius:11px;padding:0 12px;font-size:12px;background:#fff;color:#29253a}.form-grid input:focus,.form-grid select:focus{border-color:#8b6df0;box-shadow:0 0 0 3px rgba(109,53,232,.09)}
+body.interview-page-shell .setup-cta,body.interview-page-shell .primary-btn{background:linear-gradient(100deg,#6d35e8,#7d43ee);border-color:transparent;color:#fff;border-radius:10px;box-shadow:0 8px 18px rgba(109,53,232,.16);font-weight:700}
+body.interview-page-shell .secondary-btn{border:1px solid #ddd9e8;background:#fff;color:#5d586c;border-radius:10px;font-weight:700}
+body.interview-page-shell .setup-side-card{background:linear-gradient(145deg,#6b30e7,#9a5cff);border:0;color:#fff}.setup-side-card h3{font-size:17px}.setup-side-card li{font-size:11px}.setup-side-card li i{color:#bff5d9}.privacy-note{background:rgba(255,255,255,.12);font-size:10px}
+body.interview-page-shell .mock-recommend-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}.mock-recommend{min-height:145px;text-align:left;border:1px solid var(--sh-border);background:#fff;border-radius:15px;padding:14px;box-shadow:var(--sh-shadow);color:var(--sh-ink);cursor:pointer;transition:.18s}.mock-recommend:hover{transform:translateY(-2px);border-color:#dcd1fa;box-shadow:0 14px 28px rgba(45,34,88,.08)}.mock-recommend.selected{border-color:#8a65ed;box-shadow:0 0 0 2px rgba(109,53,232,.08),var(--sh-shadow);background:#fbf9ff}.mock-recommend-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#f0eaff;color:#7139df;margin-bottom:10px}.mock-recommend strong{display:block;font-size:11px}.mock-recommend>span:not(.mock-recommend-icon){display:block;font-size:9px;color:#8d899b;line-height:1.45;margin-top:6px}.mock-recommend b{display:block;color:#7350d4;font-size:9px;margin-top:10px}
+body.interview-page-shell .history-page-card{padding:20px}.history-page-card .card-heading h2{font-size:16px}.history-page-card .primary-action{background:#6d35e8;border-radius:10px;padding:9px 12px;color:#fff}
+body.interview-page-shell .report-link-grid{gap:14px}.report-link-card{border-radius:16px;box-shadow:var(--sh-shadow)}
+body.interview-page-shell .page-alert.error{background:#fff5f6;border-color:#ffdadd;color:#bd3340}.page-alert.info{background:#f4f1ff;border-color:#e4dcff;color:#5c4ab5}
+body.interview-page-shell .settings-card,body.interview-page-shell .analytics-card,body.interview-page-shell .progress-card,body.interview-page-shell .report-card,body.interview-page-shell .surface-card{background:#fff;border:1px solid var(--sh-border);border-radius:17px;box-shadow:var(--sh-shadow)}
+/* dark mode remains available but keeps SmartHire purple identity */
+body.interview-page-shell.dark-mode,body.dark-mode.interview-page-shell{background:#10101a;color:#f4f1fb}body.dark-mode.interview-page-shell .sidebar,body.dark-mode.interview-page-shell .topbar{background:#191925;border-color:#292738}body.dark-mode.interview-page-shell .sidebar-logo h2,body.dark-mode.interview-page-shell .profile h4{color:#f4f1fb}body.dark-mode.interview-page-shell .sidebar-link{color:#aaa5b9}body.dark-mode.interview-page-shell .sidebar ul li:hover{background:#211b31}body.dark-mode.interview-page-shell .search-box,body.dark-mode.interview-page-shell .setup-card,body.dark-mode.interview-page-shell .history-page-card,body.dark-mode.interview-page-shell .secondary-btn{background:#201f2d;border-color:#302d3e;color:#eee}body.dark-mode.interview-page-shell .form-grid input,body.dark-mode.interview-page-shell .form-grid select{background:#201f2d;color:#eee;border-color:#383346}
+@media(max-width:1050px){body.interview-page-shell .mock-recommend-grid{grid-template-columns:repeat(2,1fr)}body.interview-page-shell .setup-grid{grid-template-columns:1fr}}
+@media(max-width:850px){body.interview-page-shell .sidebar{transform:translateX(-100%);width:260px}body.interview-page-shell .dashboard{margin-left:0}body.interview-page-shell .topbar{padding:0 16px}body.interview-page-shell .search-box{width:min(55vw,380px)}body.interview-page-shell .page-content{padding:20px 16px 30px}}
+@media(max-width:560px){body.interview-page-shell .topbar{height:64px}body.interview-page-shell .search-box{width:48px;padding:0 12px}body.interview-page-shell .search-box input{display:none}body.interview-page-shell .mock-recommend-grid{grid-template-columns:1fr}.interview-page-hero{display:block}.hero-badge{margin-top:14px;width:max-content}.form-grid{grid-template-columns:1fr!important}.form-grid label.full{grid-column:auto!important}}
+
+/* Live room: same SmartHire visual language, but distraction-free */
+body.live-room-clean{margin:0;background:#f7f7fb;color:#17152b;font-family:Inter,Poppins,Arial,sans-serif;min-height:100vh}
+body.live-room-clean .clean-live-topbar{position:sticky;top:0;z-index:100;min-height:72px;padding:0 28px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #eceaf3;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;color:#17152b;box-shadow:0 4px 18px rgba(45,34,88,.04)}
+body.live-room-clean .clean-live-brand{color:#17152b;font-size:19px}.clean-live-brand i{color:#6d35e8!important}.clean-live-meta{gap:9px}.clean-live-status,.clean-live-pill{padding:8px 12px;border-radius:999px;background:#f5f2ff;border:1px solid #e9e2ff;color:#5f45b6;font-size:12px;font-weight:700}.clean-live-dot{background:#ef5366}.clean-exit-btn{border:1px solid #e2deea;color:#5f586e;background:#fff;border-radius:10px}
+body.live-room-clean .clean-live-main{width:min(1500px,95vw);margin:0 auto;padding:24px 0 40px}.clean-live-header h1{color:#17152b;font-size:28px}.clean-live-header p{color:#858293}.clean-eyebrow{color:#8060d8}.clean-eyebrow.dark{color:#77758a}.clean-chip,.clean-timer-chip{border:1px solid #e4dfef;background:#fff;color:#5f586e;box-shadow:none}.clean-timer-chip{background:linear-gradient(100deg,#6d35e8,#8b5cf6);border-color:transparent;color:#fff}.clean-chip.muted{background:#f5f4f8;color:#77758a;border-color:#e7e4ee}
+body.live-room-clean .clean-live-workspace{gap:16px}.clean-video-card,.clean-question-card{background:#fff;border:1px solid #eceaf3;border-radius:18px;box-shadow:var(--sh-shadow);padding:20px}.clean-card-heading h2,.clean-question-number,.clean-question-text,.clean-answer-heading h3{color:#17152b}.clean-video-frame{background:#17152b;border-radius:15px}.clean-video-placeholder{color:#ddd9eb}.clean-video-placeholder i{color:#9b72ff}.clean-device-status{border:1px solid #eeeaf3;background:#faf9fc}.clean-device-status span{color:#77758a}.clean-device-status strong{color:#2d2940}.clean-device-actions .secondary-btn,.clean-answer-actions button,.clean-control-group button{border:1px solid #dcd7e8;background:#fff;color:#5f45b6;border-radius:10px}.clean-device-actions .secondary-btn:hover,.clean-answer-actions button:hover,.clean-control-group button:hover{border-color:#8a65ed;background:#faf8ff;color:#6d35e8}.clean-ready-pill{background:#f3f1f7;color:#6d6879;border:1px solid #e7e3ee}.clean-ready-pill.on{background:#e9f9ef;color:#218957;border-color:#caefd9}.clean-question-tags span{background:#f0eaff;color:#5d45b6}.clean-question-tags span+span{background:#eaf8ef;color:#25875a}.clean-progress-track{background:#eeeaf6}.clean-progress-fill{background:linear-gradient(90deg,#6d35e8,#9a5cff)}.clean-answer-section textarea{border-color:#e4e0ec;color:#29253a;background:#fff}.clean-transcript-preview{border-color:#ddd8e8;background:#faf9fc;color:#858093}.clean-interview-footer{background:#fff;border:1px solid #eceaf3;box-shadow:var(--sh-shadow);border-radius:17px}.danger-btn{background:#fff3f4;border-color:#f2c4c9;color:#bd3340}.clean-post-interview-actions{background:linear-gradient(135deg,#6d35e8,#8b5cf6);border:0;border-radius:16px}.clean-followup{background:#fff;border-color:#eceaf3}.clean-followup h3{color:#17152b}.clean-followup p{color:#77758a}
+body.live-room-clean .clean-live-main #interviewEvaluationLoading,body.live-room-clean .clean-live-main #interviewEvaluationResult{border-radius:17px}
+@media(max-width:800px){body.live-room-clean .clean-live-topbar{grid-template-columns:1fr auto;padding:12px 15px}.clean-live-meta{grid-column:1/-1;grid-row:2;justify-content:flex-start}}
+
+
+/* ================================================================
+   SmartHire Live Interview — Advanced Experience Layer
+   Five premium features: AI insights, pro controls, progress tracker,
+   interviewer context, and environment/system status.
+   ================================================================ */
+.sh-live-advanced-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;margin-top:16px;}
+.sh-live-advanced-card{background:rgba(255,255,255,.96);border:1px solid #e8e4f6;border-radius:20px;padding:20px;box-shadow:0 12px 34px rgba(72,46,145,.08);min-width:0;}
+.sh-progress-card{grid-column:span 7}.sh-context-card{grid-column:span 5}.sh-insights-card{grid-column:span 5}.sh-system-card{grid-column:span 4}.sh-controls-card{grid-column:span 3}
+.sh-advanced-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}.sh-advanced-head h3{margin:4px 0 0;color:#17162b;font-size:18px;letter-spacing:-.02em}.sh-advanced-badge,.sh-ai-status,.sh-system-summary{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#f3efff;color:#6337d8;border:1px solid #e5dcff;font-size:11px;font-weight:800}.sh-ai-status i{font-size:10px}.sh-system-summary{background:#ecfbf3;color:#18865a;border-color:#d2f1df}.sh-ai-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#efe7ff,#dcd0ff);color:#6636df;font-size:17px}
+.sh-question-stepper{display:flex;align-items:center;gap:0;overflow:auto;padding:4px 2px 14px;scrollbar-width:thin}.sh-step{position:relative;display:flex;align-items:center;min-width:42px}.sh-step:not(:last-child)::after{content:"";height:3px;width:26px;background:#e7e1f5;margin:0 7px;border-radius:999px}.sh-step.done:not(:last-child)::after{background:#bda7ff}.sh-step-dot{width:30px;height:30px;flex:0 0 30px;border-radius:50%;display:grid;place-items:center;background:#f4f1fb;color:#756a91;border:1px solid #e7e1f4;font-size:11px;font-weight:800}.sh-step.done .sh-step-dot{background:#ecfbf4;color:#18865a;border-color:#cceedd}.sh-step.current .sh-step-dot{background:linear-gradient(135deg,#6b35dc,#8a56ee);color:#fff;border-color:#6b35dc;box-shadow:0 5px 15px rgba(107,53,220,.28)}.sh-question-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.sh-question-meta-grid>div{padding:11px 12px;background:#faf9fe;border:1px solid #ece8f6;border-radius:13px}.sh-question-meta-grid span{display:block;color:#7c7890;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}.sh-question-meta-grid strong{color:#27233a;font-size:13px}
+.sh-context-role{font-size:17px;font-weight:800;color:#242039}.sh-context-tags{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 12px}.sh-context-tags span{padding:6px 9px;border-radius:999px;background:#f3efff;color:#6036c9;font-size:10px;font-weight:800}.sh-context-tags span+span{background:#edf9f2;color:#25805b}.sh-context-card>p{margin:0;min-height:62px;padding:14px;background:linear-gradient(135deg,#faf8ff,#f5f1ff);border:1px solid #e9e0ff;border-radius:14px;color:#29263b;font-size:14px;line-height:1.55;font-weight:600}.sh-context-actions{display:flex;gap:8px;margin-top:12px}.sh-context-actions button{padding:9px 12px;font-size:12px}
+.sh-insight-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.sh-insight-metrics>div{padding:12px;background:#faf9fe;border:1px solid #ece8f6;border-radius:14px}.sh-insight-metrics span{display:block;color:#77748b;font-size:10px;font-weight:700;margin-bottom:5px}.sh-insight-metrics strong{display:block;color:#27233a;font-size:15px}.sh-insight-metrics em{display:block;color:#8d879e;font-size:10px;font-style:normal;margin-top:3px}.sh-ai-tip{display:flex;gap:10px;margin-top:12px;padding:12px;border-radius:14px;background:linear-gradient(135deg,#f6f1ff,#fbf9ff);border:1px solid #e8dcff}.sh-ai-tip>i{color:#7040e4;margin-top:2px}.sh-ai-tip strong{font-size:11px;color:#5f31c7}.sh-ai-tip p{margin:3px 0 0;color:#655f76;font-size:11px;line-height:1.5}
+.sh-system-list{display:grid;gap:7px}.sh-system-list>div{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;background:#fafbfe;border:1px solid #edf0f5;border-radius:11px}.sh-system-list span{display:flex;align-items:center;gap:8px;color:#666279;font-size:11px;font-weight:600}.sh-system-list span i{color:#7040e4;width:14px;text-align:center}.sh-system-list strong{font-size:10px;color:#198658;padding:4px 7px;background:#ecfbf3;border-radius:999px}.sh-system-list strong.warning{color:#a56b08;background:#fff7df}.sh-system-list strong.error{color:#b4232d;background:#fff0f1}.sh-system-note{display:flex;gap:7px;align-items:flex-start;margin-top:10px;padding:9px 10px;background:#ecfbf3;color:#287451;border:1px solid #d3f0df;border-radius:11px;font-size:10px;font-weight:700;line-height:1.4}.sh-system-note.warning{background:#fff8e5;color:#8a6208;border-color:#f6e5b6}.sh-system-note.error{background:#fff1f2;color:#b4232d;border-color:#f2c8cc}
+.sh-pro-controls{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.sh-pro-controls button{border:1px solid #e7e1f4;background:#fff;border-radius:13px;padding:12px 8px;color:#493c6c;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font:inherit;font-size:11px;font-weight:800;transition:.18s ease}.sh-pro-controls button:hover{border-color:#cfc0ff;color:#6737d9;background:#faf8ff;transform:translateY(-1px)}.sh-pro-controls button i{color:#7040e4}.sh-pro-controls button:last-child{grid-column:1/-1}
+@media(max-width:1050px){.sh-progress-card,.sh-context-card,.sh-insights-card,.sh-system-card,.sh-controls-card{grid-column:span 12}.sh-insight-metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){.sh-question-meta-grid,.sh-insight-metrics{grid-template-columns:1fr}.sh-live-advanced-card{padding:16px}.sh-pro-controls{grid-template-columns:repeat(2,1fr)}}
+body.dark-mode.live-room-clean .sh-live-advanced-card{background:#151b2d;border-color:#2a3550;box-shadow:0 14px 34px rgba(0,0,0,.2)}body.dark-mode.live-room-clean .sh-advanced-head h3,body.dark-mode.live-room-clean .sh-context-role,body.dark-mode.live-room-clean .sh-context-card>p,body.dark-mode.live-room-clean .sh-question-meta-grid strong,body.dark-mode.live-room-clean .sh-insight-metrics strong{color:#edf1fa}body.dark-mode.live-room-clean .sh-question-meta-grid>div,body.dark-mode.live-room-clean .sh-insight-metrics>div,body.dark-mode.live-room-clean .sh-system-list>div{background:#10172a;border-color:#2a3550}body.dark-mode.live-room-clean .sh-question-meta-grid span,body.dark-mode.live-room-clean .sh-insight-metrics span,body.dark-mode.live-room-clean .sh-system-list span{color:#9ca8bd}body.dark-mode.live-room-clean .sh-context-card>p,body.dark-mode.live-room-clean .sh-ai-tip{background:#1b1730;border-color:#3a2f58}body.dark-mode.live-room-clean .sh-pro-controls button{background:#11182a;border-color:#2a3550;color:#d9dff0}
+
+/* ===== Global theme + final candidate polish ===== */
+.sh-theme-toggle,#candidateThemeToggle,#settingsTheme{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease}.sh-theme-toggle:hover,#candidateThemeToggle:hover,#settingsTheme:hover{transform:translateY(-1px)}
+body.dark-mode.interview-page-shell .top-icons .secondary-btn,body.dark-mode.interview-page-shell #settingsTheme{background:#201f2d;color:#eee;border-color:#383346}
+body.dark-mode.interview-page-shell .analytics-panel h2,body.dark-mode.interview-page-shell .settings-card h2,body.dark-mode.interview-page-shell .report-card h3,body.dark-mode.interview-page-shell .report-title{color:#edf1fa}
+body.dark-mode.interview-page-shell .analytics-panel p,body.dark-mode.interview-page-shell .report-subtitle,body.dark-mode.interview-page-shell .timeline-meta,body.dark-mode.interview-page-shell .transcript-box,body.dark-mode.interview-page-shell .preview-box{color:#aeb9cd}
+body.dark-mode.interview-page-shell .report-card,body.dark-mode.interview-page-shell .score-chip{background:#151d31;border-color:#2a3550;color:#edf1fa}
+body.dark-mode.interview-page-shell .score-chip{background:#10182a}.dark-mode.interview-page-shell .score-chip strong{color:#bdaeff}.dark-mode.interview-page-shell .transcript-box,.dark-mode.interview-page-shell .preview-box{background:#10182a;border-color:#2a3550}
+body.dark-mode.interview-page-shell .timeline-item{border-color:#2a3550}
+body.dark-mode.interview-page-shell .report-link-card h3,body.dark-mode.interview-page-shell .report-link-card p{color:#edf1fa}
+body.dark-mode.interview-page-shell .history-table td{color:#dbe3ef}
+body.dark-mode.interview-page-shell .history-table th{background:#10182a}
+body.dark-mode.interview-page-shell .page-alert{box-shadow:none}
+
+/* Live room always follows the same light/dark SmartHire tokens. */
+body.live-room-clean{background:#f7f7fb;color:#17152b;font-family:Inter,Poppins,Arial,sans-serif}
+body.live-room-clean .clean-live-topbar{background:rgba(255,255,255,.96);color:#17152b;border-bottom:1px solid #eceaf3;box-shadow:0 8px 24px rgba(45,34,88,.04)}
+body.live-room-clean .clean-live-brand{color:#17152b}.live-room-clean .clean-live-brand i{color:#6d35e8}
+body.live-room-clean .clean-live-status,body.live-room-clean .clean-live-pill{background:#f7f3ff;color:#5f45b6;border:1px solid #e8defe}
+body.live-room-clean .clean-exit-btn{color:#5d586c;background:#fff;border-color:#ddd9e8}
+body.live-room-clean .clean-live-header h1{color:#17152b}.live-room-clean .clean-live-header p{color:#77758a}.live-room-clean .clean-eyebrow{color:#6d35e8}.live-room-clean .clean-eyebrow.dark{color:#70707f}
+body.live-room-clean .clean-chip{background:#f2f4f8;color:#657087;border-color:#e3e7ee}.live-room-clean .clean-timer-chip{background:linear-gradient(100deg,#6d35e8,#8b5cf6);border-color:transparent;color:#fff}.live-room-clean .clean-chip.muted{background:#f2f4f8;color:#718096}
+body.live-room-clean .clean-video-card,body.live-room-clean .clean-question-card,body.live-room-clean .clean-interview-footer,body.live-room-clean .clean-followup{background:#fff;border-color:#eceaf3;box-shadow:0 14px 35px rgba(45,34,88,.07)}
+body.live-room-clean .clean-card-heading h2,body.live-room-clean .clean-question-number,body.live-room-clean .clean-question-text,body.live-room-clean .clean-answer-heading h3{color:#17152b}
+body.live-room-clean .clean-device-status{background:#f8f8fc;border-color:#e9e7f0}.live-room-clean .clean-device-status span{color:#6f6b7d}.live-room-clean .clean-device-status strong{color:#29253a}
+body.live-room-clean .clean-question-tags span{background:#f0eaff;color:#6543c2}.live-room-clean .clean-question-tags span+span{background:#edf8f0;color:#238653}.live-room-clean .clean-progress-track{background:#eeeaf8}.live-room-clean .clean-progress-fill{background:linear-gradient(90deg,#6d35e8,#9a5cff)}
+body.live-room-clean .clean-answer-section textarea{background:#fff;color:#29253a;border-color:#e4e1ec}.live-room-clean .clean-transcript-preview{background:#faf9fd;border-color:#ded9ea;color:#7a7488}
+body.live-room-clean .clean-post-interview-actions{background:#fff;border-color:#eceaf3}.live-room-clean .clean-followup p{color:#6b6677}
+body.dark-mode.live-room-clean{background:#10101a;color:#f4f1fb}.dark-mode.live-room-clean .clean-live-topbar{background:#191925;color:#f4f1fb;border-color:#292738}.dark-mode.live-room-clean .clean-live-brand{color:#f4f1fb}.dark-mode.live-room-clean .clean-live-status,.dark-mode.live-room-clean .clean-live-pill{background:#211b31;color:#d9ceff;border-color:#3b2e5b}.dark-mode.live-room-clean .clean-exit-btn{background:#201f2d;color:#eee;border-color:#383346}
+body.dark-mode.live-room-clean .clean-live-header h1{color:#f4f1fb}.dark-mode.live-room-clean .clean-live-header p{color:#aaa5b9}.dark-mode.live-room-clean .clean-eyebrow{color:#b9a4ff}.dark-mode.live-room-clean .clean-chip{background:#201f2d;color:#d9d4e7;border-color:#383346}.dark-mode.live-room-clean .clean-video-card,.dark-mode.live-room-clean .clean-question-card,.dark-mode.live-room-clean .clean-interview-footer,.dark-mode.live-room-clean .clean-followup{background:#191925;border-color:#302d3e}.dark-mode.live-room-clean .clean-card-heading h2,.dark-mode.live-room-clean .clean-question-number,.dark-mode.live-room-clean .clean-question-text,.dark-mode.live-room-clean .clean-answer-heading h3{color:#f4f1fb}.dark-mode.live-room-clean .clean-device-status{background:#201f2d;border-color:#383346}.dark-mode.live-room-clean .clean-device-status span{color:#aaa5b9}.dark-mode.live-room-clean .clean-device-status strong{color:#eee}.dark-mode.live-room-clean .clean-answer-section textarea{background:#10101a;color:#eee;border-color:#383346}.dark-mode.live-room-clean .clean-transcript-preview{background:#201f2d;border-color:#383346;color:#aaa5b9}.dark-mode.live-room-clean .clean-post-interview-actions{background:#191925;border-color:#302d3e}
+
+/* Shared advanced cards and modals respect dark mode too. */
+body.dark-mode .sh-live-advanced-card{background:#191925!important;border-color:#302d3e!important;color:#f4f1fb}.dark-mode .sh-live-advanced-card h3,.dark-mode .sh-live-advanced-card strong{color:#f4f1fb}.dark-mode .sh-live-advanced-card span,.dark-mode .sh-live-advanced-card p{color:#aaa5b9}.dark-mode .sh-question-stepper .sh-step-dot{background:#201f2d;border-color:#383346;color:#d9d4e7}.dark-mode .sh-question-meta-grid>div,.dark-mode .sh-system-list>div{background:#201f2d!important;border-color:#383346!important}.dark-mode .sh-ai-tip,.dark-mode .sh-system-note{background:#211b31!important;border-color:#3b2e5b!important}.dark-mode .sh-pro-controls button{background:#201f2d!important;border-color:#383346!important;color:#eee!important}
+
+/* Global lightweight toast used by theme and future candidate actions. */
+.sh-toast-stack{position:fixed;right:22px;bottom:22px;z-index:10000;display:grid;gap:10px}.sh-toast{min-width:270px;max-width:380px;background:#fff;border:1px solid #e4e8f0;border-left:4px solid #6d35e8;border-radius:14px;padding:12px 14px;box-shadow:0 18px 45px rgba(15,23,42,.16);display:flex;gap:10px;align-items:flex-start;animation:shToastIn .25s ease}.sh-toast.success{border-left-color:#28b67a}.sh-toast.error{border-left-color:#e24b59}.sh-toast i{color:#6d35e8;margin-top:2px}.sh-toast.success i{color:#28b67a}.sh-toast.error i{color:#e24b59}.sh-toast strong{display:block;color:#253149;font-size:12px}.sh-toast span{display:block;color:#758097;font-size:11px;margin-top:2px;line-height:1.45}@keyframes shToastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}body.dark-mode .sh-toast{background:#191925;border-color:#302d3e}body.dark-mode .sh-toast strong{color:#f4f1fb}body.dark-mode .sh-toast span{color:#aaa5b9}
+
+.page-alert,.clean-alert{transition:opacity .2s ease,transform .2s ease}.page-alert:empty,.clean-alert:empty{display:none!important}.page-alert.error,.clean-alert.error{position:relative}.page-alert.error::before,.clean-alert.error::before{content:'!';display:inline-grid;place-items:center;width:20px;height:20px;margin-right:7px;border-radius:50%;background:#ffe2e5;color:#c52d3b;font-weight:800}
+
+/* ===== FINAL GLOBAL CANDIDATE DARK-MODE CONTRAST + SCROLL POLISH ===== */
+body.interview-page-shell{overflow-x:hidden;overflow-y:auto}
+body.interview-page-shell .sidebar{overflow-y:auto;overflow-x:hidden;min-height:100vh;scrollbar-width:thin;scrollbar-color:#c9b9f4 transparent}
+body.interview-page-shell .sidebar::-webkit-scrollbar{width:6px}body.interview-page-shell .sidebar::-webkit-scrollbar-track{background:transparent}body.interview-page-shell .sidebar::-webkit-scrollbar-thumb{background:#c9b9f4;border-radius:99px}
+body.interview-page-shell .dashboard{min-height:100vh;overflow:visible}
+
+/* High-contrast dark surfaces for every candidate page. */
+body.dark-mode.interview-page-shell,
+body.dark-mode.interview-page-shell .dashboard{background:#0d1220;color:#f5f7fb}
+body.dark-mode.interview-page-shell .sidebar{background:#151a2a;border-color:#2b3448;color:#f5f7fb}
+body.dark-mode.interview-page-shell .topbar{background:rgba(17,23,38,.97);border-color:#2b3448;color:#f5f7fb}
+body.dark-mode.interview-page-shell .sidebar-logo h2,
+body.dark-mode.interview-page-shell .profile h4,
+body.dark-mode.interview-page-shell .profile p,
+body.dark-mode.interview-page-shell .top-icons,
+body.dark-mode.interview-page-shell .page-content h1,
+body.dark-mode.interview-page-shell .page-content h2,
+body.dark-mode.interview-page-shell .page-content h3,
+body.dark-mode.interview-page-shell .page-content h4{color:#f5f7fb}
+body.dark-mode.interview-page-shell .sidebar-link{color:#bac4d6}
+body.dark-mode.interview-page-shell .sidebar ul li:hover{background:#211b35}
+body.dark-mode.interview-page-shell .sidebar ul li:hover .sidebar-link{color:#c8b5ff}
+body.dark-mode.interview-page-shell .sidebar ul li.active .sidebar-link{color:#fff}
+body.dark-mode.interview-page-shell .search-box,
+body.dark-mode.interview-page-shell .top-icons .secondary-btn,
+body.dark-mode.interview-page-shell #settingsTheme{background:#1b2233;color:#eaf0f7;border-color:#354057}
+body.dark-mode.interview-page-shell .search-box input{color:#f5f7fb}
+body.dark-mode.interview-page-shell .search-box input::placeholder{color:#8f9bb0}
+body.dark-mode.interview-page-shell .setup-card,
+body.dark-mode.interview-page-shell .history-page-card,
+body.dark-mode.interview-page-shell .report-link-card,
+body.dark-mode.interview-page-shell .settings-card,
+body.dark-mode.interview-page-shell .analytics-card,
+body.dark-mode.interview-page-shell .analytics-panel,
+body.dark-mode.interview-page-shell .progress-card,
+body.dark-mode.interview-page-shell .report-card,
+body.dark-mode.interview-page-shell .surface-card,
+body.dark-mode.interview-page-shell .stat-card,
+body.dark-mode.interview-page-shell .goal-card,
+body.dark-mode.interview-page-shell .achievement-card,
+body.dark-mode.interview-page-shell .mock-recommend{background:#151d31;border-color:#2b3550;color:#edf2fb}
+body.dark-mode.interview-page-shell .setup-card-title h2,
+body.dark-mode.interview-page-shell .setup-card-title p,
+body.dark-mode.interview-page-shell .card-heading h2{color:#f5f7fb}
+body.dark-mode.interview-page-shell .form-grid label{color:#dce4ef}
+body.dark-mode.interview-page-shell .form-grid input,
+body.dark-mode.interview-page-shell .form-grid select,
+body.dark-mode.interview-page-shell .form-grid textarea{background:#10182a;color:#f5f7fb;border-color:#39465f}
+body.dark-mode.interview-page-shell .form-grid input::placeholder,
+body.dark-mode.interview-page-shell .form-grid textarea::placeholder{color:#8996aa}
+body.dark-mode.interview-page-shell .secondary-btn{background:#1b2438;color:#e4e9f1;border-color:#3a4560}
+body.dark-mode.interview-page-shell .report-link-card p,
+body.dark-mode.interview-page-shell .stat-card span,
+body.dark-mode.interview-page-shell .stat-card small,
+body.dark-mode.interview-page-shell .goal-card p,
+body.dark-mode.interview-page-shell .achievement-card p,
+body.dark-mode.interview-page-shell .analytics-panel p,
+body.dark-mode.interview-page-shell .report-subtitle,
+body.dark-mode.interview-page-shell .timeline-meta,
+body.dark-mode.interview-page-shell .transcript-box,
+body.dark-mode.interview-page-shell .preview-box{color:#aab5c8}
+body.dark-mode.interview-page-shell .history-table th{background:#10182a;color:#bac6d8;border-color:#2b3550}
+body.dark-mode.interview-page-shell .history-table td{color:#e0e6f0;border-color:#2b3550}
+body.dark-mode.interview-page-shell .history-table td a{color:#c8b5ff}
+body.dark-mode.interview-page-shell .mock-recommend{color:#edf2fb}
+body.dark-mode.interview-page-shell .mock-recommend>span:not(.mock-recommend-icon){color:#aab5c8}
+body.dark-mode.interview-page-shell .mock-recommend.selected{background:#211b35;border-color:#7c5ad8}
+body.dark-mode.interview-page-shell .report-actions-row a{background:#1b2438;color:#d9cbff;border-color:#3a4560}
+body.dark-mode.interview-page-shell .report-actions-row a.primary{background:#6d35e8;color:#fff;border-color:#6d35e8}
+body.dark-mode.interview-page-shell .page-alert.error{background:#351c24!important;color:#ffb9c1!important;border-color:#6a303c!important}
+body.dark-mode.interview-page-shell .page-alert.info{background:#241d3c!important;color:#d7c9ff!important;border-color:#493b72!important}
+body.dark-mode.interview-page-shell .page-alert.error::before{background:#6a303c;color:#ffd7dc}
+
+/* Live interview: readable badges, statuses, alerts, inputs and controls. */
+body.dark-mode.live-room-clean .clean-alert.error{background:#351c24!important;color:#ffb9c1!important;border-color:#6a303c!important}
+body.dark-mode.live-room-clean .clean-alert.info{background:#241d3c!important;color:#d7c9ff!important;border-color:#493b72!important}
+body.dark-mode.live-room-clean .clean-ready-pill{background:#242c3d!important;color:#e3e9f2!important;border-color:#3b465b!important}
+body.dark-mode.live-room-clean .clean-ready-pill.on{background:#123d2c!important;color:#72e0ad!important;border-color:#245c47!important}
+body.dark-mode.live-room-clean .clean-ready-pill.off{background:#302d24!important;color:#f5d77b!important;border-color:#5b4c2b!important}
+body.dark-mode.live-room-clean .clean-chip.muted{background:#302d24!important;color:#f5d77b!important;border-color:#5b4c2b!important}
+body.dark-mode.live-room-clean .clean-device-status{background:#1b2438!important;border-color:#35415a!important}
+body.dark-mode.live-room-clean .clean-device-status span{color:#aebbd0!important}
+body.dark-mode.live-room-clean .clean-device-status strong{color:#f1f5fa!important}
+body.dark-mode.live-room-clean .clean-answer-section textarea{color:#f5f7fb!important;background:#0f1729!important}
+body.dark-mode.live-room-clean .clean-answer-section textarea::placeholder{color:#8795aa!important}
+
+body.dark-mode.live-room-clean .sh-insight-metrics>div{background:#10182a!important;border-color:#34405a!important}
+body.dark-mode.live-room-clean .sh-insight-metrics span{color:#aab7ca!important}
+body.dark-mode.live-room-clean .sh-insight-metrics strong{color:#f5f7fb!important}
+body.dark-mode.live-room-clean .sh-insight-metrics em{color:#9aa8bd!important}
+body.dark-mode.live-room-clean .sh-system-list>div{background:#1b2438!important;border-color:#35415a!important}
+body.dark-mode.live-room-clean .sh-system-list span{color:#b8c5d8!important}
+body.dark-mode.live-room-clean .sh-system-list strong{color:#72e0ad!important;background:#123d2c!important}
+body.dark-mode.live-room-clean .sh-system-list strong.warning{color:#f5d77b!important;background:#302d24!important}
+body.dark-mode.live-room-clean .sh-system-list strong.error{color:#ff9da8!important;background:#351c24!important}
+body.dark-mode.live-room-clean .sh-system-note{color:#72e0ad!important;background:#123d2c!important;border-color:#245c47!important}
+body.dark-mode.live-room-clean .sh-system-note.warning{color:#f5d77b!important;background:#302d24!important;border-color:#5b4c2b!important}
+body.dark-mode.live-room-clean .sh-system-note.error{color:#ff9da8!important;background:#351c24!important;border-color:#6a303c!important}
+body.dark-mode.live-room-clean .sh-pro-controls button{color:#edf2fb!important;background:#1b2438!important;border-color:#35415a!important}
+body.dark-mode.live-room-clean .sh-pro-controls button:hover{background:#252d43!important;border-color:#6650a4!important}
+body.dark-mode.live-room-clean .sh-question-meta-grid span{color:#aab7ca!important}
+body.dark-mode.live-room-clean .sh-question-meta-grid strong{color:#f5f7fb!important}
+body.dark-mode.live-room-clean .sh-ai-tip strong{color:#d4c2ff!important}
+body.dark-mode.live-room-clean .sh-ai-tip p{color:#b6c1d3!important}
+
+/* Shared popups/modals in dark mode. */
+body.dark-mode .sh-modal-backdrop .sh-modal{background:#151d31!important;color:#f5f7fb!important;border-color:#35415a!important;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+body.dark-mode .sh-modal h2,body.dark-mode .sh-modal h3,body.dark-mode .sh-modal strong{color:#f5f7fb!important}
+body.dark-mode .sh-modal p,body.dark-mode .sh-modal label,body.dark-mode .sh-modal small{color:#aebbd0!important}
+body.dark-mode .sh-modal input,body.dark-mode .sh-modal select,body.dark-mode .sh-modal textarea{background:#10182a!important;color:#f5f7fb!important;border-color:#3a465e!important}
+body.dark-mode .sh-modal input::placeholder,body.dark-mode .sh-modal textarea::placeholder{color:#8795aa!important}
+body.dark-mode .sh-modal-close{background:#1b2438!important;color:#e9eef5!important;border-color:#3a465e!important}
+body.dark-mode .sh-toast{background:#151d31!important;color:#f5f7fb!important;border-color:#35415a!important}
+body.dark-mode .sh-toast strong{color:#f5f7fb!important}.sh-toast span{color:#758097}.dark-mode .sh-toast span{color:#aebbd0!important}
+
+/* Prevent long candidate pages from losing their page scrollbar. */
+@media(min-width:851px){body.interview-page-shell .sidebar{position:fixed;top:0;bottom:0;height:100vh}body.candidate-dashboard-page .candidate-sidebar{position:fixed;top:0;bottom:0;height:100vh}}

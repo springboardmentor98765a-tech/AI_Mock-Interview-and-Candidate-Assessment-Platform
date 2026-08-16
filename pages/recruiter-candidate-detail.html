@@ -1,136 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Candidate Detail | SmartHire AI</title>
-<link rel="stylesheet" href="../css/style.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candidate Intelligence | SmartHire AI</title>
+<link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/candidate-dashboard.css"><link rel="stylesheet" href="../css/role-dashboards.css"><link rel="stylesheet" href="../css/smarthire-unified-theme.css"><link rel="stylesheet" href="../css/recruiter-enhanced.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<style>
+.recruiter-detail-main{padding:22px;max-width:1500px;margin:0 auto}.detail-hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}.detail-hero h1{margin:0;color:var(--sh-ink,#211b2d);font-size:32px}.detail-hero p{margin:7px 0 0;color:var(--sh-muted,#77728a);line-height:1.6}.detail-actions{display:flex;gap:8px;flex-wrap:wrap}.detail-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}.detail-metric{background:var(--sh-surface,#fff);border:1px solid var(--sh-border,#e7e2f2);border-radius:16px;padding:15px}.detail-metric span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--sh-muted,#77728a);font-weight:800}.detail-metric strong{display:block;font-size:26px;margin-top:7px;color:var(--sh-ink,#211b2d)}.detail-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}.detail-card{background:var(--sh-surface,#fff);border:1px solid var(--sh-border,#e7e2f2);border-radius:18px;padding:18px;box-shadow:0 10px 28px rgba(48,31,92,.06)}.detail-card h2{margin:0 0 8px;color:var(--sh-ink,#211b2d);font-size:18px}.detail-card p,.detail-card li{color:var(--sh-muted,#77728a);line-height:1.7;font-size:12px}.detail-card ul{padding-left:18px}.detail-scores{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.detail-score{background:var(--sh-bg,#faf9fd);border:1px solid var(--sh-border,#eeeaf4);border-radius:12px;padding:11px}.detail-score span{font-size:10px;color:var(--sh-muted,#77728a)}.detail-score strong{display:block;font-size:21px;color:#6d35e8;margin-top:5px}.detail-chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.detail-chip{font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:#f0eaff;color:#6330d8}.detail-transcript{white-space:pre-wrap;background:var(--sh-bg,#faf9fd);border:1px solid var(--sh-border,#eeeaf4);border-radius:12px;padding:13px;max-height:260px;overflow:auto;font-size:12px;color:var(--sh-ink,#211b2d);line-height:1.7}.detail-toolbar{display:flex;gap:8px;flex-wrap:wrap}.dark-mode .detail-hero h1,.dark-mode .detail-card h2,.dark-mode .detail-metric strong,.dark-mode .detail-transcript{color:#f5f7fb}.dark-mode .detail-metric,.dark-mode .detail-card{background:#151d31;border-color:#303b54}.dark-mode .detail-score,.dark-mode .detail-transcript{background:#1b2438;border-color:#34405a}.dark-mode .detail-hero p,.dark-mode .detail-card p,.dark-mode .detail-card li,.dark-mode .detail-metric span,.dark-mode .detail-score span{color:#aab5c8}.dark-mode .detail-chip{background:#2d2444;color:#d4c4ff}@media(max-width:1150px){.detail-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.detail-grid{grid-template-columns:1fr}}@media(max-width:620px){.recruiter-detail-main{padding:14px}.detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-scores{grid-template-columns:1fr}.detail-hero h1{font-size:26px}}
+</style>
 </head>
-<body>
-<aside class="sidebar">
-<div class="sidebar-logo">
-<i class="fa-solid fa-brain"></i>
-<h2>SmartHire AI</h2>
-</div>
-<ul>
-<li><i class="fa-solid fa-chart-line"></i><span><a href="recruiter.html" style="color:inherit; text-decoration:none;">Dashboard</a></span></li>
-<li class="active"><i class="fa-solid fa-user-check"></i><span>Candidate Detail</span></li>
-<li><i class="fa-solid fa-right-from-bracket"></i><span id="recruiterDetailLogout">Logout</span></li>
-</ul>
+<body class="candidate-dashboard-page role-dashboard-page recruiter-dashboard-page">
+<aside class="candidate-sidebar" id="candidateSidebar">
+<div class="brand-row"><a class="brand" href="recruiter.html"><span class="brand-mark"><i class="fa-solid fa-sparkles"></i></span><span>SmartHire <b>AI</b></span></a><button class="sidebar-collapse" id="sidebarCollapse" type="button"><i class="fa-solid fa-chevron-left"></i></button></div>
+<div class="sidebar-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search workspace..."><span>⌘K</span></div>
+<nav class="candidate-nav" aria-label="Recruiter navigation">
+<a class="candidate-nav-link" href="recruiter.html"><i class="fa-solid fa-house"></i><span>Dashboard</span></a>
+<a class="candidate-nav-link active" href="recruiter.html#candidate-management"><i class="fa-solid fa-users"></i><span>Candidates</span></a>
+<a class="candidate-nav-link" href="recruiter.html#interview-schedule"><i class="fa-solid fa-calendar-days"></i><span>Interviews</span></a>
+<a class="candidate-nav-link" href="recruiter.html#job-management"><i class="fa-solid fa-briefcase"></i><span>Job Posts</span></a>
+<a class="candidate-nav-link" href="recruiter.html#recruiter-analytics"><i class="fa-solid fa-chart-column"></i><span>AI Analytics</span></a>
+<a class="candidate-nav-link" href="recruiter.html#candidate-comparison"><i class="fa-solid fa-code-compare"></i><span>Compare</span></a>
+<a class="candidate-nav-link" href="recruiter.html#recruiter-notifications"><i class="fa-solid fa-file-lines"></i><span>Reports</span></a>
+<a class="candidate-nav-link" href="recruiter.html#recruiter-settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+</nav>
+<div class="sidebar-upgrade"><div class="upgrade-spark"><i class="fa-solid fa-crown"></i></div><strong>Smart Recruiting Pro</strong><p>AI ranking, interview insights and faster candidate decisions.</p><a href="recruiter.html#recruiter-analytics">Open analytics <i class="fa-solid fa-arrow-right"></i></a></div>
+<div class="workspace-switcher"><a href="candidate.html"><i class="fa-solid fa-user-graduate"></i><span>Candidate Workspace</span></a><a href="admin.html"><i class="fa-solid fa-user-shield"></i><span>Admin Workspace</span></a></div>
 </aside>
-
-<div class="dashboard">
-<header class="topbar recruiter-detail-topbar">
-<div>
-<h2 id="candidateDetailHeading">Candidate Profile</h2>
-<p id="candidateDetailSubheading">Recruiter view of resume and interview insights.</p>
+<main class="candidate-main"><header class="candidate-header"><button class="mobile-menu" id="mobileMenu" type="button"><i class="fa-solid fa-bars"></i></button><div class="breadcrumb"><span>Recruiter</span><i class="fa-solid fa-chevron-right"></i><strong>Candidate Intelligence</strong></div><div class="header-actions"><button class="header-theme" id="candidateThemeToggle" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><div class="header-profile"><div class="profile-avatar small"><i class="fa-solid fa-user-tie"></i></div><div><strong id="dashboardUserName">Recruiter</strong><span>Recruiter</span></div></div></div></header>
+<section class="recruiter-detail-main">
+<div id="recruiterDetailLoading" class="detail-card">Loading candidate intelligence...</div><div id="recruiterDetailError" class="detail-card" style="display:none"></div>
+<div id="recruiterDetailContent" style="display:none">
+<div class="detail-hero"><div><span class="eyebrow">CANDIDATE INTELLIGENCE</span><h1 id="candidateDetailHeading">Candidate Profile</h1><p id="candidateDetailSubheading">Resume, interview evidence and stored AI assessment.</p></div><div class="detail-actions"><button class="table-btn" id="backToRecruiter" type="button">Back to Dashboard</button><button class="table-btn primary" id="detailResumeBtn" type="button">Open Resume</button><button class="table-btn primary" id="detailShortlistBtn" type="button">Shortlist</button><button class="table-btn" id="detailRejectBtn" type="button">Reject</button><button class="table-btn" id="detailNoteBtn" type="button">Add Note</button></div></div>
+<div class="detail-metrics"><div class="detail-metric"><span>ATS Score</span><strong id="detailAtsScore">-</strong></div><div class="detail-metric"><span>Interview Overall</span><strong id="detailInterviewOverall">-</strong></div><div class="detail-metric"><span>Technical</span><strong id="detailInterviewTechnical">-</strong></div><div class="detail-metric"><span>Communication</span><strong id="detailInterviewCommunication">-</strong></div><div class="detail-metric"><span>Problem Solving</span><strong id="detailInterviewProblemSolving">-</strong></div><div class="detail-metric"><span>Status</span><strong id="detailCandidateStatus">-</strong></div></div>
+<div class="detail-grid">
+<div class="detail-card"><h2>Resume Intelligence</h2><p id="detailResumeSummary">-</p><div class="detail-chip-row"><span class="detail-chip" id="detailResumeFile">Resume</span><span class="detail-chip" id="detailJobRole">Role</span><span class="detail-chip" id="detailResumeDate">Uploaded</span></div><div class="detail-scores"><div class="detail-score"><span>Experience</span><strong id="detailExperienceScore">-</strong></div><div class="detail-score"><span>Skills</span><strong id="detailSkillsCount">0</strong></div><div class="detail-score"><span>Missing Skills</span><strong id="detailMissingSkillsCount">0</strong></div></div><h2 style="margin-top:18px">Skills</h2><ul id="detailSkillsList"></ul><h2 style="margin-top:18px">Resume Strengths</h2><ul id="detailStrengthsList"></ul><h2 style="margin-top:18px">Resume Weaknesses</h2><ul id="detailWeaknessesList"></ul><h2 style="margin-top:18px">Missing Skills</h2><ul id="detailMissingSkillsList"></ul></div>
+<div class="detail-card"><h2>Stored Interview Report</h2><p id="detailSessionSummary">-</p><div class="detail-scores"><div class="detail-score"><span>Interview Type</span><strong id="detailInterviewType">-</strong></div><div class="detail-score"><span>Answers</span><strong id="detailAnswersCount">0</strong></div><div class="detail-score"><span>Recording</span><strong id="detailRecordingStatus">-</strong></div></div><p class="detail-meta"><strong>Interview Date:</strong> <span id="detailInterviewDate">-</span></p><p class="detail-meta"><strong>Video:</strong> <span id="detailVideoRecording">-</span></p><p class="detail-meta"><strong>Audio:</strong> <span id="detailAudioRecording">-</span></p><div class="detail-toolbar"><span class="score-pill success" id="detailReportStatus">Report ready</span><button class="table-btn" id="detailVideoBtn" type="button">Watch Video</button><button class="table-btn" id="detailAudioBtn" type="button">Play Audio</button></div><h2 style="margin-top:18px">AI Recommendation</h2><p id="detailRecommendation">-</p><h2 style="margin-top:18px">AI Feedback</h2><ul id="detailFeedbackList"></ul></div>
 </div>
-<button class="secondary-btn" type="button" onclick="window.location.href='recruiter.html'">Back to Dashboard</button>
-</header>
-
-<section class="candidate-detail-section">
-<div id="recruiterDetailLoading" class="analytics-card">Loading candidate details...</div>
-<div id="recruiterDetailError" class="analytics-card recruiter-error" style="display:none;"></div>
-
-<div id="recruiterDetailContent" style="display:none;">
-<div class="analytics-card" style="margin-bottom:18px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
-<div>
-<h3 style="margin-bottom:6px;">Recruiter Actions</h3>
-<p class="detail-meta"><strong>Status:</strong> <span id="detailCandidateStatus">-</span></p>
-<p class="detail-meta"><strong>Notes:</strong> <span id="detailRecruiterNotes">-</span></p>
+<div class="detail-card" style="margin-top:14px"><h2>Interview Evidence & Transcript</h2><p>Recruiter access is read-only for candidate evidence; hiring decisions remain human-reviewed.</p><div id="detailTranscript" class="detail-transcript">No transcript stored.</div></div>
+<div class="detail-card" style="margin-top:14px"><div class="role-card-head"><div><h2>Recruiter Notes</h2><p id="detailRecruiterNotes">No recruiter notes yet.</p></div><span class="section-badge">Internal</span></div></div>
 </div>
-<div style="display:flex; gap:10px; flex-wrap:wrap;">
-<button id="detailShortlistBtn" class="primary-btn" type="button">Shortlist</button>
-<button id="detailRejectBtn" class="secondary-btn" type="button">Reject</button>
-<button id="detailNoteBtn" class="secondary-btn" type="button">Add Note</button>
-</div>
-</div>
-
-<div class="detail-score-grid">
-<div class="analytics-card detail-score-card">
-<h3>ATS Score</h3>
-<div class="detail-score-value" id="detailAtsScore">-</div>
-</div>
-<div class="analytics-card detail-score-card">
-<h3>Interview Overall</h3>
-<div class="detail-score-value" id="detailInterviewOverall">-</div>
-</div>
-<div class="analytics-card detail-score-card">
-<h3>Technical</h3>
-<div class="detail-score-value" id="detailInterviewTechnical">-</div>
-</div>
-<div class="analytics-card detail-score-card">
-<h3>Communication</h3>
-<div class="detail-score-value" id="detailInterviewCommunication">-</div>
-</div>
-<div class="analytics-card detail-score-card">
-<h3>Problem Solving</h3>
-<div class="detail-score-value" id="detailInterviewProblemSolving">-</div>
-</div>
-</div>
-
-<div class="detail-two-col">
-<div class="analytics-card">
-<h3>Resume Summary</h3>
-<p id="detailResumeSummary">-</p>
-<p class="detail-meta"><strong>Job Role:</strong> <span id="detailJobRole">-</span></p>
-<p class="detail-meta"><strong>Resume Uploaded:</strong> <span id="detailResumeDate">-</span></p>
-</div>
-
-<div class="analytics-card">
-<h3>AI Recommendation</h3>
-<p id="detailRecommendation">-</p>
-</div>
-</div>
-
-<div class="detail-two-col">
-<div class="analytics-card">
-<h3>Resume Strengths</h3>
-<ul id="detailStrengthsList"></ul>
-</div>
-
-<div class="analytics-card">
-<h3>Resume Weaknesses</h3>
-<ul id="detailWeaknessesList"></ul>
-</div>
-</div>
-
-<div class="analytics-card">
-<h3>AI Feedback</h3>
-<ul id="detailFeedbackList"></ul>
-</div>
-</div>
-</section>
-</div>
-
-<script src="../js/script.js"></script>
-<script>
-(() => {
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    if (!token) {
-        window.location.href = "../index.html";
-        return;
-    }
-    if (role !== "recruiter") {
-        window.location.href = role === "candidate" ? "candidate.html" : role === "admin" ? "admin.html" : "../index.html";
-        return;
-    }
-    const logoutBtn = document.getElementById("recruiterDetailLogout");
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("userRole");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("userName");
-            window.location.href = "../index.html";
-        });
-    }
-})();
-</script>
-</body>
-</html>
+</section></main>
+<script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script><script src="../js/script.js"></script>
+<script src="../js/recruiter-candidate-detail-enhanced.js"></script>
+<script src="../js/role-guard.js"></script>
+</body></html>

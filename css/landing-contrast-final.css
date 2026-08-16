@@ -1,0 +1,295 @@
+/* SmartHire AI — final landing page contrast + theme consistency patch. */
+
+/* Keep landing page brand consistently purple. */
+.landing-page .feature-icon,
+.landing-page .sh-role-btn,
+.landing-page #aiAssistant,
+.landing-page #topBtn,
+.landing-page .primary-btn,
+.landing-page .start-btn {
+  background:linear-gradient(135deg,#6d35e8,#9b5cff) !important;
+  color:#fff !important;
+}
+
+.landing-page .feature-icon i { color:#fff !important; }
+.landing-page .sh-role-btn:hover,
+.landing-page #aiAssistant:hover,
+.landing-page #topBtn:hover,
+.landing-page .primary-btn:hover,
+.landing-page .start-btn:hover { filter:brightness(1.05); }
+
+/* Light mode: strong readable text on all legacy white cards. */
+html:not([data-theme="dark"]) body.landing-page .companies .company-list span {
+  background:#fff !important;
+  color:#24213a !important;
+  border:1px solid #e7e2f1 !important;
+}
+html:not([data-theme="dark"]) body.landing-page .feature-card,
+html:not([data-theme="dark"]) body.landing-page .faq details,
+html:not([data-theme="dark"]) body.landing-page .stat-card,
+html:not([data-theme="dark"]) body.landing-page .testimonial-card,
+html:not([data-theme="dark"]) body.landing-page .workflow-card,
+html:not([data-theme="dark"]) body.landing-page .mini-card,
+html:not([data-theme="dark"]) body.landing-page .price-card {
+  background:#fff !important;
+  color:#17152b !important;
+  border-color:#e7e2f1 !important;
+}
+html:not([data-theme="dark"]) body.landing-page .feature-card h3,
+html:not([data-theme="dark"]) body.landing-page .faq summary,
+html:not([data-theme="dark"]) body.landing-page .stat-card h2,
+html:not([data-theme="dark"]) body.landing-page .testimonial-card h3,
+html:not([data-theme="dark"]) body.landing-page .workflow-card h3,
+html:not([data-theme="dark"]) body.landing-page .mini-card h3,
+html:not([data-theme="dark"]) body.landing-page .price-card h3,
+html:not([data-theme="dark"]) body.landing-page .price-card h1 {
+  color:#17152b !important;
+}
+html:not([data-theme="dark"]) body.landing-page .feature-card p,
+html:not([data-theme="dark"]) body.landing-page .faq p,
+html:not([data-theme="dark"]) body.landing-page .stat-card p,
+html:not([data-theme="dark"]) body.landing-page .testimonial-card p,
+html:not([data-theme="dark"]) body.landing-page .workflow-card p,
+html:not([data-theme="dark"]) body.landing-page .mini-card p,
+html:not([data-theme="dark"]) body.landing-page .price-card p,
+html:not([data-theme="dark"]) body.landing-page .price-card li {
+  color:#5e5a72 !important;
+}
+html:not([data-theme="dark"]) body.landing-page .cta button {
+  background:#fff !important;
+  color:#6d35e8 !important;
+}
+
+/* Dark mode: explicit contrast for every legacy/modern landing component. */
+body.dark-mode .companies .company-list span,
+html[data-theme="dark"] body.landing-page .companies .company-list span {
+  background:#171d2d !important;
+  color:#f7f8fc !important;
+  border:1px solid #2f394f !important;
+  box-shadow:none !important;
+}
+body.dark-mode .companies h3,
+html[data-theme="dark"] body.landing-page .companies h3 {
+  color:#f7f8fc !important;
+}
+
+body.dark-mode .feature-card,
+body.dark-mode .faq details,
+body.dark-mode .stat-card,
+body.dark-mode .testimonial-card,
+body.dark-mode .workflow-card,
+body.dark-mode .mini-card,
+body.dark-mode .price-card,
+html[data-theme="dark"] body.landing-page .feature-card,
+html[data-theme="dark"] body.landing-page .faq details,
+html[data-theme="dark"] body.landing-page .stat-card,
+html[data-theme="dark"] body.landing-page .testimonial-card,
+html[data-theme="dark"] body.landing-page .workflow-card,
+html[data-theme="dark"] body.landing-page .mini-card,
+html[data-theme="dark"] body.landing-page .price-card {
+  background:#171d2d !important;
+  color:#f7f8fc !important;
+  border:1px solid #2f394f !important;
+  box-shadow:none !important;
+}
+body.dark-mode .feature-card h3,
+body.dark-mode .faq summary,
+body.dark-mode .stat-card h2,
+body.dark-mode .testimonial-card h3,
+body.dark-mode .workflow-card h3,
+body.dark-mode .mini-card h3,
+body.dark-mode .price-card h3,
+body.dark-mode .price-card h1,
+html[data-theme="dark"] body.landing-page .feature-card h3,
+html[data-theme="dark"] body.landing-page .faq summary,
+html[data-theme="dark"] body.landing-page .stat-card h2,
+html[data-theme="dark"] body.landing-page .testimonial-card h3,
+html[data-theme="dark"] body.landing-page .workflow-card h3,
+html[data-theme="dark"] body.landing-page .mini-card h3,
+html[data-theme="dark"] body.landing-page .price-card h3,
+html[data-theme="dark"] body.landing-page .price-card h1 {
+  color:#f7f8fc !important;
+}
+body.dark-mode .feature-card p,
+body.dark-mode .faq p,
+body.dark-mode .stat-card p,
+body.dark-mode .testimonial-card p,
+body.dark-mode .workflow-card p,
+body.dark-mode .mini-card p,
+body.dark-mode .price-card p,
+body.dark-mode .price-card li,
+html[data-theme="dark"] body.landing-page .feature-card p,
+html[data-theme="dark"] body.landing-page .faq p,
+html[data-theme="dark"] body.landing-page .stat-card p,
+html[data-theme="dark"] body.landing-page .testimonial-card p,
+html[data-theme="dark"] body.landing-page .workflow-card p,
+html[data-theme="dark"] body.landing-page .mini-card p,
+html[data-theme="dark"] body.landing-page .price-card p,
+html[data-theme="dark"] body.landing-page .price-card li {
+  color:#c8ceda !important;
+}
+body.dark-mode .feature-card a,
+body.dark-mode .faq a,
+html[data-theme="dark"] body.landing-page .feature-card a,
+html[data-theme="dark"] body.landing-page .faq a { color:#caa7ff !important; }
+
+/* FAQ backgrounds/text */
+body.dark-mode .faq-box,
+html[data-theme="dark"] body.landing-page .faq-box { background:transparent !important; }
+body.dark-mode .faq details summary::marker,
+html[data-theme="dark"] body.landing-page .faq details summary::marker { color:#caa7ff !important; }
+
+/* CTA button: never inherit white text from CTA container. */
+body.dark-mode .cta button,
+html[data-theme="dark"] body.landing-page .cta button {
+  background:#fff !important;
+  color:#5f25d6 !important;
+  border:1px solid rgba(255,255,255,.5) !important;
+}
+
+/* Floating actions use SmartHire purple, not blue. */
+.landing-page #aiAssistant,
+.landing-page #topBtn { background:linear-gradient(135deg,#6d35e8,#9b5cff) !important; color:#fff !important; }
+
+/* Ensure headings/labels in dark mode are bright even if older CSS sets gray. */
+body.dark-mode .section-title h2,
+body.dark-mode .section-title span,
+body.dark-mode .why-left h2,
+body.dark-mode .sh-section-heading h2,
+html[data-theme="dark"] body.landing-page .section-title h2,
+html[data-theme="dark"] body.landing-page .section-title span,
+html[data-theme="dark"] body.landing-page .why-left h2,
+html[data-theme="dark"] body.landing-page .sh-section-heading h2 {
+  color:#f7f8fc !important;
+}
+
+/* Remove horizontal page overflow introduced by fixed/flex children. */
+body.landing-page, body.landing-page main, body.landing-page section { max-width:100%; overflow-x:clip; }
+
+/* Mobile: keep content within viewport. */
+@media (max-width: 860px){
+  .landing-page .companies .company-list span{min-width:120px;}
+  .landing-page .feature-card{padding:24px 20px;}
+  .landing-page .faq details{padding:16px;}
+  .landing-page .cta{padding-left:6%;padding-right:6%;}
+}
+
+/* Final semantic contrast pass for legacy landing sections. */
+
+/* WHY CHOOSE US checklist cards were still using the legacy white-card rule. */
+body.landing-page .why-list div {
+  color: var(--lp-text, #17152b) !important;
+  border: 1px solid var(--lp-border, #e7e2f1) !important;
+}
+html:not([data-theme="dark"]) body.landing-page .why-list div {
+  background: #ffffff !important;
+  color: #17152b !important;
+  border-color: #e7e2f1 !important;
+  box-shadow: 0 10px 24px rgba(34, 24, 63, .08) !important;
+}
+html:not([data-theme="dark"]) body.landing-page .why-list div,
+html:not([data-theme="dark"]) body.landing-page .why-list div * {
+  color: #17152b !important;
+}
+html[data-theme="dark"] body.landing-page .why-list div,
+body.dark-mode.landing-page .why-list div {
+  background: #171d2d !important;
+  color: #f7f8fc !important;
+  border-color: #2f394f !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] body.landing-page .why-list div,
+html[data-theme="dark"] body.landing-page .why-list div * ,
+body.dark-mode.landing-page .why-list div,
+body.dark-mode.landing-page .why-list div * {
+  color: #f7f8fc !important;
+}
+body.landing-page .why-list i { color: #22c55e !important; }
+
+/* Legacy FAQ cards: explicit contrast in both themes. */
+html:not([data-theme="dark"]) body.landing-page .faq details {
+  background: #ffffff !important;
+  color: #17152b !important;
+  border: 1px solid #e7e2f1 !important;
+}
+html:not([data-theme="dark"]) body.landing-page .faq details summary {
+  color: #17152b !important;
+}
+html:not([data-theme="dark"]) body.landing-page .faq details p {
+  color: #5e5a72 !important;
+}
+html[data-theme="dark"] body.landing-page .faq details,
+body.dark-mode.landing-page .faq details {
+  background: #171d2d !important;
+  color: #f7f8fc !important;
+  border: 1px solid #2f394f !important;
+}
+html[data-theme="dark"] body.landing-page .faq details summary,
+body.dark-mode.landing-page .faq details summary {
+  color: #f7f8fc !important;
+}
+html[data-theme="dark"] body.landing-page .faq details p,
+body.dark-mode.landing-page .faq details p {
+  color: #c8ceda !important;
+}
+
+/* CTA button text was vulnerable to older universal CTA color rules. */
+body.landing-page .cta button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 54px !important;
+  padding: 15px 32px !important;
+  font-family: inherit !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  text-shadow: none !important;
+}
+html:not([data-theme="dark"]) body.landing-page .cta button {
+  background: #ffffff !important;
+  color: #6d35e8 !important;
+  border: 1px solid #e7ddff !important;
+}
+html[data-theme="dark"] body.landing-page .cta button,
+body.dark-mode.landing-page .cta button {
+  background: #ffffff !important;
+  color: #5f25d6 !important;
+  border: 1px solid rgba(255,255,255,.55) !important;
+}
+
+/* Ensure feature cards and all text children stay readable even when legacy
+   rules use low-opacity white text. */
+html:not([data-theme="dark"]) body.landing-page .feature-card,
+html:not([data-theme="dark"]) body.landing-page .feature-card * {
+  color: #17152b !important;
+}
+html:not([data-theme="dark"]) body.landing-page .feature-card p { color: #5e5a72 !important; }
+html[data-theme="dark"] body.landing-page .feature-card,
+html[data-theme="dark"] body.landing-page .feature-card * ,
+body.dark-mode.landing-page .feature-card,
+body.dark-mode.landing-page .feature-card * {
+  color: #f7f8fc !important;
+}
+html[data-theme="dark"] body.landing-page .feature-card p,
+body.dark-mode.landing-page .feature-card p { color: #c8ceda !important; }
+
+/* Keep headings/paragraphs in About and Contact sections readable. */
+html:not([data-theme="dark"]) body.landing-page .why-left,
+html:not([data-theme="dark"]) body.landing-page .contact-info { color: #17152b !important; }
+html:not([data-theme="dark"]) body.landing-page .why-left p,
+html:not([data-theme="dark"]) body.landing-page .contact-info p { color: #5e5a72 !important; }
+html[data-theme="dark"] body.landing-page .why-left,
+html[data-theme="dark"] body.landing-page .contact-info,
+body.dark-mode.landing-page .why-left,
+body.dark-mode.landing-page .contact-info { color: #f7f8fc !important; }
+html[data-theme="dark"] body.landing-page .why-left p,
+html[data-theme="dark"] body.landing-page .contact-info p,
+body.dark-mode.landing-page .why-left p,
+body.dark-mode.landing-page .contact-info p { color: #c8ceda !important; }
+
+/* Navigation and mobile controls remain readable after theme changes. */
+html[data-theme="dark"] body.landing-page .navbar nav a,
+body.dark-mode.landing-page .navbar nav a { color: #f7f8fc !important; }
+html:not([data-theme="dark"]) body.landing-page .navbar nav a { color: #2a2540 !important; }

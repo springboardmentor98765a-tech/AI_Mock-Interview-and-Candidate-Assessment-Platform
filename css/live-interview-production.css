@@ -1,0 +1,165 @@
+/* SmartHire Live Interview — final production surface */
+body.live-room-clean {
+  --live-bg:#090d18;
+  --live-panel:#11182b;
+  --live-panel-2:#0d1424;
+  --live-border:#2b3855;
+  --live-text:#f4f7ff;
+  --live-muted:#9eabc2;
+  --live-purple:#7b4dff;
+  --live-purple-2:#9a76ff;
+  --live-danger:#ff6575;
+  background:var(--live-bg)!important;
+  color:var(--live-text)!important;
+}
+body.live-room-clean .clean-live-main{padding-bottom:170px!important;}
+body.live-room-clean .clean-live-header h1,
+body.live-room-clean .clean-question-number,
+body.live-room-clean .clean-question-text,
+body.live-room-clean .clean-card-heading h2,
+body.live-room-clean .clean-answer-heading h3{color:var(--live-text)!important;}
+body.live-room-clean .clean-live-header p,
+body.live-room-clean .clean-eyebrow.dark{color:var(--live-muted)!important;}
+body.live-room-clean .clean-video-card,
+body.live-room-clean .clean-question-card,
+body.live-room-clean .sh-live-advanced-card,
+body.live-room-clean .clean-interview-footer,
+body.live-room-clean .clean-post-interview-actions,
+body.live-room-clean #interviewEvaluationResult{background:var(--live-panel)!important;border-color:var(--live-border)!important;color:var(--live-text)!important;}
+body.live-room-clean .clean-device-status,
+body.live-room-clean .sh-insight-metrics>div,
+body.live-room-clean .sh-system-list>div,
+body.live-room-clean .sh-question-meta-grid>div{background:var(--live-panel-2)!important;border-color:var(--live-border)!important;}
+body.live-room-clean .clean-device-status span,
+body.live-room-clean .sh-insight-metrics span,
+body.live-room-clean .sh-question-meta-grid span,
+body.live-room-clean .sh-system-list span{color:var(--live-muted)!important;}
+body.live-room-clean .clean-device-status strong,
+body.live-room-clean .sh-insight-metrics strong,
+body.live-room-clean .sh-question-meta-grid strong,
+body.live-room-clean .sh-system-list strong{color:var(--live-text)!important;}
+body.live-room-clean .clean-device-actions button,
+body.live-room-clean .clean-answer-actions button,
+body.live-room-clean .sh-context-actions button,
+body.live-room-clean .clean-post-interview-actions button{background:#1a2338!important;color:#edf2ff!important;border:1px solid #3b496b!important;border-radius:12px!important;}
+body.live-room-clean .clean-device-actions button:hover:not(:disabled),
+body.live-room-clean .clean-answer-actions button:hover:not(:disabled),
+body.live-room-clean .sh-context-actions button:hover:not(:disabled),
+body.live-room-clean .clean-post-interview-actions button:hover:not(:disabled){border-color:#7658e8!important;background:#241d3f!important;}
+body.live-room-clean .clean-mcq-options{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;margin:20px 0 14px!important;}
+body.live-room-clean .clean-mcq-option{min-height:58px!important;padding:14px 16px!important;background:#0c1425!important;border:1px solid #34415f!important;border-radius:14px!important;color:#eef3ff!important;}
+body.live-room-clean .clean-mcq-option:hover{background:#171432!important;border-color:#7658e8!important;}
+body.live-room-clean .clean-mcq-option.selected{background:#251a49!important;border-color:#9a76ff!important;box-shadow:0 0 0 3px rgba(154,118,255,.14)!important;}
+body.live-room-clean .clean-mcq-option input{accent-color:#9a76ff!important;width:18px;height:18px;}
+body.live-room-clean .clean-mcq-option span{color:#eef3ff!important;font-weight:700!important;}
+body.live-room-clean .clean-answer-section textarea{background:#0c1425!important;color:#eef3ff!important;border-color:#34415f!important;}
+body.live-room-clean .clean-answer-section textarea:read-only{opacity:.75;cursor:not-allowed;}
+body.live-room-clean .clean-interview-footer{position:fixed!important;left:50%!important;bottom:12px!important;transform:translateX(-50%)!important;width:min(1500px,calc(100% - 28px))!important;z-index:5000!important;background:rgba(13,20,36,.96)!important;border:1px solid #3a4867!important;border-radius:18px!important;box-shadow:0 22px 60px rgba(0,0,0,.5)!important;backdrop-filter:blur(18px)!important;}
+body.live-room-clean .clean-interview-footer button{min-height:46px!important;border-radius:12px!important;font-weight:800!important;}
+body.live-room-clean .clean-interview-footer .secondary-btn{background:#1a2338!important;color:#edf2ff!important;border:1px solid #3b496b!important;}
+body.live-room-clean .clean-interview-footer .primary-btn{background:linear-gradient(135deg,var(--live-purple),var(--live-purple-2))!important;color:#fff!important;border:1px solid var(--live-purple-2)!important;}
+body.live-room-clean .clean-interview-footer .danger-btn{background:#3b1820!important;color:#ffbdc4!important;border:1px solid #8e3d4c!important;}
+body.live-room-clean .clean-interview-footer button:disabled{opacity:.42!important;cursor:not-allowed!important;filter:none!important;}
+body.live-room-clean .clean-post-interview-actions{display:flex;flex-wrap:wrap;gap:10px;}
+body.live-room-clean .clean-post-interview-actions button{flex:1 1 180px;}
+body.live-room-clean #interviewEvaluationLoading{background:#171d34!important;color:#dbe4f6!important;border:1px solid #354265!important;border-left:4px solid var(--live-purple)!important;}
+body.live-room-clean #interviewEvaluationResult .evaluation-breakdown-card,
+body.live-room-clean #interviewEvaluationResult .evaluation-list-card{background:#0d1424!important;border-color:#2c3957!important;color:#edf2ff!important;}
+body.live-room-clean #interviewEvaluationResult .evaluation-metric span{color:var(--live-muted)!important;}
+body.live-room-clean .sh-completion-modal{z-index:10000!important;}
+body.live-room-clean .sh-completion-card{background:#11182b!important;color:#f4f7ff!important;border-color:#4a3b73!important;}
+body.live-room-clean .sh-completion-card p{color:#b9c4d9!important;}
+body.live-room-clean .sh-completion-scores>div{background:#0d1424!important;border-color:#34415f!important;}
+body.live-room-clean .sh-completion-scores span{color:#9eabc2!important;}
+body.live-room-clean .sh-completion-scores strong{color:#bca4ff!important;}
+body.live-room-clean .sh-modal-backdrop{z-index:10010!important;}
+body.live-room-clean .sh-modal{background:#11182b!important;color:#eef3ff!important;border:1px solid #3c4865!important;}
+body.live-room-clean .sh-modal h2{color:#fff!important;}
+body.live-room-clean .sh-modal p,
+body.live-room-clean .sh-check strong{color:#b9c4d9!important;}
+body.live-room-clean .sh-modal .secondary-btn{background:#1a2338!important;color:#edf2ff!important;border-color:#3b496b!important;}
+body.live-room-clean .sh-modal .primary-btn{background:linear-gradient(135deg,var(--live-purple),var(--live-purple-2))!important;color:#fff!important;border-color:var(--live-purple-2)!important;}
+@media(max-width:900px){body.live-room-clean .clean-interview-footer{width:calc(100% - 16px)!important;bottom:7px!important;flex-direction:column!important;align-items:stretch!important;}body.live-room-clean .clean-control-group,body.live-room-clean .clean-control-group.right{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}body.live-room-clean .clean-control-group button{width:100%!important;}body.live-room-clean .clean-live-main{padding-bottom:255px!important;}}
+/* Explicit light-mode companion so the live room respects the user's theme. */
+body.live-room-clean:not(.dark-mode){
+  background:#f6f7fb!important;color:#17152b!important;
+}
+body.live-room-clean:not(.dark-mode) .clean-live-topbar{background:rgba(255,255,255,.98)!important;color:#17152b!important;border-bottom:1px solid #e8e7ef!important;}
+body.live-room-clean:not(.dark-mode) .clean-live-brand{color:#17152b!important;}
+body.live-room-clean:not(.dark-mode) .clean-live-status,
+body.live-room-clean:not(.dark-mode) .clean-live-pill{background:#f4efff!important;color:#5d3fbb!important;border-color:#e6dcff!important;}
+body.live-room-clean:not(.dark-mode) .clean-exit-btn{color:#3b3154!important;border-color:#ddd7ea!important;}
+body.live-room-clean:not(.dark-mode) .clean-video-card,
+body.live-room-clean:not(.dark-mode) .clean-question-card,
+body.live-room-clean:not(.dark-mode) .sh-live-advanced-card,
+body.live-room-clean:not(.dark-mode) .clean-interview-footer,
+body.live-room-clean:not(.dark-mode) .clean-post-interview-actions,
+body.live-room-clean:not(.dark-mode) #interviewEvaluationResult{background:#fff!important;color:#17152b!important;border-color:#e5e2ef!important;}
+body.live-room-clean:not(.dark-mode) .clean-card-heading h2,
+body.live-room-clean:not(.dark-mode) .clean-question-number,
+body.live-room-clean:not(.dark-mode) .clean-question-text,
+body.live-room-clean:not(.dark-mode) .clean-answer-heading h3,
+body.live-room-clean:not(.dark-mode) .sh-advanced-head h3,
+body.live-room-clean:not(.dark-mode) .sh-context-role{color:#17152b!important;}
+body.live-room-clean:not(.dark-mode) .clean-live-header p,
+body.live-room-clean:not(.dark-mode) .clean-eyebrow.dark,
+body.live-room-clean:not(.dark-mode) .clean-device-status span,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics span,
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid span,
+body.live-room-clean:not(.dark-mode) .sh-system-list span{color:#77758a!important;}
+body.live-room-clean:not(.dark-mode) .clean-device-status,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics>div,
+body.live-room-clean:not(.dark-mode) .sh-system-list>div,
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid>div{background:#f8f8fc!important;border-color:#e7e4ef!important;}
+body.live-room-clean:not(.dark-mode) .clean-device-status strong,
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics strong,
+body.live-room-clean:not(.dark-mode) .sh-question-meta-grid strong{color:#27233a!important;}
+body.live-room-clean:not(.dark-mode) .clean-device-actions button,
+body.live-room-clean:not(.dark-mode) .clean-answer-actions button,
+body.live-room-clean:not(.dark-mode) .sh-context-actions button,
+body.live-room-clean:not(.dark-mode) .clean-post-interview-actions button{background:#fff!important;color:#4b3b6f!important;border-color:#e1dced!important;}
+body.live-room-clean:not(.dark-mode) .clean-mcq-option{background:#fbfaff!important;color:#28233a!important;border-color:#ddd7ee!important;}
+body.live-room-clean:not(.dark-mode) .clean-mcq-option span{color:#28233a!important;}
+body.live-room-clean:not(.dark-mode) .clean-mcq-option.selected{background:#f0eaff!important;border-color:#7955e8!important;}
+body.live-room-clean:not(.dark-mode) .clean-answer-section textarea{background:#fff!important;color:#27233a!important;border-color:#ddd9e8!important;}
+body.live-room-clean:not(.dark-mode) .clean-transcript-preview{background:#fafafe!important;color:#77758a!important;border-color:#dedbe8!important;}
+body.live-room-clean:not(.dark-mode) .clean-interview-footer{background:rgba(255,255,255,.97)!important;box-shadow:0 18px 45px rgba(45,34,88,.12)!important;}
+body.live-room-clean:not(.dark-mode) .clean-interview-footer .secondary-btn{background:#f7f5fb!important;color:#3d3454!important;border-color:#ddd8e8!important;}
+body.live-room-clean:not(.dark-mode) .clean-interview-footer .danger-btn{background:#fff1f2!important;color:#b4232d!important;border-color:#efb2b7!important;}
+body.live-room-clean:not(.dark-mode) .sh-completion-card,
+body.live-room-clean:not(.dark-mode) .sh-modal{background:#fff!important;color:#17152b!important;border-color:#e4dff0!important;}
+body.live-room-clean:not(.dark-mode) .sh-completion-card p,
+body.live-room-clean:not(.dark-mode) .sh-modal p,
+body.live-room-clean:not(.dark-mode) .sh-check strong{color:#666276!important;}
+
+/* Final live-room contrast: theme state is stored on the same <body> element. */
+body.dark-mode.live-room-clean .evaluation-metric,
+body.dark-mode.live-room-clean .evaluation-breakdown-card,
+body.dark-mode.live-room-clean .evaluation-list-card,
+body.dark-mode.live-room-clean .sh-live-advanced-card,
+body.dark-mode.live-room-clean .clean-video-card,
+body.dark-mode.live-room-clean .clean-question-card,
+body.dark-mode.live-room-clean .clean-followup,
+body.dark-mode.live-room-clean .clean-transcript-preview,
+body.dark-mode.live-room-clean .clean-device-status,
+body.dark-mode.live-room-clean .sh-insight-metrics>div,
+body.dark-mode.live-room-clean .sh-system-list>div,
+body.dark-mode.live-room-clean .sh-question-meta-grid>div{background:#11182b!important;border-color:#34415f!important;color:#f4f7ff!important}
+body.dark-mode.live-room-clean .evaluation-metric h4,
+body.dark-mode.live-room-clean .evaluation-metric strong,
+body.dark-mode.live-room-clean .evaluation-metric span,
+body.dark-mode.live-room-clean .evaluation-breakdown-card h3,
+body.dark-mode.live-room-clean .evaluation-list-card h3,
+body.dark-mode.live-room-clean .clean-followup h3,
+body.dark-mode.live-room-clean .clean-followup p,
+body.dark-mode.live-room-clean .clean-device-status span,
+body.dark-mode.live-room-clean .clean-device-status strong,
+body.dark-mode.live-room-clean .sh-system-list span,
+body.dark-mode.live-room-clean .sh-system-list strong{color:#f4f7ff!important}
+body.dark-mode.live-room-clean .evaluation-metric span,
+body.dark-mode.live-room-clean .clean-followup p,
+body.dark-mode.live-room-clean .clean-live-header p{color:#aeb8cf!important}
+body.dark-mode.live-room-clean .clean-question-content{border-bottom-color:#2f3a56!important}
+body.dark-mode.live-room-clean .clean-control-group .secondary-btn{background:#1a2338!important;color:#edf2ff!important;border-color:#3b496b!important}
+body.dark-mode.live-room-clean .clean-control-group .primary-btn{background:linear-gradient(135deg,#7b4dff,#9a76ff)!important;color:#fff!important;border-color:#9a76ff!important}
+body.dark-mode.live-room-clean .clean-control-group .danger-btn{background:#3b1820!important;color:#ffbdc4!important;border-color:#8e3d4c!important}

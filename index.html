@@ -13,6 +13,21 @@ content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet"
 href="css/style.css">
 
+<link rel="stylesheet"
+href="css/smarthire-unified-theme.css">
+
+<link rel="stylesheet"
+href="css/login-theme.css">
+
+<link rel="stylesheet"
+href="css/landing-premium.css">
+
+<link rel="stylesheet"
+href="css/landing-final-polish.css">
+
+<link rel="stylesheet"
+href="css/landing-contrast-final.css">
+
 <link rel="preconnect"
 href="https://fonts.googleapis.com">
 
@@ -28,7 +43,7 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 </head>
 
-<body>
+<body class="landing-page">
 
 <!-- =======================================
       NAVBAR
@@ -62,6 +77,8 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
 
 </nav>
 
+<button class="sh-theme-toggle landing-theme-toggle" type="button" aria-label="Toggle theme"><i class="fa-solid fa-moon"></i><span>Dark</span></button>
+
 <div class="nav-buttons">
 
 <button class="login-btn" id="openLogin">
@@ -78,7 +95,21 @@ Get Started
 
 </div>
 
+<button class="lp-mobile-menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+  <i class="fa-solid fa-bars"></i>
+</button>
+
 </header>
+
+<div class="lp-mobile-menu" hidden>
+  <a href="#">Home</a>
+  <a href="#features">Features</a>
+  <a href="#about">About</a>
+  <a href="#contact">Contact</a>
+  <a href="#pricing">Pricing</a>
+  <button type="button" class="lp-mobile-login">Login</button>
+  <button type="button" class="lp-mobile-start">Get Started</button>
+</div>
 
 <!-- =======================================
       HERO SECTION
@@ -96,24 +127,17 @@ Get Started
 
 <h1>
 
-Hire Smarter.
-
+AI-Powered Mock Interviews &
 <br>
-
-Recruit Faster.
-
-<br>
-
-With Artificial Intelligence.
+<span>Candidate Assessment</span>
 
 </h1>
 
 <p>
 
-SmartHire AI helps recruiters evaluate resumes,
-conduct AI-powered mock interviews,
-measure ATS compatibility,
-and identify top candidates using intelligent insights.
+Practice smarter. Interview better.
+Get AI-powered feedback, resume insights, performance analytics,
+and smarter hiring tools in one connected platform.
 
 </p>
 
@@ -123,7 +147,7 @@ and identify top candidates using intelligent insights.
 
 <i class="fa-solid fa-rocket"></i>
 
-Start Hiring
+Start Free Interview
 
 </button>
 
@@ -216,6 +240,93 @@ ATS Compatibility Score
 </section>
 
 <!-- =======================================
+      PREMIUM ROLE EXPERIENCE
+======================================== -->
+<section class="sh-role-section" id="roles">
+  <div class="sh-section-heading">
+    <span class="sh-kicker">ONE PLATFORM · THREE EXPERIENCES</span>
+    <h2>Choose Your <span>SmartHire</span> Experience</h2>
+    <p>Move from preparation to hiring with the same SmartHire AI design system.</p>
+  </div>
+  <div class="sh-role-grid">
+    <article class="sh-role-card candidate">
+      <div class="sh-role-icon"><i class="fa-solid fa-user-graduate"></i></div>
+      <span class="sh-role-chip">For Candidates</span>
+      <h3>Practice. Improve. Get Hired.</h3>
+      <p>Upload your resume, practice AI mock interviews, track performance, and build interview confidence.</p>
+      <div class="sh-role-points"><span>✓ Resume ATS analysis</span><span>✓ Live AI interviews</span><span>✓ Growth analytics</span></div>
+      <button class="sh-role-btn" data-role="candidate">Get Started <i class="fa-solid fa-arrow-right"></i></button>
+    </article>
+    <article class="sh-role-card recruiter">
+      <div class="sh-role-icon"><i class="fa-solid fa-briefcase"></i></div>
+      <span class="sh-role-chip">For Recruiters</span>
+      <h3>Evaluate Talent with AI.</h3>
+      <p>Review candidates, compare interview performance, shortlist talent, and monitor active sessions.</p>
+      <div class="sh-role-points"><span>✓ Candidate pipeline</span><span>✓ AI interview analytics</span><span>✓ Candidate comparison</span></div>
+      <button class="sh-role-btn" data-role="recruiter">Recruiter Login <i class="fa-solid fa-arrow-right"></i></button>
+    </article>
+    <article class="sh-role-card admin">
+      <div class="sh-role-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sh-role-chip">For Admins</span>
+      <h3>Control the AI Platform.</h3>
+      <p>Manage users, AI configuration, platform analytics, reports, and system health from one workspace.</p>
+      <div class="sh-role-points"><span>✓ User management</span><span>✓ AI configuration</span><span>✓ System monitoring</span></div>
+      <button class="sh-role-btn" data-role="admin">Admin Login <i class="fa-solid fa-arrow-right"></i></button>
+    </article>
+  </div>
+</section>
+
+<!-- =======================================
+      INTERACTIVE AI DEMO
+======================================== -->
+<section class="sh-demo-section" id="ai-demo">
+  <div class="sh-demo-copy">
+    <span class="sh-kicker">INTERACTIVE DEMO</span>
+    <h2>Try the <span>AI Mock Interview</span> experience.</h2>
+    <p>See how SmartHire asks role-specific questions, captures your response, and turns it into actionable feedback.</p>
+    <div class="sh-demo-checks">
+      <span><i class="fa-solid fa-circle-check"></i> Realistic role-based questions</span>
+      <span><i class="fa-solid fa-circle-check"></i> Instant AI feedback</span>
+      <span><i class="fa-solid fa-circle-check"></i> Detailed performance scoring</span>
+    </div>
+    <button class="sh-demo-start" id="openAiDemo"><i class="fa-solid fa-play"></i> Start Demo Interview</button>
+  </div>
+  <div class="sh-demo-preview">
+    <div class="sh-demo-top"><span><i class="fa-solid fa-robot"></i> AI Interviewer</span><span class="sh-demo-live"><i class="fa-solid fa-circle"></i> Live Demo</span></div>
+    <div class="sh-question-bubble">Tell me about a challenging project you worked on and how you solved the problem.</div>
+    <div class="sh-demo-meta"><span>Technical Interview</span><b>Medium</b><span>02:45</span></div>
+    <div class="sh-demo-answer">Type your answer here or use voice input... <i class="fa-solid fa-microphone"></i></div>
+    <div class="sh-demo-metrics">
+      <div><strong>86%</strong><span>Technical</span></div>
+      <div><strong>78%</strong><span>Communication</span></div>
+      <div><strong>82%</strong><span>Confidence</span></div>
+      <div><strong>84%</strong><span>Overall</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- =======================================
+      JOURNEY
+======================================== -->
+<section class="sh-journey" id="journey">
+  <div class="sh-section-heading compact">
+    <span class="sh-kicker">HOW SMART HIRE AI WORKS</span>
+    <h2>From Resume to <span>Interview Ready</span></h2>
+  </div>
+  <div class="sh-journey-grid">
+    <div class="sh-journey-card"><span>1</span><i class="fa-solid fa-file-arrow-up"></i><h3>Upload Resume</h3><p>Get ATS compatibility and AI skill insights.</p></div>
+    <div class="sh-journey-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+    <div class="sh-journey-card"><span>2</span><i class="fa-solid fa-brain"></i><h3>AI Analysis</h3><p>Understand strengths, gaps, and role fit.</p></div>
+    <div class="sh-journey-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+    <div class="sh-journey-card"><span>3</span><i class="fa-solid fa-microphone-lines"></i><h3>Mock Interview</h3><p>Practice with role-specific AI questions.</p></div>
+    <div class="sh-journey-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+    <div class="sh-journey-card"><span>4</span><i class="fa-solid fa-chart-line"></i><h3>Get Feedback</h3><p>Track scores across technical and soft skills.</p></div>
+    <div class="sh-journey-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+    <div class="sh-journey-card"><span>5</span><i class="fa-solid fa-rocket"></i><h3>Improve & Grow</h3><p>Follow AI recommendations and get job-ready.</p></div>
+  </div>
+</section>
+
+<!-- =======================================
       TRUSTED BY
 ======================================== -->
 
@@ -250,13 +361,13 @@ Trusted by Future Professionals
         FEATURES SECTION
 ======================================== -->
 
-<section class="features" id="features">
+<section class="features sh-existing-features" id="features">
 
     <div class="section-title">
 
         <span>OUR FEATURES</span>
 
-        <h2>Everything You Need For Smart Recruitment</h2>
+        <h2>Everything You Need For Smart Interviews & Hiring</h2>
 
         <p>
             SmartHire AI combines Artificial Intelligence,
@@ -741,6 +852,19 @@ Trusted by Future Professionals
 
 </section>
 <!--=========================================
+            SMART HIRE IMPACT STRIP
+==========================================-->
+<section class="sh-impact">
+  <div class="sh-impact-copy"><span class="sh-kicker">SMART HIRE IMPACT</span><h2>One AI platform. <span>Every hiring signal.</span></h2><p>Bring candidates, recruiters, interviews, and platform intelligence into one connected workflow.</p></div>
+  <div class="sh-impact-metrics">
+    <div><strong>10K+</strong><span>Interview Sessions</span></div>
+    <div><strong>2.5K+</strong><span>Active Candidates</span></div>
+    <div><strong>94%</strong><span>AI Analysis Accuracy</span></div>
+    <div><strong>87%</strong><span>Avg. Improvement</span></div>
+  </div>
+</section>
+
+<!--=========================================
             PRICING SECTION
 ==========================================-->
 
@@ -1091,6 +1215,28 @@ All Rights Reserved.
 
         <button class="close-btn" type="button" aria-label="Close dialog">&times;</button>
 
+        <aside class="auth-visual" aria-label="SmartHire highlights">
+            <div class="auth-visual-top">
+                <div class="auth-visual-logo"><i class="fa-solid fa-brain"></i></div>
+                <span>SmartHire AI</span>
+            </div>
+            <div class="auth-visual-copy">
+                <span class="auth-visual-kicker">AI CAREER &amp; HIRING INTELLIGENCE</span>
+                <h2>Prepare smarter.<br><span>Hire better.</span></h2>
+                <p>One connected platform for AI interviews, ATS analysis, performance insights, and smarter hiring.</p>
+            </div>
+            <div class="auth-visual-cards">
+                <div><i class="fa-solid fa-microphone-lines"></i><span>AI Mock Interviews</span></div>
+                <div><i class="fa-solid fa-file-circle-check"></i><span>ATS Resume Analysis</span></div>
+                <div><i class="fa-solid fa-chart-line"></i><span>Performance Analytics</span></div>
+            </div>
+            <div class="auth-visual-stats">
+                <div><strong>10K+</strong><span>Interviews</span></div>
+                <div><strong>2.5K+</strong><span>Candidates</span></div>
+                <div><strong>94%</strong><span>AI Insights</span></div>
+            </div>
+        </aside>
+
         <div class="auth-panel">
 
             <div class="auth-brand">
@@ -1141,10 +1287,11 @@ All Rights Reserved.
                                 <option value="">Select Role</option>
                                 <option value="candidate">Candidate</option>
                                 <option value="recruiter">Recruiter</option>
-                                <option value="admin">Admin</option>
+                                <option value="admin">Admin (provisioned local account)</option>
                             </select>
                         </div>
                         <p class="field-error" data-error-for="roleSelect"></p>
+                        <p id="adminLoginHint" class="role-hint" style="display:none; margin:6px 0 0; color:#9aa7c4; font-size:12px;">Local admin account: <strong>admin@smarthire.com</strong> / <strong>Admin@12345</strong></p>
                     </div>
 
                     <div class="form-row">
@@ -1154,6 +1301,7 @@ All Rights Reserved.
                     <button id="loginSubmit" type="submit" class="auth-submit">
                         <span class="btn-label">Login</span>
                     </button>
+                    <a id="googleLoginButton" class="auth-submit" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:10px;background:#fff;color:#222;border:1px solid #ddd" href="http://localhost:8080/oauth2/authorization/google"><i class="fa-brands fa-google" style="margin-right:8px"></i> Continue with Google</a>
 
                     <p id="loginAuthMessage" class="auth-message" role="status"></p>
                 </form>
@@ -1214,7 +1362,7 @@ All Rights Reserved.
                                 <option value="">Select Role</option>
                                 <option value="candidate">Candidate</option>
                                 <option value="recruiter">Recruiter</option>
-                                <option value="admin">Admin</option>
+                                <option value="admin" disabled>Admin (created by an administrator)</option>
                             </select>
                         </div>
                         <p class="field-error" data-error-for="registerRoleSelect"></p>
@@ -1264,8 +1412,10 @@ All Rights Reserved.
 </button>
 
 <script src="js/api-client.js"></script>
+<script src="js/smarthire-theme.js"></script>
 <script src="js/script.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/landing-enhancements.js"></script>
 
 </body>
 </html>

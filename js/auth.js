@@ -1,4 +1,6 @@
 (() => {
+    const oauthParams = new URLSearchParams(window.location.search);
+    if (oauthParams.get("oauthToken")) { saveUser(oauthParams.get("oauthToken"), oauthParams.get("role") || "candidate", "", "Google User", oauthParams.get("userId")); window.history.replaceState({}, document.title, window.location.pathname); redirectToDashboard(oauthParams.get("role") || "candidate"); }
     const API_BASE_URL = (window.smartHireApi && window.smartHireApi.baseUrl)
         ? window.smartHireApi.baseUrl
         : "http://localhost:8080";
@@ -12,6 +14,7 @@
     const loginSubmit = document.getElementById("loginSubmit");
     const registerSubmit = document.getElementById("registerSubmit");
     const roleSelect = document.getElementById("roleSelect");
+    const adminLoginHint = document.getElementById("adminLoginHint");
     const registerRoleSelect = document.getElementById("registerRoleSelect");
     const loginAuthMessage = document.getElementById("loginAuthMessage");
     const registerAuthMessage = document.getElementById("registerAuthMessage");
@@ -21,6 +24,13 @@
     const registerForm = document.getElementById("registerForm");
     const forgotPasswordBtn = document.getElementById("forgotPassword");
     const loader = document.getElementById("loader");
+
+    if (roleSelect) {
+        roleSelect.addEventListener("change", () => {
+            if (!adminLoginHint) return;
+            adminLoginHint.style.display = roleSelect.value === "admin" ? "block" : "none";
+        });
+    }
 
     function showToast(message, type = "success") {
         const toast = document.getElementById("toast");
@@ -287,7 +297,10 @@
             });
 
             const token = result.token || result.jwt || result.jwtToken || result.accessToken;
-            const role = (result.role || selectedRole || "").toLowerCase();
+            // Use the authenticated role returned by the backend (UserController
+            // always returns user.getRole()). Never fall back to the form-selected
+            // role, since the backend role is the source of truth for routing.
+            const role = (result.role || "").toLowerCase();
             const name = result.name || email.split("@")[0];
             const userId = result.userId;
 
@@ -351,8 +364,13 @@
         }
     }
 
-    function handleForgotPassword() {
-        showToast("Forgot password flow will be available soon", "error");
+    async function handleForgotPassword() {
+        const email = prompt("Enter your account email:");
+        if (!email) return;
+        try {
+            const result = await apiRequest("/api/auth/forgot-password", { email: email.trim() });
+            showToast("If the account exists, check your email for password reset instructions.", "success");
+        } catch (error) { showToast(error.message || "Password reset failed", "error"); }
     }
 
     function attachPasswordToggles() {
@@ -439,6 +457,9 @@
                 });
             }
         });
+
+        const googleButton=document.getElementById("googleLoginButton");
+        if(googleButton && window.smartHireApi) googleButton.href=window.smartHireApi.buildUrl("/oauth2/authorization/google");
 
         const path = window.location.pathname.toLowerCase();
 

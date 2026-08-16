@@ -1,0 +1,70 @@
+
+/* SmartHire Resume Analyzer — final functional + theme-preserving surface */
+.resume-analyzer-shell .resume-functional-grid{align-items:start}
+.resume-analyzer-shell .resume-workspace-card,.resume-analyzer-shell .resume-analysis-card{min-width:0}
+.resume-analyzer-shell .card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.resume-analyzer-shell .card-heading h2{margin:4px 0 0;font-size:18px;color:var(--sh-ink,#17152b)}
+.resume-analyzer-shell .resume-intro{margin:8px 0 18px;color:#7d788a;font-size:12px;line-height:1.65}
+.resume-analyzer-shell .section-status{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:999px;background:#f0eaff;color:#6d35e8;border:1px solid #e2d8ff;font-size:10px;font-weight:800;white-space:nowrap}
+.resume-analyzer-shell .section-status.success{background:#e9f9ef;color:#1b8a58;border-color:#cdeedb}.resume-analyzer-shell .section-status.warning{background:#fff6dd;color:#8a6500;border-color:#f0dfab}.resume-analyzer-shell .section-status.ai{background:#eef2ff;color:#4f46e5;border-color:#d9ddff}
+.resume-analyzer-shell .resume-upload-zone{border:2px dashed #a88cff;border-radius:16px;padding:30px 22px;text-align:center;background:linear-gradient(180deg,#faf8ff,#f8f6fd);cursor:pointer;transition:.18s}
+.resume-analyzer-shell .resume-upload-zone:hover,.resume-analyzer-shell .resume-upload-zone:focus{border-color:#6d35e8;background:#fbf9ff;box-shadow:0 0 0 3px rgba(109,53,232,.08);outline:0}
+.resume-analyzer-shell .resume-upload-icon{width:54px;height:54px;margin:0 auto 10px;display:grid;place-items:center;border-radius:14px;background:#efe9ff;color:#6d35e8;font-size:23px}
+.resume-analyzer-shell .resume-upload-zone h3{margin:0 0 6px;font-size:18px;color:#27233a}.resume-analyzer-shell .resume-upload-zone p{margin:0 auto 14px;max-width:480px;color:#898396;font-size:11px;line-height:1.6}
+.resume-analyzer-shell .resume-upload-zone .primary-btn{display:inline-flex;align-items:center;gap:8px}
+.resume-analyzer-shell .resume-step-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.resume-analyzer-shell .resume-step{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #eceaf3;border-radius:12px;background:#faf9fd}.resume-analyzer-shell .resume-step-number{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#efe9ff;color:#6d35e8;font-size:10px;font-weight:900}.resume-analyzer-shell .resume-step strong{display:block;font-size:10px;color:#433e52}.resume-analyzer-shell .resume-step small{display:block;font-size:9px;color:#9792a1;margin-top:2px}
+.resume-analyzer-shell .resume-status{min-height:24px;margin:14px 0 0;color:#6d35e8;font-size:11px;font-weight:700}.resume-analyzer-shell .resume-file-preview{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;margin-top:6px;border:1px solid #eceaf3;border-radius:12px;background:#faf9fd}.resume-analyzer-shell .resume-file-preview span{display:block;font-size:9px;color:#9792a1;text-transform:uppercase;letter-spacing:.04em}.resume-analyzer-shell .resume-file-preview strong{display:block;margin-top:3px;font-size:11px;color:#2f2b3b}
+.resume-analyzer-shell .resume-message{padding:10px 12px;border-radius:10px;margin-top:12px;font-size:11px;font-weight:700}.resume-analyzer-shell .resume-message.info{background:#f0edff;color:#5b46ba;border:1px solid #ded6ff}.resume-analyzer-shell .resume-message.error{background:#fff0f1;color:#b4232d;border:1px solid #f3c5cb}
+.resume-analyzer-shell .resume-result-section{margin-top:14px;padding:14px;border:1px solid #eceaf3;border-radius:14px;background:#fff}.resume-analyzer-shell .resume-result-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.resume-analyzer-shell .resume-result-head h3{margin:0;font-size:14px;color:#2f2b3b}.resume-analyzer-shell .resume-result-head p{margin:4px 0 0;color:#8d8998;font-size:10px;line-height:1.5}
+.resume-analyzer-shell .resume-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.resume-analyzer-shell .resume-mini-stats>div{padding:9px 10px;border:1px solid #eeeaf4;border-radius:10px;background:#faf9fd}.resume-analyzer-shell .resume-mini-stats span{display:block;font-size:9px;color:#9792a1;text-transform:uppercase}.resume-analyzer-shell .resume-mini-stats strong{display:block;margin-top:3px;font-size:10px;color:#312d3f}
+.resume-analyzer-shell .resume-text-block{white-space:pre-wrap;line-height:1.7;color:#4a4556;font-size:11px;max-height:260px;overflow:auto}.resume-analyzer-shell .resume-analysis-results{margin-top:4px}.resume-analyzer-shell .resume-score-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,#6d35e8,#8b5cf6);color:#fff}.resume-analyzer-shell .resume-score-hero span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#e8ddff;font-weight:800}.resume-analyzer-shell .resume-score-hero strong{display:block;margin-top:5px;font-size:38px;line-height:1}.resume-analyzer-shell .resume-score-ring{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;border:5px solid rgba(255,255,255,.3);font-weight:900;font-size:18px;background:rgba(255,255,255,.09)}
+.resume-analyzer-shell .resume-score-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}.resume-analyzer-shell .resume-score-grid>div{padding:10px;border:1px solid #eceaf3;border-radius:11px;background:#faf9fd}.resume-analyzer-shell .resume-score-grid span{display:block;font-size:8px;color:#8e8998;text-transform:uppercase}.resume-analyzer-shell .resume-score-grid strong{display:block;margin-top:4px;font-size:18px;color:#312d3f}.resume-analyzer-shell .resume-score-grid small{display:block;margin-top:2px;font-size:9px;color:#6d35e8}
+.resume-analyzer-shell .resume-chip-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.resume-analyzer-shell .resume-chip-list span:not(.resume-muted){display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#f0eaff;color:#5b32cb;border:1px solid #ded4ff;font-size:9px;font-weight:800}.resume-analyzer-shell .resume-muted{font-size:10px;color:#9691a0}.resume-analyzer-shell .resume-text-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.resume-analyzer-shell .resume-breakdown-bars{display:grid;gap:9px;margin-top:10px}.resume-analyzer-shell .resume-breakdown-bars>div>span{display:block;margin-bottom:5px;color:#716c7e;font-size:9px}.resume-analyzer-shell .resume-bar{height:8px;background:#e9e7f0;border-radius:999px;overflow:hidden}.resume-analyzer-shell .resume-bar i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#6d35e8,#8f6af4)}.resume-analyzer-shell .resume-list{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:7px}.resume-analyzer-shell .resume-list li{padding:8px 0;border-bottom:1px solid #eeeaf4;color:#454052;font-size:10px}
+.resume-analyzer-shell .resume-empty-state{padding:28px 18px;text-align:center;border:1px dashed #d9d3eb;border-radius:15px;background:#faf9fd;margin-top:10px}.resume-analyzer-shell .resume-empty-icon{width:46px;height:46px;border-radius:13px;margin:0 auto 9px;display:grid;place-items:center;background:#f0eaff;color:#6d35e8}.resume-analyzer-shell .resume-empty-state strong{display:block;font-size:12px;color:#4a4556}.resume-analyzer-shell .resume-empty-state span{display:block;margin-top:4px;font-size:10px;color:#9691a0}
+
+/* Exact same-element dark-mode selectors: body itself owns both classes. */
+body.dark-mode.resume-analyzer-shell{background:#0f1524!important;color:#edf2fa!important}
+body.dark-mode.resume-analyzer-shell .dashboard{background:#0f1524!important}
+body.dark-mode.resume-analyzer-shell .topbar{background:rgba(20,26,42,.96)!important;border-color:#2b3650!important}
+body.dark-mode.resume-analyzer-shell .search-box,body.dark-mode.resume-analyzer-shell .top-icons .secondary-btn{background:#1a2235!important;border-color:#34415f!important;color:#edf2fa!important}
+body.dark-mode.resume-analyzer-shell .search-box input{color:#edf2fa!important}.resume-analyzer-shell .profile h4{color:#f4f1fb}
+body.dark-mode.resume-analyzer-shell .analytics-panel,body.dark-mode.resume-analyzer-shell .resume-workspace-card,body.dark-mode.resume-analyzer-shell .resume-analysis-card{background:#151d31!important;border-color:#303b54!important;box-shadow:0 18px 40px rgba(0,0,0,.22)!important;color:#eef3fb!important}
+body.dark-mode.resume-analyzer-shell .card-heading h2,body.dark-mode.resume-analyzer-shell .resume-upload-zone h3,body.dark-mode.resume-analyzer-shell .resume-result-head h3,body.dark-mode.resume-analyzer-shell .resume-empty-state strong{color:#f5f7fb!important}
+body.dark-mode.resume-analyzer-shell .resume-intro,body.dark-mode.resume-analyzer-shell .resume-upload-zone p,body.dark-mode.resume-analyzer-shell .resume-step small,body.dark-mode.resume-analyzer-shell .resume-result-head p,body.dark-mode.resume-analyzer-shell .resume-muted{color:#aab6ca!important}
+body.dark-mode.resume-analyzer-shell .resume-upload-zone{background:#10182a!important;border-color:#8b6bff!important}.resume-analyzer-shell .resume-upload-zone:hover{background:#161d34!important}
+body.dark-mode.resume-analyzer-shell .resume-step,body.dark-mode.resume-analyzer-shell .resume-file-preview,body.dark-mode.resume-analyzer-shell .resume-mini-stats>div,body.dark-mode.resume-analyzer-shell .resume-score-grid>div,body.dark-mode.resume-analyzer-shell .resume-result-section,body.dark-mode.resume-analyzer-shell .resume-empty-state{background:#10182a!important;border-color:#34415f!important}
+body.dark-mode.resume-analyzer-shell .resume-step strong,body.dark-mode.resume-analyzer-shell .resume-file-preview strong,body.dark-mode.resume-analyzer-shell .resume-mini-stats strong,body.dark-mode.resume-analyzer-shell .resume-score-grid strong,body.dark-mode.resume-analyzer-shell .resume-text-block,body.dark-mode.resume-analyzer-shell .resume-list li{color:#e3e9f3!important}
+body.dark-mode.resume-analyzer-shell .resume-file-preview span,body.dark-mode.resume-analyzer-shell .resume-mini-stats span,body.dark-mode.resume-analyzer-shell .resume-score-grid span,body.dark-mode.resume-analyzer-shell .resume-score-grid small{color:#9caac0!important}
+body.dark-mode.resume-analyzer-shell .resume-step-number{background:#2c2249;color:#c7b5ff}.resume-analyzer-shell .resume-step-number{font-weight:900}
+body.dark-mode.resume-analyzer-shell .resume-bar{background:#2c3650!important}
+body.dark-mode.resume-analyzer-shell .resume-chip-list span:not(.resume-muted){background:#27204a!important;color:#d2c6ff!important;border-color:#4e3c84!important}
+body.dark-mode.resume-analyzer-shell .resume-message.info{background:#241d3c!important;color:#ddd2ff!important;border-color:#4b3d73!important}.resume-analyzer-shell .resume-message.error{background:#351c24!important;color:#ffc7ce!important;border-color:#713744!important}
+@media(max-width:1100px){.resume-analyzer-shell .resume-score-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:850px){.resume-analyzer-shell .resume-step-row,.resume-analyzer-shell .resume-text-grid{grid-template-columns:1fr}.resume-analyzer-shell .resume-score-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.resume-analyzer-shell .resume-score-grid{grid-template-columns:1fr}.resume-analyzer-shell .resume-file-preview{flex-direction:column}.resume-analyzer-shell .resume-score-hero{align-items:flex-start}}
+
+body.dark-mode.resume-analyzer-shell .resume-status{color:#cdbdff!important}
+body.dark-mode.resume-analyzer-shell .resume-message.info{background:#1d2540!important;color:#d6ddff!important;border-color:#3c4d78!important}
+body.dark-mode.resume-analyzer-shell .resume-message.error{background:#35151d!important;color:#ffc4cd!important;border-color:#7f3242!important}
+body.dark-mode.resume-analyzer-shell .resume-upload-zone:focus{box-shadow:0 0 0 3px rgba(139,92,246,.28)!important}
+
+
+/* Native file picker: the input overlays the visible button so browser file
+   selection is reliable even when the same PDF is selected repeatedly. */
+.resume-file-picker {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.resume-file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}

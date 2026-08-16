@@ -1,0 +1,100 @@
+/* SmartHire unified landing/login theme */
+:root{
+  --sh-purple:#6d35e8;
+  --sh-purple-2:#8b5cf6;
+  --sh-bg:#f7f7fb;
+  --sh-card:#ffffff;
+  --sh-text:#17152b;
+  --sh-muted:#77758a;
+  --sh-border:#eceaf3;
+  --sh-shadow:0 18px 55px rgba(45,34,88,.10);
+}
+
+html{background:var(--sh-bg)}
+body{background:var(--sh-bg);color:var(--sh-text);font-family:Inter,Poppins,Arial,sans-serif;min-height:100vh}
+
+.navbar{background:rgba(255,255,255,.92);border-bottom:1px solid var(--sh-border);box-shadow:0 4px 18px rgba(45,34,88,.04)}
+.logo i{color:var(--sh-purple)}
+.logo h2{color:var(--sh-text)}
+nav ul li a{color:#716f80}
+nav ul li a:hover{color:var(--sh-purple)}
+.login-btn{background:#fff;border:1px solid #ded8ef;color:var(--sh-purple);border-radius:11px}
+.login-btn:hover{background:#f4efff;border-color:#cdbff5;color:var(--sh-purple)}
+.start-btn,.primary-btn,.auth-submit{background:linear-gradient(100deg,var(--sh-purple),var(--sh-purple-2));box-shadow:0 12px 24px rgba(109,53,232,.18)}
+.secondary-btn{border-color:#ded8ef;color:#635e72;background:#fff}
+.badge{background:#f0eaff;color:var(--sh-purple)}
+.hero h1{color:var(--sh-text)}
+.hero p,.hero-stats p{color:var(--sh-muted)}
+.hero-stats h2{color:var(--sh-purple)}
+.hero-card,.feature-card,.stat-card,.testimonial-card,.workflow-card,.mini-card,.price-card,.why-card{background:#fff;border:1px solid var(--sh-border);box-shadow:var(--sh-shadow)}
+.section-title span,.why-left>span{color:var(--sh-purple)}
+.section-title h2,.why-left h2{color:var(--sh-text)}
+
+/* Login modal */
+.login-modal{background:rgba(19,16,35,.64);backdrop-filter:blur(14px);padding:18px}
+.auth-modal{width:min(100%,980px);max-height:min(92vh,760px);overflow:hidden;border:1px solid rgba(109,53,232,.14);border-radius:26px;background:#fff;box-shadow:0 30px 90px rgba(15,12,32,.28);display:grid;grid-template-columns:minmax(300px,.88fr) minmax(380px,1.12fr)}
+.auth-modal::before{content:"";display:block;grid-column:1;background:linear-gradient(145deg,#5f2fd0 0%,#7a46ea 48%,#a06bff 100%);min-height:100%;position:absolute;inset:0 auto 0 0;width:39%;z-index:0}
+.auth-panel{grid-column:2;padding:34px 34px 28px;gap:18px;max-height:92vh;overflow:auto;position:relative;z-index:1}
+.auth-brand{margin-bottom:4px}
+.auth-badge{background:linear-gradient(135deg,var(--sh-purple),var(--sh-purple-2));box-shadow:0 10px 22px rgba(109,53,232,.22)}
+.auth-brand h2{color:var(--sh-text);font-size:23px}
+.auth-brand p{color:var(--sh-muted)}
+.auth-switch{background:#f3effc}
+.auth-switch-btn{color:#6f6a7d}
+.auth-switch-btn.active{background:#fff;color:var(--sh-purple);box-shadow:0 8px 18px rgba(109,53,232,.12)}
+.input-group label{color:#413d4e}
+.input-with-icon input,.input-with-icon select{background:#fbfaff;border-color:#e6e0f2;color:#28253a;border-radius:13px}
+.input-with-icon input::placeholder{color:#aaa5b7}
+.input-with-icon i:first-child{color:#9b96aa}
+.input-with-icon input:focus,.input-with-icon select:focus{border-color:#8b6df0;box-shadow:0 0 0 4px rgba(109,53,232,.12)}
+.password-toggle{color:#797287}
+.text-link{color:var(--sh-purple)}
+.auth-submit{border-radius:13px}
+.field-error{color:#d44758}
+.auth-message.success{color:#1f8a5b}.auth-message.error{color:#d44758}
+.close-btn{color:#8a8497}
+.close-btn:hover{color:var(--sh-text)}
+
+/* Brand panel content */
+.auth-modal:after{content:"AI-powered interviews  •  ATS analysis  •  Recruiter insights";position:absolute;left:34px;bottom:54px;width:31%;z-index:1;color:rgba(255,255,255,.84);font-size:13px;line-height:1.65;letter-spacing:.1px}
+
+/* theme button */
+#themeToggle{right:26px!important;bottom:26px!important;width:46px;height:46px;border-radius:14px!important;background:#fff;border:1px solid var(--sh-border);color:var(--sh-purple);box-shadow:0 12px 26px rgba(45,34,88,.12);z-index:1100!important}
+#themeToggle:hover{transform:translateY(-2px);border-color:#d7cbf5}
+
+/* Dark theme for landing + login */
+body.dark-mode{background:#10101a;color:#f4f1fb}
+body.dark-mode .navbar{background:rgba(25,25,37,.94);border-color:#2b2940;box-shadow:none}
+body.dark-mode .logo h2{color:#f5f7fb}
+body.dark-mode nav ul li a{color:#b9b4c9}
+body.dark-mode nav ul li a:hover{color:#cdbdff}
+body.dark-mode .login-btn{background:#1c1b2a;border-color:#51437c;color:#d6c8ff}
+body.dark-mode .login-btn:hover{background:#241f36}
+body.dark-mode .secondary-btn{background:#1c1b2a;color:#ddd8ea;border-color:#3a3651}
+body.dark-mode .badge{background:#2a2140;color:#d7c7ff}
+body.dark-mode .hero h1,body.dark-mode .section-title h2,body.dark-mode .why-left h2{color:#f6f3fb}
+body.dark-mode .hero p,body.dark-mode .hero-stats p{color:#a9a4b8}
+body.dark-mode .hero-card,body.dark-mode .feature-card,body.dark-mode .stat-card,body.dark-mode .testimonial-card,body.dark-mode .workflow-card,body.dark-mode .mini-card,body.dark-mode .price-card,body.dark-mode .why-card{background:#171625;border-color:#2b293d;box-shadow:none;color:#efeaf8}
+body.dark-mode .hero-card p,body.dark-mode .feature-card p,body.dark-mode .stat-card p,body.dark-mode .testimonial-card p,body.dark-mode .workflow-card p,body.dark-mode .mini-card p{color:#aaa5b8}
+body.dark-mode .login-modal{background:rgba(5,5,12,.78)}
+body.dark-mode .auth-modal{background:#151524;border-color:#2f2b49;box-shadow:0 30px 90px rgba(0,0,0,.45)}
+body.dark-mode .auth-brand h2{color:#f5f2fb}
+body.dark-mode .auth-brand p{color:#aaa6b8}
+body.dark-mode .auth-switch{background:#221f32}
+body.dark-mode .auth-switch-btn{color:#b9b2c8}
+body.dark-mode .auth-switch-btn.active{background:#312746;color:#dccfff;box-shadow:none}
+body.dark-mode .input-group label{color:#dcd6e8}
+body.dark-mode .input-with-icon input,body.dark-mode .input-with-icon select{background:#10101c;border-color:#3b3651;color:#f4f1fb}
+body.dark-mode .input-with-icon input::placeholder{color:#7f7a90}
+body.dark-mode .input-with-icon i:first-child,body.dark-mode .password-toggle{color:#8f89a3}
+body.dark-mode .text-link{color:#cdbdff}
+body.dark-mode .close-btn{color:#9f99ad}
+body.dark-mode .auth-message.success{color:#72e0ad}.auth-message.error{color:#ff9da8}
+body.dark-mode #themeToggle{background:#1b1a29;border-color:#39354e;color:#d6c7ff;box-shadow:none}
+
+@media(max-width:850px){
+  .auth-modal{grid-template-columns:1fr;max-height:94vh}
+  .auth-modal::before{display:none}
+  .auth-panel{grid-column:1;padding:26px 22px}
+  .auth-modal:after{display:none}
+}

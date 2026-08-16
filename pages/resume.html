@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Analyzer | SmartHire AI</title><link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/candidate-dashboard.css"><link rel="stylesheet" href="../css/interview-pages.css"><link rel="stylesheet" href="../css/candidate-pages.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">  <link rel="stylesheet" href="../css/smarthire-unified-theme.css">
+  <link rel="stylesheet" href="../css/resume-analyzer-final.css">
+  <link rel="stylesheet" href="../css/final-theme-contrast.css">
+</head>
+<body class="interview-page-shell resume-analyzer-shell">
+<aside class="sidebar"><div class="sidebar-logo"><i class="fa-solid fa-sparkles"></i><h2>SmartHire</h2></div><ul><li class=""><a class="sidebar-link" href="candidate.html"><i class="fa-solid fa-house"></i><span>Dashboard</span></a></li>
+<li class="active"><a class="sidebar-link" href="resume.html"><i class="fa-solid fa-file-circle-check"></i><span>Resume Analyzer</span></a></li>
+<li class=""><a class="sidebar-link" href="interview-setup.html"><i class="fa-solid fa-microphone-lines"></i><span>Mock Interviews</span></a></li>
+<li class=""><a class="sidebar-link" href="interview-history.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Interview History</span></a></li>
+<li class=""><a class="sidebar-link" href="practice-assessment.html"><i class="fa-solid fa-list-check"></i><span>Practice Assessment</span></a></li>
+<li class=""><a class="sidebar-link" href="performance-analytics.html"><i class="fa-solid fa-chart-column"></i><span>Performance Analytics</span></a></li>
+<li class=""><a class="sidebar-link" href="improvement-progress.html"><i class="fa-solid fa-arrow-trend-up"></i><span>Improvement Progress</span></a></li>
+<li class=""><a class="sidebar-link" href="reports.html"><i class="fa-solid fa-file-arrow-down"></i><span>Reports</span></a></li>
+<li class=""><a class="sidebar-link" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li></ul><div class="sidebar-upgrade"><div class="upgrade-spark"><i class="fa-solid fa-crown"></i></div><strong>Go Pro with SmartHire AI</strong><p>Advanced AI feedback, unlimited practice and detailed reports.</p><a href="interview-setup.html">Explore Pro <i class="fa-solid fa-arrow-right"></i></a></div></aside>
+<div class="dashboard"><header class="topbar"><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="Search resume..."></div><div class="top-icons"><button id="candidateThemeToggle" class="secondary-btn" type="button">Dark</button><div class="profile"><div class="profile-avatar small"><i class="fa-solid fa-user"></i></div><div><h4 id="setupUserName">Candidate</h4><p>Candidate</p></div></div></div></header><main class="page-content"><section class="interview-page-hero"><div><span class="eyebrow">RESUME ANALYZER</span><h1>Make your resume interview-ready</h1><p>Upload your resume, run ATS analysis and use AI suggestions to strengthen your profile.</p></div><div class="hero-badge"><i class="fa-solid fa-file-circle-check"></i><span>ATS + AI insights</span></div></section><section class="stat-grid"><article class="stat-card"><span>Latest ATS Score</span><strong id="resumePageAts">—</strong><small>From your latest analysis</small></article><article class="stat-card"><span>Resume Status</span><strong>Ready</strong><small>Keep your profile updated</small></article><article class="stat-card"><span>AI Suggestions</span><strong>Review</strong><small>Improve keyword alignment</small></article><article class="stat-card"><span>Job Match</span><strong>AI</strong><small>Compare with target roles</small></article></section>
+<section class="analytics-grid resume-functional-grid">
+  <article class="analytics-panel resume-workspace-card">
+    <div class="card-heading">
+      <div><span class="eyebrow">RESUME WORKSPACE</span><h2>Upload & Extract Your Resume</h2></div>
+      <span class="section-status" id="resumePipelineStatus">Ready</span>
+    </div>
+    <p class="resume-intro">Upload your PDF, extract the text, and run AI analysis without leaving this page.</p>
+
+    <div id="resumeUploadBtn" class="resume-upload-zone" aria-label="Choose resume PDF">
+      <div class="resume-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Choose your resume PDF</h3>
+      <p>Click here to select a PDF. SmartHire will upload, extract and analyze it.</p>
+      <label id="resumeChooseButton" class="primary-btn resume-file-picker">
+        <i class="fa-solid fa-file-arrow-up"></i> Choose Resume
+        <input id="resumeFileInput" type="file" accept=".pdf,application/pdf" aria-label="Choose resume PDF">
+      </label>
+    </div>
+
+    <div class="resume-step-row">
+      <div class="resume-step"><span class="resume-step-number">1</span><div><strong>Upload</strong><small>Select your PDF resume.</small></div></div>
+      <div class="resume-step"><span class="resume-step-number">2</span><div><strong>Extract</strong><small>Read the resume text and pages.</small></div></div>
+      <div class="resume-step"><span class="resume-step-number">3</span><div><strong>Analyze</strong><small>Get ATS, skills and AI insights.</small></div></div>
+    </div>
+
+    <div id="resumeUploadStatus" class="resume-status" aria-live="polite">No resume selected.</div>
+
+    <div class="resume-file-preview">
+      <div><span>Selected file</span><strong id="resumePreviewFileName">No file selected</strong></div>
+      <div><span>Updated</span><strong id="resumePreviewUpdated">—</strong></div>
+    </div>
+
+    <div id="resumeExtractLoading" class="resume-message info" style="display:none">Extracting resume text…</div>
+    <div id="resumeExtractError" class="resume-message error" style="display:none"></div>
+    <div id="resumeExtractResults" class="resume-result-section" style="display:none">
+      <div class="resume-result-head"><div><h3>Extracted Resume Text</h3><p>Verify the document text before relying on AI results.</p></div><span class="section-status success">Extracted</span></div>
+      <div class="resume-mini-stats">
+        <div><span>File</span><strong id="resumeFileName">—</strong></div>
+        <div><span>Pages</span><strong id="resumePageCount">—</strong></div>
+      </div>
+      <div id="resumeExtractedText" class="resume-text-block"></div>
+    </div>
+
+    <div id="resumeAnalysisLoading" class="resume-message info" style="display:none">Analyzing resume with AI…</div>
+    <div id="resumeAnalysisError" class="resume-message error" style="display:none"></div>
+  </article>
+
+  <article class="analytics-panel resume-analysis-card">
+    <div class="card-heading">
+      <div><span class="eyebrow">AI RESUME ANALYSIS</span><h2>Skills, ATS & Improvement Signals</h2></div>
+      <span class="section-status ai">Gemini + ATS</span>
+    </div>
+    <p class="resume-intro">Once the upload pipeline completes, your actual extracted skills, ATS score and improvement recommendations appear here.</p>
+
+    <div id="resumeAnalysisResultsEmpty" class="resume-empty-state">
+      <div class="resume-empty-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <strong>Upload a resume to view AI analysis.</strong>
+      <span>Skills, technologies, missing skills and scores will appear here.</span>
+    </div>
+
+    <div id="resumeAnalysisResults" class="resume-analysis-results" style="display:none">
+      <div class="resume-score-hero">
+        <div><span>Overall ATS Score</span><strong id="resumeAtsScore">—</strong></div>
+        <div class="resume-score-ring"><span id="resumeScoreRingValue">—</span></div>
+      </div>
+
+      <div class="resume-score-grid">
+        <div><span>Keywords</span><strong id="keywordScore">—</strong><small>ATS signal</small></div>
+        <div><span>Skills</span><strong id="skillsScore">—</strong><small>ATS signal</small></div>
+        <div><span>Experience</span><strong id="experienceScore">—</strong><small>ATS signal</small></div>
+        <div><span>Education</span><strong id="educationScore">—</strong><small>ATS signal</small></div>
+        <div><span>Formatting</span><strong id="formattingScore">—</strong><small>ATS signal</small></div>
+      </div>
+
+      <div class="resume-result-section">
+        <div class="resume-result-head"><div><h3>Extracted Skills</h3><p>Skills detected from the analyzed resume.</p></div><span class="section-status success">Skills</span></div>
+        <div id="resumeSkills" class="resume-chip-list"><span class="resume-muted">No skills found yet.</span></div>
+      </div>
+      <div class="resume-result-section">
+        <div class="resume-result-head"><div><h3>Technologies</h3><p>Technology keywords detected in the resume.</p></div><span class="section-status">Tech</span></div>
+        <div id="resumeTechnologies" class="resume-chip-list"><span class="resume-muted">No technologies found yet.</span></div>
+      </div>
+      <div class="resume-result-section">
+        <div class="resume-result-head"><div><h3>Missing Skills</h3><p>Potential gaps for your target role.</p></div><span class="section-status warning">Improve</span></div>
+        <div id="resumeMissingSkills" class="resume-chip-list"><span class="resume-muted">None identified.</span></div>
+      </div>
+      <div class="resume-text-grid">
+        <div class="resume-result-section"><h3>Summary</h3><div id="resumeSummary" class="resume-text-block">—</div></div>
+        <div class="resume-result-section"><h3>Experience</h3><div id="resumeExperience" class="resume-text-block">—</div></div>
+        <div class="resume-result-section"><h3>Education</h3><div id="resumeEducation" class="resume-text-block">—</div></div>
+      </div>
+
+      <div id="atsScoreBreakdown" class="resume-result-section" style="display:none">
+        <div class="resume-result-head"><div><h3>ATS Score Breakdown</h3><p>How the overall score is distributed.</p></div></div>
+        <div class="resume-breakdown-bars">
+          <div><span>Keywords</span><div class="resume-bar"><i id="keywordScoreBar"></i></div></div>
+          <div><span>Skills</span><div class="resume-bar"><i id="skillsScoreBar"></i></div></div>
+          <div><span>Experience</span><div class="resume-bar"><i id="experienceScoreBar"></i></div></div>
+          <div><span>Education</span><div class="resume-bar"><i id="educationScoreBar"></i></div></div>
+          <div><span>Formatting</span><div class="resume-bar"><i id="formattingScoreBar"></i></div></div>
+        </div>
+      </div>
+
+      <div id="resumeImprovementSection" class="resume-text-grid" style="display:none">
+        <div class="resume-result-section"><h3>Strengths</h3><ul id="resumeStrengths" class="resume-list"></ul></div>
+        <div class="resume-result-section"><h3>Weaknesses</h3><ul id="resumeWeaknesses" class="resume-list"></ul></div>
+        <div class="resume-result-section"><h3>Improvement Suggestions</h3><ul id="resumeSuggestions" class="resume-list"></ul></div>
+      </div>
+    </div>
+  </article>
+</section>
+</main></div><script>const s=Number(localStorage.getItem("smarthire.lastAtsScore"));document.getElementById("resumePageAts").textContent=Number.isFinite(s)?Math.round(s)+"%":"—";</script><script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script><script src="../js/role-guard.js"></script><script>window.SMART_HIRE_RESUME_STANDALONE = true;</script><script src="../js/script.js"></script>
+<script>
+(()=>{
+  const input=document.getElementById('resumeFileInput');
+  if(!input) return;
+  if(input.dataset.smartHireBound === '1') return;
+  input.dataset.smartHireBound = '1';
+
+  const $=id=>document.getElementById(id);
+  const status=$('resumeUploadStatus'), preview=$('resumePreviewFileName'), updated=$('resumePreviewUpdated');
+  const extractLoading=$('resumeExtractLoading'), extractError=$('resumeExtractError'), extractResults=$('resumeExtractResults');
+  const fileName=$('resumeFileName'), pageCount=$('resumePageCount'), extractedText=$('resumeExtractedText');
+  const analysisLoading=$('resumeAnalysisLoading'), analysisError=$('resumeAnalysisError'), analysisResults=$('resumeAnalysisResults'), analysisEmpty=$('resumeAnalysisResultsEmpty');
+  const skillsEl=$('resumeSkills'), techEl=$('resumeTechnologies'), missingEl=$('resumeMissingSkills');
+  const atsEl=$('resumeAtsScore'), summaryEl=$('resumeSummary'), experienceEl=$('resumeExperience'), educationEl=$('resumeEducation');
+  const scoreEls={keyword:$('keywordScore'),formatting:$('formattingScore'),skills:$('skillsScore'),experience:$('experienceScore'),education:$('educationScore')};
+  const bars={keyword:$('keywordScoreBar'),formatting:$('formattingScoreBar'),skills:$('skillsScoreBar'),experience:$('experienceScoreBar'),education:$('educationScoreBar')};
+
+  const apiBase=(window.smartHireApi && window.smartHireApi.baseUrl) ? window.smartHireApi.baseUrl : 'http://localhost:8080';
+  const headers=()=>{const h={}; const token=localStorage.getItem('authToken'); if(token) h.Authorization='Bearer '+token; return h;};
+  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const list=(...vals)=>{const out=[]; const visit=v=>{if(Array.isArray(v)){v.forEach(visit);return;} if(typeof v==='string'){v.split(/[,;|\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>out.push(x));return;} if(v&&typeof v==='object') Object.values(v).forEach(visit);}; vals.forEach(visit); return [...new Set(out)];};
+  const dict=['Java','JavaScript','TypeScript','Python','C','C++','C#','SQL','HTML','CSS','React','Angular','Vue','Spring Boot','Spring','REST APIs','REST','Git','GitHub','Docker','Kubernetes','AWS','Azure','PostgreSQL','MySQL','MongoDB','Node.js','Express','Data Structures','Algorithms','OOP','Problem Solving','Communication','Teamwork','Machine Learning','Deep Learning','TensorFlow','PyTorch','Pandas','NumPy','Power BI','Excel'];
+  const show=(el,items,empty,cls='')=>{if(!el)return; el.innerHTML=items.length?items.map(x=>`<span class="${cls}">${esc(x)}</span>`).join(''):`<span class="resume-muted">${esc(empty)}</span>`;};
+  const setStatus=(text,ok=false)=>{if(status){status.textContent=text;status.style.color=ok?'#27ae60':'#6c63ff';}};
+  const toast=msg=>{try{if(typeof showToast==='function')showToast(msg);}catch(_){} console.log('[Resume]',msg);};
+
+  // The file input is physically inside the visible label. This gives Chrome
+  // a native picker target and avoids fragile programmatic-click behavior.
+
+  input.addEventListener('change',async()=>{
+    console.log('[Resume] native file input change fired; file count:', input.files ? input.files.length : 0);
+    const file=input.files && input.files[0];
+    console.log('[Resume] change event fired',file ? {name:file.name,size:file.size,type:file.type} : null);
+    if(!file) return;
+    if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
+      setStatus('Please select a PDF file.'); toast('Only PDF files are allowed'); input.value=''; return;
+    }
+    const maxBytes = 10 * 1024 * 1024;
+    if(file.size > maxBytes){
+      setStatus('PDF is too large. Maximum allowed size is 10 MB.'); toast('Please choose a PDF smaller than 10 MB'); input.value=''; return;
+    }
+    if(!localStorage.getItem('authToken')){
+      setStatus('Please log in before uploading a resume.'); toast('Login required for resume analysis'); return;
+    }
+    if(preview) preview.textContent=file.name;
+    if(updated) updated.textContent='Selected just now';
+    setStatus('Resume selected: '+file.name+' — uploading...');
+    if(extractError) extractError.style.display='none'; if(analysisError) analysisError.style.display='none';
+    if(extractResults) extractResults.style.display='none'; if(analysisResults) analysisResults.style.display='none'; if(analysisEmpty) analysisEmpty.style.display='block';
+    try{
+      const fd=new FormData(); fd.append('resume',file,file.name);
+      const upload=await fetch(apiBase+'/api/resume/upload',{method:'POST',headers:headers(),body:fd});
+      const ud=await upload.json().catch(()=>({}));
+      if(!upload.ok||!ud.success) throw new Error(ud.message||`Upload failed (HTTP ${upload.status})`);
+      localStorage.setItem('resumeFileName',ud.fileName||file.name);
+      if(preview) preview.textContent=ud.fileName||file.name;
+      if(updated) updated.textContent='Last Updated: '+new Date().toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+      setStatus('Resume uploaded. Extracting text...');
+
+      if(extractLoading) extractLoading.style.display='block';
+      const exfd=new FormData(); exfd.append('resume',file,file.name);
+      const ex=await fetch(apiBase+'/api/resume/extract',{method:'POST',headers:headers(),body:exfd});
+      const xd=await ex.json().catch(()=>({}));
+      if(extractLoading) extractLoading.style.display='none';
+      if(!ex.ok||!xd.success) throw new Error(xd.message||`Extraction failed (HTTP ${ex.status})`);
+      if(fileName) fileName.textContent=xd.fileName||file.name;
+      if(pageCount) pageCount.textContent=(xd.pageCount??'N/A')+' page(s)';
+      const text=String(xd.extractedText||'');
+      if(extractedText) extractedText.textContent=text||'No text could be extracted from this resume.';
+      if(extractResults) extractResults.style.display='block';
+      setStatus('Resume uploaded and text extracted. Analyzing with AI...');
+
+      if(analysisLoading) analysisLoading.style.display='block';
+      const afd=new FormData(); afd.append('resume',file,file.name);
+      const ar=await fetch(apiBase+'/api/resume/analyze',{method:'POST',headers:headers(),body:afd});
+      const ad=await ar.json().catch(()=>({}));
+      if(analysisLoading) analysisLoading.style.display='none';
+      if(!ar.ok||!ad.success) throw new Error(ad.message||`AI analysis failed (HTTP ${ar.status})`);
+
+      const detected=dict.filter(skill=>text.toLowerCase().includes(skill.toLowerCase()));
+      const skills=list(ad.skills,ad.technicalSkills,ad.softSkills,ad.programmingLanguages,ad.frameworks,ad.libraries,detected);
+      const tech=list(ad.technologies,ad.programmingLanguages,ad.frameworks,ad.libraries,ad.databases,ad.tools,ad.cloudTechnologies);
+      show(skillsEl,skills,'No recognizable skills were found in the extracted resume text.','resume-skill-chip');
+      show(techEl,tech,'No technologies found.','resume-tech-chip');
+      show(missingEl,list(ad.missingSkills),'None identified.','resume-missing-chip');
+      if(atsEl && ad.atsScore!=null){atsEl.textContent=ad.atsScore+'%'; localStorage.setItem('smarthire.lastAtsScore',String(ad.atsScore));}
+      if(summaryEl) summaryEl.textContent=ad.summary||'No summary generated.';
+      if(experienceEl) experienceEl.textContent=ad.experience||'No experience information found.';
+      if(educationEl) educationEl.textContent=ad.education||'No education information found.';
+      for(const key of Object.keys(scoreEls)){const v=ad[key+'Score']; if(scoreEls[key]) scoreEls[key].textContent=v!=null?v+'%':'N/A'; if(bars[key]) bars[key].style.width=v!=null?v+'%':'0%';}
+      const breakdown=$('atsScoreBreakdown'); if(breakdown && ['keywordScore','formattingScore','skillsScore','experienceScore','educationScore'].some(k=>ad[k]!=null)) breakdown.style.display='block';
+      const strengths=list(ad.strengths), weaknesses=list(ad.weaknesses), suggestions=list(ad.improvementSuggestions), improve=$('resumeImprovementSection');
+      const fill=(id,items,empty)=>{const el=$(id);if(!el)return;el.innerHTML=items.length?items.map(x=>`<li>${esc(x)}</li>`).join(''):`<li>${esc(empty)}</li>`;};
+      if(improve && (strengths.length||weaknesses.length||suggestions.length)){improve.style.display='block';fill('resumeStrengths',strengths,'No specific strengths identified.');fill('resumeWeaknesses',weaknesses,'No specific weaknesses identified.');fill('resumeSuggestions',suggestions,'No specific suggestions available.');}
+      if(analysisResults) analysisResults.style.display='block'; if(analysisEmpty) analysisEmpty.style.display='none';
+      setStatus('Resume uploaded, extracted, and analyzed successfully!',true); toast('AI Resume Analysis Complete!');
+      console.log('[Resume] skills rendered:',skills);
+    }catch(err){
+      console.error('[Resume] pipeline failed:',err);
+      if(extractLoading) extractLoading.style.display='none'; if(analysisLoading) analysisLoading.style.display='none';
+      const msg=err?.message||'Unknown error';
+      if(extractError) {extractError.textContent='❌ '+msg;extractError.style.display='block';}
+      if(analysisError) {analysisError.textContent='❌ '+msg;analysisError.style.display='block';}
+      if(analysisEmpty) analysisEmpty.style.display='block';
+      if(analysisResults) analysisResults.style.display='none';
+      setStatus('❌ '+msg); toast('Resume processing failed: '+msg);
+    }finally{input.value='';}
+  });
+
+  const saved=localStorage.getItem('resumeFileName');
+  if(saved && preview && preview.textContent==='No file selected'){preview.textContent=saved;if(updated)updated.textContent='Previously uploaded';}
+  console.log('[Resume] standalone uploader initialized');
+})();
+</script>
+<script>
+(()=>{
+ const score=document.getElementById('resumeAtsScore');
+ const ring=document.getElementById('resumeScoreRingValue');
+ if(!score||!ring) return;
+ const sync=()=>{ ring.textContent=(score.textContent||'—').trim(); };
+ sync(); new MutationObserver(sync).observe(score,{childList:true,characterData:true,subtree:true});
+})();
+</script>
+</body></html>

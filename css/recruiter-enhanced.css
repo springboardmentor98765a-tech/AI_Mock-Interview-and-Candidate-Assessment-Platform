@@ -1,0 +1,110 @@
+/* SmartHire Recruiter Dashboard - complete component styling */
+.recruiter-dashboard-page .candidate-content{max-width:1500px}
+.recruiter-dashboard-page .job-table{width:100%;border-collapse:separate;border-spacing:0}
+.recruiter-dashboard-page .job-table th,.recruiter-dashboard-page .job-table td{padding:12px;text-align:left;border-bottom:1px solid rgba(120,120,140,.14)}
+.recruiter-dashboard-page .status{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.recruiter-dashboard-page .status.active{background:#e9f9ef;color:#18733a}.recruiter-dashboard-page .status.pending{background:#fff6dd;color:#8a6500}
+
+/* Injected intelligence sections */
+.recruiter-dashboard-page .recruiter-intelligence-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0 0 22px}
+.recruiter-dashboard-page .recruiter-intelligence-card{min-width:0;border:1px solid rgba(120,120,140,.16);background:var(--card-bg,#fff);border-radius:18px;padding:20px;box-shadow:0 10px 30px rgba(30,41,59,.08)}
+.recruiter-dashboard-page .recruiter-intelligence-card h3{margin:0 0 5px;font-size:17px;line-height:1.25}
+.recruiter-dashboard-page .recruiter-intelligence-card p{margin:0;color:var(--muted-text,#6b7280);font-size:13px;line-height:1.5}
+.recruiter-dashboard-page .section-badge{display:inline-flex;align-items:center;white-space:nowrap;padding:5px 9px;border-radius:999px;background:rgba(109,53,232,.11);color:#6d35e8;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.recruiter-dashboard-page .candidate-mini-list{display:grid;gap:10px;margin-top:16px}
+.recruiter-dashboard-page .candidate-mini{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid rgba(120,120,140,.14);border-radius:14px;background:rgba(127,127,127,.035)}
+.recruiter-dashboard-page .candidate-mini-main{min-width:0;flex:1}
+.recruiter-dashboard-page .candidate-mini-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recruiter-dashboard-page .candidate-mini-role{font-size:12px;color:var(--muted-text,#6b7280);margin-top:3px}
+.recruiter-dashboard-page .candidate-mini-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.recruiter-dashboard-page .mini-scores{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.recruiter-dashboard-page .mini-score{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:rgba(109,53,232,.08);font-size:11px;font-weight:700;color:#5b21b6}
+.recruiter-dashboard-page .score-pill{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:6px 9px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:800;white-space:nowrap}
+.recruiter-dashboard-page .score-pill.success{background:#e9f9ef;color:#18733a}
+.recruiter-dashboard-page .table-btn{border:1px solid rgba(120,120,140,.18);background:var(--card-bg,#fff);color:inherit;border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.recruiter-dashboard-page .table-btn.primary{background:#6d35e8;color:#fff;border-color:#6d35e8}
+.recruiter-dashboard-page .table-btn:hover{transform:translateY(-1px)}
+.recruiter-dashboard-page .resume-intelligence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+.recruiter-dashboard-page .resume-card-mini{border:1px solid rgba(120,120,140,.14);border-radius:14px;padding:13px;background:rgba(127,127,127,.035);min-width:0}
+.recruiter-dashboard-page .resume-card-mini strong{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recruiter-dashboard-page .resume-card-mini small{display:block;color:var(--muted-text,#6b7280);margin-top:4px;font-size:11px}
+.recruiter-dashboard-page .resume-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.recruiter-dashboard-page .resume-tag{display:inline-flex;padding:4px 7px;border-radius:8px;background:rgba(16,185,129,.10);color:#047857;font-size:10px;font-weight:700}
+.recruiter-dashboard-page .resume-tag.missing{background:rgba(239,68,68,.10);color:#b91c1c}
+.recruiter-dashboard-page .metric-big{font-size:34px;font-weight:900;line-height:1;margin:18px 0 14px;letter-spacing:-.03em}
+.recruiter-dashboard-page .recruiter-compare-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.recruiter-dashboard-page .recruiter-compare-toolbar .muted{margin-right:auto;color:var(--muted-text,#6b7280);font-size:12px}
+.recruiter-dashboard-page #recruiter-live-reports{margin-top:6px}
+.recruiter-dashboard-page .recruiter-report-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(150px,1fr) auto auto auto;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(120,120,140,.14)}
+.recruiter-dashboard-page .recruiter-report-row:last-child{border-bottom:0}
+.recruiter-dashboard-page .report-name{font-weight:800}
+.recruiter-dashboard-page .report-meta{font-size:12px;color:var(--muted-text,#6b7280)}
+.recruiter-dashboard-page .recruiter-empty{padding:22px;border:1px dashed rgba(120,120,140,.25);border-radius:14px;text-align:center;color:var(--muted-text,#6b7280);background:rgba(127,127,127,.025)}
+
+/* Existing recruiter analytics bars */
+.recruiter-dashboard-page .bar-list{display:grid;gap:14px}
+.recruiter-dashboard-page .bar-row{display:grid;grid-template-columns:120px minmax(0,1fr) 52px;gap:10px;align-items:center}
+.recruiter-dashboard-page .bar-track{height:9px;border-radius:999px;background:rgba(120,120,140,.15);overflow:hidden}
+.recruiter-dashboard-page .bar-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#6d35e8,#8f6af4)}
+
+/* Dark theme */
+.dark-mode .recruiter-dashboard-page .recruiter-intelligence-card,.dark-mode .recruiter-dashboard-page .resume-card-mini,.dark-mode .recruiter-dashboard-page .candidate-mini,.dark-mode .recruiter-dashboard-page .table-btn{background:#151a24;color:#f7f8fb;border-color:rgba(255,255,255,.10)}
+.dark-mode .recruiter-dashboard-page .candidate-mini-role,.dark-mode .recruiter-dashboard-page .recruiter-intelligence-card p,.dark-mode .recruiter-dashboard-page .resume-card-mini small,.dark-mode .recruiter-dashboard-page .report-meta,.dark-mode .recruiter-dashboard-page .candidate-mini-role,.dark-mode .recruiter-dashboard-page .recruiter-compare-toolbar .muted{color:#9ba4b4}
+.dark-mode .recruiter-dashboard-page .mini-score{background:rgba(139,92,246,.16);color:#c4b5fd}
+.dark-mode .recruiter-dashboard-page .score-pill{background:rgba(99,102,241,.18);color:#c7d2fe}
+.dark-mode .recruiter-dashboard-page .score-pill.success{background:rgba(34,197,94,.14);color:#86efac}
+.dark-mode .recruiter-dashboard-page .resume-tag{background:rgba(16,185,129,.14);color:#6ee7b7}
+.dark-mode .recruiter-dashboard-page .resume-tag.missing{background:rgba(239,68,68,.14);color:#fca5a5}
+.dark-mode .recruiter-dashboard-page .section-badge{background:rgba(139,92,246,.16);color:#c4b5fd}
+.dark-mode .recruiter-dashboard-page .bar-track{background:rgba(255,255,255,.10)}
+
+@media (max-width:1100px){.recruiter-dashboard-page .recruiter-intelligence-grid{grid-template-columns:1fr 1fr}.recruiter-dashboard-page .recruiter-report-row{grid-template-columns:1fr 1fr}.recruiter-dashboard-page .recruiter-report-row>div:last-child{grid-column:1/-1}}
+@media (max-width:760px){.recruiter-dashboard-page .recruiter-intelligence-grid{grid-template-columns:1fr}.recruiter-dashboard-page .resume-intelligence{grid-template-columns:1fr}.recruiter-dashboard-page .candidate-mini{align-items:flex-start;flex-direction:column}.recruiter-dashboard-page .candidate-mini-actions{justify-content:flex-start}.recruiter-dashboard-page .recruiter-report-row{grid-template-columns:1fr}.recruiter-dashboard-page .bar-row{grid-template-columns:90px minmax(0,1fr) 44px;font-size:12px}}
+
+/* Same-element body selector fix: recruiter-dashboard-page and dark-mode are both on <body>. */
+body.dark-mode.recruiter-dashboard-page .recruiter-intelligence-card,
+body.dark-mode.recruiter-dashboard-page .resume-card-mini,
+body.dark-mode.recruiter-dashboard-page .candidate-mini,
+body.dark-mode.recruiter-dashboard-page .table-btn{background:#151d31!important;color:#f7f8fb!important;border-color:#34415f!important}
+body.dark-mode.recruiter-dashboard-page .recruiter-intelligence-card h3,
+body.dark-mode.recruiter-dashboard-page .candidate-mini-name,
+body.dark-mode.recruiter-dashboard-page .resume-card-mini strong,
+body.dark-mode.recruiter-dashboard-page .report-name{color:#f5f7fb!important}
+body.dark-mode.recruiter-dashboard-page .candidate-mini-role,
+body.dark-mode.recruiter-dashboard-page .recruiter-intelligence-card p,
+body.dark-mode.recruiter-dashboard-page .resume-card-mini small,
+body.dark-mode.recruiter-dashboard-page .report-meta,
+body.dark-mode.recruiter-dashboard-page .recruiter-compare-toolbar .muted{color:#aab6ca!important}
+body.dark-mode.recruiter-dashboard-page .recruiter-empty{background:#10182a!important;color:#aab6ca!important;border-color:#39465f!important}
+body.dark-mode.recruiter-dashboard-page .recruiter-report-row{border-bottom-color:#303b54!important}
+body.dark-mode.recruiter-dashboard-page .mini-score{background:rgba(139,92,246,.16)!important;color:#d3c6ff!important}
+body.dark-mode.recruiter-dashboard-page .score-pill{background:#252746!important;color:#cdd4ff!important}
+body.dark-mode.recruiter-dashboard-page .score-pill.success{background:#123d2c!important;color:#86efac!important}
+body.dark-mode.recruiter-dashboard-page .resume-tag{background:#123d2c!important;color:#6ee7b7!important}.dark-mode.recruiter-dashboard-page .resume-tag.missing{background:#351c24!important;color:#fca5a5!important}
+body.dark-mode.recruiter-dashboard-page .section-badge{background:#2d2444!important;color:#d1c2ff!important}
+body.dark-mode.recruiter-dashboard-page .bar-track{background:#2d3650!important}
+/* Existing role cards / KPI cards: reinforce dashboard contrast under the same body class. */
+body.dark-mode.recruiter-dashboard-page .role-card,
+body.dark-mode.recruiter-dashboard-page .role-stat{background:#151d31!important;border-color:#303b54!important;color:#f5f7fb!important}
+body.dark-mode.recruiter-dashboard-page .role-card h2,
+body.dark-mode.recruiter-dashboard-page .role-stat-value,
+body.dark-mode.recruiter-dashboard-page .role-stat-top,
+body.dark-mode.recruiter-dashboard-page .role-card td,
+body.dark-mode.recruiter-dashboard-page .role-card th{color:#f5f7fb!important}
+body.dark-mode.recruiter-dashboard-page .role-card p,
+body.dark-mode.recruiter-dashboard-page .role-stat-meta,
+body.dark-mode.recruiter-dashboard-page .role-footer-note{color:#aab6c8!important}
+body.dark-mode.recruiter-dashboard-page .pipeline-step,
+body.dark-mode.recruiter-dashboard-page .ai-summary,
+body.dark-mode.recruiter-dashboard-page .activity-item,
+body.dark-mode.recruiter-dashboard-page .health-item,
+body.dark-mode.recruiter-dashboard-page .control-card{background:#1b2438!important;border-color:#34405a!important;color:#f5f7fb!important}
+body.dark-mode.recruiter-dashboard-page .pipeline-step strong,
+body.dark-mode.recruiter-dashboard-page .control-card strong,
+body.dark-mode.recruiter-dashboard-page .health-item strong{color:#f5f7fb!important}
+body.dark-mode.recruiter-dashboard-page .pipeline-step span,
+body.dark-mode.recruiter-dashboard-page .health-item span,
+body.dark-mode.recruiter-dashboard-page .control-card p{color:#aab5c8!important}
+body.dark-mode.recruiter-dashboard-page .table-shell{background:#10182a!important;border-color:#303b54!important}
+body.dark-mode.recruiter-dashboard-page th{background:#10182a!important;color:#b9c5d8!important;border-color:#303b54!important}
+body.dark-mode.recruiter-dashboard-page td{background:transparent!important;color:#e7edf7!important;border-color:#303b54!important}

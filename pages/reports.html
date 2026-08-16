@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports | SmartHire AI</title><link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/candidate-dashboard.css"><link rel="stylesheet" href="../css/interview-pages.css"><link rel="stylesheet" href="../css/candidate-pages.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">  <link rel="stylesheet" href="../css/smarthire-unified-theme.css">
+  <style> .report-archive-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}.report-archive-card{padding:16px}.report-archive-head{display:flex;align-items:center;gap:12px}.report-archive-head>div{flex:1}.report-archive-head h3{margin:0}.report-archive-head p{margin:4px 0 0}.report-archive-head>strong{font-size:24px;color:var(--primary,#6d35e8)}.report-archive-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.report-archive-actions a{display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:10px;text-decoration:none;border:1px solid var(--border,#e4def3)}.report-archive-actions a.primary{background:var(--primary,#6d35e8);color:#fff;border-color:transparent}.dark-mode .report-archive-actions a:not(.primary){color:#f6f2ff;border-color:#49405f}</style>
+</head>
+<body class="interview-page-shell">
+<aside class="sidebar"><div class="sidebar-logo"><i class="fa-solid fa-sparkles"></i><h2>SmartHire</h2></div><ul><li class=""><a class="sidebar-link" href="candidate.html"><i class="fa-solid fa-house"></i><span>Dashboard</span></a></li>
+<li class=""><a class="sidebar-link" href="resume.html"><i class="fa-solid fa-file-circle-check"></i><span>Resume Analyzer</span></a></li>
+<li class=""><a class="sidebar-link" href="interview-setup.html"><i class="fa-solid fa-microphone-lines"></i><span>Mock Interviews</span></a></li>
+<li class=""><a class="sidebar-link" href="interview-history.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Interview History</span></a></li>
+<li class=""><a class="sidebar-link" href="practice-assessment.html"><i class="fa-solid fa-list-check"></i><span>Practice Assessment</span></a></li>
+<li class=""><a class="sidebar-link" href="performance-analytics.html"><i class="fa-solid fa-chart-column"></i><span>Performance Analytics</span></a></li>
+<li class=""><a class="sidebar-link" href="improvement-progress.html"><i class="fa-solid fa-arrow-trend-up"></i><span>Improvement Progress</span></a></li>
+<li class="active"><a class="sidebar-link" href="reports.html"><i class="fa-solid fa-file-arrow-down"></i><span>Reports</span></a></li>
+<li class=""><a class="sidebar-link" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li></ul><div class="sidebar-upgrade"><div class="upgrade-spark"><i class="fa-solid fa-crown"></i></div><strong>Go Pro with SmartHire AI</strong><p>Advanced AI feedback, unlimited practice and detailed reports.</p><a href="interview-setup.html">Explore Pro <i class="fa-solid fa-arrow-right"></i></a></div></aside>
+<div class="dashboard"><header class="topbar"><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="Search reports..."></div><div class="top-icons"><button id="candidateThemeToggle" class="secondary-btn" type="button">Dark</button><div class="profile"><div class="profile-avatar small"><i class="fa-solid fa-user"></i></div><div><h4 id="setupUserName">Candidate</h4><p>Candidate</p></div></div></div></header><main class="page-content"><section class="interview-page-hero"><div><span class="eyebrow">REPORTS</span><h1>Your AI interview reports</h1><p>Review your latest evaluation and download the detailed report generated from your interview session.</p></div><div class="hero-badge"><i class="fa-solid fa-file-arrow-down"></i><span>Downloadable reports</span></div></section><section class="analytics-grid"><article class="analytics-panel"><h2>Latest Interview Report</h2><div class="goal-list"><div class="goal-card"><strong id="latestRole">No completed report yet</strong><p id="latestDate">Complete an AI interview to generate your report.</p><div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-top:10px"><div class="stat-card"><span>Overall</span><strong id="latestScore">—</strong></div><div class="stat-card"><span>Technical</span><strong id="latestTechnical">—</strong></div><div class="stat-card"><span>Communication</span><strong id="latestCommunication">—</strong></div><div class="stat-card"><span>Problem Solving</span><strong id="latestProblem">—</strong></div></div></div></div><div class="report-actions-row"><a class="primary" href="interview-report.html">Open Detailed Report →</a><a href="interview-history.html">View History</a></div></article><article class="analytics-panel"><h2>Report Center</h2><div class="goal-list"><a class="report-link-card" href="interview-report.html"><span class="setup-icon"><i class="fa-solid fa-file-lines"></i></span><h3>Detailed Interview Report</h3><p>Scores, feedback, transcript and AI evaluation.</p></a><a class="report-link-card" href="performance-analytics.html"><span class="setup-icon"><i class="fa-solid fa-chart-column"></i></span><h3>Performance Analytics</h3><p>Compare your skill scores and trends.</p></a></div></article></section>
+<section class="history-page-card" style="margin-top:18px;">
+  <div class="card-heading"><div><span class="eyebrow">REPORT ARCHIVE</span><h2>Completed Interview Reports</h2></div><span class="hero-badge"><i class="fa-solid fa-database"></i><span>Stored reports</span></span></div>
+  <div id="candidateReportArchive" class="report-archive-grid">
+    <div class="empty-state">Loading your stored reports...</div>
+  </div>
+</section>
+</main></div><script>
+(()=>{
+const get=k=>localStorage.getItem(k)||'';
+const apiBase=(window.smartHireApi&&window.smartHireApi.baseUrl)||'http://localhost:8080';
+const headers=()=>({Authorization:`Bearer ${localStorage.getItem('authToken')||''}`});
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const pct=v=>Number.isFinite(Number(v))?`${Math.round(Number(v))}%`:'—';
+const roleEl=document.getElementById('latestReportRole');
+const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+set('latestReportRole',get('smarthire.latestReportRole')||'Latest AI Interview');
+set('latestDate',get('smarthire.latestReportDate')||'Your latest available interview session');
+set('latestScore',get('smarthire.lastOverallPerformance')?get('smarthire.lastOverallPerformance')+'%':'—');
+set('latestTechnical',get('smarthire.skillTechnical')?get('smarthire.skillTechnical')+'%':'—');
+set('latestCommunication',get('smarthire.skillCommunication')?get('smarthire.skillCommunication')+'%':'—');
+set('latestProblem',get('smarthire.skillProblemSolving')?get('smarthire.skillProblemSolving')+'%':'—');
+const userId=Number(localStorage.getItem('userId')||0);
+async function load(){
+ const host=document.getElementById('candidateReportArchive'); if(!host||!userId)return;
+ try{
+  const r=await fetch(`${apiBase}/api/interviews/history/${userId}`,{headers:headers()});
+  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  const items=await r.json();
+  if(!Array.isArray(items)||!items.length){host.innerHTML='<div class="empty-state">No completed interviews yet. Finish an interview to create your first report.</div>';return;}
+  const latest=items[0];
+  if(latest?.interviewId){document.getElementById('latestReportViewLink')?.setAttribute('href',`interview-report.html?interviewId=${encodeURIComponent(latest.interviewId)}`);}
+  host.innerHTML=items.slice(0,10).map(x=>{
+    const id=Number(x.interviewId)||0; const date=x.interviewDate?new Date(x.interviewDate):null;
+    const ds=date&&!Number.isNaN(date.getTime())?date.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}):'—';
+    return `<article class="report-link-card report-archive-card"><div class="report-archive-head"><span class="setup-icon"><i class="fa-solid fa-file-waveform"></i></span><div><h3>${esc(x.jobRole||'AI Mock Interview')}</h3><p>${esc(x.interviewType||'Interview')} • ${ds}</p></div><strong>${pct(x.overallScore)}</strong></div><div class="report-archive-actions"><a class="primary" href="interview-report.html?interviewId=${id}">View Report</a><a href="interview-history.html">History</a></div></article>`;
+  }).join('');
+ }catch(e){host.innerHTML=`<div class="empty-state">Unable to load stored reports. <button id="reportArchiveRetry" class="secondary-btn" type="button">Retry</button></div>`;document.getElementById('reportArchiveRetry')?.addEventListener('click',load);}
+}
+load();
+})();
+</script></script><script src="../js/smarthire-theme.js"></script><script src="../js/role-guard.js"></script>
+</body></html>

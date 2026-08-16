@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Interview Report | SmartHire AI</title>
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/candidate-dashboard.css"><link rel="stylesheet" href="../css/candidate-pages.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 <style>
-body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
-.report-shell{max-width:1240px;margin:0 auto;padding:24px}
+body{background:#f7f7fb}
+.report-shell{max-width:1600px;margin:0 auto;padding:0}
 .report-hero{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .report-title{margin:0;color:#102a43;font-size:clamp(28px,4vw,40px)}
 .report-subtitle{margin:8px 0 0;color:#52606d;line-height:1.6;max-width:780px}
@@ -30,9 +30,21 @@ body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
 .preview-box{white-space:pre-wrap;background:#f7fbff;border:1px dashed #bfd5f5;border-radius:14px;padding:16px;color:#334e68;line-height:1.7}
 @media (max-width: 720px){.report-shell{padding:16px}.report-hero{align-items:flex-start}.report-grid{grid-template-columns:1fr}}
 </style>
+  <link rel="stylesheet" href="../css/smarthire-unified-theme.css">
+<link rel="stylesheet" href="../css/report-final-fix.css">
+  <link rel="stylesheet" href="../css/final-theme-contrast.css">
 </head>
-<body>
-<div class="report-shell">
+<body class="interview-page-shell report-dark"><aside class="sidebar"><div class="sidebar-logo"><i class="fa-solid fa-sparkles"></i><h2>SmartHire</h2></div><ul>
+<li><a class="sidebar-link" href="candidate.html"><i class="fa-solid fa-house"></i><span>Dashboard</span></a></li>
+<li><a class="sidebar-link" href="resume.html"><i class="fa-solid fa-file-circle-check"></i><span>Resume Analyzer</span></a></li>
+<li><a class="sidebar-link" href="interview-setup.html"><i class="fa-solid fa-microphone-lines"></i><span>Mock Interviews</span></a></li>
+<li><a class="sidebar-link" href="interview-history.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Interview History</span></a></li>
+<li><a class="sidebar-link" href="practice-assessment.html"><i class="fa-solid fa-list-check"></i><span>Practice Assessment</span></a></li>
+<li><a class="sidebar-link" href="performance-analytics.html"><i class="fa-solid fa-chart-column"></i><span>Performance Analytics</span></a></li>
+<li><a class="sidebar-link" href="improvement-progress.html"><i class="fa-solid fa-arrow-trend-up"></i><span>Improvement Progress</span></a></li>
+<li class="active"><a class="sidebar-link" href="reports.html"><i class="fa-solid fa-file-arrow-down"></i><span>Reports</span></a></li>
+<li><a class="sidebar-link" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
+</ul><div class="sidebar-upgrade"><div class="upgrade-spark"><i class="fa-solid fa-crown"></i></div><strong>Go Pro with SmartHire AI</strong><p>Advanced AI feedback, unlimited practice and detailed reports.</p><a href="interview-setup.html">Explore Pro <i class="fa-solid fa-arrow-right"></i></a></div></aside><div class="dashboard"><header class="topbar"><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="Search reports..."></div><div class="top-icons"><button id="candidateThemeToggle" class="secondary-btn" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><button class="secondary-btn" type="button" onclick="window.location.href='candidate.html'">Dashboard</button></div></header><main class="page-content"><div class="report-shell">
     <div class="report-hero">
         <div>
             <h1 class="report-title">SmartHire AI Interview Report</h1>
@@ -88,7 +100,7 @@ body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
             <div id="reportSpeechInsights" style="margin-top:12px; color:#334e68;"></div>
         </section>
     </div>
-</div>
+</div></main></div>
 
 <script src="../js/api-client.js"></script>
 <script>
@@ -164,7 +176,9 @@ body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
         const evaluation = data?.evaluation || null;
         const liveSignals = readJsonSafe(data?.liveSignalsJson, {});
         const speechInsights = readJsonSafe(data?.speechInsightsJson, {});
+        const evaluationStatus = evaluation?.rating === "Not Attempted" ? "Not Attempted" : (evaluation?.rating === "Incomplete" ? "Incomplete" : "Evaluated");
         document.getElementById("reportSummary").innerHTML = `
+            <p><strong>Evaluation Status:</strong> ${evaluationStatus}</p>
             <p><strong>Interview ID:</strong> ${data?.interviewId || interviewId}</p>
             <p><strong>Job Role:</strong> ${safeText(data?.jobRole, "Not provided")}</p>
             <p><strong>Interview Type:</strong> ${safeText(data?.interviewType, "Not provided")}</p>
@@ -268,5 +282,6 @@ body{background:linear-gradient(135deg,#f4f7ff 0%,#eef5ff 100%)}
     loadReport();
 })();
 </script>
+<script src="../js/smarthire-theme.js"></script><script src="../js/role-guard.js"></script>
 </body>
 </html>
