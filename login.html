@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Select Role</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <div class="card" style="max-width: 400px; margin: 0 auto;">
+            <h2>Portal Login</h2>
+            <p style="margin-bottom: 20px; color: #666;">Choose your access role</p>
+
+            <select id="role">
+                <option value="">-- Choose Role --</option>
+                <option value="admin">Admin</option>
+                <option value="student">Student</option>
+                <option value="doctor">Doctor</option>
+                <option value="recruiter">Recruiter</option>
+            </select>
+
+            <br>
+            <button onclick="loginUser()">Continue to Dashboard</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

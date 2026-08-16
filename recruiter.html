@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Recruiter Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Talent Portal 💼</div>
+        <button class="btn btn-danger" onclick="logoutUser()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <h1>Welcome, Hiring Manager!</h1>
+        <div class="card-grid">
+            <div class="card"><h3>Active Job Posts</h3><p>5 Open roles.</p></div>
+            <div class="card"><h3>Applicants</h3><p>42 New resumes submitted.</p></div>
+            <div class="card"><h3>Interviews</h3><p>3 Scheduled today.</p></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script> protectRoute('recruiter'); </script>
+</body>
+</html>

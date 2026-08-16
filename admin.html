@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Admin Console ⚙️</div>
+        <button class="btn btn-danger" onclick="logoutUser()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <h1>Welcome, System Admin!</h1>
+        <div class="card-grid">
+            <div class="card"><h3>User Management</h3><p>Manage system permissions.</p></div>
+            <div class="card"><h3>System Analytics</h3><p>View server uptime & stats.</p></div>
+            <div class="card"><h3>Audit Logs</h3><p>Track user actions.</p></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script> protectRoute('admin'); </script>
+</body>
+</html>
