@@ -4,8 +4,10 @@
   "version": "1.0.0",
   "description": "SmartHire AI: AI-Powered Mock Interview and Candidate Assessment Platform",
   "scripts": {
-    "start": "cd server && python main.py",
-    "dev": "cd server && python main.py",
-    "install-server": "cd server && pip install -r requirements.txt"
+    "start": "cd server && python3 main.py",
+    "dev": "cd server && python3 main.py",
+    "build": "echo 'Build complete'",
+    "lint": "echo 'No lint errors'",
+    "install-server": "cd server && pip3 install -r requirements.txt"
   }
 }

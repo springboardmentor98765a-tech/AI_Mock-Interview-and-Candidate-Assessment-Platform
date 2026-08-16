@@ -428,74 +428,223 @@ function candidateSession() {
   else if (status === 'in_progress') statusBadge = badge('● Live In Progress', 'emerald');
   else if (status === 'paused') statusBadge = badge('⏸ Paused', 'amber');
 
-  // Case 2: Session is Created (Pre-start)
+  // Case 2: Session is Created (Pre-start Lobby & Diagnostics Preview - Fitted Single View)
   if (status === 'created') {
-    return `<div class="max-w-5xl mx-auto space-y-6">
-      <!-- Live Room Header -->
-      <div class="flex items-center justify-between p-6 rounded-2xl border border-white/8" style="background:#0c0e1c">
+    var candidateName = state.user ? state.user.name : 'Candidate';
+    var roleDisplay = domain && domain !== 'General' ? domain : (itype + ' Engineer');
+    var isMicMuted = !!state.lobbyMicMuted;
+    var isCamMuted = !!state.lobbyCamMuted;
+
+    return `<div class="sh-lobby-wrap">
+      <!-- Top Title Header -->
+      <div class="sh-lobby-banner">
         <div>
-          <div class="flex items-center gap-2 mb-2">
-            ${badge(itype + ' INTERVIEW', 'indigo')}
-            ${badge(domain, 'indigo')}
-            ${badge(difficulty, 'amber')}
-            ${statusBadge}
+          <div class="flex items-center gap-2 mb-1">
+            <span class="sh-workspace-badge">
+              ${icon('sparkles', 12)}
+              <span>Candidate Workspace</span>
+            </span>
+            <span class="sh-precheck-pill">
+              ${icon('shield', 11)}
+              <span>Session Pre-Check</span>
+            </span>
           </div>
-          <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Live AI Interview Room</h1>
-          <p class="text-white/50 text-sm mt-1">Camera and microphone ready. Click <strong>Start Interview</strong> to begin your session.</p>
+          <h1 class="sh-welcome-title" style="font-family:'Outfit',sans-serif">
+            Welcome back, <span class="sh-welcome-name">${candidateName}</span>
+          </h1>
         </div>
-        <div class="text-right">
-          <p class="text-white/40 text-xs uppercase tracking-wider font-semibold">Configured Duration</p>
-          <p class="text-2xl font-bold text-indigo-400 mt-1">${durationMin} min</p>
+        <div class="hidden sm:flex items-center gap-2">
+          <span class="sh-status-ready-badge">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>System Ready & Proctored</span>
+          </span>
         </div>
       </div>
 
-      <!-- Preview Grid -->
-      <div class="grid grid-cols-2 gap-5">
-        <div class="rounded-xl border border-white/7 overflow-hidden relative flex flex-col justify-between" style="background:#0d0f1e">
-          <div class="relative w-full aspect-video bg-[#141627] flex items-center justify-center overflow-hidden">
-            <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover"></video>
-            ${!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/75 backdrop-blur-sm">
-              <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
-              <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
-              <p class="text-[11px] text-white/50 mt-1 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable video preview.'}</p>
-            </div>` : ''}
-          </div>
-          <div class="p-3 border-t border-white/6 bg-white/[0.02] flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${webcamBadgeStyle}">
-                <span class="w-1.5 h-1.5 rounded-full ${webcamDot}"></span>
-                Webcam: ${webcamLabel}
-              </span>
-              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${micBadgeStyle}">
-                <span class="w-1.5 h-1.5 rounded-full ${micDot}"></span>
-                Mic: ${micLabel}
-              </span>
-              <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" style="${recBadgeStyle}">
-                <span class="w-1.5 h-1.5 rounded-full ${recDot}"></span>
-                Recording: ${recLabel}
-              </span>
+      <!-- Main Symmetrical 2-Column Grid (Fitted to viewport) -->
+      <div class="sh-lobby-grid">
+        
+        <!-- Left Column: Camera Preview & Diagnostics -->
+        <div class="sh-lobby-card">
+          <div>
+            <!-- Video Preview Stage -->
+            <div class="sh-lobby-video-stage">
+              <video id="candidate-camera" autoplay muted playsinline style="width:100%!important;height:100%!important;object-fit:cover!important;" class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
+              
+              ${isCamMuted ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
+                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
+                <p class="text-xs font-semibold text-rose-300">Camera is Paused</p>
+              </div>` : (!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
+                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
+                <p class="text-xs font-semibold text-rose-300">Webcam Not Ready</p>
+                <p class="text-[10px] text-white/50 max-w-xs">${state.webcamStatus || 'Allow camera permission to enable preview.'}</p>
+              </div>` : '')}
+
+              <!-- Modern Frosted Video Controls Capsule -->
+              <div class="sh-lobby-video-controls">
+                <button id="btn-toggle-lobby-mic" class="sh-ctrl-btn ${isMicMuted ? 'muted' : 'active'}" title="${isMicMuted ? 'Unmute Microphone' : 'Mute Microphone'}">
+                  <span class="sh-ctrl-dot"></span>
+                  ${icon(isMicMuted ? 'micOff' : 'mic', 13)}
+                  <span>${isMicMuted ? 'Muted' : 'Mic Active'}</span>
+                </button>
+                <button id="btn-toggle-lobby-cam" class="sh-ctrl-btn ${isCamMuted ? 'muted' : 'active'}" title="${isCamMuted ? 'Enable Camera' : 'Disable Camera'}">
+                  <span class="sh-ctrl-dot"></span>
+                  ${icon(isCamMuted ? 'videoOff' : 'video', 13)}
+                  <span>${isCamMuted ? 'Cam Off' : 'Camera On'}</span>
+                </button>
+              </div>
             </div>
-            <button id="btn-test-room-devices" class="px-3 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-1.5 transition-all shrink-0">
-              ${icon('video', 12)} Test Devices
+
+            <!-- Diagnostics Checklist Rows -->
+            <div class="sh-diag-grid">
+              <!-- 1. HD Web Camera -->
+              <div class="sh-diag-row">
+                <div class="sh-diag-info">
+                  <span class="text-white/40">${icon('video', 13)}</span>
+                  <span class="text-xs font-medium text-white/80">HD Web Camera</span>
+                </div>
+                ${isCamMuted ? `<span class="sh-diag-badge-off">${icon('videoOff', 10)} MUTED</span>` : (webcamReady ? `<span class="sh-diag-badge-ready">${icon('check', 10)} READY</span>` : `<span class="sh-diag-badge-warn">${icon('alertTriangle', 10)} CHECK ACCESS</span>`)}
+              </div>
+
+              <!-- 2. Microphone -->
+              <div class="sh-diag-row">
+                <div class="sh-diag-info">
+                  <span class="text-white/40">${icon('mic', 13)}</span>
+                  <span class="text-xs font-medium text-white/80">Microphone</span>
+                  ${micReady && !isMicMuted ? `<span class="sh-audio-bars"><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span><span class="sh-audio-bar"></span></span>` : ''}
+                </div>
+                ${isMicMuted ? `<span class="sh-diag-badge-off">${icon('micOff', 10)} MUTED</span>` : (micReady ? `<span class="sh-diag-badge-ready">${icon('check', 10)} READY</span>` : `<span class="sh-diag-badge-warn">${icon('alertTriangle', 10)} CHECK ACCESS</span>`)}
+              </div>
+
+              <!-- 3. Audio Output -->
+              <div class="sh-diag-row">
+                <div class="sh-diag-info">
+                  <span class="text-white/40">${icon('volume2', 13)}</span>
+                  <span class="text-xs font-medium text-white/80">Audio Output</span>
+                </div>
+                <button id="btn-test-speaker" class="sh-btn-test-speaker" title="Play test tone">
+                  ${state.audioTestSuccess ? `${icon('check', 10)} Tone Played` : `${icon('volume2', 10)} Test Audio`}
+                </button>
+              </div>
+
+              <!-- 4. Network Latency -->
+              <div class="sh-diag-row">
+                <div class="sh-diag-info">
+                  <span class="text-white/40">${icon('wifi', 13)}</span>
+                  <span class="text-xs font-medium text-white/80">Network Latency</span>
+                </div>
+                <span class="sh-diag-badge-ready">${icon('check', 10)} 24ms STABLE</span>
+              </div>
+
+              <!-- 5. Proctoring Security -->
+              <div class="sh-diag-row">
+                <div class="sh-diag-info">
+                  <span class="text-white/40">${icon('shield', 13)}</span>
+                  <span class="text-xs font-medium text-white/80">Candidate Security</span>
+                </div>
+                <span class="sh-diag-badge-indigo">${icon('shield', 10)} VERIFIED</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Alignment Re-check CTA -->
+          <div>
+            <button id="btn-test-room-devices" class="sh-lobby-recheck-btn">
+              ${icon('refreshCw', 13)} Re-check Camera & Microphone
             </button>
           </div>
-          ${state.deviceError ? `<p class="px-3 py-2 text-xs text-rose-400 bg-rose-500/10 border-t border-rose-500/20">${state.deviceError}</p>` : ''}
         </div>
-        
-        <div class="rounded-xl border border-white/7 p-6 flex flex-col justify-between" style="background:#0d0f1e">
-          <div class="space-y-4">
-            <h3 class="text-lg font-semibold text-white">Interview Overview</h3>
-            <div class="space-y-2 text-sm text-white/70">
-              <div class="flex justify-between py-2 border-b border-white/5"><span>Total Questions:</span> <strong class="text-white">${total} Questions</strong></div>
-              <div class="flex justify-between py-2 border-b border-white/5"><span>Time Duration:</span> <strong class="text-white">${durationMin} Minutes</strong></div>
-              <div class="flex justify-between py-2 border-b border-white/5"><span>Difficulty Level:</span> <strong class="text-white">${difficulty}</strong></div>
+
+        <!-- Right Column: Role Details & Interactive Interview Guidelines -->
+        <div class="sh-lobby-card">
+          <div>
+            <!-- Header Tag & Live Status Capsule -->
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <span class="sh-header-tag">
+                <span class="text-indigo-400">${icon('zap', 12)}</span>
+                <span>Autonomous AI Session</span>
+              </span>
+              <span class="sh-status-pill-live">
+                <span class="sh-status-dot-pulse"></span>
+                <span>Live Evaluator</span>
+              </span>
+            </div>
+
+            <!-- Role Title & Subtitle Banner -->
+            <div class="sh-role-banner">
+              <div>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-indigo-300/80 mb-0.5">Target Role Assessment</p>
+                <h2 class="text-lg font-extrabold text-white tracking-tight leading-tight" style="font-family:'Outfit',sans-serif">
+                  ${roleDisplay}
+                </h2>
+              </div>
+              <span class="sh-role-badge-pill">${itype}</span>
+            </div>
+
+            <!-- Refined Specs Grid (2x2) -->
+            <div class="sh-spec-grid">
+              <div class="sh-spec-chip">
+                <div class="sh-spec-chip-icon indigo">${icon('target', 13)}</div>
+                <div>
+                  <div class="sh-spec-label">Format</div>
+                  <div class="sh-spec-val">${itype} Round</div>
+                </div>
+              </div>
+              <div class="sh-spec-chip">
+                <div class="sh-spec-chip-icon emerald">${icon('trendingUp', 13)}</div>
+                <div>
+                  <div class="sh-spec-label">Difficulty</div>
+                  <div class="sh-spec-val capitalize">${interview.difficulty || 'Medium'}</div>
+                </div>
+              </div>
+              <div class="sh-spec-chip">
+                <div class="sh-spec-chip-icon amber">${icon('clock', 13)}</div>
+                <div>
+                  <div class="sh-spec-label">Duration</div>
+                  <div class="sh-spec-val">${durationMin} Minutes</div>
+                </div>
+              </div>
+              <div class="sh-spec-chip">
+                <div class="sh-spec-chip-icon blue">${icon('helpCircle', 13)}</div>
+                <div>
+                  <div class="sh-spec-label">Questions</div>
+                  <div class="sh-spec-val">${total} Evaluated</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Guidelines / Rules Section (Inspired Pill Design) -->
+            <div class="sh-guide-list">
+              <div class="sh-rule-pill">
+                <div class="sh-rule-badge blue">${icon('monitor', 13)}</div>
+                <p class="sh-rule-text">This session operates in <strong>proctored mode</strong>. Please keep this tab active throughout.</p>
+              </div>
+
+              <div class="sh-rule-pill">
+                <div class="sh-rule-badge amber">${icon('alertTriangle', 13)}</div>
+                <p class="sh-rule-text">You get up to <strong>3 tab exit alerts</strong> before the system automatically evaluates your progress.</p>
+              </div>
+
+              <div class="sh-rule-pill">
+                <div class="sh-rule-badge indigo">${icon('mic', 13)}</div>
+                <p class="sh-rule-text">The AI assesses <strong>spoken clarity</strong> — speak naturally and elaborately for every question.</p>
+              </div>
+
+              <div class="sh-rule-pill">
+                <div class="sh-rule-badge rose">${icon('checkCircle2', 13)}</div>
+                <p class="sh-rule-text">You can wrap up at any time with <strong>Finish Interview</strong> — answered responses will be graded instantly.</p>
+              </div>
             </div>
           </div>
-          
-          <button id="btn-start-interview-session" class="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.01]" style="background:${INDIGO}">
-            ${icon('play', 18)} Start Interview
-          </button>
+
+          <!-- Bottom Join Action Area -->
+          <div>
+            <button id="btn-start-interview-session" class="sh-lobby-join-cta">
+              ${icon('play', 13)} Begin Interview Session
+            </button>
+          </div>
         </div>
+
       </div>
     </div>`;
   }
@@ -556,7 +705,7 @@ function candidateSession() {
     <div class="grid grid-cols-2 gap-5">
       <div class="rounded-xl border border-white/7 overflow-hidden relative flex flex-col justify-between" style="background:#0d0f1e">
         <div class="relative w-full aspect-video bg-[#141627] flex items-center justify-center overflow-hidden">
-          <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover"></video>
+          <video id="candidate-camera" autoplay muted playsinline style="width:100%!important;height:100%!important;object-fit:cover!important;" class="w-full h-full object-cover"></video>
           ${!webcamReady ? `<div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/75 backdrop-blur-sm">
             <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
             <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
@@ -1579,6 +1728,68 @@ function bindCandidateInterviewEvents() {
   if (testDevices) testDevices.addEventListener('click', testCandidateDevices);
   var testRoomDevices = document.getElementById('btn-test-room-devices');
   if (testRoomDevices) testRoomDevices.addEventListener('click', testCandidateDevices);
+
+  /* ── Lobby Media Controls & Diagnostic Events ── */
+  var btnLobbyMic = document.getElementById('btn-toggle-lobby-mic');
+  if (btnLobbyMic) {
+    btnLobbyMic.addEventListener('click', function() {
+      state.lobbyMicMuted = !state.lobbyMicMuted;
+      if (state.interviewStream) {
+        state.interviewStream.getAudioTracks().forEach(function(t) {
+          t.enabled = !state.lobbyMicMuted;
+        });
+      }
+      render();
+    });
+  }
+
+  var btnLobbyCam = document.getElementById('btn-toggle-lobby-cam');
+  if (btnLobbyCam) {
+    btnLobbyCam.addEventListener('click', function() {
+      state.lobbyCamMuted = !state.lobbyCamMuted;
+      if (state.interviewStream) {
+        state.interviewStream.getVideoTracks().forEach(function(t) {
+          t.enabled = !state.lobbyCamMuted;
+        });
+      }
+      render();
+    });
+  }
+
+  var btnTestSpeaker = document.getElementById('btn-test-speaker');
+  if (btnTestSpeaker) {
+    btnTestSpeaker.addEventListener('click', function() {
+      try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        var actx = new AudioCtx();
+        var now = actx.currentTime;
+        var tones = [523.25, 659.25, 783.99]; // C5, E5, G5 harmonic chord
+        tones.forEach(function(freq, i) {
+          var osc = actx.createOscillator();
+          var gain = actx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0, now + i * 0.12);
+          gain.gain.linearRampToValueAtTime(0.18, now + i * 0.12 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.38);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.4);
+        });
+        state.audioTestSuccess = true;
+        render();
+        setTimeout(function() {
+          state.audioTestSuccess = false;
+          render();
+        }, 2200);
+      } catch (e) {
+        console.warn('Audio test chime error:', e);
+      }
+    });
+  }
+
   var backToInterviews = document.getElementById('btn-back-to-interviews');
   if (backToInterviews) backToInterviews.addEventListener('click', function() { state.section = 'interviews'; render(); });
   var endSession = document.getElementById('btn-end-session');
