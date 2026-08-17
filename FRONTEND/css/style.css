@@ -1334,6 +1334,40 @@ img, svg {
   transform: translateY(0) scale(1);
 }
 
+/* --- Full Viewport Interview Exam Interface --- */
+.smarthire-modal-backdrop#mockInterviewModal {
+  padding: 0 !important;
+}
+
+.smarthire-modal-backdrop#mockInterviewModal .smarthire-modal {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.smarthire-modal-backdrop#mockInterviewModal .smarthire-modal-body {
+  height: calc(100vh - 65px);
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.interview-viewport-split {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .interview-viewport-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 .smarthire-modal-header {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-color);

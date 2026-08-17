@@ -33,3 +33,12 @@ class ExperienceLevelEnum(str, Enum):
     MID = "Mid"
     SENIOR = "Senior"
     EXECUTIVE = "Executive"
+
+class SessionStatusEnum(str, Enum):
+    CREATED = "CREATED"
+    IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    ENDED = "ENDED"
+
+

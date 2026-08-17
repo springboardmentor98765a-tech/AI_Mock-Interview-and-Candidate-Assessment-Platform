@@ -1,7 +1,7 @@
 from models.user import User, SystemAuditLog
 from models.candidate import CandidateProfile, ResumeUpload, InterviewHistory
 from models.recruiter import RecruiterProfile, InterviewTemplate
-from models.interview import AuditLog, QuestionBank, Interview, InterviewQuestion, InterviewSession
+from models.interview import AuditLog, QuestionBank, Interview, InterviewQuestion, InterviewSession, InterviewQuestionAttempt, InterviewRecording
 
 __all__ = [
     "User",
@@ -15,5 +15,8 @@ __all__ = [
     "QuestionBank",
     "Interview",
     "InterviewQuestion",
-    "InterviewSession"
+    "InterviewSession",
+    "InterviewQuestionAttempt",
+    "InterviewRecording"
 ]
+

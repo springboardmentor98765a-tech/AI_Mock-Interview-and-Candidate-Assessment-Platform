@@ -1,9 +1,12 @@
+import os
+import uuid
 import datetime
 import logging
 import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from fastapi.responses import FileResponse
 
 from config import (
     AI_PROVIDER,
@@ -16,7 +19,14 @@ from config import (
 )
 from models.user import User
 from models.candidate import CandidateProfile
-from models.interview import Interview, InterviewQuestion, InterviewSession, AuditLog
+from models.interview import (
+    Interview,
+    InterviewQuestion,
+    InterviewSession,
+    InterviewQuestionAttempt,
+    InterviewRecording,
+    AuditLog
+)
 from schemas.interview import (
     InterviewGenerateRequest,
     InterviewStartRequest,
@@ -29,6 +39,7 @@ from schemas.interview import (
 from services.ai_service import GeminiService
 from services.resume_parser_service import ResumeParserService
 from services.question_bank_service import QuestionBankService
+
 
 logger = logging.getLogger("interview_service")
 
@@ -322,6 +333,8 @@ def start_interview_service(current_user: User, data: InterviewStartRequest, db:
     interview.status = "In Progress"
     session_rec = InterviewSession(
         interview_id=interview.id,
+        candidate_id=interview.candidate_id,
+        status="IN_PROGRESS",
         started_at=datetime.datetime.utcnow(),
         duration=0,
         score=0.0
@@ -351,6 +364,61 @@ def start_interview_service(current_user: User, data: InterviewStartRequest, db:
     }
 
 
+def evaluate_session_answers(session_rec: InterviewSession, interview: Interview, answers_payload: list, db: Session) -> float:
+    """Calculates deterministic evaluation score strictly from actual candidate submitted answers."""
+    questions = interview.questions if (interview and interview.questions) else []
+    total_q = len(questions) if len(questions) > 0 else (len(answers_payload) if answers_payload else 1)
+
+    answers_map = {}
+    if answers_payload:
+        for a in answers_payload:
+            if isinstance(a, dict):
+                qid = a.get("question_id")
+                ans = a.get("user_answer") or a.get("selected_option") or ""
+            else:
+                qid = getattr(a, "question_id", None)
+                ans = getattr(a, "user_answer", "") or getattr(a, "selected_option", "")
+            if qid is not None:
+                answers_map[qid] = str(ans).strip()
+    else:
+        # Check attempts stored in DB for this session
+        db_attempts = db.query(InterviewQuestionAttempt).filter(
+            InterviewQuestionAttempt.session_id == session_rec.id
+        ).all()
+        for att in db_attempts:
+            if att.question_id and att.answer:
+                answers_map[att.question_id] = str(att.answer).strip()
+
+    if total_q == 0:
+        return 0.0
+
+    total_score = 0.0
+
+    if questions:
+        for q in questions:
+            user_ans = answers_map.get(q.id, "")
+            if not user_ans or user_ans.lower() == "no response provided." or len(user_ans) == 0:
+                q_score = 0.0
+            else:
+                words = user_ans.split()
+                w_count = len(words)
+                if w_count >= 15:
+                    q_score = 95.0
+                elif w_count >= 8:
+                    q_score = 85.0
+                elif w_count >= 3:
+                    q_score = 70.0
+                else:
+                    q_score = 50.0
+            total_score += q_score
+        calculated_score = round(total_score / len(questions), 1)
+    else:
+        valid_ans_count = len([v for v in answers_map.values() if v and v.lower() != "no response provided."])
+        calculated_score = round((valid_ans_count / total_q) * 100.0, 1)
+
+    return calculated_score
+
+
 def submit_interview_service(current_user: User, data: InterviewSubmitRequest, db: Session) -> dict:
     """Submits interview answers, calculates score, and updates status to Completed."""
     interview = db.query(Interview).filter(Interview.id == data.interview_id, Interview.is_deleted == False).first()
@@ -362,22 +430,23 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
 
     session_rec = db.query(InterviewSession).filter(
         InterviewSession.interview_id == interview.id
-    ).order_by(InterviewSession.started_at.desc()).first()
+    ).order_by(InterviewSession.created_at.desc()).first()
 
     if not session_rec:
         session_rec = InterviewSession(
             interview_id=interview.id,
+            candidate_id=interview.candidate_id,
+            status="ENDED",
             started_at=datetime.datetime.utcnow()
         )
         db.add(session_rec)
 
+    session_rec.status = "ENDED"
     session_rec.ended_at = datetime.datetime.utcnow()
     session_rec.duration = data.time_taken_seconds
     
-    # Calculate score
-    total_q = len(interview.questions)
-    answered_q = len([a for a in data.answers if a.user_answer or a.selected_option is not None])
-    calculated_score = round((answered_q / total_q) * 100.0, 1) if total_q > 0 else 85.0
+    # Calculate score from actual submitted answers
+    calculated_score = evaluate_session_answers(session_rec, interview, data.answers, db)
 
     session_rec.score = calculated_score
     session_rec.answers_json = [a.model_dump() for a in data.answers]
@@ -395,6 +464,9 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
 
     db.commit()
 
+
+    db.commit()
+
     _log_audit_event(
         db=db,
         user_id=current_user.id,
@@ -405,6 +477,9 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
         metadata={"score": calculated_score, "time_taken_seconds": data.time_taken_seconds}
     )
 
+    total_q = len(interview.questions) if (interview and interview.questions) else len(data.answers)
+    answered_q = len([a for a in data.answers if a.user_answer or a.selected_option is not None])
+
     return {
         "interview_id": interview.id,
         "status": interview.status,
@@ -413,6 +488,7 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
         "total_questions": total_q,
         "time_taken_seconds": session_rec.duration
     }
+
 
 
 def list_interviews_service(current_user: User, db: Session) -> List[InterviewSummaryResponse]:
@@ -544,3 +620,573 @@ def delete_interview_service(current_user: User, interview_id: int, db: Session)
     )
 
     return {"success": True, "message": f"Interview #{interview_id} cancelled and soft-deleted."}
+
+
+# ==========================================
+# STEP 1: INTERVIEW SESSION MANAGEMENT SERVICES
+# ==========================================
+
+ALLOWED_RECORDING_MIME_TYPES = [
+    "video/webm",
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/mp4",
+    "video/x-matroska"
+]
+MAX_RECORDING_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
+
+
+def create_interview_session_service(current_user: User, data: Any, db: Session) -> dict:
+    """Creates a new interview session in CREATED status or returns existing active session."""
+    interview_id = getattr(data, "interview_id", None) or (data.get("interview_id") if isinstance(data, dict) else None)
+    if not interview_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="interview_id is required.")
+
+    interview = db.query(Interview).filter(Interview.id == interview_id, Interview.is_deleted == False).first()
+    if not interview:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+
+    if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to create a session for this interview.")
+
+    # Prevent invalid duplicate active sessions for the same interview/candidate
+    existing_session = db.query(InterviewSession).filter(
+        InterviewSession.interview_id == interview.id,
+        InterviewSession.candidate_id == interview.candidate_id,
+        InterviewSession.status.in_(["CREATED", "IN_PROGRESS", "PAUSED"])
+    ).order_by(InterviewSession.created_at.desc()).first()
+
+    if existing_session:
+        return _format_session_response(existing_session, interview, db)
+
+    new_session = InterviewSession(
+        interview_id=interview.id,
+        candidate_id=interview.candidate_id,
+        status="CREATED",
+        started_at=None,
+        ended_at=None,
+        last_resumed_at=None,
+        paused_accumulated_seconds=0,
+        total_active_seconds=0,
+        current_question_index=0,
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="SESSION_CREATED",
+        resource_type="InterviewSession",
+        resource_id=new_session.id,
+        metadata={"interview_id": interview.id}
+    )
+
+    return _format_session_response(new_session, interview, db)
+
+
+def start_session_service(current_user: User, session_id: int, db: Session) -> dict:
+    """Starts an assigned interview session (CREATED -> IN_PROGRESS)."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to start this interview session.")
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+
+    if session_rec.status in ["COMPLETED", "ENDED"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session has already been completed.")
+    if session_rec.status == "PAUSED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session is paused. Use resume endpoint instead.")
+    if session_rec.status == "IN_PROGRESS":
+        return _format_session_response(session_rec, interview, db)
+
+    if session_rec.status != "CREATED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cannot start session with status '{session_rec.status}'.")
+
+    now = datetime.datetime.utcnow()
+    session_rec.status = "IN_PROGRESS"
+    if not session_rec.started_at:
+        session_rec.started_at = now
+    session_rec.last_resumed_at = now
+
+    if interview:
+        interview.status = "In Progress"
+
+    db.commit()
+    db.refresh(session_rec)
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="SESSION_STARTED",
+        resource_type="InterviewSession",
+        resource_id=session_rec.id,
+        metadata={"interview_id": session_rec.interview_id}
+    )
+
+    return _format_session_response(session_rec, interview, db)
+
+start_session_service_v2 = start_session_service
+
+
+def pause_session_service(current_user: User, session_id: int, db: Session) -> dict:
+    """Pauses an active interview session (IN_PROGRESS -> PAUSED)."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to pause this interview session.")
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+
+    if session_rec.status == "PAUSED":
+        return _format_session_response(session_rec, interview, db)
+    if session_rec.status in ["COMPLETED", "ENDED"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot pause a completed interview session.")
+    if session_rec.status == "CREATED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot pause an interview session that has not been started yet.")
+    if session_rec.status != "IN_PROGRESS":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cannot pause session with status '{session_rec.status}'.")
+
+    now = datetime.datetime.utcnow()
+    if session_rec.last_resumed_at:
+        delta = int((now - session_rec.last_resumed_at).total_seconds())
+        session_rec.total_active_seconds = (session_rec.total_active_seconds or 0) + delta
+
+    session_rec.last_resumed_at = None
+    session_rec.status = "PAUSED"
+
+    db.commit()
+    db.refresh(session_rec)
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="SESSION_PAUSED",
+        resource_type="InterviewSession",
+        resource_id=session_rec.id,
+        metadata={"interview_id": session_rec.interview_id}
+    )
+
+    return _format_session_response(session_rec, interview, db)
+
+pause_session_service_v2 = pause_session_service
+
+
+def resume_session_service(current_user: User, session_id: int, db: Session) -> dict:
+    """Resumes a paused interview session (PAUSED -> IN_PROGRESS)."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to resume this interview session.")
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+
+    if session_rec.status == "IN_PROGRESS":
+        return _format_session_response(session_rec, interview, db)
+    if session_rec.status in ["COMPLETED", "ENDED"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot resume a completed interview session.")
+    if session_rec.status == "CREATED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot resume an interview session that has not been started yet.")
+    if session_rec.status != "PAUSED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cannot resume session with status '{session_rec.status}'.")
+
+    now = datetime.datetime.utcnow()
+    session_rec.status = "IN_PROGRESS"
+    session_rec.last_resumed_at = now
+
+    db.commit()
+    db.refresh(session_rec)
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="SESSION_RESUMED",
+        resource_type="InterviewSession",
+        resource_id=session_rec.id,
+        metadata={"interview_id": session_rec.interview_id}
+    )
+
+    return _format_session_response(session_rec, interview, db)
+
+resume_session_service_v2 = resume_session_service
+
+
+def end_session_service(current_user: User, session_id: int, db: Session, remarks: Optional[str] = None) -> dict:
+    """Ends an active or paused interview session (IN_PROGRESS or PAUSED -> COMPLETED)."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to end this interview session.")
+
+    if session_rec.status in ["COMPLETED", "ENDED"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session has already been completed.")
+
+    if session_rec.status not in ["IN_PROGRESS", "PAUSED"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot end a session that is not active or paused.")
+
+    now = datetime.datetime.utcnow()
+
+    # Calculate final active segment if session was IN_PROGRESS
+    if session_rec.status == "IN_PROGRESS" and session_rec.last_resumed_at:
+        delta = int((now - session_rec.last_resumed_at).total_seconds())
+        session_rec.total_active_seconds = (session_rec.total_active_seconds or 0) + delta
+
+    session_rec.last_resumed_at = None
+    session_rec.status = "COMPLETED"
+    if remarks:
+        session_rec.remarks = remarks
+    session_rec.ended_at = now
+    session_rec.duration = session_rec.total_active_seconds or 0
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+    if interview:
+        interview.status = "Completed"
+
+    # Calculate and persist evaluated score
+    session_rec.score = evaluate_session_answers(session_rec, interview, [], db)
+
+    db.commit()
+    db.refresh(session_rec)
+
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="SESSION_ENDED",
+        resource_type="InterviewSession",
+        resource_id=session_rec.id,
+        metadata={"interview_id": session_rec.interview_id}
+    )
+
+    return _format_session_response(session_rec, interview, db)
+
+end_session_service_v2 = end_session_service
+
+
+def get_session_details_service(current_user: User, session_id: int, db: Session) -> dict:
+    """Gets details for an interview session including questions and recorded attempts."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to view this interview session.")
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id, Interview.is_deleted == False).first()
+    if not interview:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Associated interview record not found.")
+
+    return _format_session_response(session_rec, interview, db)
+
+get_session_details_service_v2 = get_session_details_service
+
+
+def _format_session_response(session_rec: InterviewSession, interview: Optional[Interview], db: Session) -> dict:
+    if not interview:
+        interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+
+    formatted_questions = []
+    if interview:
+        for q in sorted(interview.questions, key=lambda x: x.sequence_no):
+            formatted_questions.append({
+                "id": q.id,
+                "sequence_no": q.sequence_no,
+                "question_text": q.question_text,
+                "category": q.category,
+                "difficulty": q.difficulty
+            })
+
+    attempts_list = []
+    for att in session_rec.attempts:
+        attempts_list.append({
+            "id": att.id,
+            "question_id": att.question_id,
+            "question_number": att.question_number,
+            "time_spent": att.time_spent,
+            "attempted": att.attempted,
+            "answer": att.answer
+        })
+
+    recordings_list = []
+    for rec in session_rec.recordings:
+        recordings_list.append({
+            "id": rec.id,
+            "recording_type": rec.recording_type,
+            "file_name": rec.file_name,
+            "mime_type": rec.mime_type,
+            "file_size": rec.file_size,
+            "duration": rec.duration,
+            "created_at": rec.created_at.strftime("%Y-%m-%d %H:%M:%S") if rec.created_at else None
+        })
+
+    return {
+        "success": True,
+        "session": {
+            "id": session_rec.id,
+            "interview_id": session_rec.interview_id,
+            "candidate_id": session_rec.candidate_id,
+            "status": session_rec.status,
+            "started_at": session_rec.started_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.started_at else None,
+            "ended_at": session_rec.ended_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.ended_at else None,
+            "last_resumed_at": session_rec.last_resumed_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.last_resumed_at else None,
+            "total_active_seconds": session_rec.total_active_seconds or 0,
+            "paused_accumulated_seconds": session_rec.paused_accumulated_seconds or 0,
+            "current_question_index": session_rec.current_question_index or 0,
+            "score": session_rec.score or 0.0,
+            "remarks": session_rec.remarks or "",
+            "created_at": session_rec.created_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.created_at else None
+        },
+
+        "interview": {
+            "id": interview.id if interview else session_rec.interview_id,
+            "domain": interview.domain if interview else "",
+            "interview_type": interview.interview_type if interview else "",
+            "difficulty": interview.difficulty if interview else "",
+            "duration_mins": interview.duration_mins if interview else 30,
+            "questions_count": len(formatted_questions)
+        },
+        "questions": formatted_questions,
+        "attempts": attempts_list,
+        "recordings": recordings_list
+    }
+
+
+def get_active_session_by_interview_service(current_user: User, interview_id: int, db: Session) -> dict:
+    """Returns active/latest session for a given interview."""
+    interview = db.query(Interview).filter(Interview.id == interview_id, Interview.is_deleted == False).first()
+    if not interview:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+
+    if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to access this interview.")
+
+    session_rec = db.query(InterviewSession).filter(
+        InterviewSession.interview_id == interview.id,
+        InterviewSession.candidate_id == interview.candidate_id
+    ).order_by(InterviewSession.created_at.desc()).first()
+
+    if not session_rec:
+        return create_interview_session_service(current_user, {"interview_id": interview.id}, db)
+
+    return get_session_details_service(current_user, session_rec.id, db)
+
+
+def update_session_position_service(current_user: User, session_id: int, position: int, db: Session) -> dict:
+    """Persists current question index position for state recovery."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to update this session.")
+
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+    if interview and interview.questions:
+        max_idx = len(interview.questions) - 1
+        if position < 0 or position > max_idx:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid question index position {position}.")
+
+    session_rec.current_question_index = position
+    db.commit()
+
+    return {"success": True, "session_id": session_rec.id, "current_question_index": position}
+
+
+def record_question_attempt_service(current_user: User, session_id: int, payload: Any, db: Session) -> dict:
+    """Records or updates question attempt details, preventing duplicate rows for (session_id, question_id)."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to update attempts for this session.")
+
+    question_id = getattr(payload, "question_id", None) or (payload.get("question_id") if isinstance(payload, dict) else None)
+    if not question_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="question_id is required.")
+
+    q_rec = db.query(InterviewQuestion).filter(
+        InterviewQuestion.id == question_id,
+        InterviewQuestion.interview_id == session_rec.interview_id
+    ).first()
+    if not q_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question does not belong to this interview.")
+
+    q_num = getattr(payload, "question_number", None) or (payload.get("question_number") if isinstance(payload, dict) else q_rec.sequence_no)
+    time_spent = float(getattr(payload, "time_spent", 0.0) or (payload.get("time_spent") if isinstance(payload, dict) else 0.0))
+    answer_text = getattr(payload, "answer", None) or (payload.get("answer") if isinstance(payload, dict) else None)
+    is_attempted = getattr(payload, "attempted", True) if getattr(payload, "attempted", None) is not None else True
+
+    existing_attempt = db.query(InterviewQuestionAttempt).filter(
+        InterviewQuestionAttempt.session_id == session_rec.id,
+        InterviewQuestionAttempt.question_id == question_id
+    ).first()
+
+    now = datetime.datetime.utcnow()
+    if existing_attempt:
+        existing_attempt.time_spent = max(existing_attempt.time_spent or 0.0, time_spent)
+        if answer_text is not None:
+            existing_attempt.answer = answer_text
+        existing_attempt.attempted = is_attempted
+        existing_attempt.ended_at = now
+        attempt_obj = existing_attempt
+    else:
+        attempt_obj = InterviewQuestionAttempt(
+            session_id=session_rec.id,
+            question_id=question_id,
+            question_number=q_num,
+            started_at=now,
+            ended_at=now,
+            time_spent=time_spent,
+            attempted=is_attempted,
+            answer=answer_text,
+            created_at=now
+        )
+        db.add(attempt_obj)
+
+    db.commit()
+    db.refresh(attempt_obj)
+
+    return {
+        "success": True,
+        "attempt": {
+            "id": attempt_obj.id,
+            "session_id": attempt_obj.session_id,
+            "question_id": attempt_obj.question_id,
+            "question_number": attempt_obj.question_number,
+            "time_spent": attempt_obj.time_spent,
+            "attempted": attempt_obj.attempted,
+            "answer": attempt_obj.answer
+        }
+    }
+
+
+def upload_session_recording_service(
+    current_user: User,
+    session_id: int,
+    file_bytes: bytes,
+    original_filename: str,
+    mime_type: str,
+    duration: float,
+    db: Session
+) -> dict:
+    """Uploads session video+audio recording file securely to server disk and records metadata."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
+
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to upload recordings for this session.")
+
+    if len(file_bytes) > MAX_RECORDING_SIZE_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recording file exceeds maximum allowed size limit of 500 MB.")
+
+    ext = "webm"
+    if "mp4" in mime_type.lower():
+        ext = "mp4"
+    elif "mkv" in mime_type.lower() or "matroska" in mime_type.lower():
+        ext = "mkv"
+
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"
+    recordings_dir = os.path.join(os.getcwd(), "uploads", "recordings")
+    os.makedirs(recordings_dir, exist_ok=True)
+    full_storage_path = os.path.join(recordings_dir, unique_filename)
+
+    with open(full_storage_path, "wb") as f:
+        f.write(file_bytes)
+
+    recording_rec = InterviewRecording(
+        session_id=session_rec.id,
+        recording_type="VIDEO_AUDIO",
+        file_name=unique_filename,
+        storage_path=full_storage_path,
+        mime_type=mime_type or "video/webm",
+        file_size=len(file_bytes),
+        duration=duration,
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(recording_rec)
+    db.commit()
+    db.refresh(recording_rec)
+
+    _log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        role=current_user.role,
+        action="RECORDING_UPLOADED",
+        resource_type="InterviewRecording",
+        resource_id=recording_rec.id,
+        metadata={"session_id": session_rec.id, "file_size": len(file_bytes), "mime_type": mime_type}
+    )
+
+    return {
+        "success": True,
+        "recording": {
+            "id": recording_rec.id,
+            "session_id": recording_rec.session_id,
+            "recording_type": recording_rec.recording_type,
+            "file_name": recording_rec.file_name,
+            "mime_type": recording_rec.mime_type,
+            "file_size": recording_rec.file_size,
+            "duration": recording_rec.duration,
+            "created_at": recording_rec.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+    }
+
+
+def get_authorized_recording_service(current_user: User, session_id: int, recording_id: int, db: Session) -> FileResponse:
+    """Streams authorized recording file after checking JWT role and ownership permissions."""
+    recording_rec = db.query(InterviewRecording).filter(
+        InterviewRecording.id == recording_id,
+        InterviewRecording.session_id == session_id
+    ).first()
+
+    if not recording_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording file reference not found.")
+
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Associated interview session not found.")
+
+    if current_user.role == "CANDIDATE":
+        if session_rec.candidate_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Candidate cannot access another candidate's recording.")
+    elif current_user.role == "RECRUITER":
+        interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+        if not interview:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+        if interview.recruiter_id != current_user.id and interview.candidate_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Recruiter is not authorized to view this recording.")
+    elif current_user.role == "ADMIN":
+        pass
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Invalid user role.")
+
+    if not os.path.exists(recording_rec.storage_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Physical recording file not found on server.")
+
+    return FileResponse(
+        path=recording_rec.storage_path,
+        media_type=recording_rec.mime_type or "video/webm",
+        filename=recording_rec.file_name
+    )
+
+

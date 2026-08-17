@@ -79,12 +79,57 @@ class InterviewSession(Base):
     __tablename__ = "interview_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False)
-    started_at = Column(DateTime, default=datetime.datetime.utcnow)
-    ended_at = Column(DateTime, nullable=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String, nullable=False, default="CREATED", index=True)  # CREATED, IN_PROGRESS, PAUSED, COMPLETED
+    started_at = Column(DateTime, nullable=True, default=None)
+    ended_at = Column(DateTime, nullable=True, default=None)
+    last_resumed_at = Column(DateTime, nullable=True, default=None)
+    paused_accumulated_seconds = Column(Integer, default=0)
+    total_active_seconds = Column(Integer, default=0)
+    current_question_index = Column(Integer, default=0)
     duration = Column(Integer, default=0)  # seconds
     score = Column(Float, default=0.0)
     remarks = Column(Text, nullable=True)
     answers_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     interview = relationship("Interview", back_populates="sessions")
+    candidate = relationship("User", foreign_keys=[candidate_id])
+    attempts = relationship("InterviewQuestionAttempt", back_populates="session", cascade="all, delete-orphan")
+    recordings = relationship("InterviewRecording", back_populates="session", cascade="all, delete-orphan")
+
+class InterviewQuestionAttempt(Base):
+    __tablename__ = "interview_question_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("interview_sessions.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("interview_questions.id"), nullable=False, index=True)
+    question_number = Column(Integer, nullable=False, default=1)
+    started_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+    time_spent = Column(Float, default=0.0)  # active seconds spent
+    attempted = Column(Boolean, default=True)
+    answer = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    session = relationship("InterviewSession", back_populates="attempts")
+    question = relationship("InterviewQuestion")
+
+class InterviewRecording(Base):
+    __tablename__ = "interview_recordings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("interview_sessions.id"), nullable=False, index=True)
+    recording_type = Column(String, nullable=False, default="VIDEO_AUDIO")
+    file_name = Column(String, nullable=False)
+    storage_path = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False)
+    file_size = Column(Integer, nullable=False)
+    duration = Column(Float, default=0.0)  # actual media duration
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    session = relationship("InterviewSession", back_populates="recordings")
+
+

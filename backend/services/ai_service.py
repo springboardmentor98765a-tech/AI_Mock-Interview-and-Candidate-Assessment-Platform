@@ -306,6 +306,8 @@ class GeminiService(AIService):
         try:
             raw_response = self._call_gemini_api(prompt)
             validated_questions = self._validate_and_parse_json(raw_response, default_category=interview_type)
+        except ValueError as val_err:
+            raise val_err
         except Exception as exc:
             logger.warning(f"Gemini API endpoint notice ({exc}). Invoking Gemini AI Engine.")
             skills = parsed_resume_details.get("skills", [])
@@ -317,6 +319,7 @@ class GeminiService(AIService):
                 experience_level=experience_level,
                 skills=skills
             )
+
 
         return {
             "ai_provider": "Gemini AI Engine",

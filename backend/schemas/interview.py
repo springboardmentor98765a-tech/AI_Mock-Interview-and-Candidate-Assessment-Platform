@@ -21,6 +21,37 @@ class RegenerateQuestionRequest(BaseModel):
 class InterviewStartRequest(BaseModel):
     interview_id: int = Field(..., description="ID of the interview to start")
 
+class InterviewSessionCreateRequest(BaseModel):
+    interview_id: int = Field(..., description="ID of the assigned interview")
+
+class InterviewSessionPositionRequest(BaseModel):
+    current_question_index: int = Field(..., ge=0, description="Current question index position")
+
+class InterviewSessionResponse(BaseModel):
+    id: int
+    interview_id: int
+    candidate_id: int
+    status: str
+    started_at: Optional[Union[datetime.datetime, str]] = None
+    ended_at: Optional[Union[datetime.datetime, str]] = None
+    current_question_index: int = 0
+    created_at: Optional[Union[datetime.datetime, str]] = None
+    updated_at: Optional[Union[datetime.datetime, str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class InterviewSessionDetailResponse(BaseModel):
+    session: InterviewSessionResponse
+    interview_id: int
+    domain: str
+    interview_type: str
+    difficulty: str
+    duration_mins: int
+    questions: List[Any] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class InterviewSubmitAnswer(BaseModel):
     question_id: int
     user_answer: Optional[str] = None
@@ -122,3 +153,43 @@ class QuestionBankResponse(BaseModel):
     created_at: Union[datetime.datetime, str]
 
     model_config = ConfigDict(from_attributes=True)
+
+class InterviewQuestionAttemptCreate(BaseModel):
+    question_id: int = Field(..., description="ID of the target question")
+    question_number: int = Field(1, description="Sequence/question number")
+    started_at: Optional[Union[datetime.datetime, str]] = None
+    ended_at: Optional[Union[datetime.datetime, str]] = None
+    time_spent: float = Field(0.0, description="Active time spent in seconds")
+    attempted: bool = Field(True, description="Whether question was attempted")
+    answer: Optional[str] = Field(None, description="Candidate response text")
+
+class InterviewQuestionAttemptResponse(BaseModel):
+    id: int
+    session_id: int
+    question_id: int
+    question_number: int
+    started_at: Optional[Union[datetime.datetime, str]] = None
+    ended_at: Optional[Union[datetime.datetime, str]] = None
+    time_spent: float
+    attempted: bool
+    answer: Optional[str] = None
+    created_at: Optional[Union[datetime.datetime, str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class InterviewRecordingResponse(BaseModel):
+    id: int
+    session_id: int
+    recording_type: str
+    file_name: str
+    storage_path: str
+    mime_type: str
+    file_size: int
+    duration: float
+    created_at: Optional[Union[datetime.datetime, str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class InterviewSessionStatusUpdate(BaseModel):
+    status: str = Field(..., description="Target status transition")
+

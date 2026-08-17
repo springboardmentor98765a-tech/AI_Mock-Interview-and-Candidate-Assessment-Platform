@@ -17,7 +17,9 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal
 from models.user import User
 from models.candidate import CandidateProfile
+from models.recruiter import RecruiterProfile
 from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog
+
 from security.password import hash_password
 
 from routers import (
@@ -28,6 +30,7 @@ from routers import (
     interview_router,
     interview_api_router,
     interview_singular_api_router,
+    interview_singular_noapi_router,
     question_router,
     question_api_router
 )
@@ -103,8 +106,10 @@ app.include_router(admin_router)
 app.include_router(interview_router)
 app.include_router(interview_api_router)
 app.include_router(interview_singular_api_router)
+app.include_router(interview_singular_noapi_router)
 app.include_router(question_router)
 app.include_router(question_api_router)
+
 
 
 def seed_database():

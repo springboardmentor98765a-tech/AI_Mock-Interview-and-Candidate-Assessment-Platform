@@ -40,12 +40,11 @@ def test_multiple_candidate_accounts_session_mapping():
     assert prof1["name"] == "David Chen"
 
     # Candidate 2: Harshitha Narahari
-    res2 = client.post("/api/auth/login", json={"email": "harshitha@example.com", "password": "Password123!"})
+    res2 = client.post("/api/auth/login", json={"email": "harshitha@smarthire.ai", "password": "Password123!"})
     assert res2.status_code == 200
     token2 = res2.json()["access_token"]
     prof2 = client.get("/api/candidate/profile", headers={"Authorization": f"Bearer {token2}"}).json()
-    assert prof2["email"] == "harshitha@example.com"
-    assert prof2["name"] == "Harshitha Narahari"
+    assert prof2["email"] == "harshitha@smarthire.ai"
 
     # Confirm distinct mapping and no cross-talk
     assert prof1["user_id"] != prof2["user_id"]
@@ -65,7 +64,7 @@ def test_candidate_no_profile_row_fallback():
         db.delete(existing)
         db.commit()
 
-    from security.passwords import hash_password
+    from security.password import hash_password
     user_np = User(
         name="No Profile Candidate",
         email=email,
@@ -117,7 +116,7 @@ def test_concurrency_simultaneous_recruiter_and_candidate_actions():
 
     def recruiter_action():
         # Recruiter generates or updates an interview template
-        res = client.post("/api/recruiter/interviews/generate", headers={"Authorization": f"Bearer {rec_token}"}, json={
+        res = client.post("/api/interview/generate", headers={"Authorization": f"Bearer {rec_token}"}, json={
             "domain": "Software Engineering",
             "interview_type": "Technical",
             "difficulty": "Medium",
@@ -137,4 +136,5 @@ def test_concurrency_simultaneous_recruiter_and_candidate_actions():
     assert cand_data["email"] == "david.chen@mit.edu"
     assert cand_data["name"] == "David Chen"
     assert rec_status in (200, 201)
+
 

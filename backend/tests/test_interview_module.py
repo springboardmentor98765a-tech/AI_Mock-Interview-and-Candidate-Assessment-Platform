@@ -32,6 +32,7 @@ client = TestClient(app)
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_test_db():
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -40,23 +41,55 @@ def setup_test_db():
     admin = User(name="Test Admin", email="admin_test@smarthire.ai", password=hash_password("Admin123!"), role="ADMIN")
     recruiter = User(name="Test Recruiter", email="recruiter_test@smarthire.ai", password=hash_password("Pass123!"), role="RECRUITER")
     candidate = User(name="Test Candidate", email="candidate_test@smarthire.ai", password=hash_password("Pass123!"), role="CANDIDATE")
+    candidate2 = User(name="Other Candidate", email="other_candidate@smarthire.ai", password=hash_password("Pass123!"), role="CANDIDATE")
     
-    db.add_all([admin, recruiter, candidate])
+    db.add_all([admin, recruiter, candidate, candidate2])
     db.commit()
-    db.refresh(admin)
-    db.refresh(recruiter)
-    db.refresh(candidate)
 
-    # Seed initial Question Bank
-    q1 = QuestionBank(domain="Technical", category="Technical", difficulty="Medium", question="[Test Tech] What is FastAPI?", expected_answer="Asgi python framework.", evaluation_points=["FastAPI", "Python"])
-    q2 = QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR] What are your strengths?", expected_answer="Self awareness.", evaluation_points=["Clarity"])
-    db.add_all([q1, q2])
+    # Seed CandidateProfile for Candidate ID 3
+    cand_profile = CandidateProfile(
+        user_id=candidate.id,
+        phone="+1 (555) 234-5678",
+        college="Stanford University",
+        degree="B.S. Computer Science",
+        branch="Software Engineering",
+        graduation_year=2024,
+        skills="React, TypeScript, Node.js, PostgreSQL, System Design",
+        preferred_role="Senior Frontend Engineer",
+        experience_level="Mid-Senior",
+        resume="resume_user_1.pdf",
+        ats_score=88.0,
+        interview_score=94.0
+    )
+    db.add(cand_profile)
+    db.commit()
+
+    # Seed Question Bank with sufficient fallback questions
+    q_list = [
+        QuestionBank(domain="Software Engineering", category="Technical", difficulty="Medium", question="[Test SE 1] What is FastAPI?", expected_answer="ASGI framework.", evaluation_points=["FastAPI"]),
+        QuestionBank(domain="Software Engineering", category="Technical", difficulty="Medium", question="[Test SE 2] How does GIL work in Python?", expected_answer="Global Interpreter Lock.", evaluation_points=["GIL"]),
+        QuestionBank(domain="Software Engineering", category="Technical", difficulty="Medium", question="[Test SE 3] Explain REST vs GraphQL.", expected_answer="API architectures.", evaluation_points=["REST"]),
+        QuestionBank(domain="Software Engineering", category="Technical", difficulty="Medium", question="[Test SE 4] What is dependency injection?", expected_answer="Design pattern.", evaluation_points=["DI"]),
+        QuestionBank(domain="Software Engineering", category="Technical", difficulty="Medium", question="[Test SE 5] How do index scans work in SQL?", expected_answer="Database indexing.", evaluation_points=["SQL"]),
+        QuestionBank(domain="Technical", category="Technical", difficulty="Medium", question="[Test Tech 1] What is FastAPI?", expected_answer="ASGI framework.", evaluation_points=["FastAPI"]),
+        QuestionBank(domain="Technical", category="Technical", difficulty="Medium", question="[Test Tech 2] How does GIL work in Python?", expected_answer="Global Interpreter Lock.", evaluation_points=["GIL"]),
+        QuestionBank(domain="Technical", category="Technical", difficulty="Medium", question="[Test Tech 3] Explain REST vs GraphQL.", expected_answer="API architectures.", evaluation_points=["REST"]),
+        QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR 1] What are your strengths?", expected_answer="Self awareness.", evaluation_points=["Clarity"]),
+        QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR 2] Where do you see yourself in 5 years?", expected_answer="Growth.", evaluation_points=["Ambition"]),
+        QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR 3] Why do you want to join us?", expected_answer="Alignment.", evaluation_points=["Fit"]),
+        QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR 4] Describe a conflict resolution.", expected_answer="Empathy.", evaluation_points=["STAR"]),
+        QuestionBank(domain="HR", category="HR", difficulty="Easy", question="[Test HR 5] How do you handle pressure?", expected_answer="Prioritization.", evaluation_points=["Resilience"])
+    ]
+    db.add_all(q_list)
     db.commit()
     db.close()
 
     yield
 
     Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.pop(get_db, None)
+
+
 
 def get_auth_headers(email: str, role: str, user_id: int):
     token = create_access_token({"sub": str(user_id), "email": email, "role": role})
@@ -356,4 +389,147 @@ def test_resume_action_endpoints_and_urls():
     static_res = client.get("/uploads/")
     # Returns 404 or 403 or 200 from FastAPI StaticFiles, confirming route is registered
     assert static_res.status_code in [200, 403, 404]
+
+
+# ==========================================
+# STEP 1: INTERVIEW SESSION MANAGEMENT TESTS
+# ==========================================
+
+def test_session_lifecycle_complete_flow():
+    """Verify complete session lifecycle: CREATED -> IN_PROGRESS -> PAUSED -> IN_PROGRESS -> ENDED."""
+    rec_headers = get_auth_headers("recruiter_test@smarthire.ai", "RECRUITER", 2)
+    cand_headers = get_auth_headers("candidate_test@smarthire.ai", "CANDIDATE", 3)
+
+    # 1. Recruiter generates interview assigned to Candidate (ID 3)
+    gen_res = client.post("/api/interview/generate", json={
+        "candidate_id": 3,
+        "interview_type": "Technical",
+        "domain": "Software Engineering",
+        "difficulty": "Medium",
+        "num_questions": 5
+    }, headers=rec_headers)
+    assert gen_res.status_code == 200
+    interview_id = gen_res.json()["interview_id"]
+
+    # 2. Candidate creates session
+    create_res = client.post("/api/interview/sessions", json={"interview_id": interview_id}, headers=cand_headers)
+    assert create_res.status_code == 200
+    create_data = create_res.json()
+    assert create_data["success"] is True
+    session_info = create_data["session"]
+    session_id = session_info["id"]
+    assert session_info["status"] == "CREATED"
+    assert session_info["started_at"] is None
+    assert session_info["ended_at"] is None
+
+    # 3. Candidate starts session
+    start_res = client.post(f"/api/interview/sessions/{session_id}/start", headers=cand_headers)
+    assert start_res.status_code == 200
+    start_data = start_res.json()["session"]
+    assert start_data["status"] == "IN_PROGRESS"
+    assert start_data["started_at"] is not None
+    assert start_data["ended_at"] is None
+    started_timestamp = start_data["started_at"]
+
+    # 4. Candidate pauses session
+    pause_res = client.post(f"/api/interview/sessions/{session_id}/pause", headers=cand_headers)
+    assert pause_res.status_code == 200
+    pause_data = pause_res.json()["session"]
+    assert pause_data["status"] == "PAUSED"
+    assert pause_data["started_at"] == started_timestamp  # Preserved
+    assert pause_data["ended_at"] is None
+
+    # 5. Candidate resumes session
+    resume_res = client.post(f"/api/interview/sessions/{session_id}/resume", headers=cand_headers)
+    assert resume_res.status_code == 200
+    resume_data = resume_res.json()["session"]
+    assert resume_data["status"] == "IN_PROGRESS"
+    assert resume_data["started_at"] == started_timestamp  # Preserved
+    assert resume_data["ended_at"] is None
+
+    # 6. Candidate ends session
+    end_res = client.post(f"/api/interview/sessions/{session_id}/end", headers=cand_headers)
+    assert end_res.status_code == 200
+    end_data = end_res.json()["session"]
+    assert end_data["status"] in ["COMPLETED", "ENDED"]
+    assert end_data["started_at"] == started_timestamp
+    assert end_data["ended_at"] is not None
+
+
+def test_invalid_session_state_transitions():
+    """Verify invalid state transitions return clean validation errors."""
+    rec_headers = get_auth_headers("recruiter_test@smarthire.ai", "RECRUITER", 2)
+    cand_headers = get_auth_headers("candidate_test@smarthire.ai", "CANDIDATE", 3)
+
+    # 1. Generate interview & session
+    gen_res = client.post("/api/interview/generate", json={"candidate_id": 3, "num_questions": 3}, headers=rec_headers)
+    interview_id = gen_res.json()["interview_id"]
+
+    create_res = client.post("/api/interview/sessions", json={"interview_id": interview_id}, headers=cand_headers)
+    session_id = create_res.json()["session"]["id"]
+
+    # Invalid: Pause session while in CREATED status
+    bad_pause = client.post(f"/api/interview/sessions/{session_id}/pause", headers=cand_headers)
+    assert bad_pause.status_code in [400, 409]
+
+
+    # Start session, then end session
+    client.post(f"/api/interview/sessions/{session_id}/start", headers=cand_headers)
+    client.post(f"/api/interview/sessions/{session_id}/end", headers=cand_headers)
+
+    # Invalid: Resume a COMPLETED session
+    bad_resume = client.post(f"/api/interview/sessions/{session_id}/resume", headers=cand_headers)
+    assert bad_resume.status_code in [400, 409]
+    res_text = str(bad_resume.json()).lower()
+    assert "completed" in res_text or "ended" in res_text
+
+    # Invalid: Start a COMPLETED session
+    bad_start = client.post(f"/api/interview/sessions/{session_id}/start", headers=cand_headers)
+    assert bad_start.status_code in [400, 409]
+    start_text = str(bad_start.json()).lower()
+    assert "completed" in start_text or "ended" in start_text
+
+
+
+def test_session_authorization_matrix():
+    """Verify candidates cannot start, pause, resume, or end other candidates' sessions."""
+    rec_headers = get_auth_headers("recruiter_test@smarthire.ai", "RECRUITER", 2)
+    cand1_headers = get_auth_headers("candidate_test@smarthire.ai", "CANDIDATE", 3)
+    cand2_headers = get_auth_headers("other_candidate@smarthire.ai", "CANDIDATE", 4)
+
+    gen_res = client.post("/api/interview/generate", json={"candidate_id": 3, "num_questions": 3}, headers=rec_headers)
+    interview_id = gen_res.json()["interview_id"]
+
+    create_res = client.post("/api/interview/sessions", json={"interview_id": interview_id}, headers=cand1_headers)
+    session_id = create_res.json()["session"]["id"]
+
+    # Candidate 2 attempts to start Candidate 1's session -> 403 Forbidden
+    unauth_start = client.post(f"/api/interview/sessions/{session_id}/start", headers=cand2_headers)
+    assert unauth_start.status_code == 403
+
+    # Candidate 2 attempts to view details -> 403 Forbidden
+    unauth_get = client.get(f"/api/interview/sessions/{session_id}", headers=cand2_headers)
+    assert unauth_get.status_code == 403
+
+
+def test_question_position_persistence():
+    """Verify current question position update and recovery."""
+    rec_headers = get_auth_headers("recruiter_test@smarthire.ai", "RECRUITER", 2)
+    cand_headers = get_auth_headers("candidate_test@smarthire.ai", "CANDIDATE", 3)
+
+    gen_res = client.post("/api/interview/generate", json={"candidate_id": 3, "num_questions": 5}, headers=rec_headers)
+    interview_id = gen_res.json()["interview_id"]
+
+    create_res = client.post("/api/interview/sessions", json={"interview_id": interview_id}, headers=cand_headers)
+    session_id = create_res.json()["session"]["id"]
+
+    # Update position to index 2 (question 3)
+    pos_res = client.put(f"/api/interview/sessions/{session_id}/position", json={"current_question_index": 2}, headers=cand_headers)
+    assert pos_res.status_code == 200
+
+    # Fetch session details and verify current_question_index
+    detail_res = client.get(f"/api/interview/sessions/{session_id}", headers=cand_headers)
+    assert detail_res.status_code == 200
+    assert detail_res.json()["session"]["current_question_index"] == 2
+
 

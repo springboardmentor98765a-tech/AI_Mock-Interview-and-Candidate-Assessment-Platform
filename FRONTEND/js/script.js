@@ -716,11 +716,60 @@ function saveProfile(e) {
 }
 
 
-/* ==========================================================================
-   SECTION 5: AUTHENTICATION PAGE & REAL-TIME VALIDATION ENGINE (login.html)
-   ========================================================================== */
+function renderGoogleGISButtonOnLoad() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    return;
+  }
+  fetch(`${SmartHireAuth.API_BASE}/api/auth/config`)
+    .then(res => res.json())
+    .then(config => {
+      if (config.google_client_id) {
+        google.accounts.id.initialize({
+          client_id: config.google_client_id,
+          callback: handleGoogleCredentialResponse
+        });
+      }
+    })
+    .catch(() => {});
+}
+
+function handleGoogleAuth() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    google.accounts.id.prompt();
+  } else {
+    showDemoToast('Google Authentication is not configured or unavailable.', 'info');
+  }
+}
+
+async function handleGoogleCredentialResponse(response) {
+  if (!response || !response.credential) return;
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: response.credential })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      SmartHireAuth.setSession({
+        id: data.user_id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        is_active: true
+      }, data.access_token);
+      showDemoToast(`Welcome back, ${data.name}! Directing to ${data.role} Dashboard...`, 'success');
+      setTimeout(() => redirectUserToRoleDashboard(data.role), 1000);
+    } else {
+      showDemoToast(data.detail || 'Google sign-in failed.', 'error');
+    }
+  } catch (err) {
+    showDemoToast('Network error during Google authentication.', 'error');
+  }
+}
 
 function setupAuthPageTabs() {
+
   const loginCard = document.querySelector('.login-card');
   if (!loginCard) return;
 
@@ -754,8 +803,8 @@ function setupAuthPageTabs() {
     }
   }
 
-
   // Intercept Auth Form Submissions
+
   const form = loginCard.querySelector('form');
   if (form) {
     form.onsubmit = async function(e) {
@@ -2922,7 +2971,11 @@ function openModal(modalId) {
 function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.classList.remove('active');
+  if (modalId === 'mockInterviewModal') {
+    stopAllMediaTracks();
+  }
 }
+
 
 // 1. Resume Drag & Drop & API Upload
 function openResumeUploadModal() {
@@ -3694,46 +3747,884 @@ async function loadCandidateAssignedInterviews() {
 }
 
 let activeSessionInterviewId = null;
+let activeSessionRecord = null;
 let activeSessionQuestions = [];
 let activeSessionCurrentIdx = 0;
 let activeSessionAnswers = {};
+let activeSessionTotalActiveSeconds = 0;
+
+let interviewMediaStream = null;
+let interviewMediaRecorder = null;
+let interviewRecordedChunks = [];
+let selectedRecordingMimeType = 'video/webm';
+let isAsyncActionPending = false;
+let currentQuestionStartTime = null;
+let questionActiveTimerInterval = null;
+let questionActiveSeconds = 0;
+
+let fullscreenExitCount = 0;
+let isInterviewActive = false;
+let isFullscreenWarningOpen = false;
+
+function detectSupportedMimeType() {
+  const candidates = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4'
+  ];
+  if (typeof MediaRecorder === 'undefined') return 'video/webm';
+  for (const mime of candidates) {
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(mime)) {
+      return mime;
+    }
+  }
+  return 'video/webm';
+}
+
+function verifyMediaDevicesLive() {
+  if (!interviewMediaStream || !interviewMediaStream.active) return false;
+  const vTracks = interviewMediaStream.getVideoTracks();
+  const aTracks = interviewMediaStream.getAudioTracks();
+  const vLive = vTracks.length > 0 && vTracks[0].readyState === 'live';
+  const aLive = aTracks.length > 0 && aTracks[0].readyState === 'live';
+  return vLive && aLive;
+}
+
+async function requestMediaPermissions() {
+  const camBadge = document.getElementById('cameraStatusBadge');
+  const micBadge = document.getElementById('micStatusBadge');
+  const videoEl = document.getElementById('interviewWebcamPreview');
+  const camCheck = document.getElementById('cameraCheckIcon');
+  const micCheck = document.getElementById('micCheckIcon');
+  const startBtn = document.getElementById('btnStartInterviewWithFullscreen');
+  const errNotice = document.getElementById('setupErrorNotice');
+  const errText = document.getElementById('setupErrorMessage');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    interviewMediaStream = stream;
+
+    if (videoEl) {
+      videoEl.srcObject = stream;
+    }
+
+    if (camBadge) {
+      camBadge.className = 'badge-status success';
+      camBadge.innerHTML = '<i class="fa-solid fa-video"></i> Camera: Connected';
+    }
+    if (micBadge) {
+      micBadge.className = 'badge-status success';
+      micBadge.innerHTML = '<i class="fa-solid fa-microphone"></i> Mic: Connected';
+    }
+    if (camCheck) camCheck.innerHTML = '<span style="color: #10B981;"><i class="fa-solid fa-circle-check"></i> Connected</span>';
+    if (micCheck) micCheck.innerHTML = '<span style="color: #10B981;"><i class="fa-solid fa-circle-check"></i> Connected</span>';
+
+    if (errNotice) errNotice.style.display = 'none';
+
+    if (verifyMediaDevicesLive()) {
+      if (startBtn) startBtn.disabled = false;
+      return true;
+    } else {
+      if (startBtn) startBtn.disabled = true;
+      return false;
+    }
+  } catch (err) {
+    console.error('Media permission error:', err);
+    let errMsg = 'Camera and microphone access are required to start this interview. Please allow access in browser settings.';
+    if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+      errMsg = 'Camera or Microphone permission was denied. Please allow permissions in browser settings to start.';
+    } else if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') {
+      errMsg = 'No suitable camera/microphone device was found on your system.';
+    } else if (err.name === 'NotReadableError') {
+      errMsg = 'Your camera or microphone is currently in use by another application.';
+    }
+
+    if (camBadge) {
+      camBadge.className = 'badge-status danger';
+      camBadge.innerHTML = '<i class="fa-solid fa-video-slash"></i> Camera: Denied';
+    }
+    if (micBadge) {
+      micBadge.className = 'badge-status danger';
+      micBadge.innerHTML = '<i class="fa-solid fa-microphone-slash"></i> Mic: Denied';
+    }
+    if (camCheck) camCheck.innerHTML = '<span style="color: #EF4444;"><i class="fa-solid fa-circle-xmark"></i> Permission Denied</span>';
+    if (micCheck) micCheck.innerHTML = '<span style="color: #EF4444;"><i class="fa-solid fa-circle-xmark"></i> Permission Denied</span>';
+
+    if (errNotice && errText) {
+      errText.textContent = errMsg;
+      errNotice.style.display = 'block';
+    }
+    if (startBtn) startBtn.disabled = true;
+    showDemoToast(errMsg, 'error');
+    return false;
+  }
+}
+
+function initializeMediaRecorder() {
+  if (!interviewMediaStream) return false;
+  if (interviewMediaRecorder && interviewMediaRecorder.state !== 'inactive') {
+    return true; // Reuse active instance
+  }
+
+  selectedRecordingMimeType = detectSupportedMimeType();
+  interviewRecordedChunks = [];
+
+  try {
+    interviewMediaRecorder = new MediaRecorder(interviewMediaStream, { mimeType: selectedRecordingMimeType });
+  } catch (e) {
+    console.warn('MediaRecorder init fallback without mimeType:', e);
+    try {
+      interviewMediaRecorder = new MediaRecorder(interviewMediaStream);
+    } catch (err2) {
+      showDemoToast('Browser does not support MediaRecorder video recording.', 'error');
+      return false;
+    }
+  }
+
+  interviewMediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size > 0) {
+      interviewRecordedChunks.push(event.data);
+    }
+  };
+
+  const recBadge = document.getElementById('recordingStatusBadge');
+  if (recBadge) {
+    recBadge.className = 'badge-status success';
+    recBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Recording: Active';
+  }
+
+  interviewMediaRecorder.start(1000);
+  return true;
+}
 
 async function startAssignedInterviewSession(interviewId, durationMins) {
   const token = SmartHireAuth.getToken();
   if (!token) return;
 
   try {
-    const startRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/start`, {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${interviewId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    if (!data.success && !data.session) {
+      showDemoToast(data.message || 'Failed to load interview session.', 'error');
+      return;
+    }
+
+    activeSessionInterviewId = interviewId;
+    activeSessionRecord = data.session;
+    activeSessionQuestions = data.questions || [];
+    activeSessionCurrentIdx = data.session.current_question_index || 0;
+    activeSessionAnswers = {};
+
+    // Restore saved question answers from attempts
+    if (Array.isArray(data.attempts)) {
+      data.attempts.forEach(att => {
+        if (att.answer) activeSessionAnswers[att.question_id] = att.answer;
+      });
+    }
+
+    openModal('mockInterviewModal');
+    document.getElementById('simulatorCategoryScreen').style.display = 'none';
+    document.getElementById('simulatorResultScreen').style.display = 'none';
+    document.getElementById('simulatorQuestionScreen').style.display = 'none';
+
+    // Show Preparation & Hardware Setup Screen first
+    const setupScreen = document.getElementById('simulatorSetupScreen');
+    const setupWebcamContainer = document.getElementById('setupWebcamContainer');
+    const webcamContainer = document.getElementById('setupWebcamContainer');
+    if (setupWebcamContainer) {
+      const vEl = document.getElementById('interviewWebcamPreview');
+      if (vEl && !setupWebcamContainer.contains(vEl)) {
+        setupWebcamContainer.appendChild(vEl);
+      }
+    }
+    if (setupScreen) setupScreen.style.display = 'block';
+
+    const simTitle = document.getElementById('simulatorModalTitle');
+    if (simTitle) simTitle.innerHTML = `<i class="fa-solid fa-laptop-code"></i> Setup: ${data.interview.domain} (${data.interview.interview_type})`;
+
+    updateSessionUiState(data.session, data.interview.duration_mins || durationMins);
+
+    // Request permissions and trigger live camera preview in setup screen
+    await requestMediaPermissions();
+  } catch (err) {
+    console.error('Session init error:', err);
+    showDemoToast('Failed to initialize interview session.', 'error');
+  }
+}
+
+async function startVerifiedInterviewSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  if (!verifyMediaDevicesLive()) {
+    showDemoToast('Camera and microphone hardware must be live before starting the interview.', 'error');
+    const pass = await requestMediaPermissions();
+    if (!pass) return;
+  }
+
+  isAsyncActionPending = true;
+  const startBtn = document.getElementById('btnStartInterviewWithFullscreen');
+  if (startBtn) startBtn.disabled = true;
+
+  // 1. Request browser fullscreen
+  try {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      await elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      await elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      await elem.msRequestFullscreen();
+    }
+  } catch (fsErr) {
+    console.warn('Fullscreen request rejected:', fsErr);
+    showDemoToast('Fullscreen mode is required to start the interview. Please allow fullscreen and try again.', 'error');
+    isAsyncActionPending = false;
+    if (startBtn) startBtn.disabled = false;
+    return;
+  }
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/start`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not start interview session.', 'error');
+      if (startBtn) startBtn.disabled = false;
+      return;
+    }
+
+    initializeMediaRecorder();
+    fullscreenExitCount = 0;
+    isInterviewActive = true;
+    isFullscreenWarningOpen = false;
+
+    // Transition UI from Setup to Questions
+    document.getElementById('simulatorSetupScreen').style.display = 'none';
+    const mount = document.getElementById('questionWebcamMount');
+    const setupWebcamContainer = document.getElementById('setupWebcamContainer');
+    if (mount && setupWebcamContainer) {
+      mount.appendChild(setupWebcamContainer);
+    }
+    document.getElementById('simulatorQuestionScreen').style.display = 'block';
+
+    const simTitle = document.getElementById('simulatorModalTitle');
+    if (simTitle) simTitle.innerHTML = `<i class="fa-solid fa-laptop-code"></i> Live Assessment: ${data.interview.domain} (${data.interview.interview_type})`;
+
+    showDemoToast('Interview session started in fullscreen mode!', 'success');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error starting session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+let isSubmissionInProgress = false;
+
+function openSubmitConfirmModal() {
+  if (isSubmissionInProgress || currentSessionLifecycleState === 'completed') return;
+  openModal('submitConfirmModal');
+}
+
+async function confirmSubmitInterview() {
+  closeModal('submitConfirmModal');
+  await finishInterview('NORMAL_SUBMIT');
+}
+
+function finishAndNavigateToDashboard() {
+  stopAllMediaTracks();
+  closeModal('mockInterviewModal');
+  closeModal('submitConfirmModal');
+  closeModal('fullscreenWarningModal');
+
+  const section = document.getElementById('candidate-assigned-interviews-section');
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    window.location.href = 'candidate.html';
+  }
+
+  loadCandidateAssignedInterviews();
+  showDemoToast('Returned to Candidate Dashboard.', 'info');
+}
+
+function handleInterviewFocusOrFullscreenChange() {
+  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || !activeSessionRecord || activeSessionRecord.status !== 'IN_PROGRESS' || isFullscreenWarningOpen || isSubmissionInProgress) {
+    return;
+  }
+
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+  const isTabVisible = document.visibilityState === 'visible';
+
+  if (!isFs || !isTabVisible) {
+    handleInterviewViolation();
+  }
+}
+
+function handleInterviewViolation() {
+  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || isFullscreenWarningOpen || isSubmissionInProgress) return;
+  fullscreenExitCount++;
+  isFullscreenWarningOpen = true;
+
+  stopActiveSessionTimers();
+
+  if (fullscreenExitCount === 1) {
+    const header = document.getElementById('fsWarningHeader');
+    const body = document.getElementById('fsWarningBody');
+    if (header) header.textContent = 'Warning 1 of 2';
+    if (body) body.innerHTML = 'You exited fullscreen mode or switched away from the interview tab. Please return to fullscreen mode immediately to continue. Further exits will result in automatic submission.';
+    openModal('fullscreenWarningModal');
+    showDemoToast('Warning 1/2: Fullscreen mode exited.', 'warning');
+  } else if (fullscreenExitCount === 2) {
+    const header = document.getElementById('fsWarningHeader');
+    const body = document.getElementById('fsWarningBody');
+    if (header) header.textContent = 'Warning 2 of 2';
+    if (body) body.innerHTML = 'You exited fullscreen mode again. <strong>One more exit will automatically submit your interview session.</strong>';
+    openModal('fullscreenWarningModal');
+    showDemoToast('Warning 2/2: One more exit will auto-submit interview!', 'error');
+  } else if (fullscreenExitCount >= 3) {
+    triggerAutoSubmission('Fullscreen exit violation limit exceeded (3 exits)');
+  }
+}
+
+async function reenterFullscreenFromWarning() {
+  closeModal('fullscreenWarningModal');
+  isFullscreenWarningOpen = false;
+
+  if (currentSessionLifecycleState !== 'active' || isSubmissionInProgress) return;
+
+  try {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) await elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
+  } catch (e) {
+    console.warn('Re-entering fullscreen failed:', e);
+  }
+
+  if (activeSessionRecord && activeSessionRecord.status === 'IN_PROGRESS' && currentSessionLifecycleState === 'active') {
+    startActiveSessionTimers(activeSessionRecord.duration_mins || 30);
+  }
+}
+
+async function triggerAutoSubmission(reason) {
+  await finishInterview('AUTO_SUBMITTED: ' + (reason || 'Violation limit exceeded'));
+}
+
+async function finishInterview(reason) {
+  if (isSubmissionInProgress || currentSessionLifecycleState === 'completed') {
+    return;
+  }
+
+  isSubmissionInProgress = true;
+  isInterviewActive = false;
+  currentSessionLifecycleState = 'submitting';
+  isFullscreenWarningOpen = false;
+  fullscreenExitCount = 0;
+
+  // 1. Close warning and confirmation modals immediately
+  closeModal('fullscreenWarningModal');
+  closeModal('submitConfirmModal');
+
+  // 2. Stop active timers and hardware streams immediately
+  stopActiveSessionTimers();
+  stopAllMediaTracks();
+
+  // 3. Remove event listeners to completely prevent post-end warnings
+  try {
+    document.removeEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
+  } catch (e) {}
+
+  // 4. Exit browser fullscreen if active
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen().catch(() => {});
+    } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+      await document.webkitExitFullscreen().catch(() => {});
+    }
+  } catch (e) {}
+
+  // 5. Save current attempt
+  await saveCurrentQuestionAttempt();
+
+  const token = SmartHireAuth.getToken();
+
+  // 6. Upload recording if chunks exist
+  if (interviewRecordedChunks.length > 0 && activeSessionRecord && token) {
+    try {
+      const blob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
+      const formData = new FormData();
+      const ext = selectedRecordingMimeType.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('file', blob, `session_${activeSessionRecord.id}_final.${ext}`);
+      formData.append('duration', activeSessionTotalActiveSeconds);
+
+      await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/recordings`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+    } catch (err) {
+      console.warn('Final recording upload notice:', err);
+    }
+  }
+
+  // 7. Submit responses and evaluate score
+  let finalScore = 0.0;
+  let totalQs = activeSessionQuestions.length || 1;
+  let answeredQs = Object.keys(activeSessionAnswers).length;
+
+  if (activeSessionInterviewId && token) {
+    try {
+      const payloadAnswers = activeSessionQuestions.map(q => ({
+        question_id: q.id,
+        user_answer: activeSessionAnswers[q.id] || "No response provided."
+      }));
+
+      const subRes = await fetch(`${SmartHireAuth.API_BASE}/api/interviews/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          interview_id: activeSessionInterviewId,
+          answers: payloadAnswers,
+          time_taken_seconds: activeSessionTotalActiveSeconds
+        })
+      });
+
+      const result = await subRes.json();
+      const data = result.data || result;
+      finalScore = (data.score !== undefined && data.score !== null) ? data.score : 0.0;
+      if (data.answered_questions !== undefined) answeredQs = data.answered_questions;
+      if (data.total_questions !== undefined) totalQs = data.total_questions;
+    } catch (err) {
+      console.error('Submit API notice:', err);
+    }
+  }
+
+  // 8. End session with remarks
+  if (activeSessionRecord && token) {
+    try {
+      await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ remarks: reason || 'Completed' })
+      });
+    } catch (err) {
+      console.warn('End session API notice:', err);
+    }
+  }
+
+  currentSessionLifecycleState = 'completed';
+  isSubmissionInProgress = false;
+
+  // 9. Update Results Screen UI
+  document.getElementById('simulatorSetupScreen').style.display = 'none';
+  document.getElementById('simulatorQuestionScreen').style.display = 'none';
+  document.getElementById('simulatorResultScreen').style.display = 'block';
+
+  const headingEl = document.getElementById('simResultHeading');
+  const subtextEl = document.getElementById('simResultSubtext');
+  const scoreEl = document.getElementById('simFinalScore');
+  const metaEl = document.getElementById('simFinalMeta');
+
+  if (reason && reason.startsWith('AUTO_SUBMITTED')) {
+    if (headingEl) headingEl.textContent = 'Interview Automatically Submitted';
+    if (subtextEl) subtextEl.textContent = `Your interview was automatically submitted (${reason.replace('AUTO_SUBMITTED: ', '')}). Your score and recording were saved.`;
+  } else {
+    if (headingEl) headingEl.textContent = 'Interview Completed!';
+    if (subtextEl) subtextEl.textContent = 'Your responses and recording have been successfully submitted for AI evaluation.';
+  }
+
+  if (scoreEl) scoreEl.textContent = `${Number(finalScore).toFixed(1)}%`;
+  if (metaEl) metaEl.textContent = `Submitted ${answeredQs} of ${totalQs} questions in ${formatSecondsDisplay(activeSessionTotalActiveSeconds)}.`;
+
+  loadCandidateAssignedInterviews();
+}
+
+document.addEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
+document.addEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
+
+
+
+function updateSessionUiState(session, durationMins) {
+  activeSessionRecord = session;
+  const status = session.status || 'CREATED';
+  activeSessionTotalActiveSeconds = session.total_active_seconds || 0;
+
+  const badge = document.getElementById('sessionStatusBadge');
+  if (badge) {
+    badge.textContent = status.replace('_', ' ');
+    if (status === 'CREATED') badge.className = 'badge-status info';
+    else if (status === 'IN_PROGRESS') badge.className = 'badge-status success';
+    else if (status === 'PAUSED') badge.className = 'badge-status warning';
+    else if (status === 'COMPLETED' || status === 'ENDED') badge.className = 'badge-status primary';
+  }
+
+  const recBadge = document.getElementById('recordingStatusBadge');
+  if (recBadge) {
+    if (status === 'IN_PROGRESS') {
+      recBadge.className = 'badge-status success';
+      recBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Recording: Active';
+    } else if (status === 'PAUSED') {
+      recBadge.className = 'badge-status warning';
+      recBadge.innerHTML = '<i class="fa-solid fa-circle-pause"></i> Recording: Paused';
+    } else {
+      recBadge.className = 'badge-status info';
+      recBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Recording: Inactive';
+    }
+  }
+
+  const buttonsContainer = document.getElementById('sessionActionButtonsContainer');
+  if (buttonsContainer) {
+    if (status === 'CREATED') {
+      buttonsContainer.innerHTML = `
+        <button class="btn btn-accent btn-sm" id="btnStartSession" onclick="triggerStartSession()"><i class="fa-solid fa-play"></i> Start Interview</button>
+      `;
+    } else if (status === 'IN_PROGRESS') {
+      buttonsContainer.innerHTML = `
+        <button class="btn btn-secondary btn-sm" id="btnPauseSession" onclick="triggerPauseSession()"><i class="fa-solid fa-pause"></i> Pause</button>
+        <button class="btn btn-sm" id="btnEndSession" onclick="triggerEndSession()" style="background: #EF4444; color: white;"><i class="fa-solid fa-stop"></i> End Interview</button>
+      `;
+    } else if (status === 'PAUSED') {
+      buttonsContainer.innerHTML = `
+        <button class="btn btn-primary btn-sm" id="btnResumeSession" onclick="triggerResumeSession()"><i class="fa-solid fa-play"></i> Resume</button>
+        <button class="btn btn-sm" id="btnEndSession" onclick="triggerEndSession()" style="background: #EF4444; color: white;"><i class="fa-solid fa-stop"></i> End Interview</button>
+      `;
+    } else if (status === 'COMPLETED' || status === 'ENDED') {
+      buttonsContainer.innerHTML = `
+        <span class="badge-status primary"><i class="fa-solid fa-check-double"></i> Interview Completed</span>
+      `;
+    }
+  }
+
+  // Timer sync
+  const totalMins = durationMins || (activeSessionRecord && activeSessionRecord.duration_mins) || 30;
+  if (status === 'IN_PROGRESS') {
+    startActiveSessionTimers(totalMins);
+  } else if (status === 'PAUSED') {
+    stopActiveSessionTimers();
+  } else if (status === 'COMPLETED' || status === 'ENDED' || status === 'CREATED') {
+    stopActiveSessionTimers();
+    const displayEl = document.getElementById('simTimerDisplay');
+    if (displayEl) displayEl.textContent = (status === 'COMPLETED' || status === 'ENDED') ? formatSecondsDisplay(activeSessionTotalActiveSeconds) : '00:00';
+  }
+}
+
+function formatSecondsDisplay(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function startActiveSessionTimers(maxMins) {
+  stopActiveSessionTimers();
+
+  activeSessionTimerInterval = setInterval(() => {
+    activeSessionTotalActiveSeconds++;
+    const totalEl = document.getElementById('simTimerDisplay');
+    if (totalEl) totalEl.textContent = formatSecondsDisplay(activeSessionTotalActiveSeconds);
+
+    if (maxMins && maxMins > 0) {
+      const maxSecs = maxMins * 60;
+      const remainSecs = Math.max(0, maxSecs - activeSessionTotalActiveSeconds);
+      const remWrap = document.getElementById('simRemainingTimeWrapper');
+      const remEl = document.getElementById('simRemainingTimerDisplay');
+      if (remWrap) remWrap.style.display = 'inline-flex';
+      if (remEl) remEl.textContent = formatSecondsDisplay(remainSecs);
+
+      if (remainSecs <= 0 && activeSessionRecord && activeSessionRecord.status === 'IN_PROGRESS') {
+        showDemoToast('Time limit reached! Auto-ending interview session...', 'warning');
+        triggerEndSession();
+      }
+    }
+  }, 1000);
+
+  questionActiveTimerInterval = setInterval(() => {
+    questionActiveSeconds++;
+    const qEl = document.getElementById('simQuestionTimerDisplay');
+    if (qEl) qEl.textContent = formatSecondsDisplay(questionActiveSeconds);
+  }, 1000);
+}
+
+function stopActiveSessionTimers() {
+  if (activeSessionTimerInterval) clearInterval(activeSessionTimerInterval);
+  if (questionActiveTimerInterval) clearInterval(questionActiveTimerInterval);
+  activeSessionTimerInterval = null;
+  questionActiveTimerInterval = null;
+}
+
+async function triggerStartSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const startBtn = document.getElementById('btnStartSession');
+  if (startBtn) startBtn.disabled = true;
+
+  // Request camera/mic ONLY on explicit user Start action
+  const hasHardware = await requestMediaPermissions();
+  if (!hasHardware) {
+    isAsyncActionPending = false;
+    if (startBtn) startBtn.disabled = false;
+    return;
+  }
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/start`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not start interview session.', 'error');
+      isAsyncActionPending = false;
+      if (startBtn) startBtn.disabled = false;
+      return;
+    }
+
+    initializeMediaRecorder();
+    showDemoToast('Interview session started!', 'success');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error starting session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+async function triggerPauseSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const pauseBtn = document.getElementById('btnPauseSession');
+  if (pauseBtn) pauseBtn.disabled = true;
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/pause`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not pause interview session.', 'error');
+      isAsyncActionPending = false;
+      if (pauseBtn) pauseBtn.disabled = false;
+      return;
+    }
+
+    if (interviewMediaRecorder && typeof interviewMediaRecorder.pause === 'function' && interviewMediaRecorder.state === 'recording') {
+      interviewMediaRecorder.pause();
+    }
+
+    showDemoToast('Interview session paused.', 'warning');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error pausing session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+async function triggerResumeSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const resumeBtn = document.getElementById('btnResumeSession');
+  if (resumeBtn) resumeBtn.disabled = true;
+
+  if (!interviewMediaStream || !interviewMediaStream.active) {
+    const hasHardware = await requestMediaPermissions();
+    if (!hasHardware) {
+      isAsyncActionPending = false;
+      if (resumeBtn) resumeBtn.disabled = false;
+      return;
+    }
+  }
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/resume`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not resume interview session.', 'error');
+      isAsyncActionPending = false;
+      if (resumeBtn) resumeBtn.disabled = false;
+      return;
+    }
+
+    if (interviewMediaRecorder && typeof interviewMediaRecorder.resume === 'function' && interviewMediaRecorder.state === 'paused') {
+      interviewMediaRecorder.resume();
+    } else if (!interviewMediaRecorder || interviewMediaRecorder.state === 'inactive') {
+      initializeMediaRecorder();
+    }
+
+    showDemoToast('Interview session resumed.', 'success');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error resuming session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+async function saveCurrentQuestionAttempt() {
+  if (!activeSessionRecord || !activeSessionQuestions.length) return;
+  const q = activeSessionQuestions[activeSessionCurrentIdx];
+  if (!q) return;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  const userAnswer = document.getElementById('simUserAnswerInput')?.value || activeSessionAnswers[q.id] || '';
+  activeSessionAnswers[q.id] = userAnswer;
+
+  try {
+    await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/attempt`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ interview_id: interviewId })
+      body: JSON.stringify({
+        question_id: q.id,
+        question_number: activeSessionCurrentIdx + 1,
+        time_spent: questionActiveSeconds,
+        attempted: true,
+        answer: userAnswer
+      })
     });
-    
-    const detailRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/${interviewId}`, {
+  } catch (e) {
+    console.warn('Failed to save question attempt:', e);
+  }
+}
+
+async function triggerEndSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const endBtn = document.getElementById('btnEndSession');
+  if (endBtn) {
+    endBtn.disabled = true;
+    endBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...';
+  }
+
+  stopActiveSessionTimers();
+
+  // 1. Finalize current question attempt
+  await saveCurrentQuestionAttempt();
+
+  // 2. Stop MediaRecorder and wait for final Blob
+  let recordingBlob = null;
+  if (interviewMediaRecorder && interviewMediaRecorder.state !== 'inactive') {
+    recordingBlob = await new Promise((resolve) => {
+      interviewMediaRecorder.onstop = () => {
+        const blob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
+        resolve(blob);
+      };
+      try {
+        interviewMediaRecorder.stop();
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  } else if (interviewRecordedChunks.length > 0) {
+    recordingBlob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
+  }
+
+  // 3. Upload recording file
+  const token = SmartHireAuth.getToken();
+  if (recordingBlob && recordingBlob.size > 0) {
+    try {
+      const formData = new FormData();
+      const ext = selectedRecordingMimeType.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('file', recordingBlob, `session_${activeSessionRecord.id}.${ext}`);
+      formData.append('duration', activeSessionTotalActiveSeconds);
+
+      const uploadRes = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/recordings`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok || !uploadData.success) {
+        showDemoToast(uploadData.message || 'Recording upload failed. Session preserved.', 'error');
+        if (endBtn) {
+          endBtn.disabled = false;
+          endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
+        }
+        isAsyncActionPending = false;
+        return;
+      }
+    } catch (uploadErr) {
+      console.error('Recording upload error:', uploadErr);
+      showDemoToast('Network error during recording upload. Session preserved.', 'error');
+      if (endBtn) {
+        endBtn.disabled = false;
+        endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
+      }
+      isAsyncActionPending = false;
+      return;
+    }
+  }
+
+  // 4. Update session status to COMPLETED ONLY AFTER successful upload
+  try {
+    const endRes = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/end`, {
+      method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const details = await detailRes.json();
+    const endData = await endRes.json();
+    if (!endRes.ok || !endData.success) {
+      showDemoToast(endData.message || 'Could not finalize session status.', 'error');
+      if (endBtn) {
+        endBtn.disabled = false;
+        endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
+      }
+      isAsyncActionPending = false;
+      return;
+    }
 
-    activeSessionInterviewId = interviewId;
-    activeSessionQuestions = details.questions || [];
-    activeSessionCurrentIdx = 0;
-    activeSessionAnswers = {};
+    // 5. Release media hardware streams
+    if (interviewMediaStream) {
+      interviewMediaStream.getTracks().forEach(track => track.stop());
+      interviewMediaStream = null;
+    }
+    const videoEl = document.getElementById('interviewWebcamPreview');
+    if (videoEl) videoEl.srcObject = null;
 
-    openModal('mockInterviewModal');
-    document.getElementById('simulatorCategoryScreen').style.display = 'none';
-    document.getElementById('simulatorResultScreen').style.display = 'none';
-    document.getElementById('simulatorQuestionScreen').style.display = 'block';
-
-    const simTitle = document.getElementById('simulatorModalTitle');
-    if (simTitle) simTitle.innerHTML = `<i class="fa-solid fa-laptop-code"></i> Live Assessment: ${details.domain} (${details.interview_type})`;
-
-    renderAssignedSessionQuestion();
-    startSessionCountdownTimer(durationMins * 60, interviewId);
+    showDemoToast('Interview session successfully completed!', 'success');
+    updateSessionUiState(endData.session);
+    submitAssignedInterviewSession();
   } catch (err) {
-    showDemoToast('Failed to initialize interview session.', 'error');
+    showDemoToast('Error ending session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
   }
 }
 
@@ -3741,93 +4632,80 @@ function renderAssignedSessionQuestion() {
   const q = activeSessionQuestions[activeSessionCurrentIdx];
   if (!q) return;
 
+  questionActiveSeconds = 0;
+  const qTimerEl = document.getElementById('simQuestionTimerDisplay');
+  if (qTimerEl) qTimerEl.textContent = '00:00';
+
+  const sessionStatus = activeSessionRecord ? activeSessionRecord.status : 'CREATED';
+  const isInputDisabled = (sessionStatus === 'CREATED' || sessionStatus === 'PAUSED' || sessionStatus === 'COMPLETED' || sessionStatus === 'ENDED');
+
   document.getElementById('simCategoryTag').textContent = `${q.category.toUpperCase()} ROUND • ${q.difficulty}`;
   document.getElementById('simQuestionCounter').textContent = `Question ${activeSessionCurrentIdx + 1} of ${activeSessionQuestions.length}`;
   document.getElementById('simQuestionText').textContent = q.question_text;
 
+  const compEl = document.getElementById('simCompletedCountDisplay');
+  if (compEl) compEl.textContent = `${activeSessionCurrentIdx + 1} / ${activeSessionQuestions.length}`;
+
   const container = document.getElementById('simOptionsContainer');
+  let statusNotice = '';
+  if (sessionStatus === 'CREATED') {
+    statusNotice = `<div style="background: #E0F2FE; color: #0369A1; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; font-size: 0.85rem; font-weight: 600;">
+      <i class="fa-solid fa-info-circle"></i> Click "Start Interview" above when you are ready to begin responding and start recording.
+    </div>`;
+  } else if (sessionStatus === 'PAUSED') {
+    statusNotice = `<div style="background: #FEF3C7; color: #92400E; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; font-size: 0.85rem; font-weight: 600;">
+      <i class="fa-solid fa-pause-circle"></i> Interview is currently paused. Click "Resume" above to continue answering.
+    </div>`;
+  } else if (sessionStatus === 'COMPLETED' || sessionStatus === 'ENDED') {
+    statusNotice = `<div style="background: #F3E8FF; color: #6B21A8; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; font-size: 0.85rem; font-weight: 600;">
+      <i class="fa-solid fa-lock"></i> Session has ended. Responses are locked for evaluation.
+    </div>`;
+  }
+
   container.innerHTML = `
+    ${statusNotice}
     <div style="margin-top: 1rem;">
       <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Your Response / Solution:</label>
-      <textarea id="simUserAnswerInput" class="form-control" rows="5" placeholder="Type your structured answer here..." oninput="activeSessionAnswers[${q.id}] = this.value">${activeSessionAnswers[q.id] || ''}</textarea>
+      <textarea id="simUserAnswerInput" class="form-control" rows="5" placeholder="Type your structured answer here..." ${isInputDisabled ? 'disabled' : ''} oninput="activeSessionAnswers[${q.id}] = this.value">${activeSessionAnswers[q.id] || ''}</textarea>
     </div>
   `;
 
   document.getElementById('simPrevBtn').style.display = activeSessionCurrentIdx > 0 ? 'inline-flex' : 'none';
   const isLast = activeSessionCurrentIdx === activeSessionQuestions.length - 1;
   document.getElementById('simNextBtn').style.display = isLast ? 'none' : 'inline-flex';
-  document.getElementById('simSubmitBtn').style.display = isLast ? 'inline-flex' : 'none';
+  document.getElementById('simSubmitBtn').style.display = (isLast && sessionStatus === 'IN_PROGRESS') ? 'inline-flex' : 'none';
 }
 
-function navigateSimQuestion(direction) {
+async function navigateSimQuestion(direction) {
+  if (isAsyncActionPending) return;
+
+  await saveCurrentQuestionAttempt();
+
   activeSessionCurrentIdx += direction;
   if (activeSessionCurrentIdx < 0) activeSessionCurrentIdx = 0;
   if (activeSessionCurrentIdx >= activeSessionQuestions.length) activeSessionCurrentIdx = activeSessionQuestions.length - 1;
+
+  if (activeSessionRecord) {
+    const token = SmartHireAuth.getToken();
+    try {
+      await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/position`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ current_question_index: activeSessionCurrentIdx })
+      });
+    } catch (e) {
+      console.warn('Could not persist question position:', e);
+    }
+  }
+
   renderAssignedSessionQuestion();
 }
 
-function startSessionCountdownTimer(totalSeconds, interviewId) {
-  if (activeSessionTimerInterval) clearInterval(activeSessionTimerInterval);
-
-  activeSessionRemainingSeconds = totalSeconds;
-
-  // Persist session timer state in localStorage
-  localStorage.setItem('smarthire_active_timer', JSON.stringify({
-    interview_id: interviewId,
-    end_timestamp: Date.now() + (totalSeconds * 1000)
-  }));
-
-  function updateDisplay() {
-    const mins = Math.floor(activeSessionRemainingSeconds / 60);
-    const secs = activeSessionRemainingSeconds % 60;
-    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    
-    const displayEl = document.getElementById('simTimerDisplay');
-    if (displayEl) displayEl.textContent = formatted;
-
-    // 5 minutes warning notification
-    if (activeSessionRemainingSeconds === 300) {
-      showDemoToast('⏳ Warning: 5 minutes remaining in your interview session!', 'warning');
-    }
-    // 1 minute warning notification
-    if (activeSessionRemainingSeconds === 60) {
-      showDemoToast('⚠️ Urgent: 1 minute remaining! Finalize your answers.', 'error');
-    }
-
-    if (activeSessionRemainingSeconds <= 0) {
-      clearInterval(activeSessionTimerInterval);
-      localStorage.removeItem('smarthire_active_timer');
-      showDemoToast('Time expired! Auto-submitting your interview...', 'info');
-      submitAssignedInterviewSession();
-    } else {
-      activeSessionRemainingSeconds--;
-    }
-  }
-
-  updateDisplay();
-  activeSessionTimerInterval = setInterval(updateDisplay, 1000);
-}
-
-function recoverActiveInterviewSession() {
-  const saved = localStorage.getItem('smarthire_active_timer');
-  if (!saved) return;
-
-  try {
-    const parsed = JSON.parse(saved);
-    const remainingMs = parsed.end_timestamp - Date.now();
-    if (remainingMs > 0) {
-      startSessionCountdownTimer(Math.floor(remainingMs / 1000), parsed.interview_id);
-    } else {
-      localStorage.removeItem('smarthire_active_timer');
-    }
-  } catch (e) {
-    localStorage.removeItem('smarthire_active_timer');
-  }
-}
-
 async function submitAssignedInterviewSession() {
-  if (activeSessionTimerInterval) clearInterval(activeSessionTimerInterval);
-  localStorage.removeItem('smarthire_active_timer');
+  stopActiveSessionTimers();
 
   const token = SmartHireAuth.getToken();
   if (!token) return;
@@ -3847,7 +4725,7 @@ async function submitAssignedInterviewSession() {
       body: JSON.stringify({
         interview_id: activeSessionInterviewId,
         answers: payloadAnswers,
-        time_taken_seconds: 180
+        time_taken_seconds: activeSessionTotalActiveSeconds
       })
     });
 
@@ -3861,17 +4739,199 @@ async function submitAssignedInterviewSession() {
     const metaEl = document.getElementById('simFinalMeta');
 
     if (scoreEl) scoreEl.textContent = `${data.score || 85.0}%`;
-    if (metaEl) metaEl.textContent = `Submitted ${data.answered_questions || payloadAnswers.length} of ${data.total_questions || activeSessionQuestions.length} questions.`;
+    if (metaEl) metaEl.textContent = `Submitted ${data.answered_questions || payloadAnswers.length} of ${data.total_questions || activeSessionQuestions.length} questions in ${formatSecondsDisplay(activeSessionTotalActiveSeconds)}.`;
 
     loadCandidateAssignedInterviews();
-    showDemoToast('Interview submitted and evaluated successfully!', 'success');
   } catch (err) {
     console.error('Submit assigned interview error:', err);
     showDemoToast('Interview response saved.', 'info');
   }
 }
 
+function stopAllMediaTracks() {
+  if (interviewMediaRecorder && interviewMediaRecorder.state !== 'inactive') {
+    try { interviewMediaRecorder.stop(); } catch (e) {}
+  }
+  if (interviewMediaStream) {
+    try {
+      interviewMediaStream.getTracks().forEach(track => track.stop());
+    } catch (e) {}
+    interviewMediaStream = null;
+  }
+  const vEl = document.getElementById('interviewWebcamPreview');
+  if (vEl) vEl.srcObject = null;
+
+  const camBadge = document.getElementById('cameraStatusBadge');
+  const micBadge = document.getElementById('micStatusBadge');
+  const recBadge = document.getElementById('recordingStatusBadge');
+  if (camBadge) {
+    camBadge.className = 'badge-status secondary';
+    camBadge.innerHTML = '<i class="fa-solid fa-video"></i> Camera: Stopped';
+  }
+  if (micBadge) {
+    micBadge.className = 'badge-status secondary';
+    micBadge.innerHTML = '<i class="fa-solid fa-microphone"></i> Mic: Stopped';
+  }
+  if (recBadge) {
+    recBadge.className = 'badge-status info';
+    recBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Recording: Inactive';
+  }
+}
+
+window.addEventListener('beforeunload', () => { stopAllMediaTracks(); });
+window.addEventListener('pagehide', () => { stopAllMediaTracks(); });
+
 function viewAssignedInterviewResults(interviewId) {
   openInterviewDetailModal(interviewId);
 }
+
+async function openInterviewDetailModal(id) {
+  const modal = document.getElementById('interviewDetailModal');
+  const body = document.getElementById('interviewDetailBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary);"></i>
+      <p style="margin-top: 0.5rem; font-weight: 600;">Loading interview report...</p>
+    </div>
+  `;
+  openModal('interviewDetailModal');
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    if (!data || (!data.session && !data.id)) {
+      body.innerHTML = `
+        <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+          <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.25rem; color: #EF4444; margin-bottom: 0.5rem;"></i>
+          <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Report Not Available Yet</h4>
+          <p style="font-size: 0.85rem; margin-top: 0.25rem;">Complete your assigned interview session to view your evaluation report.</p>
+          <button class="btn btn-secondary btn-sm" style="margin-top: 1rem;" onclick="closeModal('interviewDetailModal')">Close</button>
+        </div>
+      `;
+      return;
+    }
+
+    const session = data.session || {};
+    const interview = data.interview || {};
+    const questions = data.questions || [];
+    const attempts = data.attempts || [];
+    const recordings = data.recordings || [];
+
+    if (session.status !== 'COMPLETED' && session.status !== 'ENDED') {
+      body.innerHTML = `
+        <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+          <i class="fa-solid fa-clock" style="font-size: 2.25rem; color: #F59E0B; margin-bottom: 0.5rem;"></i>
+          <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Report Not Available Yet</h4>
+          <p style="font-size: 0.85rem; margin-top: 0.25rem;">This interview session status is currently <strong>${(session.status || 'ASSIGNED').replace('_', ' ')}</strong>. Please complete the interview to generate your report.</p>
+          <button class="btn btn-secondary btn-sm" style="margin-top: 1rem;" onclick="closeModal('interviewDetailModal')">Close</button>
+        </div>
+      `;
+      return;
+    }
+
+    let answersMap = {};
+    attempts.forEach(a => { if (a.question_id) answersMap[a.question_id] = a.answer; });
+
+    let videoHtml = '';
+    if (recordings.length > 0) {
+      const rec = recordings[0];
+      const videoSrc = `${SmartHireAuth.API_BASE}/api/interview/sessions/${session.id}/recordings/${rec.id}`;
+      videoHtml = `
+        <div style="margin: 1rem 0;">
+          <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 0.35rem;">
+            <i class="fa-solid fa-video" style="color: var(--primary);"></i> Session Recording Playback:
+          </label>
+          <video controls playsinline style="width: 100%; max-height: 240px; border-radius: var(--radius-sm); background: #0f172a; border: 1px solid var(--border-color);" src="${videoSrc}">
+            Your browser does not support video playback.
+          </video>
+        </div>
+      `;
+    }
+
+    let qListHtml = questions.map((q, idx) => {
+      const ans = answersMap[q.id] || 'No answer submitted.';
+      const hasAns = ans && ans.trim().length > 0 && ans.toLowerCase() !== 'no answer submitted.' && ans.toLowerCase() !== 'no response provided.';
+      const wCount = hasAns ? ans.trim().split(/\s+/).length : 0;
+      const qScore = hasAns ? (wCount >= 15 ? '95.0%' : wCount >= 8 ? '85.0%' : wCount >= 3 ? '70.0%' : '50.0%') : '0.0%';
+      const qBadgeClass = hasAns ? 'success' : 'danger';
+
+      return `
+        <div style="background: var(--bg-main); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <strong style="font-size: 0.85rem; color: var(--primary);">Question ${idx + 1} (${q.category || 'General'})</strong>
+            <span class="badge-status ${qBadgeClass}">Evaluated Score: ${qScore}</span>
+          </div>
+          <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">${q.question_text}</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); background: var(--bg-surface); padding: 0.6rem; border-radius: var(--radius-xs); border-left: 3px solid ${hasAns ? 'var(--primary)' : '#EF4444'};">
+            <strong>Candidate Answer:</strong> ${ans}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const displayScore = (session.score !== undefined && session.score !== null) ? Number(session.score).toFixed(1) : '0.0';
+
+    body.innerHTML = `
+      <div style="padding: 0.5rem 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div>
+            <h4 style="font-weight: 700; font-size: 1.1rem; color: var(--text-main);">${interview.domain || 'Technical'} (${interview.interview_type || 'Interview'})</h4>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Session ID #${session.id} • Completed</span>
+          </div>
+          <span class="badge-status success"><i class="fa-solid fa-circle-check"></i> ${session.status}</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; border: 1px solid var(--border-color); text-align: center;">
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">EVALUATION SCORE</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: var(--primary);">${displayScore}%</div>
+          </div>
+
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">ACTIVE DURATION</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);">${formatSecondsDisplay(session.total_active_seconds || 0)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">QUESTIONS</div>
+            <div style="font-size: 1.35rem; font-weight: 800; color: var(--secondary);">${questions.length}</div>
+          </div>
+        </div>
+
+        ${session.remarks ? `
+          <div style="background: #FEF3C7; color: #92400E; padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.825rem; font-weight: 600;">
+            <i class="fa-solid fa-circle-info"></i> Remarks: ${session.remarks}
+          </div>
+        ` : ''}
+
+        ${videoHtml}
+
+        <h5 style="font-weight: 700; margin: 1rem 0 0.5rem 0; font-size: 0.9rem;">Submitted Question Responses</h5>
+        ${qListHtml || '<p style="font-size:0.85rem; color:var(--text-muted);">No responses recorded.</p>'}
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('interviewDetailModal')">Close Report</button>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error('Error fetching report:', err);
+    body.innerHTML = `
+      <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+        <p>Could not load report details.</p>
+        <button class="btn btn-secondary btn-sm" style="margin-top: 1rem;" onclick="closeModal('interviewDetailModal')">Close</button>
+      </div>
+    `;
+  }
+}
+
+
+
 

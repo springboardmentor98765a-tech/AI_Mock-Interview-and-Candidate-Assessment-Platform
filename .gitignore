@@ -43,3 +43,4 @@ backend/uploads/*
 .DS_Store
 Thumbs.db
 uploads/
+node_modules/
