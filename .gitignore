@@ -1,0 +1,20 @@
+# Python
+.venv/
+env/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Dynamic Storage & Temporary Files
+recordings/*.webm
+recordings/*.mp4
+recordings/*.wav
+!recordings/.gitkeep
+ scratch/
