@@ -100,6 +100,8 @@ class InterviewUpdateRequest(BaseModel):
 class AnswerSubmitRequest(BaseModel):
     question_id: int
     answer_text: str = Field(..., min_length=1)
+    duration_seconds: Optional[float] = None
+    wpm: Optional[int] = None
 
 
 class InterviewQuestionRequest(BaseModel):

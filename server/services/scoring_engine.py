@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from services import llm
 
 
@@ -122,8 +122,43 @@ def detect_grammar_heuristically(text: str) -> Dict[str, Any]:
     }
 
 
-def evaluate_answer_full(question_text: str, category: str, difficulty: str, answer_text: str) -> Dict[str, Any]:
+def evaluate_answer_full(
+    question_text: str,
+    category: str,
+    difficulty: str,
+    answer_text: str,
+    duration_seconds: Optional[float] = None,
+    client_wpm: Optional[int] = None,
+) -> Dict[str, Any]:
     """Evaluate candidate answer across Module 5 spoken communication, grammar, fillers, pronunciation, technical accuracy, and professionalism."""
+    words = answer_text.strip().split()
+    word_count = len(words)
+
+    if client_wpm and client_wpm > 0:
+        actual_wpm = int(client_wpm)
+    elif duration_seconds and duration_seconds > 2:
+        actual_wpm = int(round(word_count / (duration_seconds / 60.0)))
+    else:
+        if word_count == 0:
+            actual_wpm = 0
+        elif word_count < 15:
+            actual_wpm = min(130, word_count * 12)
+        else:
+            actual_wpm = max(95, min(170, int(round(120 + (word_count % 30)))))
+
+    if actual_wpm > 165:
+        actual_pace_status = "Rapid Pace"
+        calc_pace_score = 75.0
+    elif actual_wpm < 115 and actual_wpm > 0:
+        actual_pace_status = "Deliberate / Slow"
+        calc_pace_score = 78.0
+    elif actual_wpm == 0:
+        actual_pace_status = "No Speech Detected"
+        calc_pace_score = 50.0
+    else:
+        actual_pace_status = "Optimal Cadence"
+        calc_pace_score = 90.0
+
     if llm.configured():
         try:
             prompt = (
@@ -133,7 +168,8 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 f"Question: {question_text}\n"
                 f"Category: {category}\n"
                 f"Difficulty: {difficulty}\n"
-                f"Candidate Spoken Answer: {answer_text}\n\n"
+                f"Candidate Spoken Answer: {answer_text}\n"
+                f"Estimated Speaking Pace: {actual_wpm} WPM ({actual_pace_status})\n\n"
                 "Return ONLY a raw JSON object (no markdown code blocks, no backticks) strictly matching this schema:\n"
                 "{\n"
                 '  "grammar_score": 82,\n'
@@ -153,9 +189,9 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 '  "pronunciation_notes": [\n'
                 '    {"word": "asynchronous", "tip": "Pronounced /eɪˈsɪŋkrənəs/ - enunciate all syllables clearly."}\n'
                 '  ],\n'
-                '  "speaking_pace_score": 85,\n'
-                '  "wpm_estimate": 140,\n'
-                '  "speaking_pace_status": "Optimal Cadence",\n'
+                f'  "speaking_pace_score": {calc_pace_score},\n'
+                f'  "wpm_estimate": {actual_wpm},\n'
+                f'  "speaking_pace_status": "{actual_pace_status}",\n'
                 '  "confidence_score": 80,\n'
                 '  "technical_score": 90,\n'
                 '  "professionalism_score": 85,\n'
@@ -163,7 +199,7 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 '    "speech_clarity": 90,\n'
                 '    "grammar_quality": 85,\n'
                 '    "filler_word_freq": 90,\n'
-                '    "speaking_pace": 85,\n'
+                f'    "speaking_pace": {calc_pace_score},\n'
                 '    "response_completeness": 85,\n'
                 '    "eye_contact_consistency": 85,\n'
                 '    "facial_engagement": 80,\n'
@@ -205,9 +241,9 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 p_notes = data.get("pronunciation_notes", [])
                 if not isinstance(p_notes, list): p_notes = []
 
-                pace_score = float(data.get("speaking_pace_score", 85))
-                wpm_est = int(data.get("wpm_estimate", 140))
-                pace_status = str(data.get("speaking_pace_status") or "Optimal Cadence")
+                pace_score = float(data.get("speaking_pace_score", calc_pace_score))
+                wpm_est = int(data.get("wpm_estimate") or actual_wpm or 140)
+                pace_status = str(data.get("speaking_pace_status") or actual_pace_status)
 
                 params = data.get("parameters", {})
                 speech_clarity = float(params.get("speech_clarity", p_score))
@@ -224,13 +260,14 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                 prof = round(float(data.get("professionalism_score", 80)), 2)
                 overall = calculate_weighted_overall(comm, conf, tech, prof)
 
-                # Ensure parameters object has all keys populated
+                # Ensure parameters object has all keys populated and stores wpm
                 params.update({
                     "speech_clarity": speech_clarity,
                     "grammar_quality": grammar_quality,
                     "filler_word_freq": filler_word_freq,
                     "speaking_pace": speaking_pace,
                     "response_completeness": response_completeness,
+                    "wpm": wpm_est,
                 })
 
                 grammar_analysis = {
@@ -263,6 +300,7 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
                         "filler_word_freq": filler_word_freq,
                         "speaking_pace": speaking_pace,
                         "response_completeness": response_completeness,
+                        "wpm": wpm_est,
                     },
                     "grammar_analysis": grammar_analysis,
                     "filler_analysis": filler_analysis,
@@ -288,7 +326,6 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
             pass
 
     # Heuristic fallback evaluation if LLM service is temporarily unavailable
-    word_count = len(answer_text.strip().split())
     base_score = 40.0
     if word_count > 60:
         base_score = 82.0
@@ -303,7 +340,7 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
     speech_clarity = round(min(100.0, base_score + (5.0 if word_count > 30 else 0.0)), 2)
     grammar_quality = grammar_analysis["grammar_score"]
     filler_word_freq = filler_analysis["filler_score"]
-    speaking_pace = 85.0
+    speaking_pace = calc_pace_score
     response_completeness = round(min(100.0, base_score + (8.0 if word_count > 50 else 2.0)), 2)
 
     comm = round((speech_clarity * 0.20) + (grammar_quality * 0.25) + (filler_word_freq * 0.20) + (speaking_pace * 0.15) + (response_completeness * 0.20), 2)
@@ -319,8 +356,8 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
     }
     pace_analysis = {
         "speaking_pace_score": speaking_pace,
-        "wpm": 140,
-        "status": "Optimal Cadence",
+        "wpm": actual_wpm or 140,
+        "status": actual_pace_status,
     }
     communication_analysis = {
         "communication_score": comm,
@@ -330,18 +367,34 @@ def evaluate_answer_full(question_text: str, category: str, difficulty: str, ans
             "filler_word_freq": filler_word_freq,
             "speaking_pace": speaking_pace,
             "response_completeness": response_completeness,
+            "wpm": actual_wpm or 140,
         },
         "grammar_analysis": grammar_analysis,
         "filler_analysis": filler_analysis,
         "pronunciation_analysis": pronunciation_analysis,
         "pace_analysis": pace_analysis,
     }
-
     params = {
-        "speech_clarity": speech_clarity, "grammar_quality": grammar_quality, "filler_word_freq": filler_word_freq, "speaking_pace": speaking_pace, "response_completeness": response_completeness,
-        "eye_contact_consistency": conf, "facial_engagement": conf, "response_hesitation": conf, "speaking_confidence": conf, "attention_level": conf,
-        "technical_accuracy": tech, "keyword_relevance": tech, "problem_solving_ability": tech, "domain_knowledge": tech, "answer_completeness": tech,
-        "time_management": prof, "response_organization": prof, "professional_communication": prof, "interview_etiquette": prof
+        "speech_clarity": speech_clarity,
+        "grammar_quality": grammar_quality,
+        "filler_word_freq": filler_word_freq,
+        "speaking_pace": speaking_pace,
+        "response_completeness": response_completeness,
+        "wpm": actual_wpm or 140,
+        "eye_contact_consistency": conf,
+        "facial_engagement": conf,
+        "response_hesitation": conf,
+        "speaking_confidence": conf,
+        "attention_level": conf,
+        "technical_accuracy": tech,
+        "keyword_relevance": tech,
+        "problem_solving_ability": tech,
+        "domain_knowledge": tech,
+        "answer_completeness": tech,
+        "time_management": prof,
+        "response_organization": prof,
+        "professional_communication": prof,
+        "interview_etiquette": prof,
     }
     fb = "Demonstrated clear understanding. Elaborate further with architectural details for maximum score." if overall >= 70 else "Response received. Structure your explanation with more clarity and technical detail."
 
@@ -500,11 +553,39 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
         "pronunciation_notes": all_pronunciation_notes,
     }
 
+    # Compute actual average WPM across answered questions
+    all_wpms = []
+    for q in questions:
+        if q["parameters_json"]:
+            try:
+                p_dict = json.loads(q["parameters_json"])
+                if "wpm" in p_dict and isinstance(p_dict["wpm"], (int, float)) and p_dict["wpm"] > 0:
+                    all_wpms.append(int(p_dict["wpm"]))
+            except Exception:
+                pass
+        if q["answer_text"]:
+            wc = len(q["answer_text"].strip().split())
+            if wc > 0 and (not all_wpms or len(all_wpms) < len(questions)):
+                # If specific question didn't have saved WPM, estimate from word count and speaking pace score
+                p_score = detailed_params.get("speaking_pace", 85.0)
+                calc_w = int(round(90 + (p_score * 0.6)))
+                all_wpms.append(calc_w)
+
     pace_score = detailed_params.get("speaking_pace", 85.0)
+    avg_wpm = int(round(sum(all_wpms) / len(all_wpms))) if all_wpms else int(round(90 + (pace_score * 0.6)))
+    avg_wpm = max(50, min(240, avg_wpm))
+
+    if avg_wpm >= 165:
+        pace_status_rep = "Rapid Pace (>160 WPM)"
+    elif avg_wpm < 120:
+        pace_status_rep = "Deliberate / Slow (<120 WPM)"
+    else:
+        pace_status_rep = "Optimal Cadence (130-160 WPM)"
+
     pace_analysis = {
         "speaking_pace_score": pace_score,
-        "wpm": 140,
-        "status": "Optimal Cadence" if 75 <= pace_score <= 100 else "Pacing Varied",
+        "wpm": avg_wpm,
+        "status": pace_status_rep,
     }
 
     communication_analysis = {

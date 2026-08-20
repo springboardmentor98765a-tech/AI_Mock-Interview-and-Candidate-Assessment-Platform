@@ -92,10 +92,13 @@ var api = {
       body: { status: 'completed', elapsed_seconds: elapsedSeconds }
     });
   },
-  submitInterviewAnswer: function(interviewId, questionId, answerText) {
+  submitInterviewAnswer: function(interviewId, questionId, answerText, durationSeconds, wpm) {
+    var payload = { question_id: questionId, answer_text: answerText };
+    if (typeof durationSeconds === 'number') payload.duration_seconds = durationSeconds;
+    if (typeof wpm === 'number') payload.wpm = wpm;
     return apiRequest('/interviews/' + interviewId + '/answer', {
       method: 'POST',
-      body: { question_id: questionId, answer_text: answerText },
+      body: payload,
     });
   },
   speakInterviewQuestion: function(interviewId, questionId) {

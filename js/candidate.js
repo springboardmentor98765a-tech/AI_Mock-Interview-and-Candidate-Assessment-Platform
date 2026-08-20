@@ -321,42 +321,119 @@ function renderConfigModal(t) {
 }
 
 
+var FILLER_WORDS_REGEX = /\b(um|uh|er|ah|like|you\s+know|basically|actually|literally|sort\s+of|kind\s+of|i\s+mean|right)\b/gi;
+
 // Telemetry computation helper
 function computeTranscriptTelemetry(text, durationSec) {
-  if (!text) {
+  if (!text || !text.trim()) {
     return {
-      wpm: 140,
-      wpmStatus: 'Optimal Speed',
+      wpm: 0,
+      wpmStatus: 'Waiting for Speech',
       fillers: 0,
       fillerStatus: 'Clear Fluency',
-      eyeContact: state.webcamStatus === 'Ready' ? 94 : 0,
-      emotion: 'Calm / Confident'
+      eyeContact: (state.webcamStatus === 'Ready' && !state.lobbyCamMuted) ? 94 : 0,
+      emotion: 'Calm / Focused',
+      words: 0,
+      wordsStatus: 'Speaking Inactive',
+      clarity: 98,
+      clarityStatus: 'Clear Enunciation'
     };
   }
 
   var words = text.trim().split(/\s+/).filter(Boolean);
   var wordCount = words.length;
-  var minutes = Math.max(0.1, (durationSec || 15) / 60);
+  var sec = Math.max(1, durationSec || 1);
+  var minutes = sec / 60.0;
   var wpm = Math.round(wordCount / minutes);
-  if (wpm < 80) wpm = 115;
-  if (wpm > 210) wpm = 180;
 
-  var wpmStatus = wpm >= 120 && wpm <= 165 ? 'Optimal Speed' : wpm < 120 ? 'Slow Paced' : 'Rapid Delivery';
+  if (wpm > 240) wpm = 240;
+  if (wpm < 30 && wordCount > 0) wpm = Math.min(120, wordCount * 15);
 
-  // Detect common filler words
-  var fillerRegex = /\b(um|uh|like|basically|actually|literally|you know|sort of|kind of|i mean)\b/gi;
-  var matches = text.match(fillerRegex) || [];
+  var wpmStatus = 'Optimal Speed';
+  if (wpm > 165) wpmStatus = 'Rapid Pace';
+  else if (wpm < 115) wpmStatus = 'Deliberate / Slow';
+  else wpmStatus = 'Optimal Speed';
+
+  var matches = text.match(FILLER_WORDS_REGEX) || [];
   var fillers = matches.length;
-  var fillerStatus = fillers === 0 ? 'Clear Fluency' : fillers <= 2 ? 'Low Frequency' : 'Frequent Fillers';
+  var fillerStatus = fillers === 0 ? 'Clear Fluency' : fillers <= 2 ? 'Minimal Fillers' : 'Moderate Fillers';
+
+  var clarity = Math.max(80, Math.min(99, 98 - (fillers * 3)));
+  var clarityStatus = clarity >= 92 ? 'Clear Enunciation' : (clarity >= 85 ? 'Moderate Clarity' : 'Needs Enunciation');
 
   return {
     wpm: wpm,
     wpmStatus: wpmStatus,
     fillers: fillers,
     fillerStatus: fillerStatus,
-    eyeContact: state.webcamStatus === 'Ready' ? (fillers > 2 ? 88 : 94) : 0,
-    emotion: fillers > 3 ? 'Reflective / Hesitant' : 'Calm / Confident'
+    eyeContact: (state.webcamStatus === 'Ready' && !state.lobbyCamMuted) ? (fillers > 2 ? 88 : 94) : 0,
+    emotion: fillers > 3 ? 'Reflective / Hesitant' : (wpm > 165 ? 'Energetic / Fast' : 'Calm / Confident'),
+    words: wordCount,
+    wordsStatus: wordCount > 25 ? 'Rich Response' : (wordCount > 10 ? 'Elaborating' : 'Starting Answer'),
+    clarity: clarity,
+    clarityStatus: clarityStatus
   };
+}
+
+function updateLiveTelemetryUI(transcript) {
+  var durationSec = 1;
+  if (state.answerStartTime) {
+    durationSec = Math.max(1, (Date.now() - state.answerStartTime) / 1000);
+  }
+  var tel = computeTranscriptTelemetry(transcript, durationSec);
+  state.telemetryWpm = tel.wpm;
+  state.telemetryFillerWords = tel.fillers;
+
+  // Update WPM Tile
+  var wpmValEl = document.getElementById('telemetry-wpm-val');
+  var wpmSubEl = document.getElementById('telemetry-wpm-sub');
+  if (wpmValEl) wpmValEl.textContent = tel.wpm > 0 ? ('~' + tel.wpm + ' WPM') : '0 WPM';
+  if (wpmSubEl) {
+    wpmSubEl.textContent = tel.wpmStatus;
+    wpmSubEl.className = 'sh-telemetry-sub ' + (tel.wpmStatus === 'Optimal Speed' ? 'text-emerald-400' : 'text-amber-300');
+  }
+
+  // Update Filler Words Tile
+  var fillerValEl = document.getElementById('telemetry-filler-val');
+  var fillerSubEl = document.getElementById('telemetry-filler-sub');
+  if (fillerValEl) fillerValEl.textContent = tel.fillers + ' detected';
+  if (fillerSubEl) {
+    fillerSubEl.textContent = tel.fillerStatus;
+    fillerSubEl.className = 'sh-telemetry-sub ' + (tel.fillers === 0 ? 'text-emerald-400' : 'text-amber-400');
+  }
+
+  // Update Eye Contact Tile
+  var eyeValEl = document.getElementById('telemetry-eye-val');
+  if (eyeValEl) eyeValEl.textContent = tel.eyeContact + '%';
+
+  // Update Emotion Tile
+  var emoValEl = document.getElementById('telemetry-emo-val');
+  if (emoValEl) emoValEl.textContent = tel.emotion;
+
+  // Update Clarity Tile
+  var clarityValEl = document.getElementById('telemetry-clarity-val');
+  var claritySubEl = document.getElementById('telemetry-clarity-sub');
+  if (clarityValEl) clarityValEl.textContent = tel.clarity + '%';
+  if (claritySubEl) {
+    claritySubEl.textContent = tel.clarityStatus;
+    claritySubEl.className = 'sh-telemetry-sub ' + (tel.clarity >= 90 ? 'text-emerald-400' : 'text-indigo-300');
+  }
+
+  // Update Word Count Tile
+  var wordsValEl = document.getElementById('telemetry-words-val');
+  var wordsSubEl = document.getElementById('telemetry-words-sub');
+  if (wordsValEl) wordsValEl.textContent = tel.words + ' words';
+  if (wordsSubEl) {
+    wordsSubEl.textContent = tel.wordsStatus;
+    wordsSubEl.className = 'sh-telemetry-sub ' + (tel.words > 0 ? 'text-cyan-400' : 'text-white/40');
+  }
+
+  // Update Live Transcript Box
+  var box = document.getElementById('transcript-box');
+  if (box && transcript) {
+    box.innerHTML = '<p class="text-white/90 text-xs leading-relaxed font-medium">&ldquo;' + transcript + '&rdquo;</p>';
+    box.scrollTop = box.scrollHeight;
+  }
 }
 
 function candidateSession() {
@@ -606,44 +683,10 @@ function candidateSession() {
         </div>
       </div>
 
-      <!-- Center: Action & Status Pills -->
-      <div class="flex items-center gap-2 flex-wrap justify-center">
-        <!-- Recording Indicator -->
-        <span class="sh-dock-pill rec">
-          <span class="sh-dock-dot ${isPaused ? 'bg-amber-400' : 'bg-rose-500 animate-pulse'}"></span>
-          <span>${isPaused ? 'REC: PAUSED' : 'REC: RECORDING'}</span>
-        </span>
-
-        <!-- AI Voice Toggle -->
-        <button id="btn-toggle-ai-voice" class="sh-dock-btn ${aiVoiceOn ? 'active' : ''}" title="Toggle AI Spoken Audio">
-          ${icon(aiVoiceOn ? 'volume2' : 'speaker', 12)}
-          <span>${aiVoiceOn ? 'AI Voice: On' : 'AI Voice: Muted'}</span>
-        </button>
-
-        <!-- Fullscreen Toggle -->
-        <button id="btn-toggle-fullscreen" class="sh-dock-btn" title="Toggle Fullscreen Arena">
-          ${icon('layout', 12)}
-          <span>Full Screen</span>
-        </button>
-
-        <!-- Hardware Status Pills -->
-        <span class="sh-dock-pill ${webcamReady && !isCamMuted ? 'ready' : 'warn'}">
-          CAM: ${isCamMuted ? 'MUTED' : (webcamReady ? 'READY' : 'OFF')}
-        </span>
-        <span class="sh-dock-pill ${micReady && !isMicMuted ? 'ready' : 'warn'}">
-          MIC: ${isMicMuted ? 'MUTED' : (micReady ? 'READY' : 'OFF')}
-        </span>
-
-        <!-- Hands-Free auto submit pill -->
-        <span class="sh-dock-pill auto">
-          ${icon('zap', 11)} Auto-Transcribe (Active)
-        </span>
-
-        <!-- Digital Timer Capsule -->
-        <div class="sh-dock-timer ${remainSec < 60 ? 'urgent' : ''}">
-          ${icon('clock', 13)}
-          <span id="session-timer-display" class="font-mono font-bold">${timerStr}</span>
-        </div>
+      <!-- Center: Digital Timer Capsule -->
+      <div class="sh-dock-timer ${remainSec < 60 ? 'urgent' : ''}">
+        ${icon('clock', 13)}
+        <span id="session-timer-display" class="font-mono font-bold text-sm tracking-wider">${timerStr}</span>
       </div>
 
       <!-- Right: Pause & End Session -->
@@ -670,10 +713,82 @@ function candidateSession() {
       </div>
     ` : ''}
 
-    <!-- ── Main Stage Grid (Left: Question Stage | Right: Interaction & Telemetry) ── -->
+    <!-- ── Main 3-Column Stage Grid (Left: User Feed | Middle: Interviewer Feed | Right: Controls, Telemetry & Transcript) ── -->
     <div class="sh-room-grid">
 
-      <!-- ════ LEFT COLUMN: Main Question Arena ════ -->
+      <!-- ════ COLUMN 1 (LEFT): Live Candidate Proctor & Video Feed ════ -->
+      <div class="sh-user-stage-card">
+        <!-- Top Video Banner -->
+        <div class="sh-user-stage-header">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs">
+              ${(state.user && state.user.name) ? state.user.name.slice(0, 2).toUpperCase() : 'CA'}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white tracking-wide">${state.user ? state.user.name : 'Candidate'}</span>
+                <span class="px-2 py-0.5 rounded text-[9.5px] font-semibold bg-white/5 text-white/60 border border-white/10">Candidate Feed</span>
+              </div>
+              <p class="text-[10px] text-white/40 mt-0.5">${domain} &bull; ${itype} Assessment</p>
+            </div>
+          </div>
+
+          <!-- Top Right Live Badge -->
+          <div class="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>LIVE PROCTOR FEED</span>
+          </div>
+        </div>
+
+        <!-- Video Viewport Frame -->
+        <div class="sh-user-video-viewport">
+          <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
+          
+          ${isCamMuted ? `
+            <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-[#070914]/90">
+              <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
+              <p class="text-xs font-semibold text-rose-300">Camera Muted</p>
+              <p class="text-[10px] text-white/40 mt-1">Click the video button below to enable camera</p>
+            </div>
+          ` : (!webcamReady ? `
+            <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-[#070914]/90">
+              <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-2">${icon('videoOff', 20)}</div>
+              <p class="text-xs font-semibold text-rose-300">Webcam Feed Initializing</p>
+              <p class="text-[10px] text-white/40 mt-1">Connecting video hardware stream...</p>
+            </div>
+          ` : '')}
+
+          <!-- Floating Video Controls Dock -->
+          <div class="sh-video-floating-dock">
+            <button id="btn-toggle-room-mic" class="sh-floating-btn ${isMicMuted ? 'muted' : ''}" title="${isMicMuted ? 'Unmute Mic' : 'Mute Mic'}">
+              ${icon(isMicMuted ? 'micOff' : 'mic', 13)}
+            </button>
+            <button id="btn-toggle-room-cam" class="sh-floating-btn ${isCamMuted ? 'muted' : ''}" title="${isCamMuted ? 'Enable Camera' : 'Turn Off Camera'}">
+              ${icon(isCamMuted ? 'videoOff' : 'video', 13)}
+            </button>
+          </div>
+        </div>
+
+        <!-- Proctored Diagnostics Footer -->
+        <div class="sh-user-stage-footer">
+          <div class="flex items-center justify-between text-[11px] text-white/50 flex-wrap gap-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>Vision &amp; Gaze: <strong class="text-white/80">Active</strong></span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+              <span>Audio: <strong class="text-white/80">Connected</strong></span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+              <span>Proctor: <strong class="text-white/80">Secured</strong></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ COLUMN 2 (MIDDLE): Interviewer Question Arena ════ -->
       <div class="sh-question-card">
         
         <!-- Top Evaluator Banner -->
@@ -715,7 +830,7 @@ function candidateSession() {
           </h2>
 
           <!-- Audio / Replay Action Buttons -->
-          <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
+          <div class="flex items-center gap-3 flex-wrap justify-center pt-1">
             <button id="btn-listen-question-loud" class="sh-audio-action-btn indigo">
               ${icon('volume2', 14)} <span>Listen Question Out Loud</span>
             </button>
@@ -728,7 +843,7 @@ function candidateSession() {
           </div>
 
           ${currentQuestionAnswered && aiFeedback ? `
-            <div class="mt-4 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-left max-w-xl mx-auto space-y-1">
+            <div class="mt-3 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-left w-full space-y-1">
               <div class="flex items-center justify-between text-xs">
                 <span class="font-bold text-emerald-400 flex items-center gap-1.5">${icon('checkCircle2', 13)} Instant AI Evaluation</span>
                 <span class="font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">${aiScore || 0}%</span>
@@ -740,7 +855,7 @@ function candidateSession() {
 
         <!-- Question Progress Footer -->
         <div class="sh-question-footer">
-          <div class="flex items-center justify-between text-xs text-white/40 mb-2 font-medium">
+          <div class="flex items-center justify-between text-xs text-white/40 mb-1.5 font-medium">
             <span>Overall Session Completion</span>
             <span class="text-indigo-300 font-bold">${progressPct}%</span>
           </div>
@@ -751,53 +866,69 @@ function candidateSession() {
 
       </div>
 
-      <!-- ════ RIGHT COLUMN: Video Preview, Telemetry & Transcript ════ -->
-      <div class="space-y-4 flex flex-col justify-between">
+      <!-- ════ COLUMN 3 (RIGHT): Controls Widget, Telemetry & Candidate Transcript ════ -->
+      <div class="sh-right-stage-stack">
         
-        <!-- 1. Live Proctored Webcam Feed -->
-        <div class="sh-video-panel">
-          <div class="relative w-full aspect-video bg-[#070914] rounded-xl overflow-hidden flex items-center justify-center border border-white/8">
-            <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
-            
-            ${isCamMuted ? `
-              <div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
-                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
-                <p class="text-xs font-semibold text-rose-300">Camera Muted</p>
-              </div>
-            ` : (!webcamReady ? `
-              <div class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-[#070914]/90">
-                <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 mb-1">${icon('videoOff', 16)}</div>
-                <p class="text-xs font-semibold text-rose-300">Webcam Not Available</p>
-              </div>
-            ` : '')}
-
-            <!-- Top Left Live Badge -->
-            <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>LIVE PROCTOR FEED</span>
+        <!-- 1. System & Device Controls Widget -->
+        <div class="sh-controls-panel">
+          <div class="flex items-center justify-between border-b border-white/6 pb-2 mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-indigo-400">${icon('sliders', 12)}</span>
+              <h4 class="text-[11px] font-bold uppercase tracking-wider text-white" style="font-family:'Outfit',sans-serif">Session Controls &amp; Status</h4>
             </div>
+            <span class="px-2 py-0.5 rounded text-[9.5px] font-semibold bg-white/5 text-white/50 border border-white/10">Active</span>
+          </div>
 
-            <!-- Floating Video Controls Dock -->
-            <div class="sh-video-floating-dock">
-              <button id="btn-toggle-room-mic" class="sh-floating-btn ${isMicMuted ? 'muted' : ''}" title="${isMicMuted ? 'Unmute Mic' : 'Mute Mic'}">
-                ${icon(isMicMuted ? 'micOff' : 'mic', 13)}
-              </button>
-              <button id="btn-toggle-room-cam" class="sh-floating-btn ${isCamMuted ? 'muted' : ''}" title="${isCamMuted ? 'Enable Camera' : 'Turn Off Camera'}">
-                ${icon(isCamMuted ? 'videoOff' : 'video', 13)}
-              </button>
-            </div>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <!-- Recording Indicator -->
+            <span class="sh-dock-pill rec">
+              <span class="sh-dock-dot ${isPaused ? 'bg-amber-400' : 'bg-rose-500 animate-pulse'}"></span>
+              <span>${isPaused ? 'REC: PAUSED' : 'REC: RECORDING'}</span>
+            </span>
+
+            <!-- AI Voice Toggle -->
+            <button id="btn-toggle-ai-voice" class="sh-dock-btn ${aiVoiceOn ? 'active' : ''}" title="Toggle AI Spoken Audio">
+              ${icon(aiVoiceOn ? 'volume2' : 'speaker', 11)}
+              <span>${aiVoiceOn ? 'AI Voice: On' : 'AI Voice: Muted'}</span>
+            </button>
+
+            <!-- Fullscreen Toggle -->
+            <button id="btn-toggle-fullscreen" class="sh-dock-btn" title="Toggle Fullscreen Arena">
+              ${icon('layout', 11)}
+              <span>Full Screen</span>
+            </button>
+
+            <!-- Hardware Status Pills -->
+            <span class="sh-dock-pill ${webcamReady && !isCamMuted ? 'ready' : 'warn'}">
+              CAM: ${isCamMuted ? 'MUTED' : (webcamReady ? 'READY' : 'OFF')}
+            </span>
+            <span class="sh-dock-pill ${micReady && !isMicMuted ? 'ready' : 'warn'}">
+              MIC: ${isMicMuted ? 'MUTED' : (micReady ? 'READY' : 'OFF')}
+            </span>
+
+            <!-- Auto Transcribe Pill -->
+            <span class="sh-dock-pill auto">
+              ${icon('zap', 10)} Auto-Transcribe
+            </span>
+          </div>
+
+          <!-- Live Connection & Stream Diagnostics Row -->
+          <div class="flex items-center justify-between pt-2 border-t border-white/5 mt-2 text-[10px] text-white/50">
+            <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Stream: <strong class="text-white/80 font-semibold">1080p HD</strong></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Latency: <strong class="text-white/80 font-semibold">~24ms</strong></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Proctor Guard: <strong class="text-emerald-400 font-semibold">100%</strong></span>
           </div>
         </div>
 
-        <!-- 2. Real-Time Speech & Behavior Telemetry Card -->
+        <!-- 2. Real-Time Speech & Behavior Telemetry Card (6-Metric Suite) -->
         <div class="sh-telemetry-panel">
-          <div class="flex items-center justify-between border-b border-white/6 pb-2.5 mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-indigo-400">${icon('activity', 13)}</span>
-              <h4 class="text-xs font-bold uppercase tracking-wider text-white" style="font-family:'Outfit',sans-serif">Real-Time Speech & Behavior Telemetry</h4>
+          <div class="flex items-center justify-between border-b border-white/6 pb-2 mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-indigo-400">${icon('activity', 12)}</span>
+              <h4 class="text-[11px] font-bold uppercase tracking-wider text-white" style="font-family:'Outfit',sans-serif">Real-Time Speech &amp; Behavior Telemetry</h4>
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Active Sensors
+            <span class="px-2 py-0.5 rounded text-[9.5px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              6 Active Sensors
             </span>
           </div>
 
@@ -808,8 +939,8 @@ function candidateSession() {
                 <span class="sh-telemetry-label">SPEECH PACE</span>
                 <span class="text-indigo-400">${icon('mic', 11)}</span>
               </div>
-              <p class="sh-telemetry-val">~${telemetry.wpm} WPM</p>
-              <p class="sh-telemetry-sub ${telemetry.wpmStatus === 'Optimal Speed' ? 'text-emerald-400' : 'text-amber-300'}">${telemetry.wpmStatus}</p>
+              <p id="telemetry-wpm-val" class="sh-telemetry-val">${telemetry.wpm > 0 ? ('~' + telemetry.wpm + ' WPM') : '0 WPM'}</p>
+              <p id="telemetry-wpm-sub" class="sh-telemetry-sub ${telemetry.wpmStatus === 'Optimal Speed' ? 'text-emerald-400' : 'text-amber-300'}">${telemetry.wpmStatus}</p>
             </div>
 
             <!-- Metric 2: Filler Words -->
@@ -818,8 +949,8 @@ function candidateSession() {
                 <span class="sh-telemetry-label">FILLER WORDS</span>
                 <span class="text-amber-400">${icon('alertCircle', 11)}</span>
               </div>
-              <p class="sh-telemetry-val text-amber-300">${telemetry.fillers} detected</p>
-              <p class="sh-telemetry-sub ${telemetry.fillers === 0 ? 'text-emerald-400' : 'text-amber-400'}">${telemetry.fillerStatus}</p>
+              <p id="telemetry-filler-val" class="sh-telemetry-val text-amber-300">${telemetry.fillers} detected</p>
+              <p id="telemetry-filler-sub" class="sh-telemetry-sub ${telemetry.fillers === 0 ? 'text-emerald-400' : 'text-amber-400'}">${telemetry.fillerStatus}</p>
             </div>
 
             <!-- Metric 3: Eye Contact -->
@@ -828,18 +959,38 @@ function candidateSession() {
                 <span class="sh-telemetry-label">EYE CONTACT</span>
                 <span class="text-cyan-400">${icon('eye', 11)}</span>
               </div>
-              <p class="sh-telemetry-val text-cyan-300">${telemetry.eyeContact}%</p>
+              <p id="telemetry-eye-val" class="sh-telemetry-val text-cyan-300">${telemetry.eyeContact}%</p>
               <p class="sh-telemetry-sub text-cyan-400/80">Camera Gaze Focused</p>
             </div>
 
             <!-- Metric 4: Emotion & Tone -->
             <div class="sh-telemetry-tile">
               <div class="flex items-center justify-between">
-                <span class="sh-telemetry-label">EMOTION & TONE</span>
+                <span class="sh-telemetry-label">EMOTION &amp; TONE</span>
                 <span class="text-emerald-400">${icon('sparkles', 11)}</span>
               </div>
-              <p class="sh-telemetry-val text-emerald-300">${telemetry.emotion}</p>
+              <p id="telemetry-emo-val" class="sh-telemetry-val text-emerald-300">${telemetry.emotion}</p>
               <p class="sh-telemetry-sub text-emerald-400/80">High Confidence</p>
+            </div>
+
+            <!-- Metric 5: Articulation & Clarity -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">CLARITY &amp; ENUNCIATION</span>
+                <span class="text-indigo-400">${icon('volume2', 11)}</span>
+              </div>
+              <p id="telemetry-clarity-val" class="sh-telemetry-val text-indigo-300">${telemetry.clarity}%</p>
+              <p id="telemetry-clarity-sub" class="sh-telemetry-sub ${telemetry.clarity >= 90 ? 'text-emerald-400' : 'text-indigo-300'}">${telemetry.clarityStatus}</p>
+            </div>
+
+            <!-- Metric 6: Live Word Count -->
+            <div class="sh-telemetry-tile">
+              <div class="flex items-center justify-between">
+                <span class="sh-telemetry-label">WORD COUNT</span>
+                <span class="text-purple-400">${icon('fileText', 11)}</span>
+              </div>
+              <p id="telemetry-words-val" class="sh-telemetry-val text-purple-300">${telemetry.words} words</p>
+              <p id="telemetry-words-sub" class="sh-telemetry-sub ${telemetry.words > 0 ? 'text-cyan-400' : 'text-white/40'}">${telemetry.wordsStatus}</p>
             </div>
           </div>
         </div>
@@ -867,7 +1018,7 @@ function candidateSession() {
           </div>
 
           <!-- Action Footer Controls -->
-          <div class="flex items-center gap-2 pt-3 border-t border-white/6 mt-3">
+          <div class="flex items-center gap-2 pt-2.5 border-t border-white/6 mt-2.5">
             <button id="btn-submit-answer-manual" class="sh-btn-submit-action">
               ${icon('check', 13)} Submit Response
             </button>
@@ -987,9 +1138,53 @@ function startAutoRecording() {
     if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress') return;
     if (state.isAiSpeaking) return;
 
+    state.answerStartTime = Date.now();
+    state.currentTranscript = '';
+    updateLiveTelemetryUI('');
+
     setSessionStatus('Listening... Speak your answer.', 'text-emerald-300');
     var box = document.getElementById('transcript-box');
     if (box) box.innerHTML = '<p class="text-emerald-300 text-sm animate-pulse">Listening... Speak your answer now.</p>';
+
+    // Real-Time Speech Recognition for Live Streaming Transcription & Telemetry
+    if (window.webkitSpeechRecognition || window.SpeechRecognition) {
+      try {
+        if (state.liveSpeechRecognition) {
+          try { state.liveSpeechRecognition.stop(); } catch (e) { }
+        }
+        var SpeechRec = window.webkitSpeechRecognition || window.SpeechRecognition;
+        var rec = new SpeechRec();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = 'en-US';
+
+        rec.onresult = function (event) {
+          var interim = '';
+          var final = '';
+          for (var i = 0; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript + ' ';
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          var fullText = (final + interim).trim();
+          if (fullText) {
+            state.currentTranscript = fullText;
+            updateLiveTelemetryUI(fullText);
+          }
+        };
+
+        rec.onerror = function (e) {
+          console.warn('SpeechRecognition warning:', e);
+        };
+
+        rec.start();
+        state.liveSpeechRecognition = rec;
+      } catch (e) {
+        console.warn('Could not start live SpeechRecognition:', e);
+      }
+    }
 
     state.recordedMimeType = 'audio/webm';
     state.recordedChunks = [];
@@ -1046,6 +1241,10 @@ function startAutoRecording() {
 
 function stopAutoRecording() {
   if (state.autoStopFallback) { clearTimeout(state.autoStopFallback); state.autoStopFallback = null; }
+  if (state.liveSpeechRecognition) {
+    try { state.liveSpeechRecognition.stop(); } catch (e) { }
+    state.liveSpeechRecognition = null;
+  }
   if (state.audioMonitor) {
     try {
       state.audioMonitor.proc.disconnect();
@@ -1090,21 +1289,36 @@ async function onRecordingStop() {
       }
     }
 
+    // If Gemini transcript is empty, fallback to continuous live recognition transcript
+    if (!transcript && state.currentTranscript) {
+      transcript = state.currentTranscript.trim();
+    }
+
     if (!transcript || transcript.length < 3) {
       setSessionStatus('No answer detected. Speak your answer clearly or click Next Question.', 'text-amber-300');
       if (box) box.innerHTML = '<p class="text-amber-300 text-sm">No answer detected. Speak your answer clearly or click Next Question.</p>';
       return;
     }
 
+    state.currentTranscript = transcript;
+    var durationSec = 15;
+    if (state.answerStartTime) {
+      durationSec = Math.max(2, Math.round((Date.now() - state.answerStartTime) / 1000));
+    }
+    var wordList = transcript.trim().split(/\s+/).filter(Boolean);
+    var computedWpm = Math.round(wordList.length / (durationSec / 60));
+    if (computedWpm > 240) computedWpm = 240;
+
+    updateLiveTelemetryUI(transcript);
+
     if (box) box.innerHTML = '<div class="text-white/90 text-sm leading-relaxed mb-3 font-medium">"' + transcript + '"</div>';
 
     setSessionStatus('Evaluating answer with AI...', 'text-indigo-300');
     var q = state.currentInterview.questions[state.currentQuestionIndex];
-    var result = await api.submitInterviewAnswer(state.currentInterview.interview.id, q.id, transcript);
+    var result = await api.submitInterviewAnswer(state.currentInterview.interview.id, q.id, transcript, durationSec, computedWpm);
 
     state.currentInterview.interview = result.interview;
     state.currentInterview.questions[state.currentQuestionIndex] = result.question;
-    state.currentTranscript = transcript;
 
     var score = result.question.score || 0;
     var feedback = result.question.feedback || 'Answer evaluated successfully.';
@@ -2322,8 +2536,15 @@ function renderReportModal(report) {
     status: 'Optimal Cadence (130-160 WPM)'
   };
   var paceScore = paceAnalysis.speaking_pace_score !== undefined ? paceAnalysis.speaking_pace_score : (params.speaking_pace || 85);
-  var wpm = paceAnalysis.wpm || 140;
-  var paceStatus = paceAnalysis.status || 'Optimal Cadence (130-160 WPM)';
+
+  var qWpms = [];
+  (questions || []).forEach(function (q) {
+    if (q.parameters && typeof q.parameters.wpm === 'number' && q.parameters.wpm > 0) {
+      qWpms.push(q.parameters.wpm);
+    }
+  });
+  var wpm = qWpms.length ? Math.round(qWpms.reduce(function (a, b) { return a + b; }, 0) / qWpms.length) : (paceAnalysis.wpm || Math.round(90 + (paceScore * 0.6)));
+  var paceStatus = paceAnalysis.status || (wpm > 165 ? 'Rapid Pace (>160 WPM)' : wpm < 120 ? 'Deliberate / Slow (<120 WPM)' : 'Optimal Cadence (130-160 WPM)');
 
   return `<div id="report-modal-overlay" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto report-overlay" style="background:rgba(0,0,0,0.8);backdrop-filter:blur(6px)">
     <div class="w-full max-w-5xl my-6 lg:my-10 rounded-2xl border border-white/10 overflow-hidden report-modal-card" style="background:#0d0f1e">

@@ -446,6 +446,8 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
         question["category"] or interview["interview_type"],
         question["difficulty"] or interview["difficulty"],
         req.answer_text,
+        duration_seconds=req.duration_seconds,
+        client_wpm=req.wpm,
     )
 
     q_cols = {r["name"] for r in conn.execute("PRAGMA table_info(interview_question)").fetchall()}
