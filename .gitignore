@@ -59,3 +59,7 @@ htmlcov/
 # ── Storage & Uploads ──
 server/storage/
 
+# ── Temporary Test Scripts ──
+server/test_*.py
+test_*.py
+
