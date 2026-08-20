@@ -723,7 +723,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
     conn.execute(
         """UPDATE interview_session SET
             status = 'completed',
-            completed_at = CURRENT_TIMESTAMP,
+            completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
             total_score = ?,
             communication_score = ?,
             confidence_score = ?,
@@ -764,6 +764,26 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
         ),
     )
     conn.commit()
+
+    try:
+        from services import notification_service
+        sess_row = conn.execute("SELECT user_id, candidate_id, domain, interview_type FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+        if sess_row:
+            u_id = sess_row["candidate_id"] or sess_row["user_id"]
+            d_name = sess_row["domain"] or sess_row["interview_type"] or "Interview"
+            existing = conn.execute("SELECT id FROM notifications WHERE user_id = ? AND type = 'report_ready' AND data_json LIKE ?", (u_id, f'%"session_id": {interview_id}%')).fetchone()
+            if not existing:
+                notification_service.create_notification(
+                    conn=conn,
+                    user_id=u_id,
+                    notif_type="report_ready",
+                    title=f"AI Evaluation Report Ready: {d_name}",
+                    message=f"Your {sess_row['interview_type']} evaluation has compiled with an overall score of {avg_overall}% ({rating}). View or download your comprehensive 19-parameter analysis.",
+                    data={"session_id": interview_id, "score": avg_overall, "rating": rating, "domain": d_name, "action_type": "report"},
+                    send_email=False
+                )
+    except Exception as e:
+        print(f"[Warning] Failed to create report notification: {e}")
 
     return {
         "interview_id": interview_id,

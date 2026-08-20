@@ -169,6 +169,22 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_interview_template_recruiter ON interview_template(recruiter_id);
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('report_ready', 'interview_reminder', 'session_alert', 'performance_summary', 'system')),
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            data_json TEXT,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+        CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
     """)
 
     # Seed initial standard templates if table is empty

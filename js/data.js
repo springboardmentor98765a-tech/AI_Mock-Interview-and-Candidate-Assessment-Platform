@@ -110,6 +110,11 @@ const state = {
   telemetryEyeContact: 92,
   telemetryEmotion: 'Calm / Confident',
   answerStartTime: null,
+  notificationsData: null,
+  unreadNotifCount: 0,
+  isNotifDropdownOpen: false,
+  notifActiveTab: 'all',
+  notifLoading: false,
 };
 
 

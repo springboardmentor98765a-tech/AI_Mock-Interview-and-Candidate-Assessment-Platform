@@ -133,6 +133,11 @@ function handleAuthSuccess(data) {
   state.historyData = null;
   state.reportsData = null;
   state.activeReportModal = null;
+  state.notificationsData = null;
+  state.unreadNotifCount = 0;
+  state.isNotifDropdownOpen = false;
+  fetchUnreadNotifCount();
+  fetchNotifications();
   render();
 }
 
@@ -152,6 +157,9 @@ function handleLogout() {
   state.historyData = null;
   state.reportsData = null;
   state.currentInterview = null;
+  state.notificationsData = null;
+  state.unreadNotifCount = 0;
+  state.isNotifDropdownOpen = false;
   render();
 }
 
@@ -177,11 +185,44 @@ async function checkAuth() {
     state.role = data.user.role;
     state.page = data.user.role;
     state.section = 'overview';
+    fetchUnreadNotifCount();
+    fetchNotifications();
     render();
   } catch (e) {
     localStorage.removeItem('smarthire_token');
     render();
   }
+}
+
+/* ── Notification Data Fetchers ── */
+async function fetchNotifications(tab) {
+  if (!state.token) return;
+  state.notifLoading = true;
+  try {
+    var res = await api.getNotifications(tab || state.notifActiveTab || 'all');
+    state.notificationsData = res.notifications || [];
+    state.unreadNotifCount = res.unread_count || 0;
+  } catch (err) {
+    console.error('Failed to load notifications:', err);
+  } finally {
+    state.notifLoading = false;
+    if (state.isNotifDropdownOpen) {
+      render();
+    }
+  }
+}
+
+async function fetchUnreadNotifCount() {
+  if (!state.token) return;
+  try {
+    var res = await api.getUnreadNotifCount();
+    state.unreadNotifCount = res.unread_count || 0;
+    var badge = document.getElementById('notif-badge');
+    if (badge) {
+      badge.textContent = state.unreadNotifCount > 99 ? '99+' : state.unreadNotifCount;
+      badge.style.display = state.unreadNotifCount > 0 ? 'inline-flex' : 'none';
+    }
+  } catch (_) {}
 }
 
 /* ── Event binding: Login ── */
@@ -564,6 +605,188 @@ function bindDashboardEvents() {
     });
   });
 
+  /* ── Notification Center Events ── */
+  var btnNotifBell = document.getElementById('btn-notif-bell');
+  if (btnNotifBell) {
+    btnNotifBell.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      state.isNotifDropdownOpen = !state.isNotifDropdownOpen;
+      if (state.isNotifDropdownOpen && (!state.notificationsData || state.notificationsData.length === 0)) {
+        await fetchNotifications();
+      } else {
+        render();
+      }
+    });
+  }
+
+  document.querySelectorAll('.sh-notif-tab').forEach(function(tabBtn) {
+    tabBtn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var tab = this.dataset.tab;
+      state.notifActiveTab = tab;
+      await fetchNotifications(tab);
+      render();
+    });
+  });
+
+  var btnNotifMarkAll = document.getElementById('btn-notif-mark-all');
+  if (btnNotifMarkAll) {
+    btnNotifMarkAll.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      try {
+        await api.markAllNotifsRead();
+        if (state.notificationsData) {
+          state.notificationsData.forEach(function(n) { n.is_read = true; });
+        }
+        state.unreadNotifCount = 0;
+        render();
+      } catch (err) {
+        console.error('Mark all read error:', err);
+      }
+    });
+  }
+
+  var btnNotifClearAll = document.getElementById('btn-notif-clear-all');
+  if (btnNotifClearAll) {
+    btnNotifClearAll.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      if (!window.confirm('Clear all notifications?')) return;
+      try {
+        await api.clearAllNotifs();
+        state.notificationsData = [];
+        state.unreadNotifCount = 0;
+        render();
+      } catch (err) {
+        console.error('Clear all notifs error:', err);
+      }
+    });
+  }
+
+  document.querySelectorAll('.sh-notif-dismiss-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var notifId = parseInt(this.dataset.id, 10);
+      if (!notifId) return;
+      try {
+        await api.deleteNotif(notifId);
+        var removed = (state.notificationsData || []).find(function(n) { return n.id === notifId; });
+        state.notificationsData = (state.notificationsData || []).filter(function(n) { return n.id !== notifId; });
+        if (removed && !removed.is_read && state.unreadNotifCount > 0) {
+          state.unreadNotifCount--;
+        }
+        render();
+      } catch (err) {
+        console.error('Dismiss notification error:', err);
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-notif-action-view-report').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var sessId = this.dataset.sessionId;
+      if (!sessId) return;
+      try {
+        var notifCard = this.closest('.sh-notif-card');
+        var notifId = notifCard ? parseInt(notifCard.dataset.id, 10) : null;
+        if (notifId) {
+          api.markNotifRead(notifId).catch(function(){});
+          var nObj = (state.notificationsData || []).find(function(n){ return n.id === notifId; });
+          if (nObj && !nObj.is_read) {
+            nObj.is_read = true;
+            if (state.unreadNotifCount > 0) state.unreadNotifCount--;
+          }
+        }
+        state.isNotifDropdownOpen = false;
+        var report = await api.getInterviewReport(sessId);
+        state.activeReportModal = report;
+        render();
+      } catch (err) {
+        window.alert('Unable to load report: ' + (err.message || 'Report not found'));
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-notif-action-download').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var sessId = this.dataset.sessionId;
+      if (!sessId) return;
+      try {
+        var report = await api.getInterviewReport(sessId);
+        downloadReportAsPDF(report);
+      } catch (err) {
+        window.alert('Unable to download report: ' + (err.message || 'Error'));
+      }
+    });
+  });
+
+  var btnModalDownloadPdf = document.getElementById('btn-modal-download-pdf');
+  if (btnModalDownloadPdf) {
+    btnModalDownloadPdf.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (state.activeReportModal) {
+        downloadReportAsPDF(state.activeReportModal);
+      }
+    });
+  }
+
+  document.querySelectorAll('.btn-direct-download-pdf').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var id = this.dataset.id;
+      if (!id) return;
+      try {
+        var report = await api.getInterviewReport(id);
+        downloadReportAsPDF(report);
+      } catch (err) {
+        window.alert('Unable to load report for PDF export: ' + (err.message || 'Error'));
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-notif-action-practice').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      state.isNotifDropdownOpen = false;
+      state.section = 'interviews';
+      render();
+    });
+  });
+
+  document.querySelectorAll('.btn-notif-action-analytics').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      state.isNotifDropdownOpen = false;
+      state.section = 'analytics';
+      render();
+    });
+  });
+
+  document.querySelectorAll('.btn-notif-action-sessions').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      state.isNotifDropdownOpen = false;
+      state.section = 'history';
+      render();
+    });
+  });
+
+  var btnNotifTestReminder = document.getElementById('btn-notif-test-reminder');
+  if (btnNotifTestReminder) {
+    btnNotifTestReminder.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      try {
+        btnNotifTestReminder.textContent = 'Sending...';
+        await api.sendNotifReminder({ send_email: false });
+        await fetchNotifications();
+        render();
+      } catch (err) {
+        window.alert('Failed to send reminder: ' + (err.message || 'Error'));
+      }
+    });
+  }
+
   if (state.page === 'candidate') {
     bindCandidateInterviewEvents();
     bindCandidateAssessmentEvents();
@@ -575,6 +798,16 @@ if (!window._globalModalClickBound) {
   window._globalModalClickBound = true;
 
   document.addEventListener('click', function(e) {
+    // Notification Dropdown Close on Outside Click
+    if (state.isNotifDropdownOpen) {
+      var notifWrapper = e.target.closest('#notif-wrapper');
+      if (!notifWrapper) {
+        state.isNotifDropdownOpen = false;
+        render();
+        return;
+      }
+    }
+
     // Video Modal Close (Header cross & footer Close button)
     var videoCloseBtn = e.target.closest('#video-modal-close, #video-modal-close-btn');
     if (videoCloseBtn) {

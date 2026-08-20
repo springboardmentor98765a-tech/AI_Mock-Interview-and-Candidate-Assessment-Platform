@@ -13,26 +13,12 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from config import PORT
 from database import init_db
-from routes import auth, users, interviews, assessments, recruiter
+from routes import auth, users, interviews, assessments, recruiter, notifications
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    try:
-        from database import get_db
-        from services import scoring_engine
-        conn = get_db()
-        sessions = conn.execute("SELECT id FROM interview_session WHERE status = 'completed'").fetchall()
-        for s in sessions:
-            sid = s["id"]
-            questions = conn.execute("SELECT * FROM interview_question WHERE interview_id = ?", (sid,)).fetchall()
-            answered = [q for q in questions if q["answer_text"] and str(q["answer_text"]).strip()]
-            if not answered and questions:
-                scoring_engine.generate_final_report(sid, conn)
-        conn.close()
-    except Exception:
-        pass
     yield
 
 
@@ -50,6 +36,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(interviews.router)
 app.include_router(assessments.router)
+app.include_router(notifications.router)
 app.include_router(recruiter.router, prefix="/api/recruiter", tags=["Recruiter"])
 
 

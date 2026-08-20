@@ -217,6 +217,22 @@ def generate_interview(req: InterviewGenerateRequest, user: dict = Depends(get_c
     questions = conn.execute(
         "SELECT * FROM interview_question WHERE interview_id = ? ORDER BY sequence_no", (interview_id,)
     ).fetchall()
+
+    try:
+        from services import notification_service
+        d_name = req.domain or req.interview_type
+        notification_service.create_notification(
+            conn=conn,
+            user_id=user["id"],
+            notif_type="session_alert",
+            title=f"Session Ready: {d_name}",
+            message=f"Mock interview #{interview_id} ({req.difficulty.capitalize()}) has been prepared with {len(questions)} dynamic questions.",
+            data={"session_id": interview_id, "action_type": "session", "domain": d_name},
+            send_email=False
+        )
+    except Exception as e:
+        print(f"[Warning] Notification create error: {e}")
+
     conn.close()
 
     return {

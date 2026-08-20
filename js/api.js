@@ -225,5 +225,31 @@ var api = {
     var idsStr = Array.isArray(candidateIds) ? candidateIds.join(',') : candidateIds;
     return apiRequest('/recruiter/compare?candidate_ids=' + encodeURIComponent(idsStr));
   },
+  getNotifications: function(tab, limit, offset) {
+    var params = new URLSearchParams();
+    if (tab) params.append('tab', tab);
+    if (limit) params.append('limit', limit);
+    if (offset) params.append('offset', offset);
+    var q = params.toString();
+    return apiRequest('/notifications' + (q ? '?' + q : ''));
+  },
+  getUnreadNotifCount: function() {
+    return apiRequest('/notifications/unread-count');
+  },
+  markNotifRead: function(notificationId) {
+    return apiRequest('/notifications/' + notificationId + '/read', { method: 'PUT' });
+  },
+  markAllNotifsRead: function() {
+    return apiRequest('/notifications/read-all', { method: 'PUT' });
+  },
+  deleteNotif: function(notificationId) {
+    return apiRequest('/notifications/' + notificationId, { method: 'DELETE' });
+  },
+  clearAllNotifs: function() {
+    return apiRequest('/notifications', { method: 'DELETE' });
+  },
+  sendNotifReminder: function(payload) {
+    return apiRequest('/notifications/send-reminder', { method: 'POST', body: payload || {} });
+  },
 };
 

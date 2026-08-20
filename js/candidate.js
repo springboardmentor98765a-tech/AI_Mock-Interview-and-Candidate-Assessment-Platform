@@ -2597,6 +2597,14 @@ function renderReportModal(report) {
                   <span class="inline-flex items-center gap-1">${icon('calendar', 12)} ${dateLine}</span>
                 </p>
               </div>
+              <div class="flex items-center gap-2">
+                <button id="btn-modal-download-pdf" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer">
+                  ${icon('downloadLg', 14)} Download PDF Report
+                </button>
+                <button id="btn-close-report" class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer text-lg leading-none" title="Close">
+                  &times;
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3539,35 +3547,56 @@ function candidateReports() {
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
 
   return `<div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Evaluation Reports</h1>
-      <p class="text-white/40 text-sm mt-1">Detailed AI feedback reports, strengths, and practice recommendations.</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Evaluation Reports</h1>
+        <p class="text-white/40 text-sm mt-1">Detailed AI feedback reports, strengths, and practice recommendations.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-white/50 bg-white/5 px-3 py-1.5 rounded-lg border border-white/8">${reports.length} Total Reports</span>
+      </div>
     </div>
+
     ${reports.length ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       ${reports.map(function (r) {
-    var score = r.overall_score || r.total_score || 0;
-    return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+        var score = (r.overall_score !== null && r.overall_score !== undefined) ? Number(r.overall_score) : (r.total_score || 0);
+        var comm = (r.communication_score !== null && r.communication_score !== undefined) ? Number(r.communication_score) : score;
+        var conf = (r.confidence_score !== null && r.confidence_score !== undefined) ? Number(r.confidence_score) : score;
+        var tech = (r.technical_score !== null && r.technical_score !== undefined) ? Number(r.technical_score) : score;
+        var prof = (r.professionalism_score !== null && r.professionalism_score !== undefined) ? Number(r.professionalism_score) : score;
+        var rating = r.performance_rating || (score >= 90 ? 'Excellent' : score >= 75 ? 'Good' : score >= 60 ? 'Average' : score >= 40 ? 'Needs Improvement' : 'Poor');
+        var itype = r.interview_type ? (r.interview_type.charAt(0).toUpperCase() + r.interview_type.slice(1)) : 'Technical';
+        var answeredCount = r.questions_answered || 0;
+        var totalQuestions = r.total_questions || (r.questions ? r.questions.length : 0);
+
+        return `<div class="rounded-xl border border-white/7 p-5 space-y-4 transition-all hover:border-white/15" style="background:#0d0f1e">
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-2 mb-1">
-                <h3 class="text-white font-semibold text-base uppercase" style="font-family:'Outfit',sans-serif">${r.interview_type} Interview</h3>
-                ${renderRubricBadge(r.performance_rating, score)}
+                <h3 class="text-white font-semibold text-base uppercase" style="font-family:'Outfit',sans-serif">${itype} Interview</h3>
+                ${renderRubricBadge(rating, score)}
               </div>
               <p class="text-white/40 text-xs">${r.domain || 'General Domain'} &bull; ${formatDateTime(r.completed_at || r.created_at)}</p>
+              ${totalQuestions > 0 ? `<p class="text-[11px] text-white/30 mt-1">${answeredCount} of ${totalQuestions} questions answered</p>` : ''}
             </div>
             <div class="text-right">
               <span class="text-2xl font-bold text-white">${score.toFixed(1)}%</span>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-2 pt-2 border-t border-white/6 text-center">
-            <div><p class="text-[10px] text-white/35">Comm 30%</p><p class="text-xs font-bold text-indigo-300">${(r.communication_score || score).toFixed(0)}%</p></div>
-            <div><p class="text-[10px] text-white/35">Conf 25%</p><p class="text-xs font-bold text-cyan-300">${(r.confidence_score || score).toFixed(0)}%</p></div>
-            <div><p class="text-[10px] text-white/35">Tech 30%</p><p class="text-xs font-bold text-emerald-300">${(r.technical_score || score).toFixed(0)}%</p></div>
-            <div><p class="text-[10px] text-white/35">Prof 15%</p><p class="text-xs font-bold text-amber-300">${(r.professionalism_score || score).toFixed(0)}%</p></div>
+            <div><p class="text-[10px] text-white/35">Comm 30%</p><p class="text-xs font-bold text-indigo-300">${comm.toFixed(0)}%</p></div>
+            <div><p class="text-[10px] text-white/35">Conf 25%</p><p class="text-xs font-bold text-cyan-300">${conf.toFixed(0)}%</p></div>
+            <div><p class="text-[10px] text-white/35">Tech 30%</p><p class="text-xs font-bold text-emerald-300">${tech.toFixed(0)}%</p></div>
+            <div><p class="text-[10px] text-white/35">Prof 15%</p><p class="text-xs font-bold text-amber-300">${prof.toFixed(0)}%</p></div>
           </div>
-          <button class="btn-view-report w-full py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-semibold transition-colors" data-id="${r.id}">View Detailed AI Evaluation Report</button>
+          <div class="flex items-center gap-2 pt-1">
+            <button class="btn-view-report flex-1 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-semibold transition-colors cursor-pointer" data-id="${r.id}">View Detailed Report</button>
+            <button class="btn-direct-download-pdf px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold border border-white/10 transition-colors flex items-center gap-1.5 cursor-pointer" data-id="${r.id}" title="Download PDF Report">
+              ${icon('downloadLg', 13)} PDF
+            </button>
+          </div>
         </div>`;
-  }).join('')}
+      }).join('')}
     </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center">
       <p class="text-white/30 text-sm">No reports available yet. Complete interviews to generate reports.</p>
     </div>`}
