@@ -63,6 +63,37 @@ def _format_utc_iso(ts) -> str | None:
 
 def row_to_interview(row) -> dict:
     d = dict(row)
+    detailed_params = _safe_json_loads(d.get("detailed_parameters_json"), {})
+    grammar_analysis = _safe_json_loads(d.get("grammar_analysis_json"), {})
+    filler_analysis = _safe_json_loads(d.get("filler_analysis_json"), {})
+    pronunciation_analysis = _safe_json_loads(d.get("pronunciation_analysis_json"), {})
+    communication_analysis = _safe_json_loads(d.get("communication_analysis_json"), {})
+
+    # If top-level columns not set yet, fallback from detailed_params if present
+    if not grammar_analysis and "grammar_quality" in detailed_params:
+        g_score = detailed_params.get("grammar_quality", d.get("communication_score") or 90)
+        grammar_analysis = {"grammar_score": g_score, "issues_count": 0, "issues": [], "message": "No major grammar issues detected."}
+    if not filler_analysis and "filler_word_freq" in detailed_params:
+        f_score = detailed_params.get("filler_word_freq", 95)
+        filler_analysis = {"filler_score": f_score, "filler_count": 0, "filler_words": [], "filler_status": "Clear Fluency"}
+    if not pronunciation_analysis and "speech_clarity" in detailed_params:
+        p_score = detailed_params.get("speech_clarity", d.get("communication_score") or 90)
+        pronunciation_analysis = {"pronunciation_score": p_score, "pronunciation_status": "Crisp & Articulate", "pronunciation_notes": []}
+    if not communication_analysis and d.get("communication_score"):
+        communication_analysis = {
+            "communication_score": d.get("communication_score"),
+            "parameters": {
+                "speech_clarity": detailed_params.get("speech_clarity", d.get("communication_score")),
+                "grammar_quality": detailed_params.get("grammar_quality", d.get("communication_score")),
+                "filler_word_freq": detailed_params.get("filler_word_freq", 95),
+                "speaking_pace": detailed_params.get("speaking_pace", 85),
+                "response_completeness": detailed_params.get("response_completeness", d.get("communication_score")),
+            },
+            "grammar_analysis": grammar_analysis,
+            "filler_analysis": filler_analysis,
+            "pronunciation_analysis": pronunciation_analysis,
+        }
+
     return {
         "id": d["id"],
         "user_id": d["user_id"],
@@ -86,7 +117,11 @@ def row_to_interview(row) -> dict:
         "improvements": _safe_json_loads(d.get("improvements_json"), []),
         "recommendations": _safe_json_loads(d.get("recommendations_json"), []),
         "resources": _safe_json_loads(d.get("resources_json"), []),
-        "detailed_parameters": _safe_json_loads(d.get("detailed_parameters_json"), {}),
+        "detailed_parameters": detailed_params,
+        "grammar_analysis": grammar_analysis,
+        "filler_analysis": filler_analysis,
+        "pronunciation_analysis": pronunciation_analysis,
+        "communication_analysis": communication_analysis,
         "started_at": _format_utc_iso(d.get("started_at")),
         "completed_at": _format_utc_iso(d.get("completed_at")),
         "created_at": _format_utc_iso(d.get("created_at")),
@@ -109,6 +144,9 @@ def row_to_question(row) -> dict:
         "technical_score": d.get("technical_score"),
         "professionalism_score": d.get("professionalism_score"),
         "parameters": _safe_json_loads(d.get("parameters_json"), {}),
+        "grammar_analysis": _safe_json_loads(d.get("grammar_json"), {}),
+        "filler_analysis": _safe_json_loads(d.get("filler_json"), {}),
+        "pronunciation_analysis": _safe_json_loads(d.get("pronunciation_json"), {}),
         "feedback": d["feedback"],
     }
 
@@ -410,6 +448,14 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
         req.answer_text,
     )
 
+    q_cols = {r["name"] for r in conn.execute("PRAGMA table_info(interview_question)").fetchall()}
+    if "grammar_json" not in q_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN grammar_json TEXT")
+    if "filler_json" not in q_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN filler_json TEXT")
+    if "pronunciation_json" not in q_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN pronunciation_json TEXT")
+
     conn.execute(
         """UPDATE interview_question SET
             answer_text = ?,
@@ -419,6 +465,9 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
             technical_score = ?,
             professionalism_score = ?,
             parameters_json = ?,
+            grammar_json = ?,
+            filler_json = ?,
+            pronunciation_json = ?,
             feedback = ?
            WHERE id = ?""",
         (
@@ -429,6 +478,9 @@ def submit_answer(interview_id: int, req: AnswerSubmitRequest, user: dict = Depe
             eval_result["technical_score"],
             eval_result["professionalism_score"],
             json.dumps(eval_result.get("parameters", {})),
+            json.dumps(eval_result.get("grammar_analysis", {})),
+            json.dumps(eval_result.get("filler_analysis", {})),
+            json.dumps(eval_result.get("pronunciation_analysis", {})),
             eval_result["feedback"],
             req.question_id,
         ),

@@ -121,9 +121,16 @@ def _json_content(result: dict):
         raise LLMError("Model returned invalid JSON.") from error
 
 
-def chat_json(payload: dict, is_resume: bool = False, is_quiz: bool = False) -> dict | list:
-    """Send a chat request, trying Gemini API keys first, then Deepseek (AICredits), then MiMo."""
+def chat_json(payload: dict, is_resume: bool = False, is_quiz: bool = False, is_eval: bool = False) -> dict | list:
+    """Send a chat request. For evaluation requests (is_eval=True), Deepseek V4 Flash (AICredits) is primary, with Gemini and MiMo as fallbacks."""
     errors = []
+
+    # If this is an answer evaluation / scoring request, use AICredits (Deepseek) as primary
+    if is_eval and AICREDITS_API_KEY:
+        try:
+            return _json_content(_aicredits_chat(payload))
+        except Exception as e:
+            errors.append(f"AICredits(DeepSeek): {e}")
 
     # Extract user prompt string if available
     user_prompt = ""
@@ -144,8 +151,7 @@ def chat_json(payload: dict, is_resume: bool = False, is_quiz: bool = False) -> 
         except Exception as e:
             errors.append(f"Gemini: {e}")
 
-
-    if AICREDITS_API_KEY:
+    if not is_eval and AICREDITS_API_KEY:
         try:
             return _json_content(_aicredits_chat(payload))
         except Exception as e:

@@ -341,8 +341,14 @@ def init_db():
         conn.execute("ALTER TABLE interview_session ADD COLUMN resources_json TEXT")
     if "detailed_parameters_json" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN detailed_parameters_json TEXT")
-
-
+    if "grammar_analysis_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN grammar_analysis_json TEXT")
+    if "filler_analysis_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN filler_analysis_json TEXT")
+    if "pronunciation_analysis_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN pronunciation_analysis_json TEXT")
+    if "communication_analysis_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN communication_analysis_json TEXT")
 
     # Fix foreign key constraint if interview_question references old 'interview' table
     q_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='interview_question'").fetchone()
@@ -364,6 +370,9 @@ def init_db():
                 technical_score REAL,
                 professionalism_score REAL,
                 parameters_json TEXT,
+                grammar_json TEXT,
+                filler_json TEXT,
+                pronunciation_json TEXT,
                 FOREIGN KEY (interview_id) REFERENCES interview_session(id) ON DELETE CASCADE
             );
         """)
@@ -393,6 +402,12 @@ def init_db():
         conn.execute("ALTER TABLE interview_question ADD COLUMN professionalism_score REAL")
     if "parameters_json" not in question_cols:
         conn.execute("ALTER TABLE interview_question ADD COLUMN parameters_json TEXT")
+    if "grammar_json" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN grammar_json TEXT")
+    if "filler_json" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN filler_json TEXT")
+    if "pronunciation_json" not in question_cols:
+        conn.execute("ALTER TABLE interview_question ADD COLUMN pronunciation_json TEXT")
 
     conn.commit()
     conn.close()

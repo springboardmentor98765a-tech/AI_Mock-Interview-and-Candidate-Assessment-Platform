@@ -2,10 +2,10 @@
 function candidateOverview() {
   var userName = state.user ? state.user.name.split(' ')[0] : 'Candidate';
   if (!state.analyticsData) {
-    api.getAnalyticsSummary().then(function(data) {
+    api.getAnalyticsSummary().then(function (data) {
       state.analyticsData = data;
       render();
-    }).catch(function() {});
+    }).catch(function () { });
   }
   var data = state.analyticsData || { sessions_completed: 0 };
   var hasData = data.sessions_completed > 0;
@@ -39,12 +39,12 @@ function candidateOverview() {
         </div>
         ${hasData ? `<div class="space-y-3 pt-2">
           ${[
-            { name: 'Communication Score (30%)', val: data.avg_communication || 0, col: INDIGO },
-            { name: 'Confidence Score (25%)', val: data.avg_confidence || 0, col: CYAN },
-            { name: 'Technical Relevance (30%)', val: data.avg_technical || 0, col: EMERALD },
-            { name: 'Professionalism (15%)', val: data.avg_professionalism || 0, col: AMBER },
-          ].map(function(d) {
-            return `<div>
+        { name: 'Communication Score (30%)', val: data.avg_communication || 0, col: INDIGO },
+        { name: 'Confidence Score (25%)', val: data.avg_confidence || 0, col: CYAN },
+        { name: 'Technical Relevance (30%)', val: data.avg_technical || 0, col: EMERALD },
+        { name: 'Professionalism (15%)', val: data.avg_professionalism || 0, col: AMBER },
+      ].map(function (d) {
+        return `<div>
               <div class="flex items-center justify-between text-xs mb-1">
                 <span class="text-white/80 font-medium">${d.name}</span>
                 <span class="text-white font-bold">${d.val.toFixed(1)}%</span>
@@ -53,27 +53,27 @@ function candidateOverview() {
                 <div class="h-full rounded-full" style="width:${Math.min(100, Math.max(0, d.val))}%;background:${d.col}"></div>
               </div>
             </div>`;
-          }).join('')}
+      }).join('')}
         </div>` : `<div class="flex flex-col items-center justify-center h-40 text-center"><p class="text-white/30 text-sm">Complete your first interview session to unlock assessment trends.</p></div>`}
       </div>
       <div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
         <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">Rubric Scale</p>
         <p class="text-white/35 text-xs mb-3">Evaluation grading rubric</p>
         <div class="space-y-2 text-xs">
-          ${rubricTiers.map(function(rub) {
-            var isCurrent = hasData && (activeRating === rub.label);
-            var styleAttr = isCurrent ? rub.activeBg : '';
-            var classAttr = isCurrent
-              ? 'p-2 rounded flex items-center justify-between font-bold text-white shadow-lg transition-all'
-              : 'p-2 rounded ' + rub.bg + ' border ' + rub.border + ' ' + rub.text + ' flex justify-between font-medium transition-all';
-            return `<div class="${classAttr}" style="${styleAttr}">
+          ${rubricTiers.map(function (rub) {
+        var isCurrent = hasData && (activeRating === rub.label);
+        var styleAttr = isCurrent ? rub.activeBg : '';
+        var classAttr = isCurrent
+          ? 'p-2 rounded flex items-center justify-between font-bold text-white shadow-lg transition-all'
+          : 'p-2 rounded ' + rub.bg + ' border ' + rub.border + ' ' + rub.text + ' flex justify-between font-medium transition-all';
+        return `<div class="${classAttr}" style="${styleAttr}">
               <span>${rub.range}</span>
               <span class="flex items-center gap-1.5">
                 ${isCurrent ? `<span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-extrabold bg-white/20 text-white">Current</span>` : ''}
                 ${rub.label}
               </span>
             </div>`;
-          }).join('')}
+      }).join('')}
         </div>
       </div>
     </div>
@@ -82,9 +82,9 @@ function candidateOverview() {
         <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Recent Evaluation Reports</p>
       </div>
       ${history.length ? `<div class="space-y-3">
-        ${history.slice(0, 3).map(function(h) {
-          var s = h.overall_score || h.total_score || 0;
-          return `<div class="flex items-center justify-between p-3.5 rounded-lg border border-white/6 bg-white/[0.01]">
+        ${history.slice(0, 3).map(function (h) {
+        var s = h.overall_score || h.total_score || 0;
+        return `<div class="flex items-center justify-between p-3.5 rounded-lg border border-white/6 bg-white/[0.01]">
             <div>
               <div class="flex items-center gap-2">
                 <span class="text-white font-semibold text-sm uppercase">${h.interview_type} Interview</span>
@@ -97,7 +97,7 @@ function candidateOverview() {
               <button class="btn-view-report text-xs px-3 py-1.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 font-semibold" data-id="${h.id}">View AI Report</button>
             </div>
           </div>`;
-        }).join('')}
+      }).join('')}
       </div>` : `<div class="flex flex-col items-center justify-center py-8 text-center"><p class="text-white/30 text-sm">No sessions yet. Start a mock interview to begin.</p></div>`}
     </div>
   </div>${modalHtml}`;
@@ -111,7 +111,7 @@ var INTERVIEW_TYPES = [
 ];
 
 function currentInterviewType() {
-  return INTERVIEW_TYPES.find(function(t) { return t.title === state.configRound; }) || INTERVIEW_TYPES[0];
+  return INTERVIEW_TYPES.find(function (t) { return t.title === state.configRound; }) || INTERVIEW_TYPES[0];
 }
 
 function candidateInterviews() {
@@ -216,9 +216,9 @@ function renderConfigModal(t) {
       <div class="mic-field">
         <label class="mic-label">Interview Round Type</label>
         <select id="config-round-select" class="mic-select">
-          ${INTERVIEW_TYPES.map(function(opt) {
-            return `<option value="${opt.title}" ${opt.title === state.configRound ? 'selected' : ''}>${opt.title}</option>`;
-          }).join('')}
+          ${INTERVIEW_TYPES.map(function (opt) {
+    return `<option value="${opt.title}" ${opt.title === state.configRound ? 'selected' : ''}>${opt.title}</option>`;
+  }).join('')}
         </select>
       </div>
 
@@ -235,9 +235,9 @@ function renderConfigModal(t) {
         <div class="mic-field">
           <label class="mic-label">Duration</label>
           <select id="config-duration-select" class="mic-select">
-            ${[10, 15, 20, 30].map(function(m) {
-              return `<option value="${m}" ${state.configTimeDuration === m ? 'selected' : ''}>${m} minutes</option>`;
-            }).join('')}
+            ${[10, 15, 20, 30].map(function (m) {
+    return `<option value="${m}" ${state.configTimeDuration === m ? 'selected' : ''}>${m} minutes</option>`;
+  }).join('')}
           </select>
         </div>
       </div>
@@ -256,10 +256,10 @@ function renderConfigModal(t) {
       <div class="mic-field">
         <label class="mic-label">Interview Focus</label>
         <div class="mic-chips">
-          ${focusOptions.map(function(f) {
-            var isActive = state.configFocus.indexOf(f) !== -1;
-            return `<button class="${chipClass(isActive, focusAccent)} config-focus-btn" data-focus="${f}">${isActive ? '✓ ' : ''}${f}</button>`;
-          }).join('')}
+          ${focusOptions.map(function (f) {
+    var isActive = state.configFocus.indexOf(f) !== -1;
+    return `<button class="${chipClass(isActive, focusAccent)} config-focus-btn" data-focus="${f}">${isActive ? '✓ ' : ''}${f}</button>`;
+  }).join('')}
         </div>
       </div>
 
@@ -267,10 +267,10 @@ function renderConfigModal(t) {
       <div class="mic-field">
         <label class="mic-label">Question Style</label>
         <div class="mic-chips">
-          ${QUESTION_STYLES.map(function(qs) {
-            var isActive = state.configQuestionStyle === qs;
-            return `<button class="${chipClass(isActive, 'cyan')} config-style-btn" data-style="${qs}">${qs}</button>`;
-          }).join('')}
+          ${QUESTION_STYLES.map(function (qs) {
+    var isActive = state.configQuestionStyle === qs;
+    return `<button class="${chipClass(isActive, 'cyan')} config-style-btn" data-style="${qs}">${qs}</button>`;
+  }).join('')}
         </div>
       </div>
 
@@ -278,10 +278,10 @@ function renderConfigModal(t) {
       <div class="mic-field">
         <label class="mic-label">AI Interviewer</label>
         <div class="mic-chips">
-          ${INTERVIEWER_STYLES.map(function(ist) {
-            var isActive = state.configInterviewerStyle === ist;
-            return `<button class="${chipClass(isActive, 'emerald')} config-interviewer-btn" data-interviewer="${ist}">${ist}</button>`;
-          }).join('')}
+          ${INTERVIEWER_STYLES.map(function (ist) {
+    var isActive = state.configInterviewerStyle === ist;
+    return `<button class="${chipClass(isActive, 'emerald')} config-interviewer-btn" data-interviewer="${ist}">${ist}</button>`;
+  }).join('')}
         </div>
       </div>
 
@@ -381,7 +381,7 @@ function candidateSession() {
 
   // Case 1: Session Completed
   if (status === 'completed') {
-    var answeredCount = session.questions.filter(function(q) { return q.answer_text; }).length;
+    var answeredCount = session.questions.filter(function (q) { return q.answer_text; }).length;
     var elMin = Math.floor(elapsed / 60);
     var elSec = elapsed % 60;
     var durText = elMin + ' min ' + elSec + ' sec';
@@ -913,7 +913,7 @@ function speakWithWebSpeech(text, callback) {
     try {
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
-    } catch(e) {}
+    } catch (e) { }
 
     var utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
@@ -926,7 +926,7 @@ function speakWithWebSpeech(text, callback) {
 
     try {
       window.speechSynthesis.speak(utterance);
-    } catch(e) {
+    } catch (e) {
       done();
     }
   } else {
@@ -962,12 +962,12 @@ async function speakCurrentQuestion() {
   try {
     var data = await api.speakInterviewQuestion(session.interview.id, question.id);
     if (state.interviewerAudio) {
-      try { state.interviewerAudio.pause(); } catch(e) {}
+      try { state.interviewerAudio.pause(); } catch (e) { }
     }
     var audio = new Audio('data:' + (data.mime_type || 'audio/wav') + ';base64,' + data.audio_base64);
     state.interviewerAudio = audio;
-    audio.onended = function() { clearTimeout(fallbackTimeout); onStartListening(); };
-    audio.onerror = function() {
+    audio.onended = function () { clearTimeout(fallbackTimeout); onStartListening(); };
+    audio.onerror = function () {
       clearTimeout(fallbackTimeout);
       speakWithWebSpeech(questionText, onStartListening);
     };
@@ -995,16 +995,16 @@ function startAutoRecording() {
     state.recordedChunks = [];
 
     var recorder;
-    try { recorder = new MediaRecorder(state.interviewStream); } catch(e) {
+    try { recorder = new MediaRecorder(state.interviewStream); } catch (e) {
       setSessionStatus('Recording not supported in this browser.', 'text-rose-400');
       return;
     }
     state.recordedMimeType = recorder.mimeType || 'audio/webm';
     state.mediaRecorder = recorder;
-    recorder.ondataavailable = function(e) { if (e.data && e.data.size > 0) state.recordedChunks.push(e.data); };
-    recorder.onstop = function() { onRecordingStop(); };
-    recorder.onerror = function(e) { setSessionStatus('Recording error.', 'text-rose-400'); };
-    try { recorder.start(); } catch(e) { setSessionStatus('Could not start recording.', 'text-rose-400'); return; }
+    recorder.ondataavailable = function (e) { if (e.data && e.data.size > 0) state.recordedChunks.push(e.data); };
+    recorder.onstop = function () { onRecordingStop(); };
+    recorder.onerror = function (e) { setSessionStatus('Recording error.', 'text-rose-400'); };
+    try { recorder.start(); } catch (e) { setSessionStatus('Could not start recording.', 'text-rose-400'); return; }
 
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
     ctx.resume();
@@ -1015,7 +1015,7 @@ function startAutoRecording() {
     src.connect(proc); proc.connect(gain); gain.connect(ctx.destination);
 
     var heard = false, silence = 0, started = Date.now();
-    proc.onaudioprocess = function(ev) {
+    proc.onaudioprocess = function (ev) {
       if (!state.currentInterview || !state.currentInterview.interview || state.currentInterview.interview.status !== 'in_progress' || state.isAiSpeaking) {
         stopAutoRecording();
         return;
@@ -1029,14 +1029,14 @@ function startAutoRecording() {
       if (Date.now() - started > 60000) stopAutoRecording();
     };
     state.audioMonitor = { ctx: ctx, src: src, proc: proc, gain: gain };
-    state.autoStopFallback = setTimeout(function() { stopAutoRecording(); }, 45000);
+    state.autoStopFallback = setTimeout(function () { stopAutoRecording(); }, 45000);
   }
 
   if (!state.interviewStream || !state.interviewStream.active) {
-    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function(stream) {
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
       state.interviewStream = stream;
       doStart();
-    }).catch(function() {
+    }).catch(function () {
       setSessionStatus('Could not access microphone.', 'text-rose-400');
     });
   } else {
@@ -1052,11 +1052,11 @@ function stopAutoRecording() {
       state.audioMonitor.src.disconnect();
       state.audioMonitor.gain.disconnect();
       state.audioMonitor.ctx.close();
-    } catch(e) {}
+    } catch (e) { }
     state.audioMonitor = null;
   }
   if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
-    try { state.mediaRecorder.stop(); } catch(e) {}
+    try { state.mediaRecorder.stop(); } catch (e) { }
   }
 }
 
@@ -1085,8 +1085,8 @@ async function onRecordingStop() {
         var res = await api.transcribeChunk(base64Clean, mimeType);
         transcript = (res.transcript || '').trim();
         break;
-      } catch(e) {
-        if (attempt < 2) { await new Promise(function(r) { setTimeout(r, 2000); }); } else throw e;
+      } catch (e) {
+        if (attempt < 2) { await new Promise(function (r) { setTimeout(r, 2000); }); } else throw e;
       }
     }
 
@@ -1114,11 +1114,11 @@ async function onRecordingStop() {
     if (box) {
       box.innerHTML = '<div class="text-white/90 text-sm leading-relaxed mb-3 font-medium">"' + transcript + '"</div>' +
         '<div class="mt-3 p-3 rounded-lg border border-indigo-500/25 bg-indigo-500/10">' +
-          '<div class="flex items-center justify-between mb-1.5">' +
-            '<span class="text-xs font-semibold text-indigo-300">AI Evaluation Score</span>' +
-            '<span class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-200">' + score + '%</span>' +
-          '</div>' +
-          '<p class="text-xs text-white/70 leading-relaxed">' + feedback + '</p>' +
+        '<div class="flex items-center justify-between mb-1.5">' +
+        '<span class="text-xs font-semibold text-indigo-300">AI Evaluation Score</span>' +
+        '<span class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-200">' + score + '%</span>' +
+        '</div>' +
+        '<p class="text-xs text-white/70 leading-relaxed">' + feedback + '</p>' +
         '</div>';
     }
 
@@ -1133,7 +1133,7 @@ async function convertToWav(blob) {
   var ctx = new (window.AudioContext || window.webkitAudioContext)();
   var arrayBuffer = await blob.arrayBuffer();
   var audioBuffer;
-  try { audioBuffer = await ctx.decodeAudioData(arrayBuffer); } catch(e) { ctx.close(); throw new Error('Could not decode audio.'); }
+  try { audioBuffer = await ctx.decodeAudioData(arrayBuffer); } catch (e) { ctx.close(); throw new Error('Could not decode audio.'); }
   var raw = audioBuffer.getChannelData(0);
   var targetRate = 16000;
   var ratio = audioBuffer.sampleRate / targetRate;
@@ -1164,7 +1164,7 @@ async function convertToWav(blob) {
 function nextQuestion() {
   stopAutoRecording();
   if (state.interviewerAudio) {
-    try { state.interviewerAudio.pause(); } catch(e) {}
+    try { state.interviewerAudio.pause(); } catch (e) { }
   }
   if (!state.currentInterview || !state.currentInterview.questions) return;
 
@@ -1182,9 +1182,9 @@ function nextQuestion() {
 }
 
 function blobToBase64(blob) {
-  return new Promise(function(resolve) {
+  return new Promise(function (resolve) {
     var reader = new FileReader();
-    reader.onloadend = function() { resolve(reader.result); };
+    reader.onloadend = function () { resolve(reader.result); };
     reader.readAsDataURL(blob);
   });
 }
@@ -1231,7 +1231,7 @@ async function startCandidateInterview(button) {
 
 function startSessionTimer() {
   stopSessionTimer();
-  state.sessionTimerInterval = setInterval(function() {
+  state.sessionTimerInterval = setInterval(function () {
     if (!state.currentInterview || !state.currentInterview.interview) {
       stopSessionTimer();
       return;
@@ -1258,7 +1258,7 @@ function startSessionTimer() {
       api.updateInterview(interview.id, {
         elapsed_seconds: state.sessionElapsedSeconds,
         current_question_index: state.currentQuestionIndex || 0
-      }).catch(function() {});
+      }).catch(function () { });
     }
 
     if (remainSec <= 0) {
@@ -1310,7 +1310,7 @@ function startSessionMediaRecorder() {
       state.sessionMediaRecorder.resume();
       state.sessionRecordingStatus = 'recording';
       render();
-    } catch(e) {
+    } catch (e) {
       console.warn('Could not resume session MediaRecorder:', e);
     }
     return;
@@ -1326,24 +1326,24 @@ function startSessionMediaRecorder() {
 
   try {
     state.sessionMediaRecorder = new MediaRecorder(state.interviewStream, options);
-  } catch(e1) {
+  } catch (e1) {
     try {
       state.sessionMediaRecorder = new MediaRecorder(state.interviewStream);
-    } catch(e2) {
+    } catch (e2) {
       state.sessionRecordingStatus = 'error';
       state.sessionRecordingError = 'Failed to init recorder';
       return;
     }
   }
 
-  state.sessionMediaRecorder.ondataavailable = function(evt) {
+  state.sessionMediaRecorder.ondataavailable = function (evt) {
     if (evt.data && evt.data.size > 0) {
       if (!state.sessionRecordingChunks) state.sessionRecordingChunks = [];
       state.sessionRecordingChunks.push(evt.data);
     }
   };
 
-  state.sessionMediaRecorder.onerror = function(evt) {
+  state.sessionMediaRecorder.onerror = function (evt) {
     console.error('Session MediaRecorder error:', evt);
     state.sessionRecordingStatus = 'error';
     state.sessionRecordingError = 'Recording error';
@@ -1354,7 +1354,7 @@ function startSessionMediaRecorder() {
     state.sessionMediaRecorder.start(1000);
     state.sessionRecordingStatus = 'recording';
     state.sessionRecordingError = '';
-  } catch(e) {
+  } catch (e) {
     state.sessionRecordingStatus = 'error';
     state.sessionRecordingError = 'Failed to start recorder';
   }
@@ -1365,7 +1365,7 @@ function pauseSessionMediaRecorder() {
     try {
       state.sessionMediaRecorder.pause();
       state.sessionRecordingStatus = 'paused';
-    } catch(e) {
+    } catch (e) {
       console.warn('Failed to pause session MediaRecorder:', e);
     }
   }
@@ -1385,15 +1385,15 @@ async function stopAndUploadSessionRecording(interviewId) {
     return null;
   }
 
-  return new Promise(function(resolve) {
-    state.sessionMediaRecorder.onstop = async function() {
+  return new Promise(function (resolve) {
+    state.sessionMediaRecorder.onstop = async function () {
       var res = await finalizeAndUploadBlob(interviewId);
       resolve(res);
     };
 
     try {
       state.sessionMediaRecorder.stop();
-    } catch(e) {
+    } catch (e) {
       state.sessionRecordingStatus = 'error';
       state.sessionRecordingError = 'Error stopping recorder';
       render();
@@ -1429,7 +1429,7 @@ async function finalizeAndUploadBlob(interviewId) {
     state.recordingsData = null;
     render();
     return res;
-  } catch(err) {
+  } catch (err) {
     console.error('Recording upload error:', err);
     state.sessionRecordingStatus = 'error';
     state.sessionRecordingError = err.message || 'Upload failed';
@@ -1450,7 +1450,7 @@ async function autoEndInterviewTimerExpired() {
     if (res && res.interview) state.currentInterview.interview = res.interview;
     else state.currentInterview.interview.status = 'completed';
     render();
-  } catch(e) {
+  } catch (e) {
     if (state.currentInterview && state.currentInterview.interview) {
       state.currentInterview.interview.status = 'completed';
     }
@@ -1461,7 +1461,7 @@ async function autoEndInterviewTimerExpired() {
 async function startInterviewSession() {
   if (!state.currentInterview || !state.currentInterview.interview) return;
   if ('speechSynthesis' in window) {
-    try { window.speechSynthesis.resume(); } catch(e) {}
+    try { window.speechSynthesis.resume(); } catch (e) { }
   }
   var id = state.currentInterview.interview.id;
   try {
@@ -1492,7 +1492,7 @@ async function pauseInterviewSession() {
     if (res && res.interview) state.currentInterview.interview = res.interview;
     else state.currentInterview.interview.status = 'paused';
     render();
-  } catch(err) {
+  } catch (err) {
     state.currentInterview.interview.status = 'paused';
     render();
   }
@@ -1510,7 +1510,7 @@ async function resumeInterviewSession() {
     render();
     startSessionTimer();
     speakCurrentQuestion();
-  } catch(err) {
+  } catch (err) {
     state.currentInterview.interview.status = 'in_progress';
     startSessionMediaRecorder();
     render();
@@ -1545,7 +1545,7 @@ async function confirmEndInterviewSession() {
     if (res && res.interview) state.currentInterview.interview = res.interview;
     else state.currentInterview.interview.status = 'completed';
     render();
-  } catch(err) {
+  } catch (err) {
     if (state.currentInterview && state.currentInterview.interview) {
       state.currentInterview.interview.status = 'completed';
     }
@@ -1658,14 +1658,14 @@ async function enableInterviewDevices() {
 }
 
 function stopInterviewDevices() {
-  if (state.audioMonitor) { try { state.audioMonitor.proc.disconnect(); state.audioMonitor.src.disconnect(); state.audioMonitor.ctx.close(); } catch(e) {} state.audioMonitor = null; }
-  if (state.mediaRecorder && state.mediaRecorder.state === 'recording') { try { state.mediaRecorder.stop(); } catch(e) {} }
+  if (state.audioMonitor) { try { state.audioMonitor.proc.disconnect(); state.audioMonitor.src.disconnect(); state.audioMonitor.ctx.close(); } catch (e) { } state.audioMonitor = null; }
+  if (state.mediaRecorder && state.mediaRecorder.state === 'recording') { try { state.mediaRecorder.stop(); } catch (e) { } }
   state.mediaRecorder = null;
   state.recordedChunks = [];
-  if (state.interviewerAudio) { try { state.interviewerAudio.pause(); } catch(e) {} state.interviewerAudio = null; }
+  if (state.interviewerAudio) { try { state.interviewerAudio.pause(); } catch (e) { } state.interviewerAudio = null; }
   if (state.interviewStream) {
-    state.interviewStream.getTracks().forEach(function(track) {
-      try { track.stop(); } catch(e) {}
+    state.interviewStream.getTracks().forEach(function (track) {
+      try { track.stop(); } catch (e) { }
     });
   }
   state.interviewStream = null;
@@ -1747,19 +1747,19 @@ function bindCandidateInterviewEvents() {
     state.resumeStatus = 'uploading';
     render();
 
-    setTimeout(function() {
+    setTimeout(function () {
       if (state.resumeStatus === 'uploading') {
         state.resumeStatus = 'analyzing';
         render();
       }
     }, 600);
 
-    api.uploadResume(file).then(function(res) {
+    api.uploadResume(file).then(function (res) {
       state.configResume = res.resume;
       state.resumeStatus = 'ready';
       state.resumeError = '';
       render();
-    }).catch(function(err) {
+    }).catch(function (err) {
       state.configResume = null;
       state.resumeStatus = 'error';
       state.resumeError = err.message || 'Please upload a PDF or DOCX file under 5MB.';
@@ -1768,18 +1768,18 @@ function bindCandidateInterviewEvents() {
   }
 
   if (dropzone) {
-    dropzone.addEventListener('click', function(e) {
+    dropzone.addEventListener('click', function (e) {
       if (e.target.tagName !== 'INPUT' && fileInput) fileInput.click();
     });
-    dropzone.addEventListener('dragover', function(e) {
+    dropzone.addEventListener('dragover', function (e) {
       e.preventDefault();
       dropzone.classList.add('mic-resume-zone-active');
     });
-    dropzone.addEventListener('dragleave', function(e) {
+    dropzone.addEventListener('dragleave', function (e) {
       e.preventDefault();
       dropzone.classList.remove('mic-resume-zone-active');
     });
-    dropzone.addEventListener('drop', function(e) {
+    dropzone.addEventListener('drop', function (e) {
       e.preventDefault();
       dropzone.classList.remove('mic-resume-zone-active');
       if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -1789,11 +1789,11 @@ function bindCandidateInterviewEvents() {
   }
 
   if (replaceBtn && fileInput) {
-    replaceBtn.addEventListener('click', function() { fileInput.click(); });
+    replaceBtn.addEventListener('click', function () { fileInput.click(); });
   }
 
   if (removeBtn) {
-    removeBtn.addEventListener('click', function() {
+    removeBtn.addEventListener('click', function () {
       state.configResume = null;
       state.resumeStatus = 'idle';
       state.resumeError = '';
@@ -1802,33 +1802,33 @@ function bindCandidateInterviewEvents() {
   }
 
   if (fileInput) {
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener('change', function () {
       if (this.files && this.files[0]) handleFileSelect(this.files[0]);
     });
   }
 
   var configRoundSelect = document.getElementById('config-round-select');
-  if (configRoundSelect) configRoundSelect.addEventListener('change', function() {
+  if (configRoundSelect) configRoundSelect.addEventListener('change', function () {
     state.configRound = this.value;
     state.configFocus = [];
     state.configError = '';
     render();
   });
-  document.querySelectorAll('.config-mode-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { state.configMode = this.dataset.mode; state.configError = ''; render(); });
+  document.querySelectorAll('.config-mode-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { state.configMode = this.dataset.mode; state.configError = ''; render(); });
   });
-  document.querySelectorAll('.config-qty-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { state.configNumQuestions = parseInt(this.dataset.qty); render(); });
+  document.querySelectorAll('.config-qty-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { state.configNumQuestions = parseInt(this.dataset.qty); render(); });
   });
-  document.querySelectorAll('.config-time-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { state.configTimeDuration = parseInt(this.dataset.time); state.configMode = 'time'; render(); });
+  document.querySelectorAll('.config-time-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { state.configTimeDuration = parseInt(this.dataset.time); state.configMode = 'time'; render(); });
   });
   var configDiffSelect = document.getElementById('config-diff-select');
-  if (configDiffSelect) configDiffSelect.addEventListener('change', function() { state.configDifficulty = this.value; state.configError = ''; render(); });
+  if (configDiffSelect) configDiffSelect.addEventListener('change', function () { state.configDifficulty = this.value; state.configError = ''; render(); });
   var configDurationSelect = document.getElementById('config-duration-select');
-  if (configDurationSelect) configDurationSelect.addEventListener('change', function() { state.configTimeDuration = parseInt(this.value); state.configMode = 'time'; render(); });
-  document.querySelectorAll('.config-focus-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  if (configDurationSelect) configDurationSelect.addEventListener('change', function () { state.configTimeDuration = parseInt(this.value); state.configMode = 'time'; render(); });
+  document.querySelectorAll('.config-focus-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       var f = this.dataset.focus;
       var i = state.configFocus.indexOf(f);
       if (i === -1) state.configFocus.push(f);
@@ -1836,14 +1836,14 @@ function bindCandidateInterviewEvents() {
       render();
     });
   });
-  document.querySelectorAll('.config-style-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { state.configQuestionStyle = this.dataset.style; render(); });
+  document.querySelectorAll('.config-style-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { state.configQuestionStyle = this.dataset.style; render(); });
   });
-  document.querySelectorAll('.config-interviewer-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { state.configInterviewerStyle = this.dataset.interviewer; render(); });
+  document.querySelectorAll('.config-interviewer-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { state.configInterviewerStyle = this.dataset.interviewer; render(); });
   });
   var configJobRole = document.getElementById('config-job-role');
-  if (configJobRole) configJobRole.addEventListener('input', function() {
+  if (configJobRole) configJobRole.addEventListener('input', function () {
     state.configJobRole = this.value;
     state.configError = '';
     var errEl = document.querySelector('.config-error-box');
@@ -1852,7 +1852,7 @@ function bindCandidateInterviewEvents() {
     if (summary) summary.textContent = (this.value || 'General');
   });
   var configStart = document.getElementById('config-start');
-  if (configStart) configStart.addEventListener('click', function() { startCandidateInterview(this); });
+  if (configStart) configStart.addEventListener('click', function () { startCandidateInterview(this); });
   var testDevices = document.getElementById('btn-test-devices');
   if (testDevices) testDevices.addEventListener('click', testCandidateDevices);
   var testRoomDevices = document.getElementById('btn-test-room-devices');
@@ -1861,10 +1861,10 @@ function bindCandidateInterviewEvents() {
   /* ── Lobby Media Controls & Diagnostic Events ── */
   var btnLobbyMic = document.getElementById('btn-toggle-lobby-mic');
   if (btnLobbyMic) {
-    btnLobbyMic.addEventListener('click', function() {
+    btnLobbyMic.addEventListener('click', function () {
       state.lobbyMicMuted = !state.lobbyMicMuted;
       if (state.interviewStream) {
-        state.interviewStream.getAudioTracks().forEach(function(t) {
+        state.interviewStream.getAudioTracks().forEach(function (t) {
           t.enabled = !state.lobbyMicMuted;
         });
       }
@@ -1874,10 +1874,10 @@ function bindCandidateInterviewEvents() {
 
   var btnLobbyCam = document.getElementById('btn-toggle-lobby-cam');
   if (btnLobbyCam) {
-    btnLobbyCam.addEventListener('click', function() {
+    btnLobbyCam.addEventListener('click', function () {
       state.lobbyCamMuted = !state.lobbyCamMuted;
       if (state.interviewStream) {
-        state.interviewStream.getVideoTracks().forEach(function(t) {
+        state.interviewStream.getVideoTracks().forEach(function (t) {
           t.enabled = !state.lobbyCamMuted;
         });
       }
@@ -1887,14 +1887,14 @@ function bindCandidateInterviewEvents() {
 
   var btnTestSpeaker = document.getElementById('btn-test-speaker');
   if (btnTestSpeaker) {
-    btnTestSpeaker.addEventListener('click', function() {
+    btnTestSpeaker.addEventListener('click', function () {
       try {
         var AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         var actx = new AudioCtx();
         var now = actx.currentTime;
         var tones = [523.25, 659.25, 783.99]; // C5, E5, G5 harmonic chord
-        tones.forEach(function(freq, i) {
+        tones.forEach(function (freq, i) {
           var osc = actx.createOscillator();
           var gain = actx.createGain();
           osc.type = 'sine';
@@ -1909,7 +1909,7 @@ function bindCandidateInterviewEvents() {
         });
         state.audioTestSuccess = true;
         render();
-        setTimeout(function() {
+        setTimeout(function () {
           state.audioTestSuccess = false;
           render();
         }, 2200);
@@ -1920,9 +1920,9 @@ function bindCandidateInterviewEvents() {
   }
 
   var backToInterviews = document.getElementById('btn-back-to-interviews');
-  if (backToInterviews) backToInterviews.addEventListener('click', function() { state.section = 'interviews'; render(); });
+  if (backToInterviews) backToInterviews.addEventListener('click', function () { state.section = 'interviews'; render(); });
   var endSession = document.getElementById('btn-end-session');
-  if (endSession) endSession.addEventListener('click', function() { stopInterviewDevices(); state.section = 'interviews'; render(); });
+  if (endSession) endSession.addEventListener('click', function () { stopInterviewDevices(); state.section = 'interviews'; render(); });
 
   var btnStartSession = document.getElementById('btn-start-interview-session');
   if (btnStartSession) btnStartSession.addEventListener('click', startInterviewSession);
@@ -1942,14 +1942,14 @@ function bindCandidateInterviewEvents() {
   /* ── Redesigned Room Controls ── */
   var btnListenQ = document.getElementById('btn-listen-question-loud');
   if (btnListenQ) {
-    btnListenQ.addEventListener('click', function() {
+    btnListenQ.addEventListener('click', function () {
       speakCurrentQuestion();
     });
   }
 
   var btnReplayFeedback = document.getElementById('btn-replay-feedback');
   if (btnReplayFeedback) {
-    btnReplayFeedback.addEventListener('click', function() {
+    btnReplayFeedback.addEventListener('click', function () {
       var q = state.currentInterview && state.currentInterview.questions && state.currentInterview.questions[state.currentQuestionIndex];
       if (q && q.feedback) {
         speakWithWebSpeech("Evaluation remark. " + q.feedback);
@@ -1959,10 +1959,10 @@ function bindCandidateInterviewEvents() {
 
   var btnToggleVoice = document.getElementById('btn-toggle-ai-voice');
   if (btnToggleVoice) {
-    btnToggleVoice.addEventListener('click', function() {
+    btnToggleVoice.addEventListener('click', function () {
       state.aiVoiceEnabled = !state.aiVoiceEnabled;
       if (!state.aiVoiceEnabled && state.interviewerAudio) {
-        try { state.interviewerAudio.pause(); } catch(e) {}
+        try { state.interviewerAudio.pause(); } catch (e) { }
       }
       render();
     });
@@ -1970,21 +1970,21 @@ function bindCandidateInterviewEvents() {
 
   var btnToggleFullscreen = document.getElementById('btn-toggle-fullscreen');
   if (btnToggleFullscreen) {
-    btnToggleFullscreen.addEventListener('click', function() {
+    btnToggleFullscreen.addEventListener('click', function () {
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(function() {});
+        document.documentElement.requestFullscreen().catch(function () { });
       } else {
-        if (document.exitFullscreen) document.exitFullscreen().catch(function() {});
+        if (document.exitFullscreen) document.exitFullscreen().catch(function () { });
       }
     });
   }
 
   var btnToggleRoomMic = document.getElementById('btn-toggle-room-mic');
   if (btnToggleRoomMic) {
-    btnToggleRoomMic.addEventListener('click', function() {
+    btnToggleRoomMic.addEventListener('click', function () {
       state.lobbyMicMuted = !state.lobbyMicMuted;
       if (state.interviewStream) {
-        state.interviewStream.getAudioTracks().forEach(function(t) {
+        state.interviewStream.getAudioTracks().forEach(function (t) {
           t.enabled = !state.lobbyMicMuted;
         });
       }
@@ -1994,10 +1994,10 @@ function bindCandidateInterviewEvents() {
 
   var btnToggleRoomCam = document.getElementById('btn-toggle-room-cam');
   if (btnToggleRoomCam) {
-    btnToggleRoomCam.addEventListener('click', function() {
+    btnToggleRoomCam.addEventListener('click', function () {
       state.lobbyCamMuted = !state.lobbyCamMuted;
       if (state.interviewStream) {
-        state.interviewStream.getVideoTracks().forEach(function(t) {
+        state.interviewStream.getVideoTracks().forEach(function (t) {
           t.enabled = !state.lobbyCamMuted;
         });
       }
@@ -2007,7 +2007,7 @@ function bindCandidateInterviewEvents() {
 
   var btnManualSubmit = document.getElementById('btn-submit-answer-manual');
   if (btnManualSubmit) {
-    btnManualSubmit.addEventListener('click', function() {
+    btnManualSubmit.addEventListener('click', function () {
       stopAutoRecording();
     });
   }
@@ -2020,7 +2020,7 @@ function bindCandidateInterviewEvents() {
 
   if (!window._reportDelegationBound) {
     window._reportDelegationBound = true;
-    document.addEventListener('click', async function(e) {
+    document.addEventListener('click', async function (e) {
       var btn = e.target.closest('.btn-view-report, #btn-view-interview-report, .history-report-btn');
       if (btn) {
         e.preventDefault();
@@ -2030,7 +2030,7 @@ function bindCandidateInterviewEvents() {
           var report = await api.getInterviewReport(id);
           state.activeReportModal = report;
           render();
-        } catch(err) {
+        } catch (err) {
           window.alert('Unable to load report: ' + (err.message || 'Report not found'));
         }
       }
@@ -2041,7 +2041,7 @@ function bindCandidateInterviewEvents() {
         var sessionId = playBtn.dataset.sessionId;
         var recId = playBtn.dataset.recId;
         var recordings = state.recordingsData || [];
-        var found = recordings.find(function(r) { return String(r.id) === String(recId) || String(r.session_id) === String(sessionId); });
+        var found = recordings.find(function (r) { return String(r.id) === String(recId) || String(r.session_id) === String(sessionId); });
         if (found) {
           state.activeVideoModal = found;
           render();
@@ -2054,14 +2054,14 @@ function bindCandidateInterviewEvents() {
         var delSessionId = deleteBtn.dataset.sessionId;
         var delRecId = deleteBtn.dataset.recId;
         if (window.confirm('Are you sure you want to delete this interview recording?')) {
-          api.deleteRecording(delRecId, delSessionId).then(function() {
+          api.deleteRecording(delRecId, delSessionId).then(function () {
             if (state.recordingsData) {
-              state.recordingsData = state.recordingsData.filter(function(r) {
+              state.recordingsData = state.recordingsData.filter(function (r) {
                 return String(r.id) !== String(delRecId);
               });
             }
             render();
-          }).catch(function(err) {
+          }).catch(function (err) {
             window.alert('Failed to delete recording: ' + (err.message || 'Error'));
           });
         }
@@ -2084,7 +2084,7 @@ function bindCandidateInterviewEvents() {
 
   if (!window._videoEscBound) {
     window._videoEscBound = true;
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && state.activeVideoModal) {
         state.activeVideoModal = null;
         render();
@@ -2093,20 +2093,20 @@ function bindCandidateInterviewEvents() {
   }
 
   var reportClose = document.getElementById('report-modal-close');
-  if (reportClose) reportClose.addEventListener('click', function() { state.activeReportModal = null; render(); });
+  if (reportClose) reportClose.addEventListener('click', function () { state.activeReportModal = null; render(); });
   var reportOverlay = document.getElementById('report-modal-overlay');
-  if (reportOverlay) reportOverlay.addEventListener('click', function(e) { if (e.target === reportOverlay) { state.activeReportModal = null; render(); } });
+  if (reportOverlay) reportOverlay.addEventListener('click', function (e) { if (e.target === reportOverlay) { state.activeReportModal = null; render(); } });
   var reportBack = document.getElementById('report-back');
-  if (reportBack) reportBack.addEventListener('click', function() { state.activeReportModal = null; render(); });
+  if (reportBack) reportBack.addEventListener('click', function () { state.activeReportModal = null; render(); });
 
   /* ── Report accordion ── */
-  document.querySelectorAll('.report-accordion').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.report-accordion').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       var body = document.querySelector(this.dataset.target);
       if (!body) return;
       var chev = this.querySelector('.report-chevron');
       var isHidden = body.classList.contains('hidden');
-      document.querySelectorAll('.report-accordion').forEach(function(other) {
+      document.querySelectorAll('.report-accordion').forEach(function (other) {
         if (other !== btn) {
           var otherBody = document.querySelector(other.dataset.target);
           if (otherBody) otherBody.classList.add('hidden');
@@ -2117,9 +2117,9 @@ function bindCandidateInterviewEvents() {
       if (isHidden) {
         body.classList.remove('hidden');
         if (chev) chev.style.transform = 'rotate(180deg)';
-        body.querySelectorAll('.report-progress').forEach(function(bar) {
+        body.querySelectorAll('.report-progress').forEach(function (bar) {
           var w = parseFloat(bar.dataset.w || '0');
-          window.requestAnimationFrame(function() { window.requestAnimationFrame(function() { bar.style.width = w + '%'; }); });
+          window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { bar.style.width = w + '%'; }); });
         });
       } else {
         body.classList.add('hidden');
@@ -2129,42 +2129,42 @@ function bindCandidateInterviewEvents() {
   });
 
   /* ── Report nav scroll ── */
-  document.querySelectorAll('.report-nav-link').forEach(function(link) {
-    link.addEventListener('click', function() {
+  document.querySelectorAll('.report-nav-link').forEach(function (link) {
+    link.addEventListener('click', function () {
       var target = document.querySelector(this.dataset.target);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 
   /* ── Animate report progress bars ── */
-  document.querySelectorAll('.report-progress').forEach(function(bar) {
+  document.querySelectorAll('.report-progress').forEach(function (bar) {
     var w = parseFloat(bar.dataset.w || '0');
-    window.requestAnimationFrame(function() {
-      window.requestAnimationFrame(function() { bar.style.width = w + '%'; });
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () { bar.style.width = w + '%'; });
     });
   });
 
   /* ── History toolbar bindings ── */
   var histSearch = document.getElementById('hist-search');
-  if (histSearch) histSearch.addEventListener('input', function() { state.historySearch = this.value; state.historyPage = 1; render(); });
+  if (histSearch) histSearch.addEventListener('input', function () { state.historySearch = this.value; state.historyPage = 1; render(); });
   var histType = document.getElementById('hist-type-filter');
-  if (histType) histType.addEventListener('change', function() { state.historyTypeFilter = this.value; state.historyPage = 1; render(); });
+  if (histType) histType.addEventListener('change', function () { state.historyTypeFilter = this.value; state.historyPage = 1; render(); });
   var histDate = document.getElementById('hist-date-filter');
-  if (histDate) histDate.addEventListener('change', function() { state.historyDateFilter = this.value; state.historyPage = 1; render(); });
+  if (histDate) histDate.addEventListener('change', function () { state.historyDateFilter = this.value; state.historyPage = 1; render(); });
   var histRating = document.getElementById('hist-rating-filter');
-  if (histRating) histRating.addEventListener('change', function() { state.historyRatingFilter = this.value; state.historyPage = 1; render(); });
+  if (histRating) histRating.addEventListener('change', function () { state.historyRatingFilter = this.value; state.historyPage = 1; render(); });
   var histSort = document.getElementById('hist-sort');
-  if (histSort) histSort.addEventListener('change', function() { state.historySort = this.value; state.historyPage = 1; render(); });
+  if (histSort) histSort.addEventListener('change', function () { state.historySort = this.value; state.historyPage = 1; render(); });
   var histPrev = document.getElementById('hist-prev');
-  if (histPrev) histPrev.addEventListener('click', function() { if (state.historyPage > 1) { state.historyPage--; render(); } });
+  if (histPrev) histPrev.addEventListener('click', function () { if (state.historyPage > 1) { state.historyPage--; render(); } });
   var histNext = document.getElementById('hist-next');
-  if (histNext) histNext.addEventListener('click', function() { state.historyPage++; render(); });
+  if (histNext) histNext.addEventListener('click', function () { state.historyPage++; render(); });
 
   /* ── Animate score bars ── */
-  document.querySelectorAll('.score-bar').forEach(function(bar) {
+  document.querySelectorAll('.score-bar').forEach(function (bar) {
     var target = parseFloat(bar.dataset.score || '0');
-    window.requestAnimationFrame(function() {
-      window.requestAnimationFrame(function() { bar.style.width = target + '%'; });
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () { bar.style.width = target + '%'; });
     });
   });
 
@@ -2172,8 +2172,8 @@ function bindCandidateInterviewEvents() {
   var trendCanvas = document.getElementById('chart-history-trend');
   if (trendCanvas && state.historyData && state.historyData.length >= 2) {
     var trendItems = state.historyData.slice(0, 6).slice().reverse();
-    var labels = trendItems.map(function(h) { return '#' + h.id; });
-    var vals = trendItems.map(function(h) { return h.overall_score || h.total_score || 0; });
+    var labels = trendItems.map(function (h) { return '#' + h.id; });
+    var vals = trendItems.map(function (h) { return h.overall_score || h.total_score || 0; });
     drawAreaChart('chart-history-trend', [
       { label: 'Score', data: vals, color: INDIGO },
     ], labels);
@@ -2182,12 +2182,12 @@ function bindCandidateInterviewEvents() {
   /* ── Camera Stream Binding & Lifecycle ── */
   if (state.section === 'session' && !state.interviewStream && !state.isRequestingDevices && !state.deviceRequestFailed) {
     state.isRequestingDevices = true;
-    enableInterviewDevices().then(function(stream) {
+    enableInterviewDevices().then(function (stream) {
       state.isRequestingDevices = false;
       var cam = document.getElementById('candidate-camera');
       if (cam && stream) cam.srcObject = stream;
       render();
-    }).catch(function() {
+    }).catch(function () {
       state.isRequestingDevices = false;
       state.deviceRequestFailed = true;
       render();
@@ -2244,10 +2244,10 @@ function renderReportModal(report) {
   var diff = report.difficulty ? report.difficulty.charAt(0).toUpperCase() + report.difficulty.slice(1) : 'General';
 
   /* ── Performance summary computations ── */
-  var paramEntries = Object.keys(params).filter(function(k) { return typeof params[k] === 'number'; })
-    .map(function(k) { return { key: k, val: params[k] }; });
-  var strongest = paramEntries.length ? paramEntries.reduce(function(a, b) { return a.val >= b.val ? a : b; }) : null;
-  var weakest = paramEntries.length ? paramEntries.reduce(function(a, b) { return a.val <= b.val ? a : b; }) : null;
+  var paramEntries = Object.keys(params).filter(function (k) { return typeof params[k] === 'number'; })
+    .map(function (k) { return { key: k, val: params[k] }; });
+  var strongest = paramEntries.length ? paramEntries.reduce(function (a, b) { return a.val >= b.val ? a : b; }) : null;
+  var weakest = paramEntries.length ? paramEntries.reduce(function (a, b) { return a.val <= b.val ? a : b; }) : null;
   function prettyParam(key) {
     var map = {
       speech_clarity: 'Speech Clarity', grammar_quality: 'Grammar Quality', filler_word_freq: 'Filler Word Control',
@@ -2262,11 +2262,12 @@ function renderReportModal(report) {
     return map[key] || key;
   }
 
-  var avgQScore = questions.length ? questions.reduce(function(s, q) { return s + (q.score || 0); }, 0) / questions.length : 0;
+  var avgQScore = questions.length ? questions.reduce(function (s, q) { return s + (q.score || 0); }, 0) / questions.length : 0;
 
   /* ── Section nav ── */
   var sections = [
     { id: 'report-overview', label: 'Overview' },
+    { id: 'report-speech-grammar', label: 'Communication & Grammar' },
     { id: 'report-performance', label: 'Performance' },
     { id: 'report-gaps', label: 'Strengths & Gaps' },
     { id: 'report-plan', label: 'Improvement Plan' },
@@ -2285,12 +2286,51 @@ function renderReportModal(report) {
     return group.name === 'Communication' ? comm : group.name === 'Confidence' ? conf : group.name === 'Technical' ? tech : prof;
   }
 
+  /* ── Module 5: Spoken Communication & Grammar Analytics ── */
+  var grammarAnalysis = report.grammar_analysis || (report.communication_analysis && report.communication_analysis.grammar_analysis) || {
+    grammar_score: params.grammar_quality !== undefined ? params.grammar_quality : comm,
+    issues_count: 0,
+    issues: [],
+    message: 'No major grammar issues detected.'
+  };
+  var gScore = grammarAnalysis.grammar_score !== undefined ? grammarAnalysis.grammar_score : (params.grammar_quality || comm);
+  var gIssues = grammarAnalysis.issues || [];
+
+  var fillerAnalysis = report.filler_analysis || (report.communication_analysis && report.communication_analysis.filler_analysis) || {
+    filler_score: params.filler_word_freq !== undefined ? params.filler_word_freq : 95,
+    filler_count: 0,
+    filler_words: [],
+    filler_status: 'Clear Fluency'
+  };
+  var fScore = fillerAnalysis.filler_score !== undefined ? fillerAnalysis.filler_score : (params.filler_word_freq || 95);
+  var fCount = fillerAnalysis.filler_count !== undefined ? fillerAnalysis.filler_count : (fillerAnalysis.filler_words ? fillerAnalysis.filler_words.length : 0);
+  var fWords = fillerAnalysis.filler_words || [];
+  var fStatus = fillerAnalysis.filler_status || (fCount === 0 ? 'Clear Fluency' : 'Moderate Fillers');
+
+  var pronunciationAnalysis = report.pronunciation_analysis || (report.communication_analysis && report.communication_analysis.pronunciation_analysis) || {
+    pronunciation_score: params.speech_clarity !== undefined ? params.speech_clarity : comm,
+    pronunciation_status: 'Crisp & Articulate',
+    pronunciation_notes: []
+  };
+  var pScore = pronunciationAnalysis.pronunciation_score !== undefined ? pronunciationAnalysis.pronunciation_score : (params.speech_clarity || comm);
+  var pStatus = pronunciationAnalysis.pronunciation_status || (pScore >= 85 ? 'Crisp & Articulate' : 'Good Enunciation');
+  var pNotes = pronunciationAnalysis.pronunciation_notes || [];
+
+  var paceAnalysis = (report.communication_analysis && report.communication_analysis.pace_analysis) || report.pace_analysis || {
+    speaking_pace_score: params.speaking_pace !== undefined ? params.speaking_pace : 85,
+    wpm: 140,
+    status: 'Optimal Cadence (130-160 WPM)'
+  };
+  var paceScore = paceAnalysis.speaking_pace_score !== undefined ? paceAnalysis.speaking_pace_score : (params.speaking_pace || 85);
+  var wpm = paceAnalysis.wpm || 140;
+  var paceStatus = paceAnalysis.status || 'Optimal Cadence (130-160 WPM)';
+
   return `<div id="report-modal-overlay" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto report-overlay" style="background:rgba(0,0,0,0.8);backdrop-filter:blur(6px)">
     <div class="w-full max-w-5xl my-6 lg:my-10 rounded-2xl border border-white/10 overflow-hidden report-modal-card" style="background:#0d0f1e">
 
       <!-- Sticky nav -->
       <div class="sticky top-0 z-20 px-6 py-3 border-b border-white/6 flex items-center gap-1 overflow-x-auto report-nav" style="background:#0d0f1e;backdrop-filter:blur(8px)">
-        ${sections.map(function(s) { return `<button class="report-nav-link whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white hover:bg-white/5 transition-colors" data-target="#${s.id}">${s.label}</button>`; }).join('')}
+        ${sections.map(function (s) { return `<button class="report-nav-link whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white hover:bg-white/5 transition-colors" data-target="#${s.id}">${s.label}</button>`; }).join('')}
         <div class="ml-auto shrink-0">
           <button id="report-modal-close" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors">&times;</button>
         </div>
@@ -2343,13 +2383,13 @@ function renderReportModal(report) {
           <!-- Category Score Cards Grid (2x2 Grid) -->
           <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             ${[
-              { label: 'Communication', val: comm, color: INDIGO, icon: icon('messageSquare', 15), w: '30%' },
-              { label: 'Confidence', val: conf, color: CYAN, icon: icon('activity', 15), w: '25%' },
-              { label: 'Technical Relevance', val: tech, color: EMERALD, icon: icon('cpu', 15), w: '30%' },
-              { label: 'Professionalism', val: prof, color: AMBER, icon: icon('briefcase', 15), w: '15%' },
-            ].map(function(m) {
-              var r = reportScoreRating(m.val);
-              return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between space-y-3" style="background:#0c0e1c">
+      { label: 'Communication', val: comm, color: INDIGO, icon: icon('messageSquare', 15), w: '30%' },
+      { label: 'Confidence', val: conf, color: CYAN, icon: icon('activity', 15), w: '25%' },
+      { label: 'Technical Relevance', val: tech, color: EMERALD, icon: icon('cpu', 15), w: '30%' },
+      { label: 'Professionalism', val: prof, color: AMBER, icon: icon('briefcase', 15), w: '15%' },
+    ].map(function (m) {
+      var r = reportScoreRating(m.val);
+      return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between space-y-3" style="background:#0c0e1c">
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-2">
                     <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${m.color}1a;color:${m.color};border:1px solid ${m.color}33">${m.icon}</span>
@@ -2365,26 +2405,257 @@ function renderReportModal(report) {
                   <div class="h-full rounded-full report-progress" data-w="${Math.min(100, Math.max(0, m.val))}" style="background:${m.color}"></div>
                 </div>
               </div>`;
-            }).join('')}
+    }).join('')}
           </div>
         </div>
 
-        <!-- 3. Performance Breakdown -->
+        <!-- 3. Module 5: Spoken Language & Grammar Intelligence Section -->
+        <div class="report-section" id="report-speech-grammar">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3)">${icon('messageSquare', 16)}</span>
+              <div>
+                <h3 class="text-base font-bold text-white" style="font-family:'Outfit',sans-serif">Spoken Language &amp; Grammar Intelligence</h3>
+                <p class="text-white/50 text-xs">Automated evaluation of grammatical accuracy, verbal fillers, pronunciation clarity, and speaking pace</p>
+              </div>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Module 5</span>
+          </div>
+
+          <!-- 4 Analytics Cards Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- A. GRAMMAR CARD -->
+            <div class="p-5 rounded-2xl border border-white/8 flex flex-col justify-between" style="background:#0c0e1c">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25)">${icon('checkCircle', 13)}</span>
+                    <div>
+                      <p class="text-white font-bold text-xs tracking-wider">GRAMMAR</p>
+                      <p class="text-white/40 text-[10px]">Grammar Score</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${gScore.toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${gIssues.length > 0 ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'}">
+                    ${gIssues.length > 0 ? (gIssues.length + ' issue' + (gIssues.length > 1 ? 's' : '') + ' detected') : 'No major grammar issues detected'}
+                  </span>
+                </div>
+
+                ${gIssues.length > 0 ? `
+                  <div class="space-y-3 mt-2 max-h-56 overflow-y-auto pr-1">
+                    ${gIssues.map(function(iss) {
+                      return `<div class="p-3 rounded-xl border border-white/6 space-y-1.5" style="background:rgba(255,255,255,0.02)">
+                        <div>
+                          <p class="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Original:</p>
+                          <p class="text-xs text-rose-200/90 font-mono mt-0.5">&ldquo;${iss.original}&rdquo;</p>
+                        </div>
+                        <div>
+                          <p class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Correction:</p>
+                          <p class="text-xs text-emerald-200/90 font-mono mt-0.5">&ldquo;${iss.correction}&rdquo;</p>
+                        </div>
+                        <div>
+                          <p class="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">Why:</p>
+                          <p class="text-xs text-white/70 mt-0.5 leading-relaxed">${iss.why}</p>
+                        </div>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                ` : `
+                  <div class="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300 leading-relaxed flex items-start gap-2">
+                    <span class="text-emerald-400 mt-0.5 shrink-0">${icon('checkCircle2', 13)}</span>
+                    <span>No major grammar issues detected. Strong grammatical consistency and syntax flow maintained.</span>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- B. FILLER WORDS CARD -->
+            <div class="p-5 rounded-2xl border border-white/8 flex flex-col justify-between" style="background:#0c0e1c">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25)">${icon('activity', 13)}</span>
+                    <div>
+                      <p class="text-white font-bold text-xs tracking-wider">FILLER WORDS</p>
+                      <p class="text-white/40 text-[10px]">Fluency Score</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${fScore.toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${fCount > 0 ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'}">
+                    ${fCount > 0 ? (fCount + ' detected • ' + fStatus) : '0 detected • Clear Fluency'}
+                  </span>
+                </div>
+
+                ${fWords.length > 0 ? `
+                  <div class="space-y-2 mt-2">
+                    <p class="text-[11px] text-white/50">Detected verbal pauses:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                      ${fWords.map(function(fw) {
+                        return `<span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/25">&ldquo;${fw.word}&rdquo; &times; ${fw.count}</span>`;
+                      }).join('')}
+                    </div>
+                    <p class="text-[11px] text-white/40 mt-1.5 leading-relaxed">Tip: Practice pausing silently instead of using verbal filler crutches.</p>
+                  </div>
+                ` : `
+                  <div class="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300 leading-relaxed flex items-start gap-2">
+                    <span class="text-emerald-400 mt-0.5 shrink-0">${icon('checkCircle2', 13)}</span>
+                    <span>Clear Fluency — no repetitive verbal fillers detected.</span>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- C. PRONUNCIATION CARD -->
+            <div class="p-5 rounded-2xl border border-white/8 flex flex-col justify-between" style="background:#0c0e1c">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9;border:1px solid rgba(6,182,212,0.25)">${icon('headphones', 13)}</span>
+                    <div>
+                      <p class="text-white font-bold text-xs tracking-wider">PRONUNCIATION</p>
+                      <p class="text-white/40 text-[10px]">Speech Clarity</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${pScore.toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+                    ${pStatus}
+                  </span>
+                </div>
+
+                ${pNotes.length > 0 ? `
+                  <div class="space-y-2 mt-2 max-h-56 overflow-y-auto pr-1">
+                    ${pNotes.map(function(pn) {
+                      return `<div class="p-2.5 rounded-xl border border-white/6 text-xs space-y-0.5" style="background:rgba(255,255,255,0.02)">
+                        <p class="font-semibold text-cyan-300">&ldquo;${pn.word}&rdquo;</p>
+                        <p class="text-white/70 leading-relaxed">${pn.tip}</p>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                ` : `
+                  <div class="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300 leading-relaxed flex items-start gap-2">
+                    <span class="text-emerald-400 mt-0.5 shrink-0">${icon('checkCircle2', 13)}</span>
+                    <span>Crisp, articulate enunciation across technical and conversational terminology.</span>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- D. SPEAKING PACE CARD -->
+            <div class="p-5 rounded-2xl border border-white/8 flex flex-col justify-between" style="background:#0c0e1c">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25)">${icon('clock', 13)}</span>
+                    <div>
+                      <p class="text-white font-bold text-xs tracking-wider">SPEAKING PACE</p>
+                      <p class="text-white/40 text-[10px]">Cadence &amp; Tempo</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">~${wpm} WPM</span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/25">
+                    ${paceStatus}
+                  </span>
+                </div>
+
+                <div class="mt-3 space-y-2">
+                  <div class="flex items-center justify-between text-[10px] text-white/50">
+                    <span>Slow (&lt;120)</span>
+                    <span class="text-emerald-400 font-semibold">Optimal (130-160)</span>
+                    <span>Fast (&gt;160)</span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-emerald-400 to-amber-500" style="width:100%"></div>
+                  </div>
+                  <p class="text-[11px] text-white/40 leading-relaxed pt-1">Real-time telemetry continuously computes WPM in the Live Interview Room Arena.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- E. Composite Communication Quality Assessment (30%) Card -->
+          <div class="rounded-2xl border border-indigo-500/30 p-5 mt-4 relative overflow-hidden" style="background:linear-gradient(180deg,rgba(99,102,241,0.08),rgba(12,14,28,0.95))">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-white/8">
+              <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(99,102,241,0.2);color:#a5b4fc;border:1px solid rgba(99,102,241,0.4)">${icon('messageSquare', 16)}</span>
+                <div>
+                  <h4 class="text-white font-bold text-sm" style="font-family:'Outfit',sans-serif">Communication Score (30%)</h4>
+                  <p class="text-white/50 text-xs">Measures verbal communication quality based on the 5 core parameters</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-2xl font-extrabold text-indigo-300" style="font-family:'Outfit',sans-serif">${comm.toFixed(1)}%</span>
+                <span class="block text-[10px] text-white/40 font-medium">30% Total Interview Weight</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              ${[
+                { label: 'Speech Clarity', val: params.speech_clarity !== undefined ? params.speech_clarity : pScore, w: '20%', desc: 'Pronunciation & enunciation' },
+                { label: 'Grammar Quality', val: params.grammar_quality !== undefined ? params.grammar_quality : gScore, w: '25%', desc: 'Grammatical correctness' },
+                { label: 'Filler-Word Frequency', val: params.filler_word_freq !== undefined ? params.filler_word_freq : fScore, w: '20%', desc: 'Fluency & verbal control' },
+                { label: 'Speaking Pace', val: params.speaking_pace !== undefined ? params.speaking_pace : paceScore, w: '15%', desc: 'Cadence & WPM tempo' },
+                { label: 'Response Completeness', val: params.response_completeness !== undefined ? params.response_completeness : comm, w: '20%', desc: 'Articulation depth' },
+              ].map(function(p) {
+                return `
+                  <div class="p-3 rounded-xl border border-white/6 bg-white/[0.02] flex flex-col justify-between space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-white/80 font-medium truncate">${p.label}</span>
+                      <span class="text-white/40 text-[10px]">[${p.w}]</span>
+                    </div>
+                    <div class="flex items-baseline justify-between">
+                      <span class="text-lg font-bold text-white">${p.val.toFixed(0)}%</span>
+                      <span class="text-[10px] font-semibold" style="${reportRatingStyle(reportScoreRating(p.val))}">${reportScoreRating(p.val)}</span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
+                      <div class="h-full rounded-full report-progress" data-w="${Math.min(100, Math.max(0, p.val))}" style="background:${INDIGO}"></div>
+                    </div>
+                    <p class="text-[10px] text-white/40 leading-tight">${p.desc}</p>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 4. Performance Breakdown -->
         <div class="report-section" id="report-performance">
           <h3 class="text-base font-semibold text-white mb-3" style="font-family:'Outfit',sans-serif">Performance Breakdown</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            ${dimGroups.map(function(g) {
-              var fallback = fallbackFor(g);
-              var items = g.keys.map(function(k) { return { name: prettyParam(k), val: params[k] !== undefined ? params[k] : fallback }; });
-              return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
+            ${dimGroups.map(function (g) {
+      var fallback = fallbackFor(g);
+      var items = g.keys.map(function (k) { return { name: prettyParam(k), val: params[k] !== undefined ? params[k] : fallback }; });
+      return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:${g.color}1f;color:${g.color}">${g.icon}</span>
                   <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">${g.name}</p>
                 </div>
                 <div class="space-y-2.5">
-                  ${items.map(function(it) {
-                    var pct = Math.min(100, Math.max(0, it.val));
-                    return `<div>
+                  ${items.map(function (it) {
+        var pct = Math.min(100, Math.max(0, it.val));
+        return `<div>
                       <div class="flex items-center justify-between text-xs mb-1">
                         <span class="text-white/60">${it.name}</span>
                         <span class="text-white font-semibold">${it.val.toFixed(0)}%</span>
@@ -2393,14 +2664,14 @@ function renderReportModal(report) {
                         <div class="h-full rounded-full report-progress" data-w="${pct}" style="background:${g.color}"></div>
                       </div>
                     </div>`;
-                  }).join('')}
+      }).join('')}
                 </div>
               </div>`;
-            }).join('')}
+    }).join('')}
           </div>
         </div>
 
-        <!-- 4. Quick Performance Summary -->
+        <!-- 5. Quick Performance Summary -->
         <div class="report-section rounded-2xl border border-white/8 p-5" style="background:#0c0e1c">
           <p class="text-white font-semibold text-sm mb-3" style="font-family:'Outfit',sans-serif">Performance Summary</p>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -2427,7 +2698,7 @@ function renderReportModal(report) {
           </div>
         </div>
 
-        <!-- 5. Strengths & Weaknesses -->
+        <!-- 6. Strengths & Weaknesses -->
         <div class="report-section grid grid-cols-1 md:grid-cols-2 gap-4" id="report-gaps">
           <div class="rounded-2xl border border-emerald-500/20 p-5" style="background:linear-gradient(180deg,rgba(16,185,129,0.06),transparent);background-color:#0c0e1c">
             <div class="flex items-center gap-2 mb-3">
@@ -2435,7 +2706,7 @@ function renderReportModal(report) {
               <p class="text-white text-xs font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Strengths</p>
             </div>
             <ul class="space-y-2">
-              ${strengths.length ? strengths.map(function(s) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-emerald-400 shrink-0">${icon('checkCircle', 13)}</span><span>${s}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Good engagement throughout the interview.</li>'}
+              ${strengths.length ? strengths.map(function (s) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-emerald-400 shrink-0">${icon('checkCircle', 13)}</span><span>${s}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Good engagement throughout the interview.</li>'}
             </ul>
           </div>
           <div class="rounded-2xl border border-amber-500/20 p-5" style="background:linear-gradient(180deg,rgba(245,158,11,0.05),transparent);background-color:#0c0e1c">
@@ -2444,12 +2715,12 @@ function renderReportModal(report) {
               <p class="text-white text-xs font-semibold uppercase tracking-wider" style="font-family:'Outfit',sans-serif">Weaknesses &amp; Gaps</p>
             </div>
             <ul class="space-y-2">
-              ${weaknesses.length ? weaknesses.map(function(w) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-amber-400 shrink-0">${icon('alertCircle', 13)}</span><span>${w}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Consider elaborating on specific technical metrics.</li>'}
+              ${weaknesses.length ? weaknesses.map(function (w) { return `<li class="flex items-start gap-2 text-xs text-white/80 leading-relaxed"><span class="mt-0.5 text-amber-400 shrink-0">${icon('alertCircle', 13)}</span><span>${w}</span></li>`; }).join('') : '<li class="text-xs text-white/50">Consider elaborating on specific technical metrics.</li>'}
             </ul>
           </div>
         </div>
 
-        <!-- 6. AI Improvement Plan -->
+        <!-- 7. AI Improvement Plan -->
         <div class="report-section" id="report-plan">
           <div class="flex items-center gap-2 mb-3">
             <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${icon('lightbulb', 15)}</span>
@@ -2459,48 +2730,48 @@ function renderReportModal(report) {
             <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">What to Improve</p>
               <div class="mt-3 space-y-3">
-                ${improvements.length ? improvements.slice(0, 4).map(function(imp, i) {
-                  return `<div class="flex items-start gap-2.5">
+                ${improvements.length ? improvements.slice(0, 4).map(function (imp, i) {
+      return `<div class="flex items-start gap-2.5">
                     <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${String(i + 1).padStart(2, '0')}</span>
                     <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
                   </div>`;
-                }).join('') : '<p class="text-xs text-white/50">Focus on structured responses.</p>'}
+    }).join('') : '<p class="text-xs text-white/50">Focus on structured responses.</p>'}
               </div>
             </div>
             <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">How to Improve</p>
               <div class="mt-3 space-y-3">
-                ${improvements.length > 4 ? improvements.slice(4).map(function(imp, i) {
-                  return `<div class="flex items-start gap-2.5">
+                ${improvements.length > 4 ? improvements.slice(4).map(function (imp, i) {
+      return `<div class="flex items-start gap-2.5">
                     <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9">${String(i + 5).padStart(2, '0')}</span>
                     <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
                   </div>`;
-                }).join('') : '<p class="text-xs text-white/50">Practice delivering complete, structured answers.</p>'}
+    }).join('') : '<p class="text-xs text-white/50">Practice delivering complete, structured answers.</p>'}
               </div>
             </div>
             <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">Practice Next</p>
               <div class="mt-3 space-y-3">
-                ${recommendations.length ? recommendations.map(function(rec, i) {
-                  return `<div class="flex items-start gap-2.5">
+                ${recommendations.length ? recommendations.map(function (rec, i) {
+      return `<div class="flex items-start gap-2.5">
                     <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(16,185,129,0.15);color:#34d399">${String(i + 1).padStart(2, '0')}</span>
                     <p class="text-xs text-white/80 leading-relaxed">${rec}</p>
                   </div>`;
-                }).join('') : '<p class="text-xs text-white/50">Take another mock interview to keep improving.</p>'}
+    }).join('') : '<p class="text-xs text-white/50">Take another mock interview to keep improving.</p>'}
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 7. Learning Resources -->
+        <!-- 8. Learning Resources -->
         ${resources.length ? `<div class="report-section" id="report-resources">
           <div class="flex items-center gap-2 mb-3">
             <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(6,182,212,0.15);color:#67e8f9">${icon('bookOpen', 15)}</span>
             <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">Recommended Learning Resources</h3>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            ${resources.map(function(res) {
-              return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between transition-colors hover:border-white/15" style="background:#0c0e1c">
+            ${resources.map(function (res) {
+      return `<div class="p-4 rounded-2xl border border-white/8 flex flex-col justify-between transition-colors hover:border-white/15" style="background:#0c0e1c">
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25)">${res.type || 'Resource'}</span>
@@ -2510,11 +2781,11 @@ function renderReportModal(report) {
                 </div>
                 ${res.link ? `<a href="${res.link}" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center gap-1 text-xs text-cyan-300 hover:text-cyan-200 font-medium transition-colors">Explore Resource ${icon('chevronRight', 12)}</a>` : ''}
               </div>`;
-            }).join('')}
+    }).join('')}
           </div>
         </div>` : ''}
 
-        <!-- 8. Question-by-Question Analysis -->
+        <!-- 9. Question-by-Question Analysis -->
         ${questions.length ? `<div class="report-section" id="report-questions">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div class="flex items-center gap-2">
@@ -2526,12 +2797,16 @@ function renderReportModal(report) {
             </div>
           </div>
           <div class="space-y-3">
-            ${questions.map(function(q, idx) {
-              var qScore = q.score || 0;
-              var qRating = reportScoreRating(qScore);
-              var cat = q.category || 'General';
-              var qColor = qScore >= 75 ? EMERALD : qScore >= 60 ? INDIGO : qScore >= 40 ? AMBER : ROSE;
-              return `<div class="rounded-2xl border border-white/8 overflow-hidden" style="background:#0c0e1c">
+            ${questions.map(function (q, idx) {
+      var qScore = q.score || 0;
+      var qRating = reportScoreRating(qScore);
+      var cat = q.category || 'General';
+      var qColor = qScore >= 75 ? EMERALD : qScore >= 60 ? INDIGO : qScore >= 40 ? AMBER : ROSE;
+      var qGrammar = q.grammar_analysis;
+      var qFiller = q.filler_analysis;
+      var qPronounce = q.pronunciation_analysis;
+
+      return `<div class="rounded-2xl border border-white/8 overflow-hidden" style="background:#0c0e1c">
                 <button class="report-accordion w-full flex items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]" data-target=".report-q-body-${idx}">
                   <div class="flex items-center gap-3 min-w-0">
                     <span class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0" style="background:${qColor}1f;color:${qColor}">${idx + 1}</span>
@@ -2557,6 +2832,42 @@ function renderReportModal(report) {
                     <p class="text-[11px] uppercase tracking-wider text-indigo-400 font-semibold mb-1.5">Your Response</p>
                     <div class="rounded-xl border-l-2 p-3 text-xs text-white/75 leading-relaxed" style="border-color:${INDIGO};background:rgba(99,102,241,0.05)">${q.answer_text || 'No response recorded.'}</div>
                   </div>
+
+                  <!-- Question Grammar Feedback if available -->
+                  ${(qGrammar && qGrammar.issues && qGrammar.issues.length > 0) ? `
+                    <div class="rounded-xl border border-amber-500/20 p-3 space-y-2" style="background:rgba(245,158,11,0.04)">
+                      <div class="flex items-center gap-1.5 text-amber-300 text-xs font-semibold">
+                        <span>${icon('alertCircle', 13)}</span>
+                        <span>Grammar Notice: ${qGrammar.issues.length} issue${qGrammar.issues.length > 1 ? 's' : ''} detected</span>
+                      </div>
+                      ${qGrammar.issues.map(function(iss) {
+                        return `<div class="text-xs space-y-1 pl-3 border-l-2 border-amber-500/40">
+                          <div><span class="text-[10px] uppercase font-bold text-rose-400">Original:</span> <span class="text-rose-200 font-mono">&ldquo;${iss.original}&rdquo;</span></div>
+                          <div><span class="text-[10px] uppercase font-bold text-emerald-400">Correction:</span> <span class="text-emerald-200 font-mono">&ldquo;${iss.correction}&rdquo;</span></div>
+                          <div><span class="text-[10px] uppercase font-bold text-indigo-300">Why:</span> <span class="text-white/70">${iss.why}</span></div>
+                        </div>`;
+                      }).join('')}
+                    </div>
+                  ` : ''}
+
+                  <!-- Question Filler Words if available -->
+                  ${(qFiller && qFiller.filler_count > 0) ? `
+                    <div class="rounded-xl border border-white/6 p-2.5 flex items-center justify-between text-xs" style="background:rgba(255,255,255,0.02)">
+                      <span class="text-amber-300 font-medium">${icon('activity', 12)} Filler Words: ${qFiller.filler_count} detected</span>
+                      <span class="text-white/60">${(qFiller.filler_words || []).map(function(w){ return '&ldquo;' + w.word + '&rdquo; &times; ' + w.count; }).join(', ')}</span>
+                    </div>
+                  ` : ''}
+
+                  <!-- Question Pronunciation / Articulation note if available -->
+                  ${(qPronounce && qPronounce.pronunciation_notes && qPronounce.pronunciation_notes.length > 0) ? `
+                    <div class="rounded-xl border border-cyan-500/20 p-2.5 text-xs space-y-1" style="background:rgba(6,182,212,0.04)">
+                      <p class="text-cyan-300 font-semibold">${icon('headphones', 12)} Pronunciation Guidance</p>
+                      ${qPronounce.pronunciation_notes.map(function(pn) {
+                        return `<p class="text-white/75">&ldquo;<strong class="text-cyan-200">${pn.word}</strong>&rdquo;: ${pn.tip}</p>`;
+                      }).join('')}
+                    </div>
+                  ` : ''}
+
                   <div>
                     <p class="text-[11px] uppercase tracking-wider text-emerald-400 font-semibold mb-1.5">AI Feedback</p>
                     <div class="rounded-xl border border-emerald-500/15 p-3 text-xs text-white/75 leading-relaxed" style="background:rgba(16,185,129,0.04)">${q.feedback || 'Answer evaluated.'}</div>
@@ -2570,7 +2881,7 @@ function renderReportModal(report) {
                   </div>
                 </div>
               </div>`;
-            }).join('')}
+    }).join('')}
           </div>
         </div>` : ''}
 
@@ -2617,10 +2928,10 @@ function renderScoreRing(score, rating) {
 
 function candidateAnalytics() {
   if (!state.analyticsData) {
-    api.getAnalyticsSummary().then(function(data) {
+    api.getAnalyticsSummary().then(function (data) {
       state.analyticsData = data;
       render();
-    }).catch(function() {});
+    }).catch(function () { });
   }
   var data = state.analyticsData || { sessions_completed: 0 };
   var hasData = data.sessions_completed > 0;
@@ -2653,12 +2964,12 @@ function candidateAnalytics() {
         <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Assessment Breakdown by Dimension</p>
         ${hasData ? `<div class="space-y-4 pt-2">
           ${[
-            { name: 'Communication Score (30%)', desc: 'Clarity, grammar, pace, filler words', val: comm, col: INDIGO },
-            { name: 'Confidence Score (25%)', desc: 'Eye contact, engagement, hesitation', val: conf, col: CYAN },
-            { name: 'Technical Relevance (30%)', desc: 'Accuracy, domain knowledge, keywords', val: tech, col: EMERALD },
-            { name: 'Professionalism (15%)', desc: 'Time management, organization, etiquette', val: prof, col: AMBER },
-          ].map(function(d) {
-            return `<div>
+        { name: 'Communication Score (30%)', desc: 'Clarity, grammar, pace, filler words', val: comm, col: INDIGO },
+        { name: 'Confidence Score (25%)', desc: 'Eye contact, engagement, hesitation', val: conf, col: CYAN },
+        { name: 'Technical Relevance (30%)', desc: 'Accuracy, domain knowledge, keywords', val: tech, col: EMERALD },
+        { name: 'Professionalism (15%)', desc: 'Time management, organization, etiquette', val: prof, col: AMBER },
+      ].map(function (d) {
+        return `<div>
               <div class="flex items-center justify-between text-xs mb-1">
                 <div><span class="text-white font-medium">${d.name}</span><p class="text-white/35 text-[10px]">${d.desc}</p></div>
                 <span class="text-white font-bold text-sm">${d.val.toFixed(1)}%</span>
@@ -2667,7 +2978,7 @@ function candidateAnalytics() {
                 <div class="h-full rounded-full" style="width:${Math.min(100, Math.max(0, d.val))}%;background:${d.col}"></div>
               </div>
             </div>`;
-          }).join('')}
+      }).join('')}
         </div>` : `<div class="flex flex-col items-center justify-center h-48 text-center"><p class="text-white/30 text-sm">Complete interviews to unlock assessment analytics.</p></div>`}
       </div>
 
@@ -2675,14 +2986,14 @@ function candidateAnalytics() {
         <p class="text-white font-semibold text-sm mb-4" style="font-family:'Outfit',sans-serif">Performance Rubric Distribution</p>
         <div class="space-y-3">
           ${[
-            { range: '90 - 100%', label: 'Excellent', color: '#10b981' },
-            { range: '75 - 89%', label: 'Good', color: '#818cf8' },
-            { range: '60 - 74%', label: 'Average', color: '#f59e0b' },
-            { range: '40 - 59%', label: 'Needs Improvement', color: '#f43f5e' },
-            { range: 'Below 40%', label: 'Poor', color: '#e11d48' },
-          ].map(function(rub) {
-            var isCurrent = data.performance_rating === rub.label;
-            return `<div class="flex items-center justify-between p-2.5 rounded-lg border border-white/5" style="${isCurrent ? 'background:rgba(255,255,255,0.05);border-color:' + rub.color + '60' : 'background:#141627'}">
+      { range: '90 - 100%', label: 'Excellent', color: '#10b981' },
+      { range: '75 - 89%', label: 'Good', color: '#818cf8' },
+      { range: '60 - 74%', label: 'Average', color: '#f59e0b' },
+      { range: '40 - 59%', label: 'Needs Improvement', color: '#f43f5e' },
+      { range: 'Below 40%', label: 'Poor', color: '#e11d48' },
+    ].map(function (rub) {
+      var isCurrent = data.performance_rating === rub.label;
+      return `<div class="flex items-center justify-between p-2.5 rounded-lg border border-white/5" style="${isCurrent ? 'background:rgba(255,255,255,0.05);border-color:' + rub.color + '60' : 'background:#141627'}">
               <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full" style="background:${rub.color}"></span>
                 <span class="text-xs text-white/80 font-medium">${rub.label}</span>
@@ -2690,7 +3001,7 @@ function candidateAnalytics() {
               </div>
               ${isCurrent ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background:${rub.color}25;color:${rub.color}">Current Rating</span>` : ''}
             </div>`;
-          }).join('')}
+    }).join('')}
         </div>
       </div>
     </div>
@@ -2723,18 +3034,18 @@ function candidateResume() {
 
 function candidateHistory() {
   if (!state.historyData) {
-    api.getInterviewHistory().then(function(res) {
+    api.getInterviewHistory().then(function (res) {
       state.historyData = res.history || [];
       render();
-    }).catch(function() {});
+    }).catch(function () { });
   }
   var history = state.historyData || [];
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
 
   /* ── Summary metrics ── */
   var total = history.length;
-  var scores = history.map(function(h) { return h.overall_score || h.total_score || 0; });
-  var avgScore = scores.length ? scores.reduce(function(a, b) { return a + b; }, 0) / scores.length : 0;
+  var scores = history.map(function (h) { return h.overall_score || h.total_score || 0; });
+  var avgScore = scores.length ? scores.reduce(function (a, b) { return a + b; }, 0) / scores.length : 0;
   var bestScore = scores.length ? Math.max.apply(null, scores) : 0;
   var trend = null;
   if (scores.length >= 2) {
@@ -2744,7 +3055,7 @@ function candidateHistory() {
 
   /* ── Apply search + filters ── */
   var q = (state.historySearch || '').toLowerCase();
-  var filtered = history.filter(function(h) {
+  var filtered = history.filter(function (h) {
     if (q) {
       var hay = ((h.interview_type || '') + ' ' + (h.domain || '') + ' #' + h.id).toLowerCase();
       if (hay.indexOf(q) === -1) return false;
@@ -2771,8 +3082,8 @@ function candidateHistory() {
 
   /* ── Sort ── */
   if (state.historySort === 'oldest') filtered = filtered.slice().reverse();
-  else if (state.historySort === 'high') filtered = filtered.slice().sort(function(a, b) { return (b.overall_score || b.total_score || 0) - (a.overall_score || a.total_score || 0); });
-  else if (state.historySort === 'low') filtered = filtered.slice().sort(function(a, b) { return (a.overall_score || a.total_score || 0) - (b.overall_score || b.total_score || 0); });
+  else if (state.historySort === 'high') filtered = filtered.slice().sort(function (a, b) { return (b.overall_score || b.total_score || 0) - (a.overall_score || a.total_score || 0); });
+  else if (state.historySort === 'low') filtered = filtered.slice().sort(function (a, b) { return (a.overall_score || a.total_score || 0) - (b.overall_score || b.total_score || 0); });
 
   /* ── Pagination ── */
   var perPage = state.historyPerPage;
@@ -2782,9 +3093,9 @@ function candidateHistory() {
 
   /* ── Performance overview stats ── */
   function avgOf(type) {
-    var arr = history.filter(function(h) { return (h.interview_type || '').toLowerCase() === type; })
-      .map(function(h) { return h.overall_score || h.total_score || 0; });
-    return arr.length ? arr.reduce(function(a, b) { return a + b; }, 0) / arr.length : null;
+    var arr = history.filter(function (h) { return (h.interview_type || '').toLowerCase() === type; })
+      .map(function (h) { return h.overall_score || h.total_score || 0; });
+    return arr.length ? arr.reduce(function (a, b) { return a + b; }, 0) / arr.length : null;
   }
   var techAvg = avgOf('technical');
   var behAvg = avgOf('behavioral');
@@ -2808,14 +3119,14 @@ function candidateHistory() {
     { v: '30', l: 'Last 30 Days' }, { v: '90', l: 'Last 90 Days' }, { v: '365', l: 'This Year' },
   ];
   function selOptions(opts, current) {
-    return opts.map(function(o) {
+    return opts.map(function (o) {
       return `<option value="${o.v}" ${o.v === current ? 'selected' : ''}>${o.l}</option>`;
     }).join('');
   }
 
   /* ── Trend chart data (last 6 interviews) ── */
-  var trendData = history.slice(0, 6).map(function(h) { return h.overall_score || h.total_score || 0; });
-  var trendLabels = history.slice(0, 6).map(function(_, i) { return '#' + (history.length - i); });
+  var trendData = history.slice(0, 6).map(function (h) { return h.overall_score || h.total_score || 0; });
+  var trendLabels = history.slice(0, 6).map(function (_, i) { return '#' + (history.length - i); });
   var chartHtml = '';
   if (trendData.length >= 2) {
     chartHtml = `<div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
@@ -2891,15 +3202,15 @@ function candidateHistory() {
         <th class="px-5 py-4 text-left text-white/35 font-medium text-xs uppercase tracking-wider">Score</th>
         <th class="px-5 py-4 text-right text-white/35 font-medium text-xs uppercase tracking-wider">Report</th>
       </tr></thead><tbody>
-      ${pageItems.length ? pageItems.map(function(i) {
-        var score = i.overall_score || i.total_score || 0;
-        var rating = i.performance_rating || '';
-        var dateStr = i.completed_at || i.created_at || '';
-        var dateLine = formatDate(dateStr);
-        var timeLine = formatTime(dateStr);
-        var typeLower = (i.interview_type || '').toLowerCase();
-        var typePill = badge(i.interview_type || 'General', typeLower === 'technical' ? 'indigo' : typeLower === 'behavioral' ? 'emerald' : typeLower === 'hr' ? 'cyan' : 'amber');
-        return `<tr class="border-b border-white/4 history-row transition-colors">
+      ${pageItems.length ? pageItems.map(function (i) {
+    var score = i.overall_score || i.total_score || 0;
+    var rating = i.performance_rating || '';
+    var dateStr = i.completed_at || i.created_at || '';
+    var dateLine = formatDate(dateStr);
+    var timeLine = formatTime(dateStr);
+    var typeLower = (i.interview_type || '').toLowerCase();
+    var typePill = badge(i.interview_type || 'General', typeLower === 'technical' ? 'indigo' : typeLower === 'behavioral' ? 'emerald' : typeLower === 'hr' ? 'cyan' : 'amber');
+    return `<tr class="border-b border-white/4 history-row transition-colors">
           <td class="px-5 py-4">
             <div class="flex items-center gap-3">
               <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style="background:rgba(99,102,241,0.12);color:#818cf8;border:1px solid rgba(99,102,241,0.25)">#${i.id}</div>
@@ -2932,7 +3243,7 @@ function candidateHistory() {
             <button class="btn-view-report history-report-btn" data-id="${i.id}">View Report ${icon('chevronRight', 12)}</button>
           </td>
         </tr>`;
-      }).join('') : `<tr><td colspan="7" class="px-5 py-16 text-center">
+  }).join('') : `<tr><td colspan="7" class="px-5 py-16 text-center">
         <div class="flex flex-col items-center gap-3">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white/20" style="background:#141627">${icon('fileText', 22)}</div>
           <p class="text-white/50 text-sm">${history.length ? 'No interviews match your filters.' : 'No interview history yet. Start a mock interview to begin tracking.'}</p>
@@ -2959,18 +3270,18 @@ function candidateHistory() {
         <p class="text-white font-semibold text-sm mb-4" style="font-family:'Outfit',sans-serif">Performance Overview</p>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
           ${[
-            { l: 'Average Score', v: avgScore ? avgScore.toFixed(1) + '%' : '—', c: INDIGO },
-            { l: 'Technical Avg', v: techAvg !== null ? techAvg.toFixed(1) + '%' : '—', c: INDIGO },
-            { l: 'Behavioral Avg', v: behAvg !== null ? behAvg.toFixed(1) + '%' : '—', c: EMERALD },
-            { l: 'HR Avg', v: hrAvg !== null ? hrAvg.toFixed(1) + '%' : '—', c: CYAN },
-            { l: 'Latest Score', v: latestScore !== null ? latestScore.toFixed(1) + '%' : '—', c: AMBER },
-            { l: 'Improvement', v: trend !== null ? trend + ' pts' : '—', c: trend !== null && trend.startsWith('+') ? EMERALD : ROSE },
-          ].map(function(card) {
-            return `<div class="p-3 rounded-lg border border-white/6" style="background:#141627">
+      { l: 'Average Score', v: avgScore ? avgScore.toFixed(1) + '%' : '—', c: INDIGO },
+      { l: 'Technical Avg', v: techAvg !== null ? techAvg.toFixed(1) + '%' : '—', c: INDIGO },
+      { l: 'Behavioral Avg', v: behAvg !== null ? behAvg.toFixed(1) + '%' : '—', c: EMERALD },
+      { l: 'HR Avg', v: hrAvg !== null ? hrAvg.toFixed(1) + '%' : '—', c: CYAN },
+      { l: 'Latest Score', v: latestScore !== null ? latestScore.toFixed(1) + '%' : '—', c: AMBER },
+      { l: 'Improvement', v: trend !== null ? trend + ' pts' : '—', c: trend !== null && trend.startsWith('+') ? EMERALD : ROSE },
+    ].map(function (card) {
+      return `<div class="p-3 rounded-lg border border-white/6" style="background:#141627">
               <p class="text-white/40 text-xs">${card.l}</p>
               <p class="text-white font-bold text-base mt-1" style="color:${card.c}">${card.v}</p>
             </div>`;
-          }).join('')}
+    }).join('')}
         </div>
       </div>
     </div>
@@ -2979,10 +3290,10 @@ function candidateHistory() {
 
 function candidateReports() {
   if (!state.reportsData) {
-    api.getInterviewHistory().then(function(res) {
+    api.getInterviewHistory().then(function (res) {
       state.reportsData = res.history || [];
       render();
-    }).catch(function() {});
+    }).catch(function () { });
   }
   var reports = state.reportsData || [];
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
@@ -2993,9 +3304,9 @@ function candidateReports() {
       <p class="text-white/40 text-sm mt-1">Detailed AI feedback reports, strengths, and practice recommendations.</p>
     </div>
     ${reports.length ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      ${reports.map(function(r) {
-        var score = r.overall_score || r.total_score || 0;
-        return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+      ${reports.map(function (r) {
+    var score = r.overall_score || r.total_score || 0;
+    return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-2 mb-1">
@@ -3016,7 +3327,7 @@ function candidateReports() {
           </div>
           <button class="btn-view-report w-full py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-xs font-semibold transition-colors" data-id="${r.id}">View Detailed AI Evaluation Report</button>
         </div>`;
-      }).join('')}
+  }).join('')}
     </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center">
       <p class="text-white/30 text-sm">No reports available yet. Complete interviews to generate reports.</p>
     </div>`}
@@ -3026,11 +3337,11 @@ function candidateReports() {
 function candidateRecordings() {
   if ((state.recordingsData === null || state.recordingsData === undefined) && !state._fetchingRecordings) {
     state._fetchingRecordings = true;
-    api.getAllRecordings().then(function(res) {
+    api.getAllRecordings().then(function (res) {
       state._fetchingRecordings = false;
       state.recordingsData = res.recordings || [];
       render();
-    }).catch(function() {
+    }).catch(function () {
       state._fetchingRecordings = false;
       state.recordingsData = [];
       render();
@@ -3059,15 +3370,15 @@ function candidateRecordings() {
     </div>
 
     ${recordings.length ? `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      ${recordings.map(function(rec) {
-        var durSec = rec.duration || 0;
-        var durStr = durSec > 0 ? (Math.floor(durSec / 60) + ':' + String(durSec % 60).padStart(2, '0')) : 'HD';
-        var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(2) + ' MB' : '0.67 MB';
-        var title = (rec.interview_type || 'Technical') + ' Interview';
-        var domain = rec.domain || 'Software Engineering';
-        var dateFormatted = rec.created_at ? formatDateTime(rec.created_at) : 'Recent';
+      ${recordings.map(function (rec) {
+    var durSec = rec.duration || 0;
+    var durStr = durSec > 0 ? (Math.floor(durSec / 60) + ':' + String(durSec % 60).padStart(2, '0')) : 'HD';
+    var sizeMb = rec.file_size_bytes ? (rec.file_size_bytes / (1024 * 1024)).toFixed(2) + ' MB' : '0.67 MB';
+    var title = (rec.interview_type || 'Technical') + ' Interview';
+    var domain = rec.domain || 'Software Engineering';
+    var dateFormatted = rec.created_at ? formatDateTime(rec.created_at) : 'Recent';
 
-        return `<div class="sh-recording-card group">
+    return `<div class="sh-recording-card group">
           <!-- Dark Video Thumbnail Top Area -->
           <div class="sh-recording-thumb btn-play-video" data-session-id="${rec.session_id}" data-rec-id="${rec.id}">
             <div class="sh-play-trigger">
@@ -3120,7 +3431,7 @@ function candidateRecordings() {
             </button>
           </div>
         </div>`;
-      }).join('')}
+  }).join('')}
     </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-white/7 p-8" style="background:#0d0f1e">
       <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 mb-3">${icon('film', 28)}</div>
       <h3 class="text-white font-semibold text-base mb-1">No Recordings Available Yet</h3>
@@ -3243,10 +3554,10 @@ function candidateAssessment() {
             <span style="font-size:0.65rem;color:#818cf8;font-weight:600">${topics.length} selected</span>
           </div>
           <div class="mic-chips">
-            ${ALL_ASSESSMENT_TOPICS.map(function(t) {
-              var isSelected = topics.includes(t);
-              return `<button class="mic-chip ${isSelected ? 'active' : ''} btn-topic-chip" data-topic="${t}">${isSelected ? '✓ ' : ''}${t}</button>`;
-            }).join('')}
+            ${ALL_ASSESSMENT_TOPICS.map(function (t) {
+    var isSelected = topics.includes(t);
+    return `<button class="mic-chip ${isSelected ? 'active' : ''} btn-topic-chip" data-topic="${t}">${isSelected ? '✓ ' : ''}${t}</button>`;
+  }).join('')}
           </div>
         </div>
 
@@ -3283,10 +3594,10 @@ function candidateAssessment() {
             </div>
           </div>
           <div class="mic-chips">
-            ${[5, 10, 15, 20, 30].map(function(m) {
-              var isSel = (state.assessmentTimeLimit === m);
-              return `<button class="mic-chip ${isSel ? 'active' : ''} btn-assessment-time" data-time="${m}">${m} min</button>`;
-            }).join('')}
+            ${[5, 10, 15, 20, 30].map(function (m) {
+    var isSel = (state.assessmentTimeLimit === m);
+    return `<button class="mic-chip ${isSel ? 'active' : ''} btn-assessment-time" data-time="${m}">${m} min</button>`;
+  }).join('')}
           </div>
         </div>
 
@@ -3456,14 +3767,14 @@ function candidateAssessmentSession() {
           </h3>
 
           <div class="space-y-3 pt-2">
-            ${(q.options || []).map(function(opt, oIdx) {
-              var isSelected = (currentSelectedAnswer === opt);
-              var letter = String.fromCharCode(65 + oIdx);
-              return `<button class="btn-mcq-option w-full p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${isSelected ? 'bg-indigo-500/20 border-indigo-500/60 text-white shadow-md shadow-indigo-500/10' : 'bg-white/[0.01] border-white/10 text-white/70 hover:bg-white/[0.03] hover:border-white/20'}" data-option="${opt.replace(/"/g, '&quot;')}">
+            ${(q.options || []).map(function (opt, oIdx) {
+    var isSelected = (currentSelectedAnswer === opt);
+    var letter = String.fromCharCode(65 + oIdx);
+    return `<button class="btn-mcq-option w-full p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${isSelected ? 'bg-indigo-500/20 border-indigo-500/60 text-white shadow-md shadow-indigo-500/10' : 'bg-white/[0.01] border-white/10 text-white/70 hover:bg-white/[0.03] hover:border-white/20'}" data-option="${opt.replace(/"/g, '&quot;')}">
                 <span class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/10 text-white/60'}">${letter}</span>
                 <span class="text-sm font-medium pt-0.5 leading-normal">${opt}</span>
               </button>`;
-            }).join('')}
+  }).join('')}
           </div>
         </div>
 
@@ -3589,10 +3900,10 @@ function candidateAssessmentResult() {
       <div class="lg:col-span-2 rounded-xl border border-white/7 p-6 space-y-4" style="background:#0d0f1e">
         <h3 class="text-white font-semibold text-base" style="font-family:'Outfit',sans-serif">Topic Performance Breakdown</h3>
         <div class="space-y-3">
-          ${Object.keys(topicPerf).length ? Object.keys(topicPerf).map(function(t) {
-            var item = topicPerf[t];
-            var p = item.percentage || 0;
-            return `<div>
+          ${Object.keys(topicPerf).length ? Object.keys(topicPerf).map(function (t) {
+    var item = topicPerf[t];
+    var p = item.percentage || 0;
+    return `<div>
               <div class="flex items-center justify-between text-xs mb-1">
                 <span class="text-white/80 font-medium">${t}</span>
                 <span class="text-white font-bold">${item.correct}/${item.total} (${p.toFixed(0)}%)</span>
@@ -3601,7 +3912,7 @@ function candidateAssessmentResult() {
                 <div class="h-full rounded-full transition-all" style="width:${p}%;background:${p >= 75 ? EMERALD : p >= 50 ? AMBER : ROSE}"></div>
               </div>
             </div>`;
-          }).join('') : '<p class="text-white/40 text-xs">No topic statistics available.</p>'}
+  }).join('') : '<p class="text-white/40 text-xs">No topic statistics available.</p>'}
         </div>
       </div>
 
@@ -3644,9 +3955,9 @@ function candidateAssessmentResult() {
         <div class="space-y-2">
           <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">STRENGTHS</h4>
           <ul class="space-y-1.5 text-xs text-white/70">
-            ${(fb.strengths || ["Strong performance across core concepts."]).map(function(s) {
-              return `<li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&bull;</span><span>${s}</span></li>`;
-            }).join('')}
+            ${(fb.strengths || ["Strong performance across core concepts."]).map(function (s) {
+    return `<li class="flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&bull;</span><span>${s}</span></li>`;
+  }).join('')}
           </ul>
         </div>
 
@@ -3654,9 +3965,9 @@ function candidateAssessmentResult() {
         <div class="space-y-2">
           <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">AREAS TO IMPROVE</h4>
           <ul class="space-y-1.5 text-xs text-white/70">
-            ${(fb.areas_to_improve || ["Review missed questions in the detailed review below."]).map(function(a) {
-              return `<li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5">&bull;</span><span>${a}</span></li>`;
-            }).join('')}
+            ${(fb.areas_to_improve || ["Review missed questions in the detailed review below."]).map(function (a) {
+    return `<li class="flex items-start gap-2"><span class="text-amber-400 mt-0.5">&bull;</span><span>${a}</span></li>`;
+  }).join('')}
           </ul>
         </div>
       </div>
@@ -3670,9 +3981,9 @@ function candidateAssessmentResult() {
         <div>
           <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider">PERSONALIZED PREPARATION SUGGESTIONS</h4>
           <ul class="space-y-1.5 text-xs text-white/70 mt-1">
-            ${(fb.personalized_suggestions || ["Focus on time management during multi-step problems."]).map(function(ps) {
-              return `<li class="flex items-start gap-2"><span class="text-cyan-400 mt-0.5">&bull;</span><span>${ps}</span></li>`;
-            }).join('')}
+            ${(fb.personalized_suggestions || ["Focus on time management during multi-step problems."]).map(function (ps) {
+    return `<li class="flex items-start gap-2"><span class="text-cyan-400 mt-0.5">&bull;</span><span>${ps}</span></li>`;
+  }).join('')}
           </ul>
         </div>
       </div>
@@ -3684,11 +3995,11 @@ function candidateAssessmentResult() {
       <p class="text-white/40 text-xs">Detailed evaluation key for all ${questions.length} questions.</p>
 
       <div class="space-y-4 pt-2">
-        ${questions.map(function(q, qIdx) {
-          var isCorr = q.is_correct;
-          var candAns = q.candidate_answer || 'Unanswered';
-          var corrAns = q.correct_answer || 'N/A';
-          return `<div class="p-4 rounded-xl border ${isCorr ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : candAns === 'Unanswered' ? 'border-white/10 bg-white/[0.01]' : 'border-rose-500/30 bg-rose-500/[0.02]'} space-y-3">
+        ${questions.map(function (q, qIdx) {
+    var isCorr = q.is_correct;
+    var candAns = q.candidate_answer || 'Unanswered';
+    var corrAns = q.correct_answer || 'N/A';
+    return `<div class="p-4 rounded-xl border ${isCorr ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : candAns === 'Unanswered' ? 'border-white/10 bg-white/[0.01]' : 'border-rose-500/30 bg-rose-500/[0.02]'} space-y-3">
             <div class="flex items-start justify-between">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
@@ -3719,7 +4030,7 @@ function candidateAssessmentResult() {
               ${q.explanation || 'Option evaluated based on standard technical principles.'}
             </div>
           </div>`;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   </div>`;
@@ -3730,7 +4041,7 @@ function startAssessmentTimer() {
   if (state.assessmentTimerInterval) {
     clearInterval(state.assessmentTimerInterval);
   }
-  state.assessmentTimerInterval = setInterval(function() {
+  state.assessmentTimerInterval = setInterval(function () {
     if (state.assessmentTimeRemaining > 0) {
       state.assessmentTimeRemaining--;
       var timerEl = document.querySelector('.font-mono');
@@ -3748,11 +4059,11 @@ function startAssessmentTimer() {
         api.submitAssessment(state.currentAssessment.id, {
           answers: state.assessmentAnswers,
           integrity_metrics: state.assessmentIntegrity,
-        }).then(function(res) {
+        }).then(function (res) {
           state.assessmentResult = res;
           state.section = 'assessment-result';
           render();
-        }).catch(function(err) {
+        }).catch(function (err) {
           alert('Assessment time expired. Submission error: ' + err.message);
         });
       }
@@ -3763,14 +4074,14 @@ function startAssessmentTimer() {
 function startAssessmentWebcam() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      .then(function(stream) {
+      .then(function (stream) {
         state.assessmentStream = stream;
         var videoEl = document.getElementById('assessment-webcam');
         if (videoEl) {
           videoEl.srcObject = stream;
         }
       })
-      .catch(function(_) {
+      .catch(function (_) {
         state.assessmentFaceStatus = 'No Camera';
       });
   }
@@ -3778,19 +4089,19 @@ function startAssessmentWebcam() {
 
 function stopAssessmentWebcam() {
   if (state.assessmentStream) {
-    state.assessmentStream.getTracks().forEach(function(track) { track.stop(); });
+    state.assessmentStream.getTracks().forEach(function (track) { track.stop(); });
     state.assessmentStream = null;
   }
 }
 
 function bindCandidateAssessmentEvents() {
   // Topic Chip Toggles
-  document.querySelectorAll('.btn-topic-chip').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-topic-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       var topic = this.dataset.topic;
       var topics = state.assessmentSelectedTopics || [];
       if (topics.includes(topic)) {
-        state.assessmentSelectedTopics = topics.filter(function(t) { return t !== topic; });
+        state.assessmentSelectedTopics = topics.filter(function (t) { return t !== topic; });
       } else {
         state.assessmentSelectedTopics.push(topic);
       }
@@ -3801,7 +4112,7 @@ function bindCandidateAssessmentEvents() {
   // Role Input
   var roleInp = document.getElementById('inp-assessment-role');
   if (roleInp) {
-    roleInp.addEventListener('input', function() {
+    roleInp.addEventListener('input', function () {
       state.assessmentTargetRole = this.value;
     });
   }
@@ -3809,7 +4120,7 @@ function bindCandidateAssessmentEvents() {
   // Difficulty Select Dropdown
   var diffSelect = document.getElementById('config-assessment-diff-select');
   if (diffSelect) {
-    diffSelect.addEventListener('change', function() {
+    diffSelect.addEventListener('change', function () {
       state.assessmentDifficulty = this.value;
       render();
     });
@@ -3818,23 +4129,23 @@ function bindCandidateAssessmentEvents() {
   // Question Count Select Dropdown
   var numSelect = document.getElementById('config-assessment-num-select');
   if (numSelect) {
-    numSelect.addEventListener('change', function() {
+    numSelect.addEventListener('change', function () {
       state.assessmentNumQuestions = parseInt(this.value, 10);
       render();
     });
   }
 
   // Difficulty Selector (compat)
-  document.querySelectorAll('.btn-assessment-diff').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-assessment-diff').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       state.assessmentDifficulty = this.dataset.diff;
       render();
     });
   });
 
   // Question Count Selector (compat)
-  document.querySelectorAll('.btn-assessment-num').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-assessment-num').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       state.assessmentNumQuestions = parseInt(this.dataset.num, 10);
       render();
     });
@@ -3842,8 +4153,8 @@ function bindCandidateAssessmentEvents() {
 
 
   // Time Limit Selector
-  document.querySelectorAll('.btn-assessment-time').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-assessment-time').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       state.assessmentTimeLimit = parseInt(this.dataset.time, 10);
       render();
     });
@@ -3852,7 +4163,7 @@ function bindCandidateAssessmentEvents() {
   // Custom Time Input
   var customTimeInp = document.getElementById('inp-assessment-custom-time');
   if (customTimeInp) {
-    customTimeInp.addEventListener('input', function() {
+    customTimeInp.addEventListener('input', function () {
       var val = parseInt(this.value, 10);
       if (val > 0) {
         state.assessmentCustomTime = val;
@@ -3864,14 +4175,14 @@ function bindCandidateAssessmentEvents() {
   // Resume Upload
   var resumeInp = document.getElementById('inp-assessment-resume');
   if (resumeInp) {
-    resumeInp.addEventListener('change', function() {
+    resumeInp.addEventListener('change', function () {
       if (this.files && this.files[0]) {
         state.assessmentResumeStatus = 'loading';
-        api.uploadResume(this.files[0]).then(function(res) {
+        api.uploadResume(this.files[0]).then(function (res) {
           state.assessmentResume = res.resume;
           state.assessmentResumeStatus = 'ready';
           render();
-        }).catch(function(err) {
+        }).catch(function (err) {
           state.assessmentError = err.message;
           render();
         });
@@ -3881,12 +4192,12 @@ function bindCandidateAssessmentEvents() {
 
   var resumeReplaceInp = document.getElementById('inp-assessment-resume-replace');
   if (resumeReplaceInp) {
-    resumeReplaceInp.addEventListener('change', function() {
+    resumeReplaceInp.addEventListener('change', function () {
       if (this.files && this.files[0]) {
-        api.uploadResume(this.files[0]).then(function(res) {
+        api.uploadResume(this.files[0]).then(function (res) {
           state.assessmentResume = res.resume;
           render();
-        }).catch(function(err) {
+        }).catch(function (err) {
           state.assessmentError = err.message;
           render();
         });
@@ -3896,7 +4207,7 @@ function bindCandidateAssessmentEvents() {
 
   var resumeRemoveBtn = document.getElementById('btn-assessment-resume-remove');
   if (resumeRemoveBtn) {
-    resumeRemoveBtn.addEventListener('click', function() {
+    resumeRemoveBtn.addEventListener('click', function () {
       state.assessmentResume = null;
       render();
     });
@@ -3905,7 +4216,7 @@ function bindCandidateAssessmentEvents() {
   var dropzone = document.getElementById('assessment-resume-dropzone');
 
   if (dropzone) {
-    dropzone.addEventListener('click', function() {
+    dropzone.addEventListener('click', function () {
       var fileInp = document.getElementById('inp-assessment-resume');
       if (fileInp) fileInp.click();
     });
@@ -3914,15 +4225,15 @@ function bindCandidateAssessmentEvents() {
   // Test Devices Button
   var testDevBtn = document.getElementById('btn-test-assessment-devices');
   if (testDevBtn) {
-    testDevBtn.addEventListener('click', function() {
+    testDevBtn.addEventListener('click', function () {
       state.deviceTested = true;
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          .then(function(stream) {
-            stream.getTracks().forEach(function(t) { t.stop(); });
+          .then(function (stream) {
+            stream.getTracks().forEach(function (t) { t.stop(); });
             render();
           })
-          .catch(function() {
+          .catch(function () {
             render();
           });
       } else {
@@ -3935,7 +4246,7 @@ function bindCandidateAssessmentEvents() {
 
   var startBtn = document.getElementById('btn-start-assessment');
   if (startBtn) {
-    startBtn.addEventListener('click', function() {
+    startBtn.addEventListener('click', function () {
       state.assessmentError = '';
       startBtn.disabled = true;
       startBtn.innerHTML = `${icon('refreshCw', 16)} Generating Assessment...`;
@@ -3949,20 +4260,20 @@ function bindCandidateAssessmentEvents() {
         resume_context: state.assessmentResume,
       };
 
-      api.generateAssessment(payload).then(function(res) {
+      api.generateAssessment(payload).then(function (res) {
         state.currentAssessment = res.assessment;
         state.currentAssessmentQuestions = res.questions;
         state.assessmentQuestionIndex = 0;
         state.assessmentAnswers = {};
         state.assessmentTimeRemaining = (res.assessment.time_limit_minutes || 10) * 60;
-        
+
         return api.startAssessment(res.assessment.id);
-      }).then(function(_) {
+      }).then(function (_) {
         state.section = 'assessment-session';
         render();
         startAssessmentTimer();
         startAssessmentWebcam();
-      }).catch(function(err) {
+      }).catch(function (err) {
         state.assessmentError = err.message;
         render();
       });
@@ -3970,8 +4281,8 @@ function bindCandidateAssessmentEvents() {
   }
 
   // MCQ Option Selection
-  document.querySelectorAll('.btn-mcq-option').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('.btn-mcq-option').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       var opt = this.dataset.option;
       var q = state.currentAssessmentQuestions[state.assessmentQuestionIndex];
       if (q) {
@@ -3984,7 +4295,7 @@ function bindCandidateAssessmentEvents() {
   // Question Navigation
   var prevBtn = document.getElementById('btn-prev-question');
   if (prevBtn) {
-    prevBtn.addEventListener('click', function() {
+    prevBtn.addEventListener('click', function () {
       if (state.assessmentQuestionIndex > 0) {
         state.assessmentQuestionIndex--;
         render();
@@ -3994,7 +4305,7 @@ function bindCandidateAssessmentEvents() {
 
   var nextBtn = document.getElementById('btn-next-question');
   if (nextBtn) {
-    nextBtn.addEventListener('click', function() {
+    nextBtn.addEventListener('click', function () {
       if (state.assessmentQuestionIndex < state.currentAssessmentQuestions.length - 1) {
         state.assessmentQuestionIndex++;
         render();
@@ -4007,9 +4318,9 @@ function bindCandidateAssessmentEvents() {
     document.getElementById('btn-session-submit-trigger'),
     document.getElementById('btn-session-submit-trigger-2')
   ];
-  submitTriggers.forEach(function(btn) {
+  submitTriggers.forEach(function (btn) {
     if (btn) {
-      btn.addEventListener('click', function() {
+      btn.addEventListener('click', function () {
         state.submitConfirmModal = true;
         render();
       });
@@ -4018,7 +4329,7 @@ function bindCandidateAssessmentEvents() {
 
   var cancelSubmitBtn = document.getElementById('btn-modal-cancel-submit');
   if (cancelSubmitBtn) {
-    cancelSubmitBtn.addEventListener('click', function() {
+    cancelSubmitBtn.addEventListener('click', function () {
       state.submitConfirmModal = false;
       render();
     });
@@ -4026,7 +4337,7 @@ function bindCandidateAssessmentEvents() {
 
   var confirmSubmitBtn = document.getElementById('btn-modal-confirm-submit');
   if (confirmSubmitBtn) {
-    confirmSubmitBtn.addEventListener('click', function() {
+    confirmSubmitBtn.addEventListener('click', function () {
       state.submitConfirmModal = false;
       confirmSubmitBtn.disabled = true;
       confirmSubmitBtn.textContent = 'Submitting...';
@@ -4040,11 +4351,11 @@ function bindCandidateAssessmentEvents() {
       api.submitAssessment(state.currentAssessment.id, {
         answers: state.assessmentAnswers,
         integrity_metrics: state.assessmentIntegrity,
-      }).then(function(res) {
+      }).then(function (res) {
         state.assessmentResult = res;
         state.section = 'assessment-result';
         render();
-      }).catch(function(err) {
+      }).catch(function (err) {
         alert('Submission failed: ' + err.message);
       });
     });
@@ -4053,7 +4364,7 @@ function bindCandidateAssessmentEvents() {
   // New Assessment Button from Result Screen
   var newAssessmentBtn = document.getElementById('btn-new-assessment');
   if (newAssessmentBtn) {
-    newAssessmentBtn.addEventListener('click', function() {
+    newAssessmentBtn.addEventListener('click', function () {
       state.currentAssessment = null;
       state.currentAssessmentQuestions = [];
       state.assessmentResult = null;
