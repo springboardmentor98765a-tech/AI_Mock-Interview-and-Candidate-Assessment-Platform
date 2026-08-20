@@ -1030,25 +1030,6 @@ function candidateSession() {
 
       </div>
     </div>
-
-    <!-- Confirmation Modal Container -->
-    ${state.showEndConfirmModal ? `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="w-full max-w-md p-6 rounded-2xl border border-white/10 space-y-5 shadow-2xl" style="background:#0c0e1c">
-          <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
-            ${icon('logOut', 22)}
-          </div>
-          <div class="text-center">
-            <h3 class="text-xl font-bold text-white" style="font-family:'Outfit',sans-serif">End Interview Session?</h3>
-            <p class="text-white/60 text-xs mt-1.5 leading-relaxed">Are you sure you want to conclude the interview? All evaluated responses will be compiled into your AI Assessment Report.</p>
-          </div>
-          <div class="flex items-center gap-3 pt-2">
-            <button id="modal-confirm-cancel" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors">Continue Interview</button>
-            <button id="modal-confirm-end" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md transition-all">Yes, End Session</button>
-          </div>
-        </div>
-      </div>
-    ` : ''}
   </div>`;
 }
 
@@ -1733,6 +1714,24 @@ async function resumeInterviewSession() {
   }
 }
 
+function renderEndConfirmModal() {
+  return `<div class="sh-modal-backdrop" id="end-interview-modal-backdrop">
+    <div class="w-full max-w-md p-6 rounded-2xl border border-white/10 space-y-5 shadow-2xl sh-modal-card" style="background:#0c0e1c">
+      <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+        ${icon('logOut', 22)}
+      </div>
+      <div class="text-center">
+        <h3 class="text-xl font-bold text-white" style="font-family:'Outfit',sans-serif">End Interview Session?</h3>
+        <p class="text-white/60 text-xs mt-1.5 leading-relaxed">Are you sure you want to conclude the interview? All evaluated responses will be compiled into your AI Assessment Report.</p>
+      </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button id="modal-confirm-cancel" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors">Continue Interview</button>
+        <button id="modal-confirm-end" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md transition-all">Yes, End Session</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function showEndInterviewModal() {
   state.showEndConfirmModal = true;
   render();
@@ -2232,6 +2231,13 @@ function bindCandidateInterviewEvents() {
   var modalEnd = document.getElementById('modal-confirm-end');
   if (modalEnd) modalEnd.addEventListener('click', confirmEndInterviewSession);
 
+  var modalBackdrop = document.getElementById('end-interview-modal-backdrop');
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', function (e) {
+      if (e.target === modalBackdrop) closeEndInterviewModal();
+    });
+  }
+
   if (!window._reportDelegationBound) {
     window._reportDelegationBound = true;
     document.addEventListener('click', async function (e) {
@@ -2501,41 +2507,43 @@ function renderReportModal(report) {
   }
 
   /* ── Module 5: Spoken Communication & Grammar Analytics ── */
+  var hasAnsweredQuestions = questions.some(function (q) { return q.answer_text && q.answer_text.trim(); });
+
   var grammarAnalysis = report.grammar_analysis || (report.communication_analysis && report.communication_analysis.grammar_analysis) || {
     grammar_score: params.grammar_quality !== undefined ? params.grammar_quality : comm,
     issues_count: 0,
     issues: [],
-    message: 'No major grammar issues detected.'
+    message: hasAnsweredQuestions ? 'No major grammar issues detected.' : 'No spoken responses recorded for grammar evaluation.'
   };
-  var gScore = grammarAnalysis.grammar_score !== undefined ? grammarAnalysis.grammar_score : (params.grammar_quality || comm);
+  var gScore = grammarAnalysis.grammar_score !== undefined ? grammarAnalysis.grammar_score : (params.grammar_quality !== undefined ? params.grammar_quality : comm);
   var gIssues = grammarAnalysis.issues || [];
 
   var fillerAnalysis = report.filler_analysis || (report.communication_analysis && report.communication_analysis.filler_analysis) || {
-    filler_score: params.filler_word_freq !== undefined ? params.filler_word_freq : 95,
+    filler_score: params.filler_word_freq !== undefined ? params.filler_word_freq : (hasAnsweredQuestions ? 95 : 0),
     filler_count: 0,
     filler_words: [],
-    filler_status: 'Clear Fluency'
+    filler_status: hasAnsweredQuestions ? 'Clear Fluency' : 'No Speech Recorded'
   };
-  var fScore = fillerAnalysis.filler_score !== undefined ? fillerAnalysis.filler_score : (params.filler_word_freq || 95);
+  var fScore = fillerAnalysis.filler_score !== undefined ? fillerAnalysis.filler_score : (params.filler_word_freq !== undefined ? params.filler_word_freq : (hasAnsweredQuestions ? 95 : 0));
   var fCount = fillerAnalysis.filler_count !== undefined ? fillerAnalysis.filler_count : (fillerAnalysis.filler_words ? fillerAnalysis.filler_words.length : 0);
   var fWords = fillerAnalysis.filler_words || [];
-  var fStatus = fillerAnalysis.filler_status || (fCount === 0 ? 'Clear Fluency' : 'Moderate Fillers');
+  var fStatus = fillerAnalysis.filler_status || (!hasAnsweredQuestions ? 'No Speech Recorded' : (fCount === 0 ? 'Clear Fluency' : 'Moderate Fillers'));
 
   var pronunciationAnalysis = report.pronunciation_analysis || (report.communication_analysis && report.communication_analysis.pronunciation_analysis) || {
     pronunciation_score: params.speech_clarity !== undefined ? params.speech_clarity : comm,
-    pronunciation_status: 'Crisp & Articulate',
+    pronunciation_status: hasAnsweredQuestions ? 'Crisp & Articulate' : 'No Speech Recorded',
     pronunciation_notes: []
   };
-  var pScore = pronunciationAnalysis.pronunciation_score !== undefined ? pronunciationAnalysis.pronunciation_score : (params.speech_clarity || comm);
-  var pStatus = pronunciationAnalysis.pronunciation_status || (pScore >= 85 ? 'Crisp & Articulate' : 'Good Enunciation');
+  var pScore = pronunciationAnalysis.pronunciation_score !== undefined ? pronunciationAnalysis.pronunciation_score : (params.speech_clarity !== undefined ? params.speech_clarity : comm);
+  var pStatus = pronunciationAnalysis.pronunciation_status || (!hasAnsweredQuestions ? 'No Speech Recorded' : (pScore >= 85 ? 'Crisp & Articulate' : 'Good Enunciation'));
   var pNotes = pronunciationAnalysis.pronunciation_notes || [];
 
   var paceAnalysis = (report.communication_analysis && report.communication_analysis.pace_analysis) || report.pace_analysis || {
-    speaking_pace_score: params.speaking_pace !== undefined ? params.speaking_pace : 85,
-    wpm: 140,
-    status: 'Optimal Cadence (130-160 WPM)'
+    speaking_pace_score: params.speaking_pace !== undefined ? params.speaking_pace : (hasAnsweredQuestions ? 85 : 0),
+    wpm: hasAnsweredQuestions ? 140 : 0,
+    status: hasAnsweredQuestions ? 'Optimal Cadence (130-160 WPM)' : 'No Speech Recorded (0 WPM)'
   };
-  var paceScore = paceAnalysis.speaking_pace_score !== undefined ? paceAnalysis.speaking_pace_score : (params.speaking_pace || 85);
+  var paceScore = paceAnalysis.speaking_pace_score !== undefined ? paceAnalysis.speaking_pace_score : (params.speaking_pace !== undefined ? params.speaking_pace : (hasAnsweredQuestions ? 85 : 0));
 
   var qWpms = [];
   (questions || []).forEach(function (q) {
@@ -2543,8 +2551,19 @@ function renderReportModal(report) {
       qWpms.push(q.parameters.wpm);
     }
   });
-  var wpm = qWpms.length ? Math.round(qWpms.reduce(function (a, b) { return a + b; }, 0) / qWpms.length) : (paceAnalysis.wpm || Math.round(90 + (paceScore * 0.6)));
-  var paceStatus = paceAnalysis.status || (wpm > 165 ? 'Rapid Pace (>160 WPM)' : wpm < 120 ? 'Deliberate / Slow (<120 WPM)' : 'Optimal Cadence (130-160 WPM)');
+  var wpm = !hasAnsweredQuestions ? 0 : (qWpms.length ? Math.round(qWpms.reduce(function (a, b) { return a + b; }, 0) / qWpms.length) : (paceAnalysis.wpm || Math.round(90 + (paceScore * 0.6))));
+  var paceStatus = !hasAnsweredQuestions ? 'No Speech Recorded (0 WPM)' : (paceAnalysis.status || (wpm > 165 ? 'Rapid Pace (>160 WPM)' : wpm < 120 ? 'Deliberate / Slow (<120 WPM)' : 'Optimal Cadence (130-160 WPM)'));
+
+  if (!hasAnsweredQuestions && overall === 0) {
+    gScore = 0;
+    fScore = 0;
+    pScore = 0;
+    paceScore = 0;
+    wpm = 0;
+    fStatus = 'No Speech Recorded';
+    pStatus = 'No Speech Recorded';
+    paceStatus = 'No Speech Recorded (0 WPM)';
+  }
 
   return `<div id="report-modal-overlay" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto report-overlay" style="background:rgba(0,0,0,0.8);backdrop-filter:blur(6px)">
     <div class="w-full max-w-5xl my-6 lg:my-10 rounded-2xl border border-white/10 overflow-hidden report-modal-card" style="background:#0d0f1e">

@@ -8,16 +8,17 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 def row_to_user(row) -> dict:
+    d = dict(row)
     return {
-        "id": row["id"],
-        "name": row["name"],
-        "email": row["email"],
-        "role": row["role"],
-        "provider": row["provider"],
-        "google_id": row["google_id"],
-        "avatar": row["avatar"],
-        "created_at": str(row["created_at"]) if row["created_at"] else None,
-        "updated_at": str(row["updated_at"]) if row["updated_at"] else None,
+        "id": d.get("id"),
+        "name": d.get("name"),
+        "email": d.get("email"),
+        "role": d.get("role"),
+        "provider": d.get("provider"),
+        "google_id": d.get("google_id"),
+        "avatar": d.get("avatar"),
+        "created_at": str(d["created_at"]) if d.get("created_at") else None,
+        "updated_at": str(d["updated_at"]) if d.get("updated_at") else None,
     }
 
 
@@ -44,7 +45,7 @@ def list_users(
     offset = (page - 1) * limit
 
     rows = conn.execute(
-        f"SELECT id, name, email, role, provider, avatar, created_at, updated_at FROM users {where_clause} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        f"SELECT id, name, email, role, provider, google_id, avatar, created_at, updated_at FROM users {where_clause} ORDER BY created_at DESC LIMIT ? OFFSET ?",
         params + [limit, offset],
     ).fetchall()
 

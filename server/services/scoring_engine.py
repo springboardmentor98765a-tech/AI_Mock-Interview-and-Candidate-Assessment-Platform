@@ -425,216 +425,289 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
     if not questions:
         return {}
 
-    comm_list = [q["communication_score"] for q in questions if q["communication_score"] is not None]
-    conf_list = [q["confidence_score"] for q in questions if q["confidence_score"] is not None]
-    tech_list = [q["technical_score"] for q in questions if q["technical_score"] is not None]
-    prof_list = [q["professionalism_score"] for q in questions if q["professionalism_score"] is not None]
-    overall_list = [q["score"] for q in questions if q["score"] is not None]
-
-    avg_comm = round(sum(comm_list) / len(comm_list), 2) if comm_list else 70.0
-    avg_conf = round(sum(conf_list) / len(conf_list), 2) if conf_list else 70.0
-    avg_tech = round(sum(tech_list) / len(tech_list), 2) if tech_list else 70.0
-    avg_prof = round(sum(prof_list) / len(prof_list), 2) if prof_list else 75.0
-    avg_overall = calculate_weighted_overall(avg_comm, avg_conf, avg_tech, avg_prof)
-
-    rating = get_rating_rubric(avg_overall)
+    total_q_count = len(questions)
+    answered_questions = [
+        q for q in questions 
+        if q["answer_text"] is not None and str(q["answer_text"]).strip() != "" and q["score"] is not None
+    ]
+    answered_count = len(answered_questions)
 
     interview_row = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     itype = interview_row["interview_type"] if interview_row else "Technical"
     domain = interview_row["domain"] if interview_row else "General"
 
-    # Default structured feedback data
-    strengths = [
-        f"Clear structural articulation in answering {itype.lower()} questions.",
-        "Good maintainance of professional tone and interview etiquette.",
-        "Active listening and direct response to core question prompts.",
-    ]
-    weaknesses = [
-        "Occasional hesitation during complex scenario questions.",
-        "Could include more specific real-world metrics and quantitative results.",
-    ]
-    improvements = [
-        "Use the STAR method (Situation, Task, Action, Result) to structure behavioral and domain responses.",
-        "Practice speaking at a steady 130-150 WPM pace to project maximum authority.",
-        "Incorporate relevant technical jargon and architecture patterns directly into explanations.",
-    ]
-    recommendations = [
-        f"Mock practice 3 additional sessions in {domain} to sharpen instant recall.",
-        "Record self-responses to analyze non-verbal filler words and eye contact consistency.",
-        "Review core system design principles and data structure trade-offs.",
-    ]
-    resources = [
-        {"title": "System Design & Architecture Playbook", "type": "Guide", "description": "Master scalable patterns, caching strategies, and database indexing.", "link": "https://github.com/donnemartin/system-design-primer"},
-        {"title": "STAR Method Interview Technique", "type": "Article", "description": "How to structure impactful responses for HR & Behavioral interviews.", "link": "https://www.interactiveinterview.io/star-method"},
-        {"title": "Technical Speech & Confidence Building", "type": "Course", "description": "Pacing, posture, and articulate delivery under pressure.", "link": "https://www.coursera.org/learn/public-speaking"},
-    ]
+    if answered_count == 0:
+        # Zero questions answered - strictly 0.0 scores
+        avg_comm = 0.0
+        avg_conf = 0.0
+        avg_tech = 0.0
+        avg_prof = 0.0
+        avg_overall = 0.0
+        rating = "Poor"
 
-    # Aggregate parameter breakdowns and Module 5 communication analytics
-    param_totals = {}
-    param_counts = {}
-    all_grammar_issues = []
-    all_filler_words_map = {}
-    all_pronunciation_notes = []
-    total_fillers_detected = 0
-
-    for q in questions:
-        if q["parameters_json"]:
-            try:
-                p_dict = json.loads(q["parameters_json"])
-                for k, v in p_dict.items():
-                    if isinstance(v, (int, float)):
-                        param_totals[k] = param_totals.get(k, 0.0) + float(v)
-                        param_counts[k] = param_counts.get(k, 0) + 1
-            except Exception:
-                pass
-
-        # Parse question-level grammar, fillers, pronunciation if present
-        if "grammar_json" in q.keys() and q["grammar_json"]:
-            try:
-                g_data = json.loads(q["grammar_json"])
-                for iss in g_data.get("issues", []):
-                    if iss not in all_grammar_issues:
-                        all_grammar_issues.append(iss)
-            except Exception:
-                pass
-
-        if "filler_json" in q.keys() and q["filler_json"]:
-            try:
-                f_data = json.loads(q["filler_json"])
-                total_fillers_detected += f_data.get("filler_count", 0)
-                for fw in f_data.get("filler_words", []):
-                    w = fw.get("word")
-                    c = fw.get("count", 1)
-                    if w:
-                        all_filler_words_map[w] = all_filler_words_map.get(w, 0) + c
-            except Exception:
-                pass
-
-        if "pronunciation_json" in q.keys() and q["pronunciation_json"]:
-            try:
-                p_data = json.loads(q["pronunciation_json"])
-                for note in p_data.get("pronunciation_notes", []):
-                    if note not in all_pronunciation_notes:
-                        all_pronunciation_notes.append(note)
-            except Exception:
-                pass
-
-    detailed_params = {k: round(param_totals[k] / param_counts[k], 2) for k in param_totals}
-    if not detailed_params:
+        strengths = [
+            "Device setup and session connectivity verified successfully.",
+        ]
+        weaknesses = [
+            "No responses were submitted for any of the interview questions.",
+            "Interview was concluded early before answering questions.",
+        ]
+        improvements = [
+            "Attempt and submit answers for all questions to receive full AI evaluation.",
+            "Articulate structured responses with relevant domain and technical terminology.",
+            "Practice speaking responses out loud to build fluency and confidence.",
+        ]
+        recommendations = [
+            f"Start a new {itype} practice session and attempt all questions.",
+            "Practice formulating structured answers before speaking.",
+            f"Review fundamental {domain} interview topics and concepts.",
+        ]
+        resources = [
+            {"title": "System Design & Architecture Playbook", "type": "Guide", "description": "Master scalable patterns, caching strategies, and database indexing.", "link": "https://github.com/donnemartin/system-design-primer"},
+            {"title": "STAR Method Interview Technique", "type": "Article", "description": "How to structure impactful responses for HR & Behavioral interviews.", "link": "https://www.interactiveinterview.io/star-method"},
+            {"title": "Technical Speech & Confidence Building", "type": "Course", "description": "Pacing, posture, and articulate delivery under pressure.", "link": "https://www.coursera.org/learn/public-speaking"},
+        ]
         detailed_params = {
-            "speech_clarity": avg_comm, "grammar_quality": avg_comm, "filler_word_freq": avg_comm, "speaking_pace": avg_comm, "response_completeness": avg_comm,
-            "eye_contact_consistency": avg_conf, "facial_engagement": avg_conf, "response_hesitation": avg_conf, "speaking_confidence": avg_conf, "attention_level": avg_conf,
-            "technical_accuracy": avg_tech, "keyword_relevance": avg_tech, "problem_solving_ability": avg_tech, "domain_knowledge": avg_tech, "answer_completeness": avg_tech,
-            "time_management": avg_prof, "response_organization": avg_prof, "professional_communication": avg_prof, "interview_etiquette": avg_prof
+            "speech_clarity": 0.0, "grammar_quality": 0.0, "filler_word_freq": 0.0, "speaking_pace": 0.0, "response_completeness": 0.0,
+            "eye_contact_consistency": 0.0, "facial_engagement": 0.0, "response_hesitation": 0.0, "speaking_confidence": 0.0, "attention_level": 0.0,
+            "technical_accuracy": 0.0, "keyword_relevance": 0.0, "problem_solving_ability": 0.0, "domain_knowledge": 0.0, "answer_completeness": 0.0,
+            "time_management": 0.0, "response_organization": 0.0, "professional_communication": 0.0, "interview_etiquette": 0.0
+        }
+        grammar_analysis = {
+            "grammar_score": 0.0,
+            "issues_count": 0,
+            "issues": [],
+            "message": "No spoken responses recorded for grammar evaluation."
+        }
+        filler_analysis = {
+            "filler_score": 0.0,
+            "filler_count": 0,
+            "filler_words": [],
+            "filler_status": "No Speech Recorded"
+        }
+        pronunciation_analysis = {
+            "pronunciation_score": 0.0,
+            "pronunciation_status": "No Speech Recorded",
+            "pronunciation_notes": []
+        }
+        pace_analysis = {
+            "speaking_pace_score": 0.0,
+            "wpm": 0,
+            "status": "No Speech Recorded (0 WPM)"
+        }
+        communication_analysis = {
+            "communication_score": 0.0,
+            "parameters": {
+                "speech_clarity": 0.0,
+                "grammar_quality": 0.0,
+                "filler_word_freq": 0.0,
+                "speaking_pace": 0.0,
+                "response_completeness": 0.0,
+            },
+            "grammar_analysis": grammar_analysis,
+            "filler_analysis": filler_analysis,
+            "pronunciation_analysis": pronunciation_analysis,
+            "pace_analysis": pace_analysis,
+        }
+    else:
+        comm_sum = sum(q["communication_score"] or 0.0 for q in questions)
+        conf_sum = sum(q["confidence_score"] or 0.0 for q in questions)
+        tech_sum = sum(q["technical_score"] or 0.0 for q in questions)
+        prof_sum = sum(q["professionalism_score"] or 0.0 for q in questions)
+
+        avg_comm = round(comm_sum / total_q_count, 2)
+        avg_conf = round(conf_sum / total_q_count, 2)
+        avg_tech = round(tech_sum / total_q_count, 2)
+        avg_prof = round(prof_sum / total_q_count, 2)
+        avg_overall = calculate_weighted_overall(avg_comm, avg_conf, avg_tech, avg_prof)
+        rating = get_rating_rubric(avg_overall)
+
+        # Default structured feedback data
+        strengths = [
+            f"Clear structural articulation in answering {itype.lower()} questions.",
+            "Good maintainance of professional tone and interview etiquette.",
+            "Active listening and direct response to core question prompts.",
+        ]
+        weaknesses = [
+            "Occasional hesitation during complex scenario questions.",
+            "Could include more specific real-world metrics and quantitative results.",
+        ]
+        improvements = [
+            "Use the STAR method (Situation, Task, Action, Result) to structure behavioral and domain responses.",
+            "Practice speaking at a steady 130-150 WPM pace to project maximum authority.",
+            "Incorporate relevant technical jargon and architecture patterns directly into explanations.",
+        ]
+        recommendations = [
+            f"Mock practice 3 additional sessions in {domain} to sharpen instant recall.",
+            "Record self-responses to analyze non-verbal filler words and eye contact consistency.",
+            "Review core system design principles and data structure trade-offs.",
+        ]
+        resources = [
+            {"title": "System Design & Architecture Playbook", "type": "Guide", "description": "Master scalable patterns, caching strategies, and database indexing.", "link": "https://github.com/donnemartin/system-design-primer"},
+            {"title": "STAR Method Interview Technique", "type": "Article", "description": "How to structure impactful responses for HR & Behavioral interviews.", "link": "https://www.interactiveinterview.io/star-method"},
+            {"title": "Technical Speech & Confidence Building", "type": "Course", "description": "Pacing, posture, and articulate delivery under pressure.", "link": "https://www.coursera.org/learn/public-speaking"},
+        ]
+
+        # Aggregate parameter breakdowns and Module 5 communication analytics
+        param_totals = {}
+        all_grammar_issues = []
+        all_filler_words_map = {}
+        all_pronunciation_notes = []
+        total_fillers_detected = 0
+
+        for q in answered_questions:
+            if q["parameters_json"]:
+                try:
+                    p_dict = json.loads(q["parameters_json"])
+                    for k, v in p_dict.items():
+                        if isinstance(v, (int, float)):
+                            param_totals[k] = param_totals.get(k, 0.0) + float(v)
+                except Exception:
+                    pass
+
+            if "grammar_json" in q.keys() and q["grammar_json"]:
+                try:
+                    g_data = json.loads(q["grammar_json"])
+                    for iss in g_data.get("issues", []):
+                        if iss not in all_grammar_issues:
+                            all_grammar_issues.append(iss)
+                except Exception:
+                    pass
+
+            if "filler_json" in q.keys() and q["filler_json"]:
+                try:
+                    f_data = json.loads(q["filler_json"])
+                    total_fillers_detected += f_data.get("filler_count", 0)
+                    for fw in f_data.get("filler_words", []):
+                        w = fw.get("word")
+                        c = fw.get("count", 1)
+                        if w:
+                            all_filler_words_map[w] = all_filler_words_map.get(w, 0) + c
+                except Exception:
+                    pass
+
+            if "pronunciation_json" in q.keys() and q["pronunciation_json"]:
+                try:
+                    p_data = json.loads(q["pronunciation_json"])
+                    for note in p_data.get("pronunciation_notes", []):
+                        if note not in all_pronunciation_notes:
+                            all_pronunciation_notes.append(note)
+                except Exception:
+                    pass
+
+        detailed_params = {k: round(param_totals[k] / total_q_count, 2) for k in param_totals}
+        if not detailed_params:
+            detailed_params = {
+                "speech_clarity": avg_comm, "grammar_quality": avg_comm, "filler_word_freq": avg_comm, "speaking_pace": avg_comm, "response_completeness": avg_comm,
+                "eye_contact_consistency": avg_conf, "facial_engagement": avg_conf, "response_hesitation": avg_conf, "speaking_confidence": avg_conf, "attention_level": avg_conf,
+                "technical_accuracy": avg_tech, "keyword_relevance": avg_tech, "problem_solving_ability": avg_tech, "domain_knowledge": avg_tech, "answer_completeness": avg_tech,
+                "time_management": avg_prof, "response_organization": avg_prof, "professional_communication": avg_prof, "interview_etiquette": avg_prof
+            }
+
+        grammar_score = detailed_params.get("grammar_quality", avg_comm)
+        grammar_analysis = {
+            "grammar_score": grammar_score,
+            "issues_count": len(all_grammar_issues),
+            "issues": all_grammar_issues,
+            "message": "No major grammar issues detected." if not all_grammar_issues else f"{len(all_grammar_issues)} issue{'s' if len(all_grammar_issues) > 1 else ''} detected",
         }
 
-    # Aggregate Module 5 Analytics
-    grammar_score = detailed_params.get("grammar_quality", avg_comm)
-    grammar_analysis = {
-        "grammar_score": grammar_score,
-        "issues_count": len(all_grammar_issues),
-        "issues": all_grammar_issues,
-        "message": "No major grammar issues detected." if not all_grammar_issues else f"{len(all_grammar_issues)} issue{'s' if len(all_grammar_issues) > 1 else ''} detected",
-    }
+        filler_score = detailed_params.get("filler_word_freq", avg_comm)
+        filler_words_list = [{"word": k, "count": v} for k, v in sorted(all_filler_words_map.items(), key=lambda x: x[1], reverse=True)]
+        filler_analysis = {
+            "filler_score": filler_score,
+            "filler_count": total_fillers_detected or sum(all_filler_words_map.values()),
+            "filler_words": filler_words_list,
+            "filler_status": "Clear Fluency" if (total_fillers_detected == 0 and not filler_words_list) else "Moderate Fillers" if total_fillers_detected < 5 else "High Hesitation",
+        }
 
-    filler_score = detailed_params.get("filler_word_freq", 95.0)
-    filler_words_list = [{"word": k, "count": v} for k, v in sorted(all_filler_words_map.items(), key=lambda x: x[1], reverse=True)]
-    filler_analysis = {
-        "filler_score": filler_score,
-        "filler_count": total_fillers_detected or sum(all_filler_words_map.values()),
-        "filler_words": filler_words_list,
-        "filler_status": "Clear Fluency" if (total_fillers_detected == 0 and not filler_words_list) else "Moderate Fillers" if total_fillers_detected < 5 else "High Hesitation",
-    }
+        pronunciation_score = detailed_params.get("speech_clarity", avg_comm)
+        pronunciation_analysis = {
+            "pronunciation_score": pronunciation_score,
+            "pronunciation_status": "Crisp & Articulate" if pronunciation_score >= 85 else "Good Enunciation" if pronunciation_score >= 70 else "Needs Clarity",
+            "pronunciation_notes": all_pronunciation_notes,
+        }
 
-    pronunciation_score = detailed_params.get("speech_clarity", avg_comm)
-    pronunciation_analysis = {
-        "pronunciation_score": pronunciation_score,
-        "pronunciation_status": "Crisp & Articulate" if pronunciation_score >= 85 else "Good Enunciation" if pronunciation_score >= 70 else "Needs Clarity",
-        "pronunciation_notes": all_pronunciation_notes,
-    }
+        all_wpms = []
+        for q in answered_questions:
+            if q["parameters_json"]:
+                try:
+                    p_dict = json.loads(q["parameters_json"])
+                    if "wpm" in p_dict and isinstance(p_dict["wpm"], (int, float)) and p_dict["wpm"] > 0:
+                        all_wpms.append(int(p_dict["wpm"]))
+                except Exception:
+                    pass
+            if q["answer_text"]:
+                wc = len(q["answer_text"].strip().split())
+                if wc > 0 and (not all_wpms or len(all_wpms) < len(answered_questions)):
+                    p_score = detailed_params.get("speaking_pace", 85.0)
+                    calc_w = int(round(90 + (p_score * 0.6)))
+                    all_wpms.append(calc_w)
 
-    # Compute actual average WPM across answered questions
-    all_wpms = []
-    for q in questions:
-        if q["parameters_json"]:
+        pace_score = detailed_params.get("speaking_pace", 85.0)
+        avg_wpm = int(round(sum(all_wpms) / len(all_wpms))) if all_wpms else int(round(90 + (pace_score * 0.6)))
+        avg_wpm = max(50, min(240, avg_wpm))
+
+        if avg_wpm >= 165:
+            pace_status_rep = "Rapid Pace (>160 WPM)"
+        elif avg_wpm < 120:
+            pace_status_rep = "Deliberate / Slow (<120 WPM)"
+        else:
+            pace_status_rep = "Optimal Cadence (130-160 WPM)"
+
+        pace_analysis = {
+            "speaking_pace_score": pace_score,
+            "wpm": avg_wpm,
+            "status": pace_status_rep,
+        }
+
+        communication_analysis = {
+            "communication_score": avg_comm,
+            "parameters": {
+                "speech_clarity": detailed_params.get("speech_clarity", avg_comm),
+                "grammar_quality": grammar_score,
+                "filler_word_freq": filler_score,
+                "speaking_pace": pace_score,
+                "response_completeness": detailed_params.get("response_completeness", avg_comm),
+            },
+            "grammar_analysis": grammar_analysis,
+            "filler_analysis": filler_analysis,
+            "pronunciation_analysis": pronunciation_analysis,
+            "pace_analysis": pace_analysis,
+        }
+
+        # Generate custom AI feedback if an LLM provider is configured
+        if llm.configured() and answered_count > 0:
             try:
-                p_dict = json.loads(q["parameters_json"])
-                if "wpm" in p_dict and isinstance(p_dict["wpm"], (int, float)) and p_dict["wpm"] > 0:
-                    all_wpms.append(int(p_dict["wpm"]))
+                qa_summary = "\n".join([f"Q: {q['question_text']}\nA: {q['answer_text'] or 'No answer'}" for q in answered_questions])
+                ai_prompt = (
+                    f"Generate a final mock interview evaluation report for a {itype} interview in {domain}.\n"
+                    f"Overall Score: {avg_overall}% ({rating})\n"
+                    f"Communication Score: {avg_comm}%\n"
+                    f"Candidate QA Summary:\n{qa_summary}\n\n"
+                    "Return ONLY a JSON object (no markdown) with:\n"
+                    '{\n'
+                    '  "strengths": ["string", "string", "string"],\n'
+                    '  "weaknesses": ["string", "string"],\n'
+                    '  "improvements": ["string", "string", "string"],\n'
+                    '  "recommendations": ["string", "string", "string"],\n'
+                    '  "resources": [\n'
+                    '    {"title": "Resource Name", "type": "Guide/Course", "description": "Brief summary", "link": "https://example.com"}\n'
+                    '  ]\n'
+                    '}'
+                )
+                ai_report = llm.chat_json({
+                    "messages": [{"role": "user", "content": ai_prompt}],
+                    "temperature": 0.3,
+                }, is_eval=True)
+                if isinstance(ai_report, dict):
+                    if ai_report.get("strengths"): strengths = ai_report["strengths"]
+                    if ai_report.get("weaknesses"): weaknesses = ai_report["weaknesses"]
+                    if ai_report.get("improvements"): improvements = ai_report["improvements"]
+                    if ai_report.get("recommendations"): recommendations = ai_report["recommendations"]
+                    if ai_report.get("resources"): resources = ai_report["resources"]
             except Exception:
                 pass
-        if q["answer_text"]:
-            wc = len(q["answer_text"].strip().split())
-            if wc > 0 and (not all_wpms or len(all_wpms) < len(questions)):
-                # If specific question didn't have saved WPM, estimate from word count and speaking pace score
-                p_score = detailed_params.get("speaking_pace", 85.0)
-                calc_w = int(round(90 + (p_score * 0.6)))
-                all_wpms.append(calc_w)
-
-    pace_score = detailed_params.get("speaking_pace", 85.0)
-    avg_wpm = int(round(sum(all_wpms) / len(all_wpms))) if all_wpms else int(round(90 + (pace_score * 0.6)))
-    avg_wpm = max(50, min(240, avg_wpm))
-
-    if avg_wpm >= 165:
-        pace_status_rep = "Rapid Pace (>160 WPM)"
-    elif avg_wpm < 120:
-        pace_status_rep = "Deliberate / Slow (<120 WPM)"
-    else:
-        pace_status_rep = "Optimal Cadence (130-160 WPM)"
-
-    pace_analysis = {
-        "speaking_pace_score": pace_score,
-        "wpm": avg_wpm,
-        "status": pace_status_rep,
-    }
-
-    communication_analysis = {
-        "communication_score": avg_comm,
-        "parameters": {
-            "speech_clarity": detailed_params.get("speech_clarity", avg_comm),
-            "grammar_quality": grammar_score,
-            "filler_word_freq": filler_score,
-            "speaking_pace": pace_score,
-            "response_completeness": detailed_params.get("response_completeness", avg_comm),
-        },
-        "grammar_analysis": grammar_analysis,
-        "filler_analysis": filler_analysis,
-        "pronunciation_analysis": pronunciation_analysis,
-        "pace_analysis": pace_analysis,
-    }
-
-    # Generate custom AI feedback if an LLM provider is configured
-    if llm.configured():
-        try:
-            qa_summary = "\n".join([f"Q: {q['question_text']}\nA: {q['answer_text'] or 'No answer'}" for q in questions])
-            ai_prompt = (
-                f"Generate a final mock interview evaluation report for a {itype} interview in {domain}.\n"
-                f"Overall Score: {avg_overall}% ({rating})\n"
-                f"Communication Score: {avg_comm}%\n"
-                f"Candidate QA Summary:\n{qa_summary}\n\n"
-                "Return ONLY a JSON object (no markdown) with:\n"
-                '{\n'
-                '  "strengths": ["string", "string", "string"],\n'
-                '  "weaknesses": ["string", "string"],\n'
-                '  "improvements": ["string", "string", "string"],\n'
-                '  "recommendations": ["string", "string", "string"],\n'
-                '  "resources": [\n'
-                '    {"title": "Resource Name", "type": "Guide/Course", "description": "Brief summary", "link": "https://example.com"}\n'
-                '  ]\n'
-                '}'
-            )
-            ai_report = llm.chat_json({
-                "messages": [{"role": "user", "content": ai_prompt}],
-                "temperature": 0.3,
-            }, is_eval=True)
-            if isinstance(ai_report, dict):
-                if ai_report.get("strengths"): strengths = ai_report["strengths"]
-                if ai_report.get("weaknesses"): weaknesses = ai_report["weaknesses"]
-                if ai_report.get("improvements"): improvements = ai_report["improvements"]
-                if ai_report.get("recommendations"): recommendations = ai_report["recommendations"]
-                if ai_report.get("resources"): resources = ai_report["resources"]
-        except Exception:
-            pass
 
     # Check columns in interview_session table
     session_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_session)").fetchall()}

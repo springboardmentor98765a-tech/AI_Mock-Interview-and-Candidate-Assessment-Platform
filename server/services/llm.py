@@ -43,8 +43,8 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
 def _gemini_chat(prompt: str, is_resume: bool = False, is_quiz: bool = False) -> dict | list:
     if is_quiz:
         key_tuples = [
-            (GEMINI_QUIZ_KEY, "gemini-2.0-flash"),
-            (GEMINI_QUIZ_KEY_2, "gemini-2.0-flash-lite"),
+            (GEMINI_QUIZ_KEY, "gemini-3.6-flash"),
+            (GEMINI_QUIZ_KEY_2, "gemini-3.5-flash-lite"),
         ]
     elif is_resume:
         key_tuples = [

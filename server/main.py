@@ -19,6 +19,20 @@ from routes import auth, users, interviews, assessments, recruiter
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    try:
+        from database import get_db
+        from services import scoring_engine
+        conn = get_db()
+        sessions = conn.execute("SELECT id FROM interview_session WHERE status = 'completed'").fetchall()
+        for s in sessions:
+            sid = s["id"]
+            questions = conn.execute("SELECT * FROM interview_question WHERE interview_id = ?", (sid,)).fetchall()
+            answered = [q for q in questions if q["answer_text"] and str(q["answer_text"]).strip()]
+            if not answered and questions:
+                scoring_engine.generate_final_report(sid, conn)
+        conn.close()
+    except Exception:
+        pass
     yield
 
 

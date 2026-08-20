@@ -92,6 +92,10 @@ function render() {
     app.innerHTML += renderReportModal(state.activeReportModal);
   }
 
+  if (state.showEndConfirmModal && typeof renderEndConfirmModal === 'function') {
+    app.innerHTML += renderEndConfirmModal();
+  }
+
   bindDashboardEvents();
   drawCharts();
 

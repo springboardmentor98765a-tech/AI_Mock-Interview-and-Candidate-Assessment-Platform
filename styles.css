@@ -3233,4 +3233,39 @@ select:focus, input:focus, textarea:focus {
   transform: translateY(-1px);
 }
 
+/* ── Centered Global Modal Backdrop ── */
+.sh-modal-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 999999 !important;
+  padding: 16px !important;
+  margin: 0 !important;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sh-modal-card {
+  animation: fadeInModal 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 
