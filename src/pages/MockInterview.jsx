@@ -186,6 +186,10 @@ function MockInterview() {
   const localSttPendingNextRef = useRef(false)
   const localSttStateRef       = useRef('idle')
   const voiceCommandTriggeredRef = useRef(false)
+  // Stores {audio_duration_s, segments_meta} from the most recent Faster-Whisper response
+  // Used by submitAnswerToBackend to send real speech metadata for analysis
+  const sttMetaRef             = useRef(null)
+
 
   const [ttsLoading, setTtsLoading] = useState(false)
   const [ttsPlaying, setTtsPlaying] = useState(false)
@@ -302,6 +306,10 @@ function MockInterview() {
     setTtsPlaying(false)
     setTtsFailed(false)
 
+    // Read and clear STT metadata from ref (populated by localSttOnComplete)
+    const currentSttMeta = sttMetaRef.current
+    sttMetaRef.current = null
+
     try {
       const actualTimeTaken = 120 - timeLeft
       // Record into the ref map so handleFinish can use it too
@@ -311,6 +319,9 @@ function MockInterview() {
         questionId: q.id,
         answer: trimmedAns,
         timeTaken: actualTimeTaken,
+        // Speech analysis metadata — sent to backend for per-answer analysis
+        audioDurationS: currentSttMeta?.audio_duration_s ?? null,
+        segmentsMeta:   currentSttMeta?.segments_meta   ?? [],
       })
 
       console.log('[QUESTION] advancing to next question')
@@ -349,6 +360,7 @@ function MockInterview() {
     }
   }, [interviewId, currentQ, questions, timeLeft])
 
+
   useEffect(() => { submitAnswerRef.current = submitAnswerToBackend }, [submitAnswerToBackend])
 
   const sttOnSilence = useCallback(() => {
@@ -380,12 +392,19 @@ function MockInterview() {
     resetTranscript:    _bResetTranscript,
   } = useSpeechRecognition({ onSilence: sttOnSilence, silenceTimeout: 4000 })
 
-  const localSttOnComplete = useCallback((text) => {
+  const localSttOnComplete = useCallback((text, sttMeta) => {
     if (!localSttPendingNextRef.current) return
     localSttPendingNextRef.current = false
+
+    // Store STT metadata so submitAnswerToBackend can forward it to the backend
+    if (sttMeta && sttMeta.audio_duration_s) {
+      sttMetaRef.current = sttMeta
+      console.log(`[SpeechAnalysis] STT meta received: duration=${sttMeta.audio_duration_s}s segments=${sttMeta.segments_meta?.length ?? 0}`)
+    }
+
     // Resilient fallback: If Whisper returns empty, use live browser transcript or active text captured during speech
     const rawCandidateText = (text && text.trim()) || (_bTranscript && _bTranscript.trim()) || (finalTextRef.current && finalTextRef.current.trim()) || ''
-    
+
     if (!rawCandidateText) {
       console.warn('[ANSWER] transcript rejected: STT produced empty transcript. Keeping candidate on current question.')
       setSttStatusMsg('Could not hear your answer. Please speak clearly into your microphone.')
@@ -406,6 +425,7 @@ function MockInterview() {
     setTtsFailed(false)
     submitAnswerRef.current?.(finalSubstantiveAnswer)
   }, [_bTranscript])
+
 
   // Called by the hook right before silence-detection fires mr.stop().
   const localSttOnAutoStop = useCallback(() => {

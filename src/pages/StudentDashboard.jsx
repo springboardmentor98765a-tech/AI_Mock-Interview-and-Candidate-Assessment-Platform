@@ -681,7 +681,7 @@ function StudentDashboard() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => e.target === e.currentTarget && setDetailModalOpen(false)}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 740, maxHeight: '88vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
+            style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 700 }}>AI Mock Interview Evaluation</h2>
               <button onClick={() => setDetailModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></button>
@@ -690,104 +690,222 @@ function StudentDashboard() {
             {detailLoading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading interview evaluation…</div>}
             {detailData?.error && <div style={{ color: '#ef4444', fontSize: 13 }}>Error: {detailData.error}</div>}
 
-            {detailData && !detailData.error && (
-              <>
-                {/* Header Information */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-                  {[
-                    ['Target Role',   detailData.interview.selectedRole],
-                    ['Interview Type',detailData.interview.interviewType],
-                    ['Difficulty',    detailData.interview.difficulty],
-                    ['Score',         detailData.interview.score != null ? `${detailData.interview.score}/100` : '—'],
-                    ['Duration',      fmtDur(detailData.interview.duration)],
-                    ['Questions',     `${detailData.interview.questionsAnswered} / ${detailData.interview.questionCount} answered`],
-                    ['Completed',     detailData.interview.completedAt ? new Date(detailData.interview.completedAt).toLocaleString('en-IN') : '—'],
-                    ['Recommendation',detailData.interview.hireRecommendation || 'Evaluated'],
-                  ].map(([k,v]) => (
-                    <div key={k} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{k}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{v}</div>
-                    </div>
-                  ))}
-                </div>
+            {detailData && !detailData.error && (() => {
+              // Helper: safely format a speech analysis metric (never shows 0 as substitute)
+              const fmtSA = (val, suffix = '') => {
+                if (val === null || val === undefined) return 'Not available'
+                if (val === 'insufficient_audio' || val === 'insufficient_data') return 'Insufficient audio'
+                if (typeof val === 'number') return `${val}${suffix}`
+                return String(val)
+              }
 
-                {/* Video Recording Player */}
-                {detailData.recordings && detailData.recordings.length > 0 && (
+              const cs = detailData.interview.categoryScores || {}
+              const sas = cs.speech_analysis_summary || null
+
+              // Per-question speech panel
+              const renderQuestionSpeech = (sa) => {
+                if (!sa) return null
+                const metrics = [
+                  ['WPM',           fmtSA(sa.words_per_minute) + (sa.pace_label && sa.pace_label !== 'insufficient_data' ? ` (${sa.pace_label})` : '')],
+                  ['Fillers',       sa.filler_count != null ? `${sa.filler_count} (${fmtSA(sa.filler_rate, '%')})` : 'Not available'],
+                  ['Grammar',       fmtSA(sa.grammar_score, '/100')],
+                  ['Clarity',       fmtSA(sa.speech_clarity_score, '/100')],
+                  ['Completeness',  fmtSA(sa.response_completeness_score, '/100')],
+                  ['Pronunciation', sa.pronunciation_score === 'insufficient_audio' ? 'Insufficient audio' : fmtSA(sa.pronunciation_score, '/100')],
+                ]
+                return (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(99,102,241,0.06)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Speech Analysis
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                      {metrics.map(([label, val]) => (
+                        <div key={label}>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: val === 'Not available' || val === 'Insufficient audio' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {sa.communication_score != null && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                        Communication score: <strong style={{ color: scoreColor(sa.communication_score) }}>{sa.communication_score}/100</strong>
+                        {sa.intelligibility_note && (
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>({sa.intelligibility_note})</span>
+                        )}
+                      </div>
+                    )}
+                    {Array.isArray(sa.strengths) && sa.strengths.length > 0 && (
+                      <div style={{ marginTop: 6, fontSize: 11, color: '#10b981' }}>✓ {sa.strengths.join(' · ')}</div>
+                    )}
+                    {Array.isArray(sa.weaknesses) && sa.weaknesses.length > 0 && (
+                      <div style={{ fontSize: 11, color: '#f59e0b' }}>⚠ {sa.weaknesses.join(' · ')}</div>
+                    )}
+                    {Array.isArray(sa.suggestions) && sa.suggestions.length > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>💡 {sa.suggestions.join(' · ')}</div>
+                    )}
+                  </div>
+                )
+              }
+
+              return (
+                <>
+                  {/* Header Information */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+                    {[
+                      ['Target Role',    detailData.interview.selectedRole],
+                      ['Interview Type', detailData.interview.interviewType],
+                      ['Difficulty',     detailData.interview.difficulty],
+                      ['Score',          detailData.interview.score != null ? `${detailData.interview.score}/100` : '—'],
+                      ['Duration',       fmtDur(detailData.interview.duration)],
+                      ['Questions',      `${detailData.interview.questionsAnswered} / ${detailData.interview.questionCount} answered`],
+                      ['Completed',      detailData.interview.completedAt ? new Date(detailData.interview.completedAt).toLocaleString('en-IN') : '—'],
+                      ['Recommendation', detailData.interview.hireRecommendation || 'Evaluated'],
+                    ].map(([k,v]) => (
+                      <div key={k} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{k}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Score Breakdown */}
+                  {(cs.communication != null || cs.technical != null || cs.confidence != null) && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: 'var(--text-primary)' }}>Score Breakdown</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                        {[
+                          ['Communication (30%)',     cs.communication  != null ? `${cs.communication}/100`  : '—'],
+                          ['Technical Relevance (30%)', cs.technical    != null ? `${cs.technical}/100`      : '—'],
+                          ['Confidence (25%)',        cs.confidence     != null ? `${cs.confidence}/100`     : '—'],
+                          ['Professionalism (15%)',   cs.professionalism != null ? `${cs.professionalism}/100` : (cs.grammar != null ? `${cs.grammar}/100` : '—')],
+                        ].map(([label, val]) => (
+                          <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Aggregate Speech Metrics */}
+                      {sas && (
+                        <>
+                          <div style={{ fontWeight: 700, fontSize: 13, margin: '12px 0 8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Activity size={14} style={{ color: 'var(--primary)' }} /> Your Speech & Communication
+                            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(from real audio analysis)</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                            {[
+                              ['Speaking Pace',    sas.avg_words_per_minute != null ? `${sas.avg_words_per_minute} WPM (${sas.dominant_pace || '—'})` : 'Not available'],
+                              ['Grammar Score',    sas.avg_grammar_score    != null ? `${sas.avg_grammar_score}/100` : 'Not available'],
+                              ['Filler Rate',      sas.avg_filler_rate      != null ? `${sas.avg_filler_rate}%`      : 'Not available'],
+                              ['Communication',    sas.avg_communication_score != null ? `${sas.avg_communication_score}/100` : 'Not available'],
+                            ].map(([label, val]) => (
+                              <div key={label} style={{ background: 'rgba(99,102,241,0.06)', borderRadius: 8, padding: '10px 14px', border: '1px solid rgba(99,102,241,0.15)' }}>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: val === 'Not available' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                            Based on {sas.answers_analysed ?? 0} of {sas.total_answers ?? '?'} answers with audio data
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Video Recording Player */}
+                  {detailData.recordings && detailData.recordings.length > 0 && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Video size={16} style={{ color: 'var(--primary)' }} /> Your Interview Video Recording
+                      </div>
+                      <div style={{ background: '#0f172a', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <video
+                          src={recordingApi.getStreamUrl(detailData.recordings[0].id)}
+                          controls
+                          playsInline
+                          style={{ width: '100%', maxHeight: 320, display: 'block' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overall AI Feedback */}
+                  {detailData.interview.overallFeedback && (
+                    <div style={{ background: 'var(--primary-bg)', borderRadius: 8, padding: 14, marginBottom: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)', marginBottom: 4 }}>AI Overall Assessment</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{detailData.interview.overallFeedback}</div>
+                    </div>
+                  )}
+
+                  {/* Strengths & Weaknesses */}
+                  {((detailData.interview.strengths && detailData.interview.strengths.length > 0) || (detailData.interview.weaknesses && detailData.interview.weaknesses.length > 0)) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                      {detailData.interview.strengths && Array.isArray(detailData.interview.strengths) && detailData.interview.strengths.length > 0 && (
+                        <div style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>Key Strengths</div>
+                          <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                            {detailData.interview.strengths.map((s, idx) => (
+                              <li key={idx}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {detailData.interview.weaknesses && Array.isArray(detailData.interview.weaknesses) && detailData.interview.weaknesses.length > 0 && (
+                        <div style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(245,158,11,0.2)' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas to Improve</div>
+                          <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                            {detailData.interview.weaknesses.map((w, idx) => (
+                              <li key={idx}>{w}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Recommendations */}
+                  {detailData.interview.recommendations && Array.isArray(detailData.interview.recommendations) && detailData.interview.recommendations.length > 0 && (
+                    <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid var(--border-light)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6 }}>Improvement Suggestions</div>
+                      <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                        {detailData.interview.recommendations.map((r, idx) => (
+                          <li key={idx}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Per-Question QA Breakdown */}
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Video size={16} style={{ color: 'var(--primary)' }} /> Your Interview Video Recording
-                    </div>
-                    <div style={{ background: '#0f172a', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                      <video
-                        src={recordingApi.getStreamUrl(detailData.recordings[0].id)}
-                        controls
-                        playsInline
-                        style={{ width: '100%', maxHeight: 320, display: 'block' }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Overall AI Feedback */}
-                {detailData.interview.overallFeedback && (
-                  <div style={{ background: 'var(--primary-bg)', borderRadius: 8, padding: 14, marginBottom: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)', marginBottom: 4 }}>AI Overall Assessment</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{detailData.interview.overallFeedback}</div>
-                  </div>
-                )}
-
-                {/* Strengths & Weaknesses */}
-                {((detailData.interview.strengths && detailData.interview.strengths.length > 0) || (detailData.interview.weaknesses && detailData.interview.weaknesses.length > 0)) && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                    {detailData.interview.strengths && Array.isArray(detailData.interview.strengths) && detailData.interview.strengths.length > 0 && (
-                      <div style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>Key Strengths</div>
-                        <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
-                          {detailData.interview.strengths.map((s, idx) => (
-                            <li key={idx}>{s}</li>
-                          ))}
-                        </ul>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>Questions & Transcribed Answers</div>
+                    {detailData.questions && detailData.questions.map((q, qi) => (
+                      <div key={q.id} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '12px 16px', marginBottom: 10, border: '1px solid var(--border-light)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Q{qi + 1} · {q.category || 'General'}</span>
+                          {q.score != null && <span style={{ fontSize: 13, fontWeight: 800, color: scoreColor(q.score) }}>{q.score}/100</span>}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.5 }}>{q.question}</div>
+                        {q.answer ? (
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>"{q.answer}"</div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: '#ef4444' }}>No answer recorded</div>
+                        )}
+                        {q.feedback && (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, borderTop: '1px solid var(--border-light)', paddingTop: 6 }}>{q.feedback}</div>
+                        )}
+                        {renderQuestionSpeech(q.speechAnalysis)}
                       </div>
-                    )}
-                    {detailData.interview.weaknesses && Array.isArray(detailData.interview.weaknesses) && detailData.interview.weaknesses.length > 0 && (
-                      <div style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(245,158,11,0.2)' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas to Improve</div>
-                        <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
-                          {detailData.interview.weaknesses.map((w, idx) => (
-                            <li key={idx}>{w}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    ))}
                   </div>
-                )}
-
-                {/* Per-Question QA Breakdown */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>Questions & Transcribed Answers</div>
-                  {detailData.questions && detailData.questions.map((q, qi) => (
-                    <div key={q.id} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '12px 16px', marginBottom: 10, border: '1px solid var(--border-light)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Q{qi + 1} · {q.category || 'General'}</span>
-                        {q.score != null && <span style={{ fontSize: 13, fontWeight: 800, color: scoreColor(q.score) }}>{q.score}/100</span>}
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.5 }}>{q.question}</div>
-                      {q.answer ? (
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>"{q.answer}"</div>
-                      ) : (
-                        <div style={{ fontSize: 12, color: '#ef4444' }}>No answer recorded</div>
-                      )}
-                      {q.feedback && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, borderTop: '1px solid var(--border-light)', paddingTop: 6 }}>{q.feedback}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+                </>
+              )
+            })()}
           </motion.div>
         </div>
       )}
+
     </DashboardLayout>
   )
 }

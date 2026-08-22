@@ -268,15 +268,43 @@ Validation Rules:
   })
 }
 
-async function evaluateAnswers(questionsWithAnswers, role, interviewType) {
+async function evaluateAnswers(questionsWithAnswers, role, interviewType, speechSummary) {
+  // Build Q&A list — include per-answer speech signals when available
   const qaList = questionsWithAnswers
-    .map((qa, i) => `Q${i + 1} [${qa.category}]: ${qa.question}\nExpected: ${qa.expected_points}\nCandidate Answer: ${qa.answer || '(No answer provided)'}`)
+    .map((qa, i) => {
+      const sa = qa.speechAnalysis
+      let speechLine = ''
+      if (sa) {
+        const parts = []
+        if (sa.words_per_minute)           parts.push(`pace=${sa.words_per_minute}wpm(${sa.pace_label})`)
+        if (typeof sa.filler_rate === 'number') parts.push(`fillers=${sa.filler_rate}%`)
+        if (typeof sa.grammar_score === 'number') parts.push(`grammar=${sa.grammar_score}/100`)
+        if (typeof sa.response_completeness_score === 'number') parts.push(`completeness=${sa.response_completeness_score}/100`)
+        if (parts.length > 0) speechLine = `\nSpeech Signals: [${parts.join(', ')}]`
+      }
+      return `Q${i + 1} [${qa.category}]: ${qa.question}\nExpected: ${qa.expected_points}\nCandidate Answer: ${qa.answer || '(No answer provided)'}${speechLine}`
+    })
     .join('\n\n')
+
+  // Build speech context block for overall scoring guidance
+  let speechContextBlock = ''
+  if (speechSummary && speechSummary.answers_analysed > 0) {
+    const lines = []
+    if (speechSummary.avg_words_per_minute)    lines.push(`- Average speaking pace: ${speechSummary.avg_words_per_minute} words per minute (${speechSummary.dominant_pace || 'N/A'})`)
+    if (typeof speechSummary.avg_filler_rate === 'number') lines.push(`- Average filler word rate: ${speechSummary.avg_filler_rate}% of spoken words`)
+    if (typeof speechSummary.avg_grammar_score === 'number') lines.push(`- Average grammar score (measured): ${speechSummary.avg_grammar_score}/100`)
+    if (typeof speechSummary.avg_communication_score === 'number') lines.push(`- Measured communication score (speech analysis): ${speechSummary.avg_communication_score}/100`)
+    lines.push(`- Answers with speech data: ${speechSummary.answers_analysed} of ${speechSummary.total_answers}`)
+
+    if (lines.length > 0) {
+      speechContextBlock = `\nObjective Speech & Communication Analysis (do NOT ignore these — use them to calibrate your communication score):\n${lines.join('\n')}\n`
+    }
+  }
 
   const prompt = `You are an expert technical interviewer evaluating a candidate for the role of "${role}".
 
 Interview Type: ${interviewType}
-
+${speechContextBlock}
 Here are all the questions and the candidate's answers:
 
 ${qaList}
@@ -314,7 +342,8 @@ Scoring rules:
 - overall_score must reflect the candidate's actual performance.
 - Score 0 for any question that has no answer.
 - Be fair but honest. Do not inflate scores.
-- question_feedback must have exactly ${questionsWithAnswers.length} entries (one per question, 0-indexed).`
+- question_feedback must have exactly ${questionsWithAnswers.length} entries (one per question, 0-indexed).
+- If objective speech signals are provided above, your communication score MUST be consistent with them. Do not ignore measured filler rate, pace, or grammar scores.`
 
   const text = await geminiGenerate(prompt, 6000)
   const parsed = safeJsonParse(text)
@@ -338,3 +367,4 @@ Scoring rules:
 }
 
 module.exports = { recommendRoles, generateQuestions, evaluateAnswers }
+

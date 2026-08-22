@@ -275,7 +275,7 @@ async function getInterviewDetail(req, res) {
 
     const qResult = await pool.query(
       `SELECT iq.id, iq.question, iq.category, iq.difficulty, iq.sequence,
-              ia.answer, ia.time_taken, ia.score, ia.feedback
+              ia.answer, ia.time_taken, ia.score, ia.feedback, ia.speech_analysis
          FROM interview_questions iq
          LEFT JOIN interview_answers ia ON ia.question_id = iq.id
         WHERE iq.interview_id = $1
@@ -314,9 +314,21 @@ async function getInterviewDetail(req, res) {
         categoryScores:     iv.category_scores,
         hireRecommendation: iv.hire_recommendation,
       },
-      questions: qResult.rows,
+      questions: qResult.rows.map(q => ({
+        id:             q.id,
+        question:       q.question,
+        category:       q.category,
+        difficulty:     q.difficulty,
+        sequence:       q.sequence,
+        answer:         q.answer,
+        timeTaken:      q.time_taken,
+        score:          q.score,
+        feedback:       q.feedback,
+        speechAnalysis: q.speech_analysis || null,
+      })),
       recordings: rResult.rows,
     })
+
   } catch (err) {
     console.error('[getInterviewDetail]', err.message)
     return res.status(500).json({ success: false, message: err.message })

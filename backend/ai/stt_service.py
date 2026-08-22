@@ -99,7 +99,13 @@ def transcribe(audio_bytes: bytes, filename_hint: str):
     """
     Write audio_bytes to a temp file, transcribe, delete temp file.
     Returns dict with transcript, language, language_probability, duration_s,
-    word_count, segment_count.
+    word_count, segment_count, audio_duration_s, segments_meta.
+
+    New fields (backward-compatible additions):
+      audio_duration_s  — actual spoken-audio duration from Whisper's VAD info (seconds).
+                          Use this for WPM calculation, not duration_s (which is inference time).
+      segments_meta     — list of {start, end, text} per segment for gap/hesitation analysis.
+                          Can be empty if no segments detected.
     """
     suffix = os.path.splitext(filename_hint)[1] if filename_hint else ".bin"
     if not suffix:
@@ -135,8 +141,38 @@ def transcribe(audio_bytes: bytes, filename_hint: str):
         elapsed = time.perf_counter() - t0
         word_count = len(text.split()) if text else 0
 
+        # ── Audio duration from Whisper info ──────────────────────────────
+        # info.duration is the total file duration in seconds (float).
+        # When VAD is active, speech-only duration can be derived from segment spans.
+        # We expose both: total file duration and sum of speech segments.
+        try:
+            file_duration_s = float(getattr(info, "duration", 0) or 0)
+        except Exception:
+            file_duration_s = 0.0
+
+        # Build segment metadata and compute speech-only duration
+        segments_meta = []
+        speech_duration_s = 0.0
+        for seg in all_segments:
+            try:
+                s_start = float(seg.start)
+                s_end   = float(seg.end)
+                seg_dur = max(0.0, s_end - s_start)
+                speech_duration_s += seg_dur
+                segments_meta.append({
+                    "start": round(s_start, 3),
+                    "end":   round(s_end,   3),
+                    "text":  seg.text.strip(),
+                })
+            except Exception:
+                pass
+
+        # audio_duration_s = speech-only time (most accurate for WPM).
+        # Fall back to file duration if no segments found.
+        audio_duration_s = round(speech_duration_s if speech_duration_s > 0 else file_duration_s, 3)
+
         print(f"[STT] Transcription completed in {elapsed:.2f}s", flush=True)
-        print(f"[STT] words={word_count} segments={len(all_segments)}", flush=True)
+        print(f"[STT] words={word_count} segments={len(all_segments)} audio_duration={audio_duration_s}s", flush=True)
         print(f'[STT] Transcript="{text}"', flush=True)
 
         return {
@@ -146,6 +182,9 @@ def transcribe(audio_bytes: bytes, filename_hint: str):
             "duration_s":            round(elapsed, 3),
             "word_count":            word_count,
             "segment_count":         len(all_segments),
+            # New fields for speech analysis:
+            "audio_duration_s":      audio_duration_s,
+            "segments_meta":         segments_meta,
         }
 
     finally:

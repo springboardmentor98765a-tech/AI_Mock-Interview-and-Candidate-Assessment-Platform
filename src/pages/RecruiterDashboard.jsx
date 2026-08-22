@@ -691,7 +691,7 @@ function RecruiterDashboard() {
                       <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{a.name.charAt(0)}</div><span style={{ fontWeight: 500 }}>{a.name}</span></div></td>
                       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{a.role}</td>
                       <td><span className="badge gray" style={{ fontSize: 11 }}>{a.interviewType}</span></td>
-                      <td><span style={{ fontWeight: 700, color: a.score >= 85 ? '#10b981' : a.score >= 70 ? '#f59e0b' : '#ef4444' }}>{a.score}/100</span></td>
+                      <td><span style={{ fontWeight: 700, color: a.finalScore >= 85 ? '#10b981' : a.finalScore >= 70 ? '#f59e0b' : '#ef4444' }}>{a.finalScore}/100</span></td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{a.date}</td>
                       <td><RecBadge rec={a.rec} /></td>
                       <td>
@@ -711,6 +711,107 @@ function RecruiterDashboard() {
     case 'ai-results': {
         const scoreColor = (s) => s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
         const fmtDur = (s) => { if (!s) return '—'; const m = Math.floor(s/60); const ss = s%60; return `${m}m ${ss}s` }
+
+        // Helper: format a speech analysis metric value safely (never shows 0 as substitute)
+        const fmtSA = (val, suffix = '') => {
+          if (val === null || val === undefined) return 'Not available'
+          if (val === 'insufficient_audio' || val === 'insufficient_data') return 'Insufficient audio'
+          if (typeof val === 'number') return `${val}${suffix}`
+          return String(val)
+        }
+
+        // Communication Breakdown panel (shown inside the detail modal when data exists)
+        const renderCommBreakdown = (categoryScores) => {
+          if (!categoryScores) return null
+          const cs = categoryScores
+          const sas = cs.speech_analysis_summary  // may be null for older interviews
+          const rows = [
+            ['Overall Communication',   cs.communication     != null ? `${cs.communication}/100`     : '—'],
+            ['Technical Relevance',      cs.technical         != null ? `${cs.technical}/100`         : '—'],
+            ['Confidence',               cs.confidence        != null ? `${cs.confidence}/100`        : '—'],
+            ['Professionalism / Grammar',cs.professionalism   != null ? `${cs.professionalism}/100`   : (cs.grammar != null ? `${cs.grammar}/100` : '—')],
+          ]
+          const speechRows = sas ? [
+            ['Avg Speaking Pace',    sas.avg_words_per_minute    != null ? `${sas.avg_words_per_minute} WPM (${sas.dominant_pace || '—'})` : 'Not available'],
+            ['Avg Grammar Score',    sas.avg_grammar_score       != null ? `${sas.avg_grammar_score}/100` : 'Not available'],
+            ['Avg Filler Rate',      sas.avg_filler_rate         != null ? `${sas.avg_filler_rate}%`      : 'Not available'],
+            ['Avg Comm Score (Speech)', sas.avg_communication_score != null ? `${sas.avg_communication_score}/100` : 'Not available'],
+            ['Answers Analysed',     `${sas.answers_analysed ?? 0} / ${sas.total_answers ?? '?'}`],
+          ] : null
+
+          return (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: 'var(--text-primary)' }}>Score Breakdown</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {rows.map(([label, val]) => (
+                  <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+              {speechRows && (
+                <>
+                  <div style={{ fontWeight: 700, fontSize: 13, margin: '14px 0 8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Activity size={14} style={{ color: 'var(--primary)' }} /> Speech & Communication Analysis
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(aggregated from real audio)</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {speechRows.map(([label, val]) => (
+                      <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        }
+
+        // Per-question speech analysis mini-panel
+        const renderQuestionSpeech = (sa) => {
+          if (!sa) return null
+          const metrics = [
+            ['WPM',        fmtSA(sa.words_per_minute, '') + (sa.pace_label && sa.pace_label !== 'insufficient_data' ? ` (${sa.pace_label})` : '')],
+            ['Fillers',    sa.filler_count != null ? `${sa.filler_count} (${fmtSA(sa.filler_rate, '%')})` : 'Not available'],
+            ['Grammar',    fmtSA(sa.grammar_score, '/100')],
+            ['Clarity',    fmtSA(sa.speech_clarity_score, '/100')],
+            ['Completeness', fmtSA(sa.response_completeness_score, '/100')],
+            ['Pronunciation', sa.pronunciation_score === 'insufficient_audio' ? 'Insufficient audio' : fmtSA(sa.pronunciation_score, '/100')],
+          ]
+          return (
+            <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(99,102,241,0.06)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                Speech Analysis
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {metrics.map(([label, val]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: val === 'Not available' || val === 'Insufficient audio' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+              {sa.communication_score != null && (
+                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Communication score: <strong style={{ color: scoreColor(sa.communication_score) }}>{sa.communication_score}/100</strong>
+                  {sa.intelligibility_note && (
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>({sa.intelligibility_note})</span>
+                  )}
+                </div>
+              )}
+              {Array.isArray(sa.strengths) && sa.strengths.length > 0 && (
+                <div style={{ marginTop: 6, fontSize: 11, color: '#10b981' }}>✓ {sa.strengths.join(' · ')}</div>
+              )}
+              {Array.isArray(sa.weaknesses) && sa.weaknesses.length > 0 && (
+                <div style={{ fontSize: 11, color: '#f59e0b' }}>⚠ {sa.weaknesses.join(' · ')}</div>
+              )}
+            </div>
+          )
+        }
+
         return (
           <>
             <div className="card">
@@ -776,7 +877,7 @@ function RecruiterDashboard() {
               <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
                 onClick={e => e.target === e.currentTarget && setDetailOpen(null)}>
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                  style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 740, maxHeight: '88vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
+                  style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                     <h2 style={{ fontSize: 18, fontWeight: 700 }}>AI Interview Detail & Evaluation</h2>
                     <button onClick={() => setDetailOpen(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></button>
@@ -785,7 +886,7 @@ function RecruiterDashboard() {
                   {detail?.error && <div style={{ color: '#ef4444', fontSize: 13 }}>Error: {detail.error}</div>}
                   {detail && !detail.error && (
                     <>
-                      {/* Header */}
+                      {/* Header info grid */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
                         {[
                           ['Candidate', detail.interview.candidateName],
@@ -804,6 +905,9 @@ function RecruiterDashboard() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Score + Communication Breakdown */}
+                      {renderCommBreakdown(detail.interview.categoryScores)}
 
                       {/* Video Player */}
                       {detail.recordings && detail.recordings.length > 0 && (
@@ -856,7 +960,19 @@ function RecruiterDashboard() {
                         </div>
                       )}
 
-                      {/* Per-question scores */}
+                      {/* Recommendations */}
+                      {detail.interview.recommendations && Array.isArray(detail.interview.recommendations) && detail.interview.recommendations.length > 0 && (
+                        <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid var(--border-light)' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6 }}>Recommendations</div>
+                          <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                            {detail.interview.recommendations.map((r, idx) => (
+                              <li key={idx}>{r}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Per-question scores + speech analysis */}
                       <div style={{ marginBottom: 20 }}>
                         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>Per-Question Results & Transcripts</div>
                         {detail.questions.map((q, qi) => (
@@ -874,6 +990,7 @@ function RecruiterDashboard() {
                             {q.feedback && (
                               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, borderTop: '1px solid var(--border-light)', paddingTop: 6 }}>{q.feedback}</div>
                             )}
+                            {renderQuestionSpeech(q.speechAnalysis)}
                           </div>
                         ))}
                       </div>
@@ -890,6 +1007,7 @@ function RecruiterDashboard() {
       return null
     }
   }
+
 
   return (
     <DashboardLayout

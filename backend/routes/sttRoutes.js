@@ -52,6 +52,9 @@ router.post('/transcribe', upload.single('audio'), async (req, res, next) => {
       languageProbability: result.language_probability,
       durationS:           result.duration_s,
       bytes:               req.file.size,
+      // Speech analysis metadata — forwarded from Faster-Whisper (AUD-01 fix)
+      audio_duration_s:    result.audio_duration_s   ?? null,
+      segments_meta:       result.segments_meta       ?? [],
     })
   } catch (err) {
     next(err)

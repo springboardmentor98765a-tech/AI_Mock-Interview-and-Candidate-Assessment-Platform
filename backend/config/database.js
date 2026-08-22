@@ -220,6 +220,9 @@ async function initDatabase() {
       END $$
     `)
 
+    // Idempotent: add speech_analysis JSONB column for per-question speech & communication analysis
+    await client.query(`ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS speech_analysis JSONB`)
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS interview_recordings (
         id               SERIAL PRIMARY KEY,

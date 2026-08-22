@@ -168,19 +168,30 @@ export function useLocalSpeechRecognition({
 
       const validatedText = _validateTranscript(rawText, parseFloat(recordingDuration))
 
+      // ── STT metadata for speech analysis (backward-compatible 2nd arg) ──
+      const sttMeta = {
+        audio_duration_s: typeof data.audio_duration_s === 'number' ? data.audio_duration_s : null,
+        segments_meta:    Array.isArray(data.segments_meta) ? data.segments_meta : [],
+      }
+      if (sttMeta.audio_duration_s) {
+        console.log(`[FinalSTT] audio_duration_s=${sttMeta.audio_duration_s}s segments=${sttMeta.segments_meta.length}`)
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       setTranscript(validatedText)
       setInterimTranscript('')
       setMicState('stopped')
-      onCompleteRef.current?.(validatedText)
+      onCompleteRef.current?.(validatedText, sttMeta)
     } catch (e) {
       if (!mountedRef.current) return
       console.error('[FinalSTT] Transcription error:', e.message)
       setError(e.message)
       setInterimTranscript('')
       setMicState('stopped')
-      onCompleteRef.current?.('')
+      onCompleteRef.current?.('', null)
     }
   }, [_validateTranscript])
+
 
   // ── Start recording with adaptive VAD ─────────────────────────────────
   const startListening = useCallback(() => {
