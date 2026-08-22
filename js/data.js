@@ -115,6 +115,9 @@ const state = {
   isNotifDropdownOpen: false,
   notifActiveTab: 'all',
   notifLoading: false,
+  vision: null,
+  attention: null,
+  attentionTerminated: false,
 };
 
 

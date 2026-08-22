@@ -365,6 +365,10 @@ def init_db():
         conn.execute("ALTER TABLE interview_session ADD COLUMN pronunciation_analysis_json TEXT")
     if "communication_analysis_json" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN communication_analysis_json TEXT")
+    if "vision_metrics_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN vision_metrics_json TEXT")
+    if "integrity_flag" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN integrity_flag TEXT")
 
     # Fix foreign key constraint if interview_question references old 'interview' table
     q_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='interview_question'").fetchone()

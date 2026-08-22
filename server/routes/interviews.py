@@ -17,6 +17,7 @@ from models import (
     TranscribeChunkRequest,
     InterviewRecordingCreateRequest,
     InterviewRecordingResponse,
+    VisionFrameRequest,
 )
 from auth import get_current_user
 from services.question_bank import generate_questions as generate_bank_questions
@@ -26,6 +27,10 @@ from services import sarvam
 from services import gemini_stt
 from services import scoring_engine
 from services import resume_parser
+from services import vision_monitor
+from services import attention_monitor
+from services import behavior_analysis
+from services import vision_scoring
 
 router = APIRouter(prefix="/api/interviews", tags=["interviews"])
 
@@ -122,6 +127,10 @@ def row_to_interview(row) -> dict:
         "filler_analysis": filler_analysis,
         "pronunciation_analysis": pronunciation_analysis,
         "communication_analysis": communication_analysis,
+        "confidence_analysis": _safe_json_loads(d.get("confidence_analysis_json"), None),
+        "professionalism_analysis": _safe_json_loads(d.get("professionalism_analysis_json"), None),
+        "vision_metrics": _safe_json_loads(d.get("vision_metrics_json"), None),
+        "integrity_flag": d.get("integrity_flag"),
         "started_at": _format_utc_iso(d.get("started_at")),
         "completed_at": _format_utc_iso(d.get("completed_at")),
         "created_at": _format_utc_iso(d.get("created_at")),
@@ -360,7 +369,17 @@ def update_interview(interview_id: int, req: InterviewUpdateRequest, user: dict 
         conn.commit()
 
     if req.status == "completed":
+        try:
+            _persist_vision_and_attention(interview_id, conn)
+        except Exception:
+            pass
         scoring_engine.generate_final_report(interview_id, conn)
+        try:
+            vision_scoring.apply_vision_to_scores(conn, interview_id)
+        except Exception:
+            pass
+    elif req.status == "in_progress" and row["status"] == "paused":
+        attention_monitor.reset_episode(interview_id)
 
     updated = conn.execute("SELECT * FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
     conn.close()
@@ -434,6 +453,109 @@ def end_interview(interview_id: int, user: dict = Depends(get_current_user)):
 def start_interview_from_body(req: InterviewStartRequest, user: dict = Depends(get_current_user)):
     """Start endpoint matching the module contract: POST /interviews/start."""
     return start_interview(req.interview_id, user)
+
+
+def _persist_vision_and_attention(interview_id: int, conn, release_attention: bool = True) -> dict:
+    """Merge live vision + attention + behavior summaries into the session row."""
+    summary = vision_monitor.collect_and_clear_session(interview_id, full_timeline=True)
+    merged = dict(summary or {})
+    if release_attention:
+        attention_summary = attention_monitor.clear_session(interview_id)
+    else:
+        attention_summary = attention_monitor.collect_summary(interview_id)
+    if attention_summary:
+        merged["attention"] = attention_summary
+    try:
+        merged["behavior"] = behavior_analysis.analyze(merged)
+    except Exception:
+        merged["behavior"] = None
+    payload = vision_monitor.serialize_for_db(merged)
+    if payload:
+        conn.execute(
+            "UPDATE interview_session SET vision_metrics_json = ? WHERE id = ?",
+            (payload, interview_id),
+        )
+        conn.commit()
+    return merged
+
+
+@router.post("/{interview_id}/vision-frame")
+def analyze_vision_frame(interview_id: int, req: VisionFrameRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
+        (interview_id, user["id"], user["id"]),
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Interview not found.")
+
+    image_bytes = vision_monitor.decode_data_url(req.image_data)
+    if not image_bytes:
+        conn.close()
+        raise HTTPException(400, "Invalid image payload.")
+
+    result = vision_monitor.get_engine().analyze(image_bytes, interview_id=interview_id)
+    session_summary = vision_monitor.record_frame(interview_id, result)
+
+    eye_state = (result.get("eye_contact") or {}).get("state", "unknown")
+    snapshot = attention_monitor.record_frame(
+        interview_id, eye_state, bool(result.get("face_present"))
+    )
+
+    terminated_now = False
+    if snapshot.get("should_terminate") and row["status"] == "in_progress":
+        _persist_vision_and_attention(interview_id, conn, release_attention=False)
+        conn.execute(
+            """UPDATE interview_session
+               SET status = 'completed',
+                   completed_at = CURRENT_TIMESTAMP,
+                   integrity_flag = 'potential_cheater'
+               WHERE id = ?""",
+            (interview_id,),
+        )
+        conn.commit()
+        scoring_engine.generate_final_report(interview_id, conn)
+        try:
+            vision_scoring.apply_vision_to_scores(conn, interview_id)
+        except Exception:
+            pass
+        snapshot["terminated"] = True
+        terminated_now = True
+
+    payload = vision_monitor.compact_client_payload(result, session_summary)
+    payload["attention"] = snapshot
+    conn.close()
+    return payload
+
+
+@router.get("/{interview_id}/vision-summary")
+def get_vision_summary(interview_id: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
+        (interview_id, user["id"], user["id"]),
+    ).fetchone()
+    stored = None
+    if row:
+        col = conn.execute(
+            "SELECT vision_metrics_json, integrity_flag FROM interview_session WHERE id = ?", (interview_id,)
+        ).fetchone()
+        if col and col["vision_metrics_json"]:
+            try:
+                stored = json.loads(col["vision_metrics_json"])
+            except Exception:
+                stored = None
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Interview not found.")
+
+    live = vision_monitor.get_summary(interview_id)
+    return {
+        "live": live,
+        "persisted": stored,
+        "attention": attention_monitor.get_snapshot(interview_id),
+    }
 
 
 @router.post("/{interview_id}/answer")

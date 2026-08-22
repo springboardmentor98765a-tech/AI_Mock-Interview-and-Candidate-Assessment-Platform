@@ -463,8 +463,31 @@ function candidateSession() {
     var elSec = elapsed % 60;
     var durText = elMin + ' min ' + elSec + ' sec';
     var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
+    var flagged = interview.integrity_flag === 'potential_cheater';
 
-    return `<div class="max-w-xl mx-auto my-12 p-8 rounded-2xl border border-white/10 text-center space-y-6" style="background:#0c0e1c">
+    if (state.attentionTerminated) {
+      return `<div class="sh-modal-backdrop" id="attention-terminated-backdrop">
+        <div class="w-full max-w-md p-6 rounded-2xl border border-rose-500/30 space-y-5 shadow-2xl sh-modal-card" style="background:#0c0e1c">
+          <div class="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-400 flex items-center justify-center mx-auto">
+            ${icon('alertTriangle', 24)}
+          </div>
+          <div class="text-center">
+            <h3 class="text-xl font-bold text-white" style="font-family:'Outfit',sans-serif">Interview Terminated</h3>
+            <p class="text-white/60 text-xs mt-2 leading-relaxed">The session was automatically ended after reaching <strong class="text-rose-300">${(state.attention && state.attention.max_warnings) || 5} attention warnings</strong>. Your responses so far have been compiled into an evaluation report, and the session has been flagged for recruiter review.</p>
+          </div>
+          <div class="flex items-center gap-3 pt-2">
+            <button id="btn-view-interview-report" data-id="${interview.id}" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white bg-rose-600 hover:bg-rose-500 shadow-md transition-all">View Evaluation Report</button>
+            <button id="btn-back-to-interviews" class="flex-1 py-2.5 rounded-xl font-semibold text-xs text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors">Back to Dashboard</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    return `<div class="max-w-xl mx-auto my-12 p-8 rounded-2xl border ${flagged ? 'border-rose-500/40' : 'border-white/10'} text-center space-y-6" style="background:#0c0e1c">
+      ${flagged ? `
+      <div class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 text-xs font-bold uppercase tracking-wider">
+        ${icon('alertTriangle', 14)} Flagged: Potential Cheater — Under Review
+      </div>` : ''}
       <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
         ${icon('checkCircle', 32)}
       </div>
@@ -656,6 +679,7 @@ function candidateSession() {
   var isMicMuted = !!state.lobbyMicMuted;
   var isCamMuted = !!state.lobbyCamMuted;
   var aiVoiceOn = state.aiVoiceEnabled !== false;
+  var visionMeta = visionStatusMeta(state.vision);
 
   var telemetry = computeTranscriptTelemetry(transcriptText, state.sessionElapsedSeconds || 15);
   var progressPct = Math.round(((currentIdx + 1) / total) * 100);
@@ -743,6 +767,12 @@ function candidateSession() {
         <!-- Video Viewport Frame -->
         <div class="sh-user-video-viewport">
           <video id="candidate-camera" autoplay muted playsinline class="w-full h-full object-cover ${isCamMuted ? 'hidden' : ''}"></video>
+
+          <!-- Module 6: Live Vision Status Overlay -->
+          <div id="vision-overlay-badge" class="sh-vision-badge vision-badge-init ${state.vision && state.vision.status === 'face_detected' ? 'hidden' : ''}">
+            <span id="vision-overlay-dot" class="sh-vision-badge-dot"></span>
+            <span id="vision-overlay-text">${visionMeta ? visionMeta.label : 'Initializing…'}</span>
+          </div>
           
           ${isCamMuted ? `
             <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-[#070914]/90">
@@ -773,8 +803,8 @@ function candidateSession() {
         <div class="sh-user-stage-footer">
           <div class="flex items-center justify-between text-[11px] text-white/50 flex-wrap gap-2">
             <span class="inline-flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span>Vision &amp; Gaze: <strong class="text-white/80">Active</strong></span>
+              <span id="vision-gaze-dot" class="w-1.5 h-1.5 rounded-full" style="background:${visionMeta.color}"></span>
+              <span>Vision &amp; Gaze: <strong id="vision-gaze-label" class="text-white/80">${visionMeta.label}</strong></span>
             </span>
             <span class="inline-flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
@@ -783,6 +813,19 @@ function candidateSession() {
             <span class="inline-flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
               <span>Proctor: <strong class="text-white/80">Secured</strong></span>
+            </span>
+          </div>
+
+          <!-- Task 4: Attention Monitoring Strip -->
+          <div class="sh-attention-strip">
+            <span class="inline-flex items-center gap-1.5 text-[11px]">
+              <span id="attention-state-dot" class="w-1.5 h-1.5 rounded-full" style="background:#10b981"></span>
+              <span id="attention-state-label" class="text-white/70">Attention: Monitoring</span>
+            </span>
+            <p id="attention-away-note" class="hidden text-[10px] text-amber-300 font-semibold"></p>
+            <span id="attention-warning-chip" class="sh-attn-chip ${state.attention && state.attention.warnings ? 'sh-attn-warn-active' : ''}">
+              ${icon('alertTriangle', 11)} Attention Warnings:
+              <strong id="attention-warning-count">${(state.attention && state.attention.warnings) || 0} / ${(state.attention && state.attention.max_warnings) || 5}</strong>
             </span>
           </div>
         </div>
@@ -1669,6 +1712,8 @@ async function startInterviewSession() {
     render();
     startSessionTimer();
     speakCurrentQuestion();
+    VisionMonitor.onTerminate = handleAttentionTermination;
+    VisionMonitor.start(id);
   } catch (err) {
     window.alert('Unable to start interview: ' + err.message);
   }
@@ -1680,6 +1725,7 @@ async function pauseInterviewSession() {
   stopSessionTimer();
   stopAutoRecording();
   pauseSessionMediaRecorder();
+  VisionMonitor.pause();
   if (state.interviewerAudio) state.interviewerAudio.pause();
 
   try {
@@ -1705,12 +1751,14 @@ async function resumeInterviewSession() {
     render();
     startSessionTimer();
     speakCurrentQuestion();
+    VisionMonitor.resume();
   } catch (err) {
     state.currentInterview.interview.status = 'in_progress';
     startSessionMediaRecorder();
     render();
     startSessionTimer();
     speakCurrentQuestion();
+    VisionMonitor.resume();
   }
 }
 
@@ -1747,12 +1795,12 @@ async function confirmEndInterviewSession() {
   if (!state.currentInterview || !state.currentInterview.interview) return;
   stopSessionTimer();
   stopAutoRecording();
+  VisionMonitor.stop();
   if (state.interviewerAudio) state.interviewerAudio.pause();
 
   var id = state.currentInterview.interview.id;
   await stopAndUploadSessionRecording(id);
   stopInterviewDevices();
-
   try {
     var res = await api.endInterview(id, state.sessionElapsedSeconds || 0);
     if (res && res.interview) state.currentInterview.interview = res.interview;
@@ -1764,6 +1812,31 @@ async function confirmEndInterviewSession() {
     }
     render();
   }
+}
+
+/* ── Task 4: server-side attention termination (5 / 5 warnings) ── */
+async function handleAttentionTermination(result) {
+  if (state.attentionTerminated) return;
+  state.attentionTerminated = true;
+  stopSessionTimer();
+  stopAutoRecording();
+  VisionMonitor.stop();
+  if (state.interviewerAudio) { try { state.interviewerAudio.pause(); } catch (e) { } }
+
+  var id = state.currentInterview && state.currentInterview.interview
+    ? state.currentInterview.interview.id : null;
+  if (id) {
+    try { await stopAndUploadSessionRecording(id); } catch (e) { }
+    try {
+      var refreshed = await api.getInterview(id);
+      if (refreshed && refreshed.interview) {
+        state.currentInterview = refreshed;
+        state.currentInterview.interview.status = 'completed';
+      }
+    } catch (e) { }
+  }
+  stopInterviewDevices();
+  render();
 }
 
 async function enableInterviewDevices() {
@@ -1871,6 +1944,7 @@ async function enableInterviewDevices() {
 }
 
 function stopInterviewDevices() {
+  VisionMonitor.stop();
   if (state.audioMonitor) { try { state.audioMonitor.proc.disconnect(); state.audioMonitor.src.disconnect(); state.audioMonitor.ctx.close(); } catch (e) { } state.audioMonitor = null; }
   if (state.mediaRecorder && state.mediaRecorder.state === 'recording') { try { state.mediaRecorder.stop(); } catch (e) { } }
   state.mediaRecorder = null;
@@ -2417,6 +2491,10 @@ function bindCandidateInterviewEvents() {
     if (cam && cam.srcObject !== state.interviewStream) {
       cam.srcObject = state.interviewStream;
     }
+    var activeInterview = state.currentInterview && state.currentInterview.interview;
+    if (activeInterview && activeInterview.status === 'in_progress' && !VisionMonitor.isRunning()) {
+      VisionMonitor.start(activeInterview.id);
+    }
   } else if (state.section !== 'session' && state.section !== 'assessment-session' && state.interviewStream) {
     stopInterviewDevices();
   }
@@ -2430,6 +2508,385 @@ function renderRubricBadge(rating, score) {
   else if (r === 'Needs Improvement') style = 'background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.3)';
   else if (r === 'Poor') style = 'background:rgba(225,29,72,0.2);color:#fda4af;border:1px solid rgba(225,29,72,0.4)';
   return `<span class="px-2.5 py-1 rounded-full text-xs font-semibold" style="${style}">${r}</span>`;
+}
+
+/* ── Module 6: Vision & Camera Focus report card (eye contact, orientation) ── */
+function renderVisionReportCard(vm) {
+  if (!vm || !vm.eye || typeof vm.eye.contact_pct !== 'number') return '';
+  var eye = vm.eye;
+  var pct = Math.min(100, Math.max(0, eye.contact_pct));
+  var focusColor = eye.focus_label === 'Good' ? EMERALD : eye.focus_label === 'Fair' ? AMBER : ROSE;  var orientEntries = Object.keys(vm.orientation_counts || {}).map(function (k) {
+    return k + ': ' + Math.round(vm.orientation_counts[k] / (vm.pose_frames || 1) * 100) + '%';
+  });
+
+  function fmtSecs(s) {
+    if (!s) return '0s';
+    var m = Math.floor(s / 60);
+    var r = Math.round(s % 60);
+    return m > 0 ? m + 'm ' + r + 's' : r + 's';
+  }
+
+  return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
+            ${renderConfidenceIndicatorBlock(vm.confidence_indicator)}
+            <div class="flex items-center gap-2 mb-3 ${vm.confidence_indicator && vm.confidence_indicator.score !== null ? 'mt-3 pt-3 border-t border-white/6' : ''}">
+              <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:${CYAN}1f;color:${CYAN}">${icon('eye', 13)}</span>
+              <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">Vision &amp; Camera Focus</p>
+            </div>
+            <div class="space-y-2.5">
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-white/60">Eye Contact Consistency</span>
+                  <span class="text-white font-semibold">${pct.toFixed(0)}% &middot; ${eye.focus_label}</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
+                  <div class="h-full rounded-full" style="width:${pct}%;background:${focusColor}"></div>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div class="p-2 rounded-lg bg-white/[0.03] border border-white/5">
+                  <p class="text-white/40">Camera Contact Time</p>
+                  <p class="text-white font-bold mt-0.5">${fmtSecs(eye.seconds_contact)}</p>
+                </div>
+                <div class="p-2 rounded-lg bg-white/[0.03] border border-white/5">
+                  <p class="text-white/40">Looking Away Time</p>
+                  <p class="text-white font-bold mt-0.5">${fmtSecs(eye.seconds_away)}</p>
+                </div>
+              </div>
+              ${orientEntries.length ? `<p class="text-white/40 text-[10.5px] pt-1 leading-relaxed">Head orientation mix — ${orientEntries.join(' &middot; ')}</p>` : ''}
+              ${renderEmotionMixRows(vm.emotion)}
+            </div>
+          </div>`;
+}
+
+/* ── Module 6 · Task 5: DeepFace emotion distribution rows (report only) ── */
+var EMOTION_DISPLAY_NAMES = {
+  happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry',
+  fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust',
+};
+
+function renderEmotionMixRows(emotion) {
+  if (!emotion || !emotion.dominant_distribution) return '';
+  var entries = Object.keys(emotion.dominant_distribution)
+    .map(function (k) { return { key: k, name: EMOTION_DISPLAY_NAMES[k] || k, pct: emotion.dominant_distribution[k] }; })
+    .filter(function (e) { return e.pct >= 1; })
+    .slice(0, 4);
+  if (!entries.length) return '';
+  var colorFor = function (key) {
+    if (key === 'happy') return EMERALD;
+    if (key === 'neutral') return INDIGO;
+    if (key === 'surprise') return CYAN;
+    return ROSE;
+  };
+  return `<div class="pt-2 mt-1 border-t border-white/6">
+            <p class="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-1.5">Facial Emotion Mix</p>
+            ${entries.map(function (e) {
+    return `<div class="mb-1.5">
+                      <div class="flex items-center justify-between text-[10.5px] mb-0.5">
+                        <span class="text-white/60">${e.name}${e.key === emotion.session_dominant ? ' &middot; dominant' : ''}</span>
+                        <span class="text-white/80 font-semibold">${e.pct.toFixed(0)}%</span>
+                      </div>
+                      <div class="w-full h-1 rounded-full bg-white/5 overflow-hidden">
+                        <div class="h-full rounded-full" style="width:${Math.min(100, e.pct)}%;background:${colorFor(e.key)}"></div>
+                      </div>
+                    </div>`;
+  }).join('')}
+          </div>`;
+}
+
+/* ── Module 6 · Task 7: Engagement Score card (participation composite) ── */
+function renderEngagementCard(vm) {
+  if (!vm || !vm.engagement || vm.engagement.score === null || vm.engagement.score === undefined) return '';
+  var en = vm.engagement;
+  var levelColor = en.level === 'High' ? EMERALD : en.level === 'Moderate' ? INDIGO : AMBER;
+  var labels = {
+    attention: 'Attention', eye_contact: 'Eye Contact', face_presence: 'Face Presence',
+    head_orientation: 'Head Orientation', facial_activity: 'Facial Activity',
+    interaction_continuity: 'Continuity',
+  };
+  var entries = Object.keys(en.components)
+    .filter(function (k) { return typeof en.components[k] === 'number'; })
+    .map(function (k) { return { key: k, name: labels[k] || k, val: en.components[k] }; });
+  var detail = en.activity_detail || {};
+  return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:${INDIGO}1f;color:${INDIGO}">${icon('activity', 13)}</span>
+                <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">Engagement Score</p>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="background:${levelColor}22;color:${levelColor};border:1px solid ${levelColor}44">${en.level}</span>
+            </div>
+            <div class="flex items-center gap-3 mb-2">
+              <p class="text-3xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${en.score.toFixed(0)}</p>
+              <div class="flex-1 h-2 rounded-full bg-white/6 overflow-hidden">
+                <div class="h-full rounded-full" style="width:${Math.min(100, en.score)}%;background:${levelColor}"></div>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              ${entries.map(function (c) {
+    return `<div>
+                        <div class="flex items-center justify-between text-[10.5px] mb-0.5">
+                          <span class="text-white/55">${c.name}</span>
+                          <span class="text-white/80 font-semibold">${c.val.toFixed(0)}</span>
+                        </div>
+                        <div class="w-full h-1 rounded-full bg-white/5 overflow-hidden">
+                          <div class="h-full rounded-full" style="width:${Math.min(100, c.val)}%;background:${INDIGO}"></div>
+                        </div>
+                      </div>`;
+  }).join('')}
+            </div>
+            ${(detail.head_travel_degrees !== undefined) ? `<p class="text-white/30 text-[9.5px] mt-2 leading-relaxed">Activity signals: ${detail.head_travel_degrees.toFixed(0)}&deg; head travel &middot; ${detail.expression_transitions} expression transitions &middot; longest gap ${detail.longest_away_streak_s.toFixed(0)}s over ${Math.round((detail.duration_seconds || 0) / 60)} min.</p>` : ''}
+            <p class="text-white/30 text-[9.5px] mt-1 leading-relaxed">Measures participation &mdash; independent of which emotion is shown.</p>
+          </div>`;
+}
+
+/* ── Module 6 · Task 8: Interview Behavior Analysis (whole-timeline rollup) ── */
+function renderBehaviorSection(vmetrics) {
+  if (!vmetrics || !vmetrics.behavior) return '';
+  var b = vmetrics.behavior;
+  var m = b.metrics || {};
+  var fmtPct = function (v) { return (v === null || v === undefined) ? '—' : v.toFixed(0) + '%'; };
+  var metrics = [
+    ['Eye Contact', fmtPct(m.eye_contact_pct)],
+    ['Attention', fmtPct(m.attention_pct)],
+    ['Face Visibility', fmtPct(m.face_visibility_pct)],
+    ['Avg Head Movement', m.avg_head_movement_deg_per_min != null ? m.avg_head_movement_deg_per_min.toFixed(1) + '°/min' : '—'],
+    ['Longest Attention Break', m.longest_attention_break_s != null ? m.longest_attention_break_s.toFixed(0) + 's' : '—'],
+    ['Significant Attention Breaks', String(m.significant_attention_breaks ?? 0)],
+    ['Confidence Indicator', m.confidence_indicator != null ? m.confidence_indicator.toFixed(0) : '—'],
+    ['Engagement Score', (function () {
+      var en = vmetrics.engagement;
+      if (!en || en.score == null) return '—';
+      return en.score.toFixed(0) + ' · ' + (en.level || '');
+    })()],
+  ];
+  var emoDist = m.dominant_expression_distribution || {};
+  var emoChips = Object.keys(emoDist).slice(0, 4).map(function (k) {
+    var name = EMOTION_DISPLAY_NAMES[k] || k;
+    return `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-white/5 text-white/70 border border-white/10">${name} ${emoDist[k].toFixed(0)}%</span>`;
+  }).join(' ');
+
+  var segmentsHtml = (b.segments || []).map(function (seg, i) {
+    var last = i === (b.segments.length - 1);
+    return `<div class="flex items-start gap-3">
+              <span class="text-[10.5px] text-indigo-300/80 font-mono pt-0.5 shrink-0 w-24">${seg.from} - ${seg.to}</span>
+              <div class="flex flex-col items-center self-stretch">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400/80 mt-1"></span>
+                ${last ? '' : '<span class="w-px flex-1 bg-white/10 my-0.5"></span>'}
+              </div>
+              <p class="text-xs text-white/75 leading-snug pb-2">${seg.label}</p>
+            </div>`;
+  }).join('');
+
+  var pointsHtml = (b.summary_points || []).map(function (p) {
+    var good = p.kind === 'good';
+    return `<li class="flex items-start gap-2 text-xs leading-relaxed">
+              <span class="mt-0.5 shrink-0" style="color:${good ? '#34d399' : '#fbbf24'}">${good ? icon('checkCircle', 13) : icon('alertTriangle', 13)}</span>
+              <span class="text-white/80">${p.text}</span>
+            </li>`;
+  }).join('');
+
+  if (!segmentsHtml && !pointsHtml && !metrics.length) return '';
+  return `<div class="report-section rounded-2xl border border-white/8 p-5" id="report-behavior" style="background:#0c0e1c">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="text-indigo-400">${icon('activity', 15)}</span>
+              <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">Interview Behavior Analysis</h3>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+              ${metrics.map(function (r) {
+    return `<div class="p-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
+                        <p class="text-white/40 text-[10px] uppercase font-semibold tracking-wide">${r[0]}</p>
+                        <p class="text-white text-sm font-bold mt-0.5">${r[1]}</p>
+                      </div>`;
+  }).join('')}
+            </div>
+            ${emoChips ? `<div class="mb-4"><p class="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-1">Dominant Expression Distribution</p><div>${emoChips}</div></div>` : ''}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${segmentsHtml ? `<div><p class="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-2">Session Timeline</p><div>${segmentsHtml}</div></div>` : ''}
+              ${pointsHtml ? `<div><p class="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-2">Behavior Summary</p><ul class="space-y-1.5">${pointsHtml}</ul></div>` : ''}
+            </div>
+          </div>`;
+}
+
+/* ── Module 6 · Task 8: AI Feedback & Scoring (weighted pillar cards) ── */
+var PILLAR_META = {
+  communication: {
+    title: 'Communication Score', weight: 30, color: INDIGO,
+    desc: 'Measures verbal communication quality based on the 5 core parameters',
+    params: {
+      speech_clarity: ['Speech Clarity', 20, 'Pronunciation & enunciation'],
+      grammar_quality: ['Grammar Quality', 25, 'Grammatical correctness'],
+      filler_word_freq: ['Filler-Word Frequency', 20, 'Fluency & verbal control'],
+      speaking_pace: ['Speaking Pace', 15, 'Cadence & WPM tempo'],
+      response_completeness: ['Response Completeness', 20, 'Articulation depth'],
+    },
+  },
+  confidence: {
+    title: 'Confidence Score', weight: 25, color: CYAN,
+    desc: 'Measures behavioral confidence signals observed during the session',
+    params: {
+      eye_contact_consistency: ['Eye-Contact Consistency', 25, 'Measured camera focus'],
+      facial_engagement: ['Facial Engagement', 20, 'Expressive presence & motion'],
+      response_hesitation: ['Response Hesitation', 15, 'Pause & hesitation control'],
+      speaking_confidence: ['Speaking Confidence', 20, 'Behavioral confidence indicator'],
+      attention_level: ['Attention Level', 20, 'Sustained attentive behavior'],
+    },
+  },
+  technical: {
+    title: 'Technical Relevance Score', weight: 30, color: EMERALD,
+    desc: 'Measures the quality and relevance of interview answers',
+    params: {
+      technical_accuracy: ['Technical Accuracy', 25, 'Correctness & depth of answers'],
+      keyword_relevance: ['Keyword Relevance', 20, 'Domain terminology usage'],
+      problem_solving_ability: ['Problem-Solving Depth', 20, 'Structured reasoning'],
+      domain_knowledge: ['Domain Knowledge', 20, 'Subject-matter command'],
+      answer_completeness: ['Answer Completeness', 15, 'Coverage of the prompt'],
+    },
+  },
+  professionalism: {
+    title: 'Professionalism Score', weight: 15, color: AMBER,
+    desc: 'Measures overall interview discipline and professionalism',
+    params: {
+      time_management: ['Time Management', 25, 'Duration adherence'],
+      response_organization: ['Response Organization', 25, 'STAR response structure'],
+      professional_communication: ['Professional Communication', 25, 'Tone & delivery'],
+      interview_etiquette: ['Interview Etiquette', 25, 'Proctoring discipline'],
+    },
+  },
+};
+
+function paramRating(val) {
+  if (val >= 90) return { label: 'Excellent', color: EMERALD };
+  if (val >= 75) return { label: 'Good', color: INDIGO };
+  if (val >= 60) return { label: 'Average', color: AMBER };
+  if (val >= 40) return { label: 'Needs Improvement', color: ROSE };
+  return { label: 'Poor', color: '#e11d48' };
+}
+
+function buildPillarData(report, params) {
+  var commParams = {};
+  var ca = report.communication_analysis && report.communication_analysis.parameters;
+  Object.keys(PILLAR_META.communication.params).forEach(function (k) {
+    commParams[k] = (ca && ca[k] !== undefined) ? ca[k] : params[k];
+  });
+  var confValues = {}, confSources = {};
+  var cna = report.confidence_analysis;
+  if (cna && cna.parameters) {
+    Object.keys(cna.parameters).forEach(function (k) {
+      confValues[k] = cna.parameters[k].value;
+      confSources[k] = cna.parameters[k].source;
+    });
+  } else {
+    Object.keys(PILLAR_META.confidence.params).forEach(function (k) { confValues[k] = params[k]; });
+  }
+  var techParams = {};
+  Object.keys(PILLAR_META.technical.params).forEach(function (k) { techParams[k] = params[k]; });
+  var profValues = {}, profSources = {};
+  var pna = report.professionalism_analysis;
+  if (pna && pna.parameters) {
+    Object.keys(pna.parameters).forEach(function (k) {
+      profValues[k] = pna.parameters[k].value;
+      profSources[k] = pna.parameters[k].source;
+    });
+  } else {
+    Object.keys(PILLAR_META.professionalism.params).forEach(function (k) { profValues[k] = params[k]; });
+  }
+  return {
+    communication: { score: report.communication_score, params: commParams, sources: {} },
+    confidence: { score: report.confidence_score, params: confValues, sources: confSources },
+    technical: { score: report.technical_score, params: techParams, sources: {} },
+    professionalism: { score: report.professionalism_score, params: profValues, sources: profSources },
+  };
+}
+
+function renderPillarScores(report, params) {
+  var pillars = buildPillarData(report, params);
+  return Object.keys(PILLAR_META).map(function (key) {
+    var meta = PILLAR_META[key];
+    var data = pillars[key];
+    var score = (data.score !== null && data.score !== undefined) ? data.score : 0;
+    var pts = score * meta.weight / 100;
+    var paramKeys = Object.keys(meta.params);
+    var rows = paramKeys.map(function (k) {
+      var def = meta.params[k];
+      var val = data.params[k];
+      var hasValue = typeof val === 'number';
+      var rating = paramRating(hasValue ? val : 0);
+      var measured = data.sources[k] === 'measured_vision';
+      return `<div class="py-1.5 border-b border-white/5 last:border-0">
+                  <div class="flex items-center justify-between text-[11px] mb-1">
+                    <span class="text-white/70">${def[0]} <span class="text-white/35">[${def[1]}%]</span></span>
+                    <span class="flex items-center gap-2">
+                      <span class="font-bold text-white">${hasValue ? val.toFixed(0) + '%' : '—'}</span>
+                      <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" style="background:${rating.color}22;color:${rating.color}">${hasValue ? rating.label : 'No Data'}</span>
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-[9.5px] text-white/35 flex-1">${def[2]}</p>
+                    ${measured ? `<span class="text-[8.5px] font-bold px-1 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">MEASURED</span>` : ''}
+                  </div>
+                </div>`;
+    }).join('');
+    return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-white text-sm font-bold" style="font-family:'Outfit',sans-serif">${meta.title}</p>
+                <span class="text-lg font-extrabold text-white">${score.toFixed(0)}<span class="text-white/40 text-xs font-semibold">%</span></span>
+              </div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-white/40 text-[10px] leading-snug pr-2">${meta.desc}</p>
+                <span class="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-white/5 text-white/60 border border-white/10">Weight ${meta.weight}%</span>
+              </div>
+              <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden mb-2">
+                <div class="h-full rounded-full" style="width:${Math.min(100, score)}%;background:${meta.color}"></div>
+              </div>
+              <p class="text-white/30 text-[9.5px] mb-1">Contributes <strong class="text-white/50">${pts.toFixed(1)} pts</strong> to overall score</p>
+              ${rows}
+            </div>`;
+  }).join('');
+}
+
+
+var CONFIDENCE_COMPONENT_LABELS = {
+  eye_contact: 'Eye Contact',
+  head_stability: 'Head Stability',
+  face_visibility: 'Face Visibility',
+  attention: 'Attention',
+  expression_stability: 'Expression Stability',
+};
+
+function renderConfidenceIndicatorBlock(ci) {
+  if (!ci || ci.score === null || ci.score === undefined) return '';
+  var bandColor = ci.band === 'Strong' ? EMERALD : ci.band === 'Moderate' ? INDIGO : AMBER;
+  var compEntries = Object.keys(ci.components)
+    .filter(function (k) { return typeof ci.components[k] === 'number'; })
+    .map(function (k) {
+      return { key: k, name: CONFIDENCE_COMPONENT_LABELS[k] || k, val: ci.components[k] };
+    });
+  return `<div class="mb-1">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">Confidence Indicator</p>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" style="background:${bandColor}22;color:${bandColor};border:1px solid ${bandColor}44">${ci.band}</span>
+            </div>
+            <div class="flex items-center gap-3 mb-2">
+              <p class="text-3xl font-extrabold text-white" style="font-family:'Outfit',sans-serif">${ci.score.toFixed(0)}</p>
+              <div class="flex-1 h-2 rounded-full bg-white/6 overflow-hidden">
+                <div class="h-full rounded-full" style="width:${Math.min(100, ci.score)}%;background:${bandColor}"></div>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              ${compEntries.map(function (c) {
+    return `<div>
+                        <div class="flex items-center justify-between text-[10.5px] mb-0.5">
+                          <span class="text-white/55">${c.name}</span>
+                          <span class="text-white/80 font-semibold">${c.val.toFixed(0)}</span>
+                        </div>
+                        <div class="w-full h-1 rounded-full bg-white/5 overflow-hidden">
+                          <div class="h-full rounded-full" style="width:${Math.min(100, c.val)}%;background:${CYAN}"></div>
+                        </div>
+                      </div>`;
+  }).join('')}
+            </div>
+            <p class="text-white/30 text-[9.5px] mt-2 leading-relaxed">Behavioral indicator from measurable signals (eye contact, head stability, visibility, attention, expression stability) &mdash; not a claim of actual confidence.</p>
+          </div>`;
 }
 
 function renderReportModal(report) {
@@ -2455,6 +2912,14 @@ function renderReportModal(report) {
       technical_accuracy: tech, keyword_relevance: tech, problem_solving_ability: tech, domain_knowledge: tech, answer_completeness: tech,
       time_management: prof, response_organization: prof, professional_communication: prof, interview_etiquette: prof
     };
+  }
+
+  /* ── Module 6: measured vision analytics override placeholders ── */
+  var visionMetrics = report.vision_metrics || null;
+  var visionEye = visionMetrics && visionMetrics.eye ? visionMetrics.eye : null;
+  if (visionEye && typeof visionEye.contact_pct === 'number') {
+    params.eye_contact_consistency = Math.round(visionEye.contact_pct);
+    if (typeof params.attention_level !== 'number') params.attention_level = Math.round(visionEye.contact_pct);
   }
 
   /* ── Format date ── */
@@ -2488,6 +2953,7 @@ function renderReportModal(report) {
   var sections = [
     { id: 'report-overview', label: 'Overview' },
     { id: 'report-speech-grammar', label: 'Communication & Grammar' },
+    { id: 'report-behavior', label: 'Behavior' },
     { id: 'report-performance', label: 'Performance' },
     { id: 'report-gaps', label: 'Strengths & Gaps' },
     { id: 'report-plan', label: 'Improvement Plan' },
@@ -2888,35 +3354,19 @@ function renderReportModal(report) {
 
         </div>
 
-        <!-- 4. Performance Breakdown -->
+        <!-- 4. Interview Behavior Analysis (Task 8) -->
+        ${renderBehaviorSection(visionMetrics)}
+
+        <!-- 4b. AI Feedback & Scoring -->
         <div class="report-section" id="report-performance">
-          <h3 class="text-base font-semibold text-white mb-3" style="font-family:'Outfit',sans-serif">Performance Breakdown</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            ${dimGroups.map(function (g) {
-      var fallback = fallbackFor(g);
-      var items = g.keys.map(function (k) { return { name: prettyParam(k), val: params[k] !== undefined ? params[k] : fallback }; });
-      return `<div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
-                <div class="flex items-center gap-2 mb-3">
-                  <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style="background:${g.color}1f;color:${g.color}">${g.icon}</span>
-                  <p class="text-white/70 text-xs font-semibold uppercase tracking-wider">${g.name}</p>
-                </div>
-                <div class="space-y-2.5">
-                  ${items.map(function (it) {
-        var pct = Math.min(100, Math.max(0, it.val));
-        return `<div>
-                      <div class="flex items-center justify-between text-xs mb-1">
-                        <span class="text-white/60">${it.name}</span>
-                        <span class="text-white font-semibold">${it.val.toFixed(0)}%</span>
-                      </div>
-                      <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
-                        <div class="h-full rounded-full report-progress" data-w="${pct}" style="background:${g.color}"></div>
-                      </div>
-                    </div>`;
-      }).join('')}
-                </div>
-              </div>`;
-    }).join('')}
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">AI Feedback &amp; Scoring</h3>
+            <span class="text-[10px] text-white/40 font-medium">Overall = Communication ×30% + Confidence ×25% + Technical ×30% + Professionalism ×15%</span>
           </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            ${renderPillarScores(report, params)}
+          </div>
+          <p class="text-white/25 text-[9.5px] mt-3 leading-relaxed">Parameters marked <span class="text-cyan-300 font-semibold">MEASURED</span> are computed from live webcam behavioral analysis; remaining parameters come from AI language evaluation of your spoken responses.</p>
         </div>
 
         <!-- 5. Quick Performance Summary -->

@@ -109,6 +109,14 @@ var api = {
       method: 'POST', body: { question_id: questionId, audio_data: audioData },
     });
   },
+  sendVisionFrame: function(interviewId, imageDataUrl, questionIndex) {
+    var payload = { image_data: imageDataUrl };
+    if (typeof questionIndex === 'number') payload.question_index = questionIndex;
+    return apiRequest('/interviews/' + interviewId + '/vision-frame', { method: 'POST', body: payload });
+  },
+  getVisionSummary: function(interviewId) {
+    return apiRequest('/interviews/' + interviewId + '/vision-summary');
+  },
   getInterviewHistory: function() {
     return apiRequest('/interviews/history');
   },

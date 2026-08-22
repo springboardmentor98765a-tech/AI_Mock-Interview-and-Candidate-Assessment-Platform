@@ -522,6 +522,85 @@ function downloadReportAsPDF(report) {
   var sessionId = report.interview_id || report.id || 'N/A';
 
   var params = report.detailed_parameters || {};
+
+  /* ── Module 6: measured vision analytics override placeholders ── */
+  var visionMetrics = report.vision_metrics || null;
+  var visionEye = visionMetrics && visionMetrics.eye ? visionMetrics.eye : null;
+  if (visionEye && typeof visionEye.contact_pct === 'number') {
+    params.eye_contact_consistency = Math.round(visionEye.contact_pct);
+    if (typeof params.attention_level !== 'number') params.attention_level = Math.round(visionEye.contact_pct);
+  }
+  function fmtVisionSecs(s) {
+    if (!s) return '0s';
+    var m = Math.floor(s / 60);
+    var r = Math.round(s % 60);
+    return m > 0 ? m + 'm ' + r + 's' : r + 's';
+  }
+  var visionBoxHtml = (visionEye && typeof visionEye.contact_pct === 'number') ? `
+    <div class="box" style="margin-bottom:18px;">
+      ${(visionMetrics.engagement && visionMetrics.engagement.score !== null && visionMetrics.engagement.score !== undefined) ? (() => {
+        var en = visionMetrics.engagement;
+        var enNames = { attention: 'Attention', eye_contact: 'Eye Contact', face_presence: 'Face Presence', head_orientation: 'Head Orientation', facial_activity: 'Facial Activity', interaction_continuity: 'Continuity' };
+        var compRows = Object.keys(en.components).filter(function (k) { return typeof en.components[k] === 'number'; }).map(function (k) {
+          return `<span style="display:inline-block;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 8px;margin:0 4px 4px 0;font-size:10px;color:#3730a3;"><strong>${enNames[k] || k}:</strong> ${en.components[k].toFixed(0)}</span>`;
+        }).join('');
+        return `<div style="border:1px solid #c4b5fd;background:#f5f3ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <p style="font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:0.4px;">Engagement Score</p>
+              <p style="font-size:11px;font-weight:700;color:#6d28d9;">${en.level || ''}</p>
+            </div>
+            <p style="font-size:24px;font-weight:800;color:#0f172a;line-height:1.1;margin:2px 0 6px 0;">${en.score.toFixed(0)} <span style="font-size:11px;font-weight:600;color:#64748b;">/ 100</span></p>
+            <div>${compRows}</div>
+          </div>`;
+      })() : ''}
+      ${(visionMetrics.confidence_indicator && visionMetrics.confidence_indicator.score !== null && visionMetrics.confidence_indicator.score !== undefined) ? (() => {
+        var ci = visionMetrics.confidence_indicator;
+        var compNames = { eye_contact: 'Eye Contact', head_stability: 'Head Stability', face_visibility: 'Face Visibility', attention: 'Attention', expression_stability: 'Expression Stability' };
+        var compRows = Object.keys(ci.components).filter(function (k) { return typeof ci.components[k] === 'number'; }).map(function (k) {
+          return `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:2px 8px;margin:0 4px 4px 0;font-size:10px;color:#334155;"><strong>${compNames[k] || k}:</strong> ${ci.components[k].toFixed(0)}</span>`;
+        }).join('');
+        return `<div style="border:1px solid #c7d2fe;background:#eef2ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <p style="font-size:11px;font-weight:800;color:#3730a3;text-transform:uppercase;letter-spacing:0.4px;">Confidence Indicator</p>
+              <p style="font-size:11px;font-weight:700;color:#4f46e5;">${ci.band || ''}</p>
+            </div>
+            <p style="font-size:24px;font-weight:800;color:#0f172a;line-height:1.1;margin:2px 0 6px 0;">${ci.score.toFixed(0)} <span style="font-size:11px;font-weight:600;color:#64748b;">/ 100</span></p>
+            <div>${compRows}</div>
+            <p style="font-size:8.5px;color:#94a3b8;margin-top:4px;">Behavioral indicator from measurable signals &mdash; not a claim of actual confidence.</p>
+          </div>`;
+      })() : ''}
+      <div class="box-title" style="color:#0891b2;">&#9678; Vision &amp; Camera Focus Analysis</div>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;">
+        <div style="min-width:110px;">
+          <p style="font-size:26px;font-weight:800;color:#0f172a;line-height:1;">${Math.round(visionEye.contact_pct)}%</p>
+          <p style="font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;">Eye Contact (${visionEye.focus_label})</p>
+        </div>
+        <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px;padding:6px 10px;">
+            <p style="font-size:9px;color:#155e75;text-transform:uppercase;font-weight:700;">Time Toward Camera</p>
+            <p style="font-size:12px;font-weight:800;color:#0f172a;">${fmtVisionSecs(visionEye.seconds_contact)}</p>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:6px 10px;">
+            <p style="font-size:9px;color:#9a3412;text-transform:uppercase;font-weight:700;">Time Looking Away</p>
+            <p style="font-size:12px;font-weight:800;color:#0f172a;">${fmtVisionSecs(visionEye.seconds_away)}</p>
+          </div>
+        </div>
+      </div>
+      ${(visionMetrics.orientation_counts && Object.keys(visionMetrics.orientation_counts).length) ? (() => {
+        var entries = Object.keys(visionMetrics.orientation_counts).map(function (k) {
+          return k + ': ' + Math.round(visionMetrics.orientation_counts[k] / (visionMetrics.pose_frames || 1) * 100) + '%';
+        });
+        return `<p style="font-size:10px;color:#4b5563;"><strong>Head orientation mix:</strong> ${entries.join(' &middot; ')}</p>`;
+      })() : ''}
+      ${(visionMetrics.emotion && visionMetrics.emotion.dominant_distribution) ? (() => {
+        var emoNames = { happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust' };
+        var entries = Object.keys(visionMetrics.emotion.dominant_distribution).slice(0, 4).map(function (k) {
+          return (emoNames[k] || k) + ': ' + visionMetrics.emotion.dominant_distribution[k].toFixed(0) + '%';
+        });
+        return `<p style="font-size:10px;color:#4b5563;"><strong>Facial emotion mix:</strong> ${entries.join(' &middot; ')}${visionMetrics.emotion.session_dominant ? ' &mdash; dominant: ' + (emoNames[visionMetrics.emotion.session_dominant] || visionMetrics.emotion.session_dominant) : ''}</p>`;
+      })() : ''}
+    </div>` : '';
+
   var strengths = report.strengths || [];
   var weaknesses = report.weaknesses || [];
   var improvements = report.improvements || [];
@@ -534,6 +613,39 @@ function downloadReportAsPDF(report) {
   var pace = report.pace_analysis || (report.communication_analysis && report.communication_analysis.pace_analysis) || {};
 
   var ratingColor = rating === 'Excellent' ? '#10b981' : rating === 'Good' ? '#6366f1' : rating === 'Average' ? '#f59e0b' : rating === 'Needs Improvement' ? '#f43f5e' : '#e11d48';
+
+  var behaviorBoxHtml = (visionMetrics && visionMetrics.behavior) ? (() => {
+    var b = visionMetrics.behavior; var m = b.metrics || {};
+    var metricLine = function (label, val) {
+      return `<tr><td style="padding:4px 8px;border-bottom:1px solid #eef2f7;color:#374151;">${label}</td><td style="padding:4px 8px;border-bottom:1px solid #eef2f7;text-align:right;font-weight:700;color:#111827;">${val}</td></tr>`;
+    };
+    var segRows = (b.segments || []).slice(0, 6).map(function (s) {
+      return `<li style="margin-bottom:3px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#4f46e5;font-weight:600;">${s.from} - ${s.to}</span> &nbsp; ${s.label}</li>`;
+    }).join('');
+    var pointRows = (b.summary_points || []).map(function (p) {
+      return `<li style="margin-bottom:3px;color:${p.kind === 'good' ? '#065f46' : '#92400e'};">${p.kind === 'good' ? '&#10003;' : '&#9888;'} ${p.text}</li>`;
+    }).join('');
+    var emoDist = m.dominant_expression_distribution || {};
+    var emoText = Object.keys(emoDist).slice(0, 4).map(function (k) {
+      return (visionMetrics.emotion && { happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust' }[k] || k) + ' ' + emoDist[k].toFixed(0) + '%';
+    }).join(' &middot; ');
+    return `<div class="box" style="margin-bottom:18px;">
+      <div class="box-title" style="color:#4f46e5;">&#9678; Interview Behavior Analysis</div>
+      <table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:8px;">
+        ${metricLine('Eye Contact', m.eye_contact_pct != null ? m.eye_contact_pct.toFixed(0) + '%' : '—')}
+        ${metricLine('Attention', m.attention_pct != null ? m.attention_pct.toFixed(0) + '%' : '—')}
+        ${metricLine('Face Visibility', m.face_visibility_pct != null ? m.face_visibility_pct.toFixed(0) + '%' : '—')}
+        ${metricLine('Avg Head Movement', m.avg_head_movement_deg_per_min != null ? m.avg_head_movement_deg_per_min.toFixed(1) + '&deg;/min' : '—')}
+        ${metricLine('Longest Attention Break', m.longest_attention_break_s != null ? m.longest_attention_break_s.toFixed(0) + 's' : '—')}
+        ${metricLine('Significant Attention Breaks', String(m.significant_attention_breaks ?? 0))}
+        ${metricLine('Confidence Indicator', m.confidence_indicator != null ? m.confidence_indicator.toFixed(0) : '—')}
+        ${metricLine('Engagement Score', (function () { var en = visionMetrics.engagement; return en && en.score != null ? en.score.toFixed(0) + ' (' + (en.level || '') + ')' : '—'; })())}
+      </table>
+      ${emoText ? `<p style="font-size:10px;color:#4b5563;margin-bottom:6px;"><strong>Expression distribution:</strong> ${emoText}</p>` : ''}
+      ${(b.segments && b.segments.length) ? `<p style="font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;margin-bottom:3px;">Session Timeline</p><ul style="list-style:none;padding:0;margin:0 0 6px 0;font-size:10px;">${segRows}</ul>` : ''}
+      ${(b.summary_points && b.summary_points.length) ? `<p style="font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;margin-bottom:3px;">Behavior Summary</p><ul style="list-style:none;padding:0;margin:0;">${pointRows}</ul>` : ''}
+    </div>`;
+  })() : '';
 
   var printHtml = `<!DOCTYPE html>
 <html>
@@ -809,7 +921,10 @@ function downloadReportAsPDF(report) {
   </div>
 
   <!-- 19 Parameters Grid -->
-  <h2 class="section-title">Granular Diagnostic Parameters</h2>
+  <h2 class="section-title">AI Feedback &amp; Scoring Breakdown</h2>
+  <p style="font-size:10px;color:#6b7280;margin:-6px 0 10px 0;">Overall = Communication &times;30% + Confidence &times;25% + Technical &times;30% + Professionalism &times;15%</p>
+  ${visionBoxHtml}
+  ${behaviorBoxHtml}
   <table class="params-table">
     <thead>
       <tr>

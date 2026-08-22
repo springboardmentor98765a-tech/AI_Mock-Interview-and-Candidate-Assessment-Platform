@@ -197,6 +197,11 @@ class InterviewRecordingCreateRequest(BaseModel):
     status: Optional[str] = "completed"
 
 
+class VisionFrameRequest(BaseModel):
+    image_data: str = Field(..., min_length=16)
+    question_index: Optional[int] = None
+
+
 class InterviewRecordingResponse(BaseModel):
     id: int
     session_id: int

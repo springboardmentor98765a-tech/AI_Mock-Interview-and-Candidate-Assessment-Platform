@@ -7,3 +7,9 @@ bcrypt==4.0.1
 google-auth==2.37.0
 pydantic==2.10.4
 email-validator==2.3.0
+
+# Module 6: Emotion Detection & Eye Tracking (vision pipeline)
+numpy>=2.0
+opencv-python-headless>=4.10
+mediapipe>=1.0.1
+deepface>=0.0.93

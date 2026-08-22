@@ -3361,10 +3361,116 @@ select:focus, input:focus, textarea:focus {
   justify-content: center;
 }
 
+/* ── Module 6 · Vision Status Overlay Badge ── */
+.sh-vision-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(7, 9, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.sh-vision-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #818cf8;
+}
+
+.vision-badge-face_detected { border-color: rgba(16, 185, 129, 0.45); }
+.vision-badge-face_detected .sh-vision-badge-dot { background: #10b981; animation: shVisionPulse 1.8s ease-in-out infinite; }
+
+.vision-badge-no_face,
+.vision-badge-invalid_frame,
+.vision-badge-processing_error { border-color: rgba(245, 158, 11, 0.45); }
+.vision-badge-no_face .sh-vision-badge-dot,
+.vision-badge-invalid_frame .sh-vision-badge-dot,
+.vision-badge-processing_error .sh-vision-badge-dot { background: #f59e0b; animation: shVisionPulse 1.2s ease-in-out infinite; }
+
+.vision-badge-multiple_faces,
+.vision-badge-camera_off { border-color: rgba(244, 63, 94, 0.5); }
+.vision-badge-multiple_faces .sh-vision-badge-dot,
+.vision-badge-camera_off .sh-vision-badge-dot { background: #f43f5e; animation: shVisionPulse 0.9s ease-in-out infinite; }
+
+.vision-badge-unavailable .sh-vision-badge-dot { background: #64748b; }
+
+@keyframes shVisionPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+
 .sh-user-stage-footer {
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+}
+
+/* ── Module 6 · Task 4: Attention Monitoring Strip ── */
+.sh-attention-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sh-attn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sh-attn-chip strong { color: #fff; }
+
+.sh-attn-chip.sh-attn-warn-active {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.sh-attn-chip.sh-attn-warn-active strong { color: #fbbf24; }
+
+.sh-attn-chip.sh-attn-warn-critical {
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.45);
+  animation: shAttnPulse 1.1s ease-in-out infinite;
+}
+.sh-attn-chip.sh-attn-warn-critical strong { color: #fda4af; }
+
+.sh-attn-flash { animation: shAttnFlash 0.9s ease-out; }
+
+@keyframes shAttnFlash {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55); transform: scale(1); }
+  35% { box-shadow: 0 0 0 7px rgba(244, 63, 94, 0); transform: scale(1.07); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); transform: scale(1); }
+}
+
+@keyframes shAttnPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
 /* ── Right Stage Stack ── */
