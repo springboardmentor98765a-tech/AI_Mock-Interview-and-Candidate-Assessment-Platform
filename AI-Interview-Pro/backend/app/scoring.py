@@ -227,6 +227,104 @@ def _heuristic_analyze(question_text: str, answer_text: str, domain: str = None,
 
 
 # ---------------------------------------------------------------------------
+# Module 5 - Speech-to-Text & Communication Analysis
+# Blends real, browser-captured speech-delivery metrics (filler-word count,
+# speaking pace, recognition-confidence-derived pronunciation clarity) into
+# the text-based scores above, when the candidate actually used voice input
+# for the answer. A no-op when no speech metrics were supplied (i.e. the
+# candidate typed their answer) - nothing here is ever a placeholder.
+# ---------------------------------------------------------------------------
+IDEAL_WPM_MIN = 110
+IDEAL_WPM_MAX = 160
+
+
+def apply_speech_metrics(
+    scores: dict,
+    filler_word_count: int = None,
+    speaking_pace_wpm: float = None,
+    pronunciation_score: float = None,
+    word_count: int = None,
+) -> dict:
+    if filler_word_count is None and speaking_pace_wpm is None and pronunciation_score is None:
+        return scores
+
+    result = dict(scores)
+
+    # Pace: full marks inside the ideal conversational range for a spoken
+    # interview answer, tapering off the further outside it.
+    pace_score = None
+    if speaking_pace_wpm is not None and speaking_pace_wpm > 0:
+        if IDEAL_WPM_MIN <= speaking_pace_wpm <= IDEAL_WPM_MAX:
+            pace_score = 100.0
+        elif speaking_pace_wpm < IDEAL_WPM_MIN:
+            pace_score = max(0.0, 100 - (IDEAL_WPM_MIN - speaking_pace_wpm) * 1.5)
+        else:
+            pace_score = max(0.0, 100 - (speaking_pace_wpm - IDEAL_WPM_MAX) * 1.2)
+
+    # Filler-word frequency, normalised per 100 words spoken.
+    filler_score = None
+    if filler_word_count is not None and word_count:
+        filler_ratio = (filler_word_count / max(1, word_count)) * 100
+        filler_score = max(0.0, 100 - filler_ratio * 12)
+
+    speech_components = [s for s in (pace_score, filler_score) if s is not None]
+    if speech_components:
+        speech_communication_score = sum(speech_components) / len(speech_components)
+        # Real spoken delivery counts for 40% next to the original
+        # text-based communication read.
+        result["communication_score"] = round(
+            0.6 * scores["communication_score"] + 0.4 * speech_communication_score, 1
+        )
+
+    if pronunciation_score is not None:
+        # Clear, well-recognised speech reads as more confident delivery.
+        result["confidence_score"] = round(
+            0.75 * scores["confidence_score"] + 0.25 * max(0, min(100, pronunciation_score)), 1
+        )
+
+    if filler_score is not None:
+        result["confidence_score"] = round(
+            0.85 * result.get("confidence_score", scores["confidence_score"]) + 0.15 * filler_score, 1
+        )
+
+    result["overall_score"] = round(
+        0.35 * result["technical_score"]
+        + 0.25 * result["communication_score"]
+        + 0.20 * result["confidence_score"]
+        + 0.20 * result["grammar_score"],
+        1,
+    )
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Module 6 - Emotion Detection & Eye Tracking
+# Lightly blends the session's running facial-expression/eye-contact-based
+# confidence signal (from face-api.js running client-side, see
+# app/routes/session_routes.py::submit_emotion_samples) into the answer's
+# confidence_score. Kept to a 15% weight since the text-based signal is the
+# primary, always-available read on any single answer.
+# ---------------------------------------------------------------------------
+def apply_visual_confidence(scores: dict, avg_visual_confidence: float = None) -> dict:
+    if avg_visual_confidence is None:
+        return scores
+
+    result = dict(scores)
+    result["confidence_score"] = round(
+        0.85 * scores["confidence_score"] + 0.15 * max(0, min(100, avg_visual_confidence)), 1
+    )
+    result["overall_score"] = round(
+        0.35 * result["technical_score"]
+        + 0.25 * result["communication_score"]
+        + 0.20 * result["confidence_score"]
+        + 0.20 * result["grammar_score"],
+        1,
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 def analyze_answer(question_text: str, answer_text: str, domain: str = None, resume_skills=None) -> dict:

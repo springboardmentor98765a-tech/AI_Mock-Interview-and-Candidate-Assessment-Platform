@@ -12,6 +12,11 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Module 6 - Emotion Detection & Eye Tracking: runs entirely in the
+         browser against the candidate's own webcam feed. No video/image
+         data is ever sent to any server - only periodic summary scores. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   </head>
 
   <body class="interview-session-body">
@@ -85,9 +90,43 @@
           </div>
 
           <!-- Module 4 - live webcam preview + recording indicator -->
+          <!-- Module 6 - emotion overlay canvas + live emotion badge -->
           <div class="session-camera-box" id="sessionCameraBox" style="display:none;">
             <video id="sessionCameraPreview" autoplay muted playsinline></video>
+            <canvas id="emotionOverlayCanvas" class="emotion-overlay-canvas"></canvas>
             <span class="rec-indicator" id="recIndicator" style="display:none;">🔴 REC</span>
+            <span class="emotion-badge" id="emotionBadge" style="display:none;"></span>
+          </div>
+
+          <!-- Module 6 - Emotion Detection & Eye Tracking: live meters -->
+          <div class="live-insights-panel" id="liveInsightsPanel" style="display:none;">
+            <h4>🧠 Live Interview Insights</h4>
+
+            <div class="insight-row">
+              <span class="insight-label">👀 Eye Contact</span>
+              <div class="insight-meter"><div class="insight-meter-fill eye-contact-fill" id="eyeContactMeter"></div></div>
+              <span class="insight-value" id="eyeContactValue">-</span>
+            </div>
+
+            <div class="insight-row">
+              <span class="insight-label">🧍 Attention</span>
+              <div class="insight-meter"><div class="insight-meter-fill attention-fill" id="attentionMeter"></div></div>
+              <span class="insight-value" id="attentionValue">-</span>
+            </div>
+
+            <div class="insight-row">
+              <span class="insight-label">😊 Confidence</span>
+              <div class="insight-meter"><div class="insight-meter-fill confidence-fill" id="visualConfidenceMeter"></div></div>
+              <span class="insight-value" id="visualConfidenceValue">-</span>
+            </div>
+
+            <div class="insight-row">
+              <span class="insight-label">🎯 Engagement</span>
+              <div class="insight-meter"><div class="insight-meter-fill engagement-fill" id="engagementMeter"></div></div>
+              <span class="insight-value" id="engagementValue">-</span>
+            </div>
+
+            <p class="hint" id="emotionModelStatus">Loading facial analysis...</p>
           </div>
 
           <div class="session-question-card">
@@ -100,6 +139,13 @@
             <div class="mic-controls">
               <button id="micBtn" type="button">🎤 Speak Your Answer</button>
               <span id="micStatus"></span>
+            </div>
+
+            <!-- Module 5 - Speech-to-Text & Communication Analysis: live meters -->
+            <div class="speech-metrics-panel" id="speechMetricsPanel" style="display:none;">
+              <div class="speech-metric"><span class="speech-metric-label">🗯 Filler words</span><span id="fillerWordCountText">0</span></div>
+              <div class="speech-metric"><span class="speech-metric-label">⏱ Pace</span><span id="speakingPaceText">- WPM</span></div>
+              <div class="speech-metric"><span class="speech-metric-label">🔊 Clarity</span><span id="pronunciationScoreText">-</span></div>
             </div>
 
             <textarea id="answerText" placeholder="Your spoken answer appears here - or just type it directly."></textarea>

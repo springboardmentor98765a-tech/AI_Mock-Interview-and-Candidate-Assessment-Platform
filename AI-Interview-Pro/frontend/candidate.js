@@ -460,13 +460,61 @@ if (userName) {
    (Module 2 - Resume Parsing, Module 3 - AI Interview Generation)
 ========================================================== */
 
+// Minimal dashboard-side state: the live interview itself now runs on
+// its own full-page (interview-session.html) - see MODULE 4 there.
 const aiState = {
   currentInterviewId: null,
-  currentQuestionId: null,
-  currentQuestionText: "",
-  deadlineAt: null,
-  timerIntervalId: null,
 };
+
+const ACTIVE_SESSION_KEY = "aiip_active_interview_id";
+
+function getActiveSessionFromStorage() {
+  try {
+    return localStorage.getItem(ACTIVE_SESSION_KEY);
+  } catch (err) {
+    return null;
+  }
+}
+
+function clearActiveSessionFromStorage() {
+  try {
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
+  } catch (err) { /* non-fatal */ }
+}
+
+/* ==========================================================
+   MODULE 4 - INTERVIEW SESSION MANAGEMENT (entry points only)
+   The actual live session - webcam/mic, recording, timer,
+   pause/resume, full-screen proctoring, question flow - runs on
+   its own dedicated page: interview-session.html. This dashboard
+   only (a) sends the candidate there after generating an interview,
+   and (b) sends them back there if they refresh mid-interview.
+========================================================== */
+
+async function resumeActiveInterviewIfAny() {
+  const savedInterviewId = getActiveSessionFromStorage();
+  if (!savedInterviewId) return;
+
+  try {
+    const response = await authFetch("/interviews/" + savedInterviewId + "/session");
+
+    if (!response.ok) {
+      clearActiveSessionFromStorage();
+      return;
+    }
+
+    const session = await response.json();
+
+    if (session.is_complete || session.interview.status === "completed") {
+      clearActiveSessionFromStorage();
+      return;
+    }
+
+    window.location.href = "interview-session.html?interview_id=" + savedInterviewId;
+  } catch (err) {
+    console.warn("Could not resume active interview session:", err);
+  }
+}
 
 function show(el) { if (el) el.style.display = ""; }
 function hide(el) { if (el) el.style.display = "none"; }
@@ -706,7 +754,8 @@ if (generateInterviewBtnEl) {
         throw new Error(data.detail || "Could not generate interview questions.");
       }
 
-      await beginInterview(data.id);
+      // Module 4 - the live session runs on its own full-page.
+      window.location.href = "interview-session.html?interview_id=" + data.id;
 
     } catch (err) {
       setupErrorEl.textContent = err.message || "Something went wrong. Please try again.";
@@ -715,318 +764,6 @@ if (generateInterviewBtnEl) {
       generateInterviewBtnEl.textContent = originalText;
     }
 
-  });
-}
-
-/* ---------------------------------------------------------
-   LIVE INTERVIEW SESSION (voice speak + voice capture)
---------------------------------------------------------- */
-
-async function beginInterview(interviewId) {
-  aiState.currentInterviewId = interviewId;
-  aiState.deadlineAt = null;
-  stopTimer();
-
-  const response = await authFetch("/interviews/start?interview_id=" + interviewId, {
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    setupErrorEl.textContent = data.detail || "Could not start the interview.";
-    return;
-  }
-
-  hide(document.getElementById("aiInterviewSetup"));
-  hide(document.getElementById("aiInterviewComplete"));
-  show(document.getElementById("aiInterviewSession"));
-
-  await loadSession(interviewId);
-}
-
-/* ---------------- Timer (Timed Interview feature) ---------------- */
-
-function startTimer(deadlineAt) {
-  stopTimer();
-  aiState.deadlineAt = deadlineAt;
-
-  const timerEl = document.getElementById("sessionTimer");
-  if (!timerEl || !deadlineAt) return;
-  show(timerEl);
-
-  function tick() {
-    const remainingMs = new Date(aiState.deadlineAt).getTime() - Date.now();
-
-    if (remainingMs <= 0) {
-      timerEl.textContent = "⏱ 00:00";
-      handleInterviewTimeout();
-      return;
-    }
-
-    const totalSeconds = Math.floor(remainingMs / 1000);
-    const mm = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-    const ss = String(totalSeconds % 60).padStart(2, "0");
-    timerEl.textContent = "⏱ " + mm + ":" + ss;
-
-    if (totalSeconds <= 60) {
-      timerEl.classList.add("session-timer-warning");
-    }
-  }
-
-  tick();
-  aiState.timerIntervalId = setInterval(tick, 1000);
-}
-
-function stopTimer() {
-  if (aiState.timerIntervalId) {
-    clearInterval(aiState.timerIntervalId);
-    aiState.timerIntervalId = null;
-  }
-  const timerEl = document.getElementById("sessionTimer");
-  if (timerEl) {
-    hide(timerEl);
-    timerEl.classList.remove("session-timer-warning");
-  }
-}
-
-async function handleInterviewTimeout() {
-  stopTimer();
-
-  try {
-    await authFetch("/interviews/" + aiState.currentInterviewId + "/timeout", {
-      method: "POST",
-    });
-  } catch (err) {
-    console.warn("Could not register interview timeout:", err);
-  }
-
-  window.speechSynthesis && window.speechSynthesis.cancel();
-
-  hide(document.getElementById("aiInterviewSession"));
-  show(document.getElementById("aiInterviewComplete"));
-
-  document.getElementById("completeSummary").textContent =
-    "Time's up! Your interview ended automatically because the selected time limit was reached.";
-
-  loadHistory();
-  loadAnalytics();
-}
-
-async function loadSession(interviewId) {
-  const response = await authFetch("/interviews/" + interviewId + "/session");
-
-  if (!response.ok) {
-    console.error("Could not load interview session.");
-    return;
-  }
-
-  const session = await response.json();
-
-  if (session.deadline_at && !aiState.deadlineAt) {
-    startTimer(session.deadline_at);
-  }
-
-  if (session.is_complete) {
-    showCompletion(session);
-    return;
-  }
-
-  renderQuestion(session);
-}
-
-function renderQuestion(session) {
-  const question = session.current_question;
-
-  aiState.currentQuestionId = question.id;
-  aiState.currentQuestionText = question.question_text;
-
-  document.getElementById("sessionProgressText").textContent =
-    "Question " + (session.answered_count + 1) + " of " + session.total_questions;
-
-  document.getElementById("sessionProgressFill").style.width =
-    Math.round((session.answered_count / session.total_questions) * 100) + "%";
-
-  document.getElementById("questionCategory").textContent = question.category;
-  document.getElementById("questionText").textContent = question.question_text;
-
-  const answerBox = document.getElementById("answerText");
-  answerBox.value = "";
-  document.getElementById("answerError").textContent = "";
-
-  speakText(question.question_text);
-}
-
-function speakText(text) {
-  if (!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.95;
-  window.speechSynthesis.speak(utterance);
-}
-
-const speakQuestionBtnEl = document.getElementById("speakQuestionBtn");
-if (speakQuestionBtnEl) {
-  speakQuestionBtnEl.addEventListener("click", () => {
-    speakText(aiState.currentQuestionText);
-  });
-}
-
-/* ---------------- Voice answer capture (speech-to-text) ---------------- */
-
-const micBtnEl = document.getElementById("micBtn");
-const micStatusEl = document.getElementById("micStatus");
-const answerTextEl = document.getElementById("answerText");
-
-let recognizer = null;
-let isRecording = false;
-
-const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if (SpeechRecognitionCtor && micBtnEl) {
-
-  recognizer = new SpeechRecognitionCtor();
-  recognizer.continuous = true;
-  recognizer.interimResults = true;
-  recognizer.lang = "en-US";
-
-  let baseAnswerText = "";
-
-  recognizer.onstart = () => {
-    isRecording = true;
-    micBtnEl.classList.add("recording");
-    micBtnEl.textContent = "⏹ Stop Recording";
-    micStatusEl.textContent = "Listening...";
-    baseAnswerText = answerTextEl.value ? answerTextEl.value + " " : "";
-  };
-
-  recognizer.onresult = (event) => {
-    let transcript = "";
-    for (let i = 0; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
-    }
-    answerTextEl.value = (baseAnswerText + transcript).trim();
-  };
-
-  recognizer.onerror = (event) => {
-    micStatusEl.textContent = "Voice input error: " + event.error;
-  };
-
-  recognizer.onend = () => {
-    isRecording = false;
-    micBtnEl.classList.remove("recording");
-    micBtnEl.textContent = "🎤 Speak Your Answer";
-    micStatusEl.textContent = "";
-  };
-
-  micBtnEl.addEventListener("click", () => {
-    if (isRecording) {
-      recognizer.stop();
-    } else {
-      try {
-        recognizer.start();
-      } catch (err) {
-        console.warn("Could not start voice recognition:", err);
-      }
-    }
-  });
-
-} else if (micBtnEl) {
-  micBtnEl.disabled = true;
-  micBtnEl.textContent = "🎤 Voice not supported in this browser";
-  micStatusEl.textContent = "Try Chrome on desktop, or just type your answer below.";
-}
-
-/* ---------------- Submit answer ---------------- */
-
-const submitAnswerBtnEl = document.getElementById("submitAnswerBtn");
-
-if (submitAnswerBtnEl) {
-  submitAnswerBtnEl.addEventListener("click", async () => {
-
-    const answerErrorEl = document.getElementById("answerError");
-    answerErrorEl.textContent = "";
-
-    const answerValue = answerTextEl.value.trim();
-
-    if (!answerValue) {
-      answerErrorEl.textContent = "Please provide an answer (speak or type) before submitting.";
-      return;
-    }
-
-    if (isRecording && recognizer) {
-      recognizer.stop();
-    }
-
-    submitAnswerBtnEl.disabled = true;
-    const originalText = submitAnswerBtnEl.textContent;
-    submitAnswerBtnEl.textContent = "Saving...";
-
-    try {
-      const response = await authFetch(
-        "/interviews/" + aiState.currentInterviewId + "/questions/" + aiState.currentQuestionId + "/answer",
-        {
-          method: "PUT",
-          body: JSON.stringify({ answer_text: answerValue }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Could not save your answer.");
-      }
-
-      await loadSession(aiState.currentInterviewId);
-
-    } catch (err) {
-      answerErrorEl.textContent = err.message || "Something went wrong saving your answer.";
-    } finally {
-      submitAnswerBtnEl.disabled = false;
-      submitAnswerBtnEl.textContent = originalText;
-    }
-
-  });
-}
-
-/* ---------------- Completion ---------------- */
-
-function showCompletion(session) {
-  stopTimer();
-  hide(document.getElementById("aiInterviewSession"));
-  show(document.getElementById("aiInterviewComplete"));
-
-  window.speechSynthesis && window.speechSynthesis.cancel();
-
-  document.getElementById("completeSummary").textContent =
-    "You answered all " + session.total_questions + " questions in this " +
-    session.interview.interview_type + " interview on \"" + session.interview.domain + "\".";
-
-  loadHistory();
-  loadAnalytics();
-}
-
-const reviewAnswersBtnEl = document.getElementById("reviewAnswersBtn");
-if (reviewAnswersBtnEl) {
-  reviewAnswersBtnEl.addEventListener("click", () => {
-    const historySection = document.getElementById("history");
-    if (historySection) historySection.scrollIntoView({ behavior: "smooth" });
-    if (aiState.currentInterviewId) {
-      viewInterviewDetail(aiState.currentInterviewId);
-    }
-  });
-}
-
-const newInterviewBtnEl = document.getElementById("newInterviewBtn");
-if (newInterviewBtnEl) {
-  newInterviewBtnEl.addEventListener("click", () => {
-    stopTimer();
-    hide(document.getElementById("aiInterviewComplete"));
-    hide(document.getElementById("aiInterviewSession"));
-    show(document.getElementById("aiInterviewSetup"));
-    aiState.currentInterviewId = null;
-    aiState.currentQuestionId = null;
-    aiState.deadlineAt = null;
   });
 }
 
@@ -1094,6 +831,8 @@ async function loadHistory() {
 async function viewInterviewDetail(interviewId) {
   const panel = document.getElementById("historyDetailPanel");
   const titleEl = document.getElementById("historyDetailTitle");
+  const scoreEl = document.getElementById("historyDetailScore");
+  const recordingsEl = document.getElementById("historyDetailRecordings");
   const qaEl = document.getElementById("historyDetailQA");
 
   try {
@@ -1105,6 +844,17 @@ async function viewInterviewDetail(interviewId) {
 
     titleEl.textContent =
       interview.interview_type + " interview - " + interview.domain + " (" + interview.difficulty + ")";
+
+    if (scoreEl) {
+      scoreEl.textContent = interview.overall_score != null
+        ? "🏆 Overall score: " + Math.round(interview.overall_score) + "%"
+        : "";
+    }
+
+    if (recordingsEl) {
+      recordingsEl.innerHTML = "<p class=\"hint\">Loading your session recording...</p>";
+      loadHistoryDetailRecordings(interviewId, recordingsEl);
+    }
 
     qaEl.innerHTML = "";
 
@@ -1135,6 +885,31 @@ async function viewInterviewDetail(interviewId) {
         item.appendChild(scoreLine);
       }
 
+      // Module 5 - Speech-to-Text & Communication Analysis: only shown
+      // for answers actually spoken (voice input), not typed.
+      if (q.speech_duration_seconds) {
+        const speechLine = document.createElement("div");
+        speechLine.className = "qa-speech-metrics";
+
+        const fillerSpan = document.createElement("span");
+        fillerSpan.textContent = "🗯 " + (q.filler_word_count != null ? q.filler_word_count : 0) + " filler words";
+        speechLine.appendChild(fillerSpan);
+
+        if (q.speaking_pace_wpm != null) {
+          const paceSpan = document.createElement("span");
+          paceSpan.textContent = "⏱ " + Math.round(q.speaking_pace_wpm) + " WPM";
+          speechLine.appendChild(paceSpan);
+        }
+
+        if (q.pronunciation_score != null) {
+          const claritySpan = document.createElement("span");
+          claritySpan.textContent = "🔊 " + Math.round(q.pronunciation_score) + "% clarity";
+          speechLine.appendChild(claritySpan);
+        }
+
+        item.appendChild(speechLine);
+      }
+
       qaEl.appendChild(item);
     });
 
@@ -1143,6 +918,169 @@ async function viewInterviewDetail(interviewId) {
 
   } catch (err) {
     console.error("Could not load interview detail:", err);
+  }
+}
+
+// Module 6 - Emotion Detection & Eye Tracking: renders a small summary
+// card of the session's real, accumulated webcam-analysis stats (eye
+// contact %, dominant emotion, visual confidence, engagement). Returns
+// null when the session never collected any samples (camera was off,
+// or face-api.js couldn't load in the candidate's browser).
+function buildSessionEmotionSummary(session) {
+  if (!session || !session.emotion_sample_count) return null;
+
+  const box = document.createElement("div");
+  box.className = "session-emotion-summary";
+
+  const heading = document.createElement("h4");
+  heading.textContent = "🧠 Emotion & Eye Tracking Summary";
+  box.appendChild(heading);
+
+  const rows = [
+    ["👀 Eye contact", session.eye_contact_percentage != null ? Math.round(session.eye_contact_percentage) + "%" : "-"],
+    ["🧍 Attention (in frame)", session.attention_percentage != null ? Math.round(session.attention_percentage) + "%" : "-"],
+    ["🙂 Dominant emotion", session.dominant_emotion || "-"],
+    ["😊 Visual confidence", session.avg_visual_confidence != null ? Math.round(session.avg_visual_confidence) + "%" : "-"],
+    ["🎯 Engagement", session.avg_engagement != null ? Math.round(session.avg_engagement) + "%" : "-"],
+  ];
+
+  rows.forEach(([label, value]) => {
+    const row = document.createElement("div");
+    row.className = "emotion-stat-row";
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = label;
+
+    const valueStrong = document.createElement("strong");
+    valueStrong.textContent = value;
+
+    row.appendChild(labelSpan);
+    row.appendChild(valueStrong);
+    box.appendChild(row);
+  });
+
+  // Module 6 - Interview behavior analysis: a rule-based summary
+  // sentence the backend derives from the stats above.
+  if (session.behavior_summary) {
+    const behaviorP = document.createElement("p");
+    behaviorP.className = "hint";
+    behaviorP.style.marginTop = "10px";
+    behaviorP.textContent = session.behavior_summary;
+    box.appendChild(behaviorP);
+  }
+
+  return box;
+}
+
+// Module 4 - fetches the session tied to this interview (which embeds
+// its recordings) so the candidate can play back their own webcam/mic
+// recording straight from their dashboard history.
+async function loadHistoryDetailRecordings(interviewId, container) {
+  try {
+    const response = await authFetch("/interviews/" + interviewId + "/session");
+    if (!response.ok) {
+      container.innerHTML = "";
+      return;
+    }
+
+    const data = await response.json();
+    const sessionId = data.session ? data.session.id : null;
+    const recordings = (data.session && data.session.recordings) || [];
+
+    // Module 6 - Emotion Detection & Eye Tracking: session-level summary,
+    // built from the running aggregates the backend computed from the
+    // candidate's own webcam samples (see /sessions/{id}/emotion-samples).
+    const emotionSummaryEl = buildSessionEmotionSummary(data.session);
+
+    if (!recordings.length) {
+      container.innerHTML = "<p class=\"hint\">No recording was saved for this session.</p>";
+      if (emotionSummaryEl) container.prepend(emotionSummaryEl);
+      return;
+    }
+
+    container.innerHTML = "<p class=\"hint\">🎬 Your session recording" + (recordings.length > 1 ? "s" : "") + "</p>";
+    if (emotionSummaryEl) container.prepend(emotionSummaryEl);
+
+    recordings.forEach((recording) => {
+      const wrap = document.createElement("div");
+      wrap.className = "history-recording-clip";
+
+      // recording_url is normally a relative "/media/..." path, but be
+      // defensive in case it's ever already absolute (e.g. a future S3
+      // backend) - don't double-prefix it in that case.
+      const recordingUrl = /^https?:\/\//i.test(recording.recording_url || "")
+        ? recording.recording_url
+        : API_BASE_URL + recording.recording_url;
+
+      const media = document.createElement(recording.recording_type === "audio" ? "audio" : "video");
+      media.controls = true;
+      media.preload = "metadata";
+      media.src = recordingUrl;
+      if (recording.recording_type !== "audio") {
+        media.style.width = "100%";
+        media.style.maxWidth = "360px";
+        media.style.borderRadius = "12px";
+      }
+
+      wrap.appendChild(media);
+
+      // If playback fails inline (older recording, moved/renamed file,
+      // unsupported codec, etc.), don't just leave a blank/broken player -
+      // show a direct link so the recording is still reachable.
+      const errorMsg = document.createElement("p");
+      errorMsg.className = "hint recording-clip-error";
+      errorMsg.style.display = "none";
+      errorMsg.innerHTML = "⚠ Couldn't play this recording inline. " +
+        "<a href=\"" + recordingUrl + "\" target=\"_blank\" rel=\"noopener\">Open it directly</a>.";
+      media.addEventListener("error", () => {
+        media.style.display = "none";
+        errorMsg.style.display = "";
+      });
+      wrap.appendChild(errorMsg);
+
+      if (sessionId) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "delete-recording-btn";
+        deleteBtn.title = "Delete this recording";
+        deleteBtn.innerHTML = "🗑 Delete recording";
+        deleteBtn.addEventListener("click", () => {
+          deleteRecording(sessionId, recording.id, wrap, container);
+        });
+        wrap.appendChild(deleteBtn);
+      }
+
+      container.appendChild(wrap);
+    });
+  } catch (err) {
+    console.warn("Could not load session recording:", err);
+    container.innerHTML = "";
+  }
+}
+
+async function deleteRecording(sessionId, recordingId, clipEl, container) {
+  const confirmed = window.confirm("Delete this recording? This can't be undone.");
+  if (!confirmed) return;
+
+  try {
+    const response = await authFetch(
+      "/sessions/" + sessionId + "/recordings/" + recordingId,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) {
+      window.alert("Could not delete the recording. Please try again.");
+      return;
+    }
+
+    clipEl.remove();
+
+    if (!container.querySelector(".history-recording-clip")) {
+      container.innerHTML = "<p class=\"hint\">No recording was saved for this session.</p>";
+    }
+  } catch (err) {
+    console.warn("Could not delete recording:", err);
+    window.alert("Could not delete the recording. Please try again.");
   }
 }
 
@@ -1197,6 +1135,30 @@ async function loadAnalytics() {
     const analyticsEmptyHint = document.getElementById("analyticsEmptyHint");
     if (analyticsEmptyHint) {
       analyticsEmptyHint.style.display = a.completed_interviews > 0 ? "none" : "";
+    }
+
+    // ---- Module 5 - Speech-to-Text & Communication Analysis ----
+    setText(
+      "statAvgFillerWords",
+      a.avg_filler_word_count != null ? a.avg_filler_word_count.toFixed(1) : "-"
+    );
+    setText(
+      "statAvgPace",
+      a.avg_speaking_pace_wpm != null ? Math.round(a.avg_speaking_pace_wpm) + " WPM" : "-"
+    );
+    setProgress("clarityProgressBar", "statAvgClarity", a.avg_pronunciation_score);
+
+    // ---- Module 6 - Emotion Detection & Eye Tracking ----
+    setProgress("eyeContactProgressBar", "statAvgEyeContact", a.avg_eye_contact_percentage);
+    setProgress("attentionProgressBar", "statAvgAttention", a.avg_attention_percentage);
+    setProgress("visualConfidenceProgressBar", "statAvgVisualConfidence", a.avg_visual_confidence);
+    setProgress("engagementProgressBar", "statAvgEngagement", a.avg_engagement);
+
+    const speechEmotionEmptyHint = document.getElementById("speechEmotionEmptyHint");
+    if (speechEmotionEmptyHint) {
+      const hasSpeechOrEmotionData =
+        a.avg_speaking_pace_wpm != null || a.avg_eye_contact_percentage != null;
+      speechEmotionEmptyHint.style.display = hasSpeechOrEmotionData ? "none" : "";
     }
 
     // ---- Achievements (unlocked only once genuinely earned) ----
@@ -1255,3 +1217,22 @@ function updateAchievement(cardId, textId, unlocked, unlockedText, lockedText) {
 
 loadHistory();
 loadAnalytics();
+
+// Module 4 - session storage & management: if the candidate refreshed
+// mid-interview, pick up right where they left off instead of losing
+// their progress.
+resumeActiveInterviewIfAny();
+
+// Module 4 - interview-session.html redirects back here with this query
+// param once an interview ends, so the candidate lands straight on
+// their performance analytics/score for that attempt.
+(function showCompletedInterviewIfLinked() {
+  const params = new URLSearchParams(window.location.search);
+  const completedId = params.get("completed_interview");
+  if (!completedId) return;
+
+  const analyticsSection = document.getElementById("analytics");
+  if (analyticsSection) analyticsSection.scrollIntoView({ behavior: "smooth" });
+
+  viewInterviewDetail(completedId);
+})();

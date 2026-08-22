@@ -47,6 +47,16 @@ class Settings:
     # ---------------- Frontend ----------------
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://127.0.0.1:5500")
 
+    # ---------------- Media storage (Module 4 - session recordings) ----------------
+    # Where uploaded webcam/microphone session recordings are saved on disk.
+    # Served back to the frontend at /media/... (see main.py StaticFiles mount).
+    MEDIA_ROOT: str = os.getenv(
+        "MEDIA_ROOT", os.path.join(os.path.dirname(os.path.dirname(__file__)), "media")
+    )
+    MAX_RECORDING_SIZE_BYTES: int = int(
+        os.getenv("MAX_RECORDING_SIZE_BYTES", str(200 * 1024 * 1024))  # 200 MB
+    )
+
     # ---------------- CORS ----------------
     CORS_ORIGINS: list[str] = [
         origin.strip()

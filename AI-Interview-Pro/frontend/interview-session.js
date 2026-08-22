@@ -247,6 +247,296 @@ async function reportDeviceStatus(sessionId) {
 }
 
 /* ==========================================================
+   MODULE 6 - EMOTION DETECTION & EYE TRACKING
+
+   Runs entirely client-side against the candidate's own webcam feed
+   (face-api.js, loaded from a CDN in interview-session.html). Nothing
+   here uploads video or images - only small periodic summary batches
+   (counts + averages) are posted to POST /sessions/{id}/emotion-samples.
+========================================================== */
+
+const FACE_API_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
+
+const EXPRESSION_WEIGHTS = {
+  happy: 1.0,
+  neutral: 0.8,
+  surprised: 0.55,
+  sad: -0.5,
+  angry: -0.35,
+  fearful: -0.6,
+  disgusted: -0.45,
+};
+
+const EMOTION_EMOJI = {
+  neutral: "😐",
+  happy: "🙂",
+  sad: "😔",
+  angry: "😠",
+  fearful: "😨",
+  disgusted: "🤢",
+  surprised: "😮",
+};
+
+function emptyEmotionBatch() {
+  return {
+    samplesCount: 0,
+    faceDetectedCount: 0,
+    eyeContactCount: 0,
+    emotionCounts: {},
+    confidenceSum: 0,
+    engagementSum: 0,
+  };
+}
+
+const emotionState = {
+  modelsLoaded: false,
+  detecting: false,
+  detectIntervalId: null,
+  batchPostIntervalId: null,
+  batch: emptyEmotionBatch(),
+};
+
+async function loadFaceApiModels() {
+  if (typeof faceapi === "undefined") {
+    console.warn("face-api.js did not load - emotion/eye-contact tracking disabled.");
+    return false;
+  }
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(FACE_API_MODEL_URL),
+      faceapi.nets.faceExpressionNet.loadFromUri(FACE_API_MODEL_URL),
+      faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_API_MODEL_URL),
+    ]);
+    emotionState.modelsLoaded = true;
+    return true;
+  } catch (err) {
+    console.warn("Could not load face-api.js models:", err);
+    return false;
+  }
+}
+
+function avgX(points) {
+  return points.reduce((sum, p) => sum + p.x, 0) / points.length;
+}
+
+// Approximate "is the candidate looking at the camera" heuristic: the
+// nose sits roughly centered between the two eyes, relative to eye
+// spacing. This is a lightweight, browser-only approximation - not
+// precise gaze tracking - but it's enough to reward facing the camera
+// vs. looking away for extended periods.
+function estimateEyeContact(result) {
+  const landmarks = result.landmarks;
+  if (!landmarks) return false;
+
+  const nose = landmarks.getNose();
+  const leftEye = landmarks.getLeftEye();
+  const rightEye = landmarks.getRightEye();
+  if (!nose.length || !leftEye.length || !rightEye.length) return false;
+
+  const noseX = nose[Math.floor(nose.length / 2)].x;
+  const leftEyeX = avgX(leftEye);
+  const rightEyeX = avgX(rightEye);
+  const eyeMidX = (leftEyeX + rightEyeX) / 2;
+  const eyeSpan = Math.abs(rightEyeX - leftEyeX) || 1;
+
+  const horizontalOffsetRatio = Math.abs(noseX - eyeMidX) / eyeSpan;
+  return horizontalOffsetRatio < 0.35;
+}
+
+function computeVisualConfidence(expressions) {
+  let score = 0;
+  Object.keys(expressions).forEach((key) => {
+    const weight = EXPRESSION_WEIGHTS[key] != null ? EXPRESSION_WEIGHTS[key] : 0;
+    score += expressions[key] * weight;
+  });
+  // Raw weighted score ranges roughly -0.6..1.0 -> map onto 0..100.
+  return Math.max(0, Math.min(100, Math.round(((score + 0.6) / 1.6) * 100)));
+}
+
+function computeEngagement(eyeContact, visualConfidence) {
+  const eyeComponent = eyeContact ? 100 : 40;
+  return Math.round(0.6 * eyeComponent + 0.4 * visualConfidence);
+}
+
+function recordEmotionSample({ faceDetected, eyeContact, emotion, visualConfidence, engagement }) {
+  const batch = emotionState.batch;
+  batch.samplesCount += 1;
+  if (faceDetected) {
+    batch.faceDetectedCount += 1;
+    if (eyeContact) batch.eyeContactCount += 1;
+    if (emotion) batch.emotionCounts[emotion] = (batch.emotionCounts[emotion] || 0) + 1;
+    if (typeof visualConfidence === "number") batch.confidenceSum += visualConfidence;
+    if (typeof engagement === "number") batch.engagementSum += engagement;
+  }
+}
+
+function updateEmotionBadge(emotion) {
+  const badge = document.getElementById("emotionBadge");
+  if (!badge) return;
+  if (!emotion) {
+    hide(badge);
+    return;
+  }
+  badge.textContent = (EMOTION_EMOJI[emotion] || "🙂") + " " + emotion;
+  show(badge);
+}
+
+function setMeter(fillId, valueId, pct) {
+  const fill = document.getElementById(fillId);
+  const value = document.getElementById(valueId);
+  const clamped = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  if (fill) fill.style.width = clamped + "%";
+  if (value) value.textContent = clamped + "%";
+}
+
+function updateLiveInsightMeters(eyeContact, visualConfidence, engagement) {
+  const batch = emotionState.batch;
+  const eyeContactPct = batch.faceDetectedCount
+    ? (batch.eyeContactCount / batch.faceDetectedCount) * 100
+    : (eyeContact ? 100 : 0);
+  const attentionPct = batch.samplesCount
+    ? (batch.faceDetectedCount / batch.samplesCount) * 100
+    : 0;
+
+  setMeter("eyeContactMeter", "eyeContactValue", eyeContactPct);
+  setMeter("attentionMeter", "attentionValue", attentionPct);
+  setMeter("visualConfidenceMeter", "visualConfidenceValue", visualConfidence);
+  setMeter("engagementMeter", "engagementValue", engagement);
+}
+
+function drawFaceOverlay(canvasEl, videoEl, result, eyeContact) {
+  if (!canvasEl) return;
+  canvasEl.width = videoEl.clientWidth;
+  canvasEl.height = videoEl.clientHeight;
+  const ctx = canvasEl.getContext("2d");
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+  if (!videoEl.videoWidth || !videoEl.videoHeight) return;
+  const scaleX = canvasEl.width / videoEl.videoWidth;
+  const scaleY = canvasEl.height / videoEl.videoHeight;
+  const box = result.detection.box;
+
+  ctx.strokeStyle = eyeContact ? "#22c55e" : "#f59e0b";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(box.x * scaleX, box.y * scaleY, box.width * scaleX, box.height * scaleY);
+}
+
+async function detectEmotionTick() {
+  if (!emotionState.modelsLoaded || emotionState.detecting) return;
+
+  const videoEl = document.getElementById("sessionCameraPreview");
+  const canvasEl = document.getElementById("emotionOverlayCanvas");
+  if (!videoEl || !deviceState.cameraGranted || videoEl.readyState < 2) return;
+
+  emotionState.detecting = true;
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+    const result = await faceapi
+      .detectSingleFace(videoEl, options)
+      .withFaceLandmarks(true)
+      .withFaceExpressions();
+
+    if (!result) {
+      recordEmotionSample({ faceDetected: false });
+      updateEmotionBadge(null);
+      if (canvasEl) {
+        const ctx = canvasEl.getContext("2d");
+        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      }
+      return;
+    }
+
+    const expressions = result.expressions;
+    const dominant = Object.keys(expressions).reduce((a, b) => (expressions[a] > expressions[b] ? a : b));
+    const eyeContact = estimateEyeContact(result);
+    const visualConfidence = computeVisualConfidence(expressions);
+    const engagement = computeEngagement(eyeContact, visualConfidence);
+
+    recordEmotionSample({
+      faceDetected: true,
+      eyeContact,
+      emotion: dominant,
+      visualConfidence,
+      engagement,
+    });
+
+    drawFaceOverlay(canvasEl, videoEl, result, eyeContact);
+    updateEmotionBadge(dominant);
+    updateLiveInsightMeters(eyeContact, visualConfidence, engagement);
+  } catch (err) {
+    console.warn("Emotion detection tick failed:", err);
+  } finally {
+    emotionState.detecting = false;
+  }
+}
+
+async function postEmotionBatch() {
+  const batch = emotionState.batch;
+  if (!state.sessionId || batch.samplesCount === 0) return;
+
+  const payload = {
+    samples_count: batch.samplesCount,
+    face_detected_count: batch.faceDetectedCount,
+    eye_contact_count: batch.eyeContactCount,
+    emotion_counts: batch.emotionCounts,
+    avg_visual_confidence: batch.faceDetectedCount ? batch.confidenceSum / batch.faceDetectedCount : null,
+    avg_engagement: batch.faceDetectedCount ? batch.engagementSum / batch.faceDetectedCount : null,
+  };
+
+  // Reset immediately so an in-flight detection tick doesn't get lost
+  // and batches don't double-count while the request is in the air.
+  emotionState.batch = emptyEmotionBatch();
+
+  try {
+    await authFetch("/sessions/" + state.sessionId + "/emotion-samples", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn("Could not post emotion sample batch:", err);
+  }
+}
+
+async function startEmotionTracking() {
+  if (!deviceState.cameraGranted) return;
+
+  const panel = document.getElementById("liveInsightsPanel");
+  const statusEl = document.getElementById("emotionModelStatus");
+  show(panel);
+  if (statusEl) statusEl.textContent = "Loading facial analysis model...";
+
+  const loaded = await loadFaceApiModels();
+  if (!loaded) {
+    if (statusEl) statusEl.textContent = "Facial analysis isn't available in this browser.";
+    return;
+  }
+  if (statusEl) {
+    statusEl.textContent =
+      "Analyzing engagement locally in your browser - only summary scores are saved, never video.";
+  }
+
+  stopEmotionDetectionLoop();
+  emotionState.detectIntervalId = setInterval(detectEmotionTick, 1500);
+  emotionState.batchPostIntervalId = setInterval(postEmotionBatch, 10000);
+}
+
+function stopEmotionDetectionLoop() {
+  if (emotionState.detectIntervalId) {
+    clearInterval(emotionState.detectIntervalId);
+    emotionState.detectIntervalId = null;
+  }
+}
+
+function stopEmotionTracking() {
+  stopEmotionDetectionLoop();
+  if (emotionState.batchPostIntervalId) {
+    clearInterval(emotionState.batchPostIntervalId);
+    emotionState.batchPostIntervalId = null;
+  }
+  postEmotionBatch(); // flush whatever samples are left
+}
+
+/* ==========================================================
    FULL-SCREEN ENFORCEMENT + VIOLATIONS
 ========================================================== */
 
@@ -376,6 +666,7 @@ async function beginOrResumeInterview() {
     saveActiveSessionToStorage(interviewId);
 
     startSessionRecording();
+    startEmotionTracking();
     if (state.sessionId) reportDeviceStatus(state.sessionId);
 
     await loadSession(interviewId);
@@ -408,6 +699,7 @@ async function pauseSession() {
   if (deviceState.recorder && deviceState.recorder.state === "recording") {
     deviceState.recorder.pause();
   }
+  stopEmotionDetectionLoop();
   updatePauseResumeButton(true);
 }
 
@@ -423,6 +715,9 @@ async function resumeSession() {
 
   if (deviceState.recorder && deviceState.recorder.state === "paused") {
     deviceState.recorder.resume();
+  }
+  if (emotionState.modelsLoaded && !emotionState.detectIntervalId) {
+    emotionState.detectIntervalId = setInterval(detectEmotionTick, 1500);
   }
   updatePauseResumeButton(false);
 
@@ -580,6 +875,7 @@ function renderQuestion(session) {
   answerBox.value = "";
   document.getElementById("answerError").textContent = "";
 
+  resetSpeechMetrics();
   speakText(question.question_text);
 }
 
@@ -598,7 +894,65 @@ if (speakQuestionBtnEl) {
   });
 }
 
-/* ---------------- Voice answer capture (speech-to-text) ---------------- */
+/* ==========================================================
+   MODULE 5 - SPEECH-TO-TEXT & COMMUNICATION ANALYSIS
+
+   Real-time transcription (browser Speech Recognition API) plus, from
+   that same stream: live filler-word detection, speaking-pace (WPM)
+   tracking, and a recognition-confidence-derived clarity/pronunciation
+   estimate. These are sent along with the transcript on submit and
+   blended into the answer's communication/confidence scores server-side
+   (app/scoring.py::apply_speech_metrics) - never fabricated if the
+   candidate typed instead of speaking.
+========================================================== */
+
+const FILLER_WORDS_CLIENT = [
+  "um", "uh", "umm", "uhh", "erm", "hmm",
+  "like", "you know", "i mean", "sort of", "kind of",
+  "actually", "basically", "i guess", "i think", "not sure",
+];
+
+let speechAccumulatedMs = 0;
+let speechSegmentStart = null;
+let lastResultConfidenceSum = 0;
+let lastResultConfidenceCount = 0;
+
+function countFillerWords(text) {
+  const lower = " " + (text || "").toLowerCase() + " ";
+  let count = 0;
+  FILLER_WORDS_CLIENT.forEach((phrase) => {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const matches = lower.match(new RegExp("\\b" + escaped + "\\b", "g"));
+    if (matches) count += matches.length;
+  });
+  return count;
+}
+
+function currentSpeechDurationMs() {
+  return speechAccumulatedMs + (speechSegmentStart ? Date.now() - speechSegmentStart : 0);
+}
+
+function setSpeechMetricText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function updateSpeechMetricsUI(fillerCount, wpm, clarityPct) {
+  const panel = document.getElementById("speechMetricsPanel");
+  if (panel) show(panel);
+  setSpeechMetricText("fillerWordCountText", String(fillerCount || 0));
+  setSpeechMetricText("speakingPaceText", wpm != null ? Math.round(wpm) + " WPM" : "- WPM");
+  setSpeechMetricText("pronunciationScoreText", clarityPct != null ? Math.round(clarityPct) + "%" : "-");
+}
+
+function resetSpeechMetrics() {
+  speechAccumulatedMs = 0;
+  speechSegmentStart = null;
+  lastResultConfidenceSum = 0;
+  lastResultConfidenceCount = 0;
+  hide(document.getElementById("speechMetricsPanel"));
+  updateSpeechMetricsUI(0, null, null);
+}
 
 const micBtnEl = document.getElementById("micBtn");
 const micStatusEl = document.getElementById("micStatus");
@@ -624,14 +978,39 @@ if (SpeechRecognitionCtor && micBtnEl) {
     micBtnEl.textContent = "⏹ Stop Recording";
     micStatusEl.textContent = "Listening...";
     baseAnswerText = answerTextEl.value ? answerTextEl.value + " " : "";
+    speechSegmentStart = Date.now();
   };
 
   recognizer.onresult = (event) => {
     let transcript = "";
+    let confSum = 0;
+    let confCount = 0;
+
     for (let i = 0; i < event.results.length; i++) {
       transcript += event.results[i][0].transcript;
+      const conf = event.results[i][0].confidence;
+      if (event.results[i].isFinal && typeof conf === "number" && conf > 0) {
+        confSum += conf;
+        confCount += 1;
+      }
     }
+
     answerTextEl.value = (baseAnswerText + transcript).trim();
+
+    if (confCount > 0) {
+      lastResultConfidenceSum = confSum;
+      lastResultConfidenceCount = confCount;
+    }
+
+    const fillerCount = countFillerWords(answerTextEl.value);
+    const elapsedMinutes = Math.max(currentSpeechDurationMs() / 60000, 0.05);
+    const wordCount = (answerTextEl.value.match(/[a-zA-Z']+/g) || []).length;
+    const wpm = wordCount / elapsedMinutes;
+    const clarity = lastResultConfidenceCount > 0
+      ? (lastResultConfidenceSum / lastResultConfidenceCount) * 100
+      : null;
+
+    updateSpeechMetricsUI(fillerCount, wpm, clarity);
   };
 
   recognizer.onerror = (event) => {
@@ -643,6 +1022,10 @@ if (SpeechRecognitionCtor && micBtnEl) {
     micBtnEl.classList.remove("recording");
     micBtnEl.textContent = "🎤 Speak Your Answer";
     micStatusEl.textContent = "";
+    if (speechSegmentStart) {
+      speechAccumulatedMs += Date.now() - speechSegmentStart;
+      speechSegmentStart = null;
+    }
   };
 
   micBtnEl.addEventListener("click", () => {
@@ -684,6 +1067,24 @@ if (submitAnswerBtnEl) {
       recognizer.stop();
     }
 
+    // Module 5 - Speech-to-Text & Communication Analysis: only attach
+    // real speech-delivery metrics if the candidate meaningfully used
+    // voice input for this answer (a couple of seconds is enough to
+    // rule out an accidental mic tap). Typed answers send nulls, which
+    // the backend leaves untouched (see scoring.py::apply_speech_metrics).
+    const speechDurationMs = currentSpeechDurationMs();
+    const usedVoice = speechDurationMs > 2000;
+
+    const speechDurationSeconds = usedVoice ? Math.round(speechDurationMs / 1000) : null;
+    const fillerWordCount = usedVoice ? countFillerWords(answerValue) : null;
+    const wordCountFinal = (answerValue.match(/[a-zA-Z']+/g) || []).length;
+    const speakingPaceWpm = usedVoice && speechDurationSeconds > 0
+      ? wordCountFinal / (speechDurationSeconds / 60)
+      : null;
+    const pronunciationScore = usedVoice && lastResultConfidenceCount > 0
+      ? (lastResultConfidenceSum / lastResultConfidenceCount) * 100
+      : null;
+
     submitAnswerBtnEl.disabled = true;
     const originalText = submitAnswerBtnEl.textContent;
     submitAnswerBtnEl.textContent = "Saving...";
@@ -693,7 +1094,13 @@ if (submitAnswerBtnEl) {
         "/interviews/" + state.interviewId + "/questions/" + state.currentQuestionId + "/answer",
         {
           method: "PUT",
-          body: JSON.stringify({ answer_text: answerValue }),
+          body: JSON.stringify({
+            answer_text: answerValue,
+            filler_word_count: fillerWordCount,
+            speaking_pace_wpm: speakingPaceWpm,
+            pronunciation_score: pronunciationScore,
+            speech_duration_seconds: speechDurationSeconds,
+          }),
         }
       );
 
@@ -734,6 +1141,7 @@ async function finalizeAndRedirect(message) {
   if (finishingSubtitle) finishingSubtitle.textContent = message || "Saving your answers and recording.";
   show(finishingOverlay);
 
+  stopEmotionTracking();
   await stopSessionRecording();
   await uploadSessionRecording(state.sessionId);
   releaseDevices();

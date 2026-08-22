@@ -110,6 +110,8 @@ class MessageResponse(BaseModel):
 InterviewType = Literal["hr", "technical", "behavioral", "aptitude"]
 Difficulty = Literal["easy", "medium", "hard"]
 InterviewStatus = Literal["created", "in_progress", "completed"]
+SessionStatus = Literal["active", "paused", "completed"]
+RecordingType = Literal["video", "audio"]
 
 # Fixed choice sets - the frontend renders these as dropdowns rather than
 # free-entry fields, and the backend enforces the same list so a request
@@ -189,6 +191,16 @@ class InterviewQuestionOut(BaseModel):
     overall_score: Optional[float] = None
     word_count: Optional[int] = None
 
+    # Module 4 - Timer-Based Workflow: time spent per question
+    question_shown_at: Optional[datetime] = None
+    time_spent_seconds: Optional[int] = None
+
+    # Module 5 - Speech-to-Text & Communication Analysis (null if typed)
+    filler_word_count: Optional[int] = None
+    speaking_pace_wpm: Optional[float] = None
+    pronunciation_score: Optional[float] = None
+    speech_duration_seconds: Optional[int] = None
+
 
 class InterviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -211,6 +223,7 @@ class InterviewOut(BaseModel):
     overall_score: Optional[float] = None
     total_questions: int = 0
     answered_count: int = 0
+    has_recording: bool = False
 
 
 class InterviewDetailOut(InterviewOut):
@@ -219,6 +232,15 @@ class InterviewDetailOut(InterviewOut):
 
 class AnswerSubmitRequest(BaseModel):
     answer_text: str
+
+    # ------------- Module 5 - Speech-to-Text & Communication Analysis -------------
+    # Optional: real metrics captured client-side while the candidate spoke
+    # this answer (browser Speech Recognition API). Left null when they
+    # typed instead, in which case scoring is unaffected.
+    filler_word_count: Optional[int] = None
+    speaking_pace_wpm: Optional[float] = None
+    pronunciation_score: Optional[float] = None
+    speech_duration_seconds: Optional[int] = None
 
     @field_validator("answer_text")
     @classmethod
@@ -268,13 +290,132 @@ class ResumeOut(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Module 4 - Interview Session Management
+# (webcam / mic / recording / pause-resume / authorized-access)
+# ---------------------------------------------------------------------------
+class SessionCreateRequest(BaseModel):
+    interview_id: uuid.UUID
+
+
+class DeviceStatusUpdateRequest(BaseModel):
+    camera_enabled: bool = False
+    microphone_enabled: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Module 6 - Emotion Detection & Eye Tracking
+# Face detection/expression analysis runs entirely client-side (face-api.js
+# against the candidate's own webcam feed); the frontend periodically posts
+# a batch summary here. No image/video data is ever included.
+# ---------------------------------------------------------------------------
+class EmotionSampleBatchRequest(BaseModel):
+    samples_count: int
+    face_detected_count: int = 0
+    eye_contact_count: int = 0
+    emotion_counts: dict[str, int] = {}
+    avg_visual_confidence: Optional[float] = None  # this batch's average (0-100)
+    avg_engagement: Optional[float] = None  # this batch's average (0-100)
+
+    @field_validator("samples_count")
+    @classmethod
+    def samples_count_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("samples_count must be positive")
+        return v
+
+    @field_validator("face_detected_count", "eye_contact_count")
+    @classmethod
+    def counts_not_negative(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("counts cannot be negative")
+        return v
+
+
+class InterviewRecordingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("recording_type", mode="before")
+    @classmethod
+    def enum_to_value(cls, v):
+        return v.value if hasattr(v, "value") else v
+
+    id: uuid.UUID
+    recording_type: RecordingType
+    recording_url: str
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    duration_seconds: Optional[int] = None
+    created_at: datetime
+
+
+class RecordingUploadOut(BaseModel):
+    message: str
+    recording: InterviewRecordingOut
+
+
+class SessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def enum_to_value(cls, v):
+        return v.value if hasattr(v, "value") else v
+
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    interview_id: uuid.UUID
+
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+
+    status: SessionStatus
+
+    camera_enabled: bool = False
+    microphone_enabled: bool = False
+    total_paused_seconds: int = 0
+    fullscreen_violations: int = 0
+
+    created_at: datetime
+    questions_attempted: int = 0
+
+    # Module 6 - Emotion Detection & Eye Tracking (real, computed from the
+    # session's stored running totals - see InterviewSession properties).
+    emotion_sample_count: int = 0
+    eye_contact_percentage: Optional[float] = None
+    attention_percentage: Optional[float] = None
+    avg_visual_confidence: Optional[float] = None
+    avg_engagement: Optional[float] = None
+    dominant_emotion: Optional[str] = None
+    emotion_breakdown: dict[str, float] = {}
+    # Module 6 - Interview behavior analysis: rule-based summary sentence
+    # derived from the stats above (see InterviewSession.behavior_summary).
+    behavior_summary: Optional[str] = None
+
+    recordings: list[InterviewRecordingOut] = []
+
+
+class SessionDetailOut(SessionOut):
+    interview: InterviewOut
+
+
+class ViolationReportOut(BaseModel):
+    session: SessionOut
+    violation_count: int
+    limit: int
+    auto_submitted: bool
+
+
+# ---------------------------------------------------------------------------
 # Interview session status (explicit "where am I in this interview" state)
 # ---------------------------------------------------------------------------
 class InterviewSessionOut(BaseModel):
     interview: InterviewOut
+    session: Optional[SessionOut] = None
     total_questions: int
     answered_count: int
     is_complete: bool
+    is_paused: bool = False
     current_question: Optional[InterviewQuestionOut] = None
     # Timer feature: null when the interview has no time limit.
     deadline_at: Optional[datetime] = None
@@ -307,3 +448,58 @@ class AnalyticsOut(BaseModel):
     # Composite of average_score and resume_score - only present once
     # there's at least one completed interview or an uploaded resume.
     interview_readiness: Optional[float] = None
+
+    # Module 5 - Speech-to-Text & Communication Analysis (averaged across
+    # answers that were actually spoken, not typed)
+    avg_filler_word_count: Optional[float] = None
+    avg_speaking_pace_wpm: Optional[float] = None
+    avg_pronunciation_score: Optional[float] = None
+
+    # Module 6 - Emotion Detection & Eye Tracking (averaged across
+    # completed interviews' sessions that have webcam samples)
+    avg_eye_contact_percentage: Optional[float] = None
+    avg_attention_percentage: Optional[float] = None
+    avg_visual_confidence: Optional[float] = None
+    avg_engagement: Optional[float] = None
+
+
+# ---------------------------------------------------------------------------
+# Recruiter/admin candidate management - "top score" views.
+# Both computed live (MAX over the candidate's history) rather than stored,
+# so a new personal-best interview or a re-uploaded resume is reflected
+# immediately on next load, with nothing to separately "delete and replace".
+# ---------------------------------------------------------------------------
+class CandidateLeaderboardEntryOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: EmailStr
+    profile_picture: Optional[str] = None
+
+    resume_score: Optional[float] = None
+    resume_uploaded_at: Optional[datetime] = None
+    top_skills: list[str] = []
+
+    best_interview_score: Optional[float] = None
+    completed_interviews: int = 0
+    best_interview_domain: Optional[str] = None
+
+
+class ProfileRecordingOut(BaseModel):
+    id: uuid.UUID
+    recording_type: RecordingType
+    recording_url: str
+    mime_type: Optional[str] = None
+    created_at: datetime
+
+    interview_id: uuid.UUID
+    interview_domain: str
+    interview_type: str
+    interview_score: Optional[float] = None
+
+
+class CandidateProfileOut(BaseModel):
+    user: UserOut
+    resume: Optional[ResumeOut] = None
+    analytics: AnalyticsOut
+    interviews: list[InterviewOut] = []
+    recordings: list[ProfileRecordingOut] = []

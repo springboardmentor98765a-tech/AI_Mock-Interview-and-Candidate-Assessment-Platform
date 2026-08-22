@@ -1,6 +1,14 @@
+# Python
 backend/venv/
-backend/.env
-__pycache__/
+backend/__pycache__/
+**/__pycache__/
 *.pyc
-.vscode/
+backend/.env
+
+# Media (recordings) - not source, don't commit candidate data
 backend/media/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

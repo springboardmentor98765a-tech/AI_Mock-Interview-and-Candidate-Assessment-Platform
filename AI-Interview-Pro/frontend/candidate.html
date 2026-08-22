@@ -35,6 +35,8 @@
 
           <a href="#analytics"> 📊 Performance Analytics </a>
 
+          <a href="#speechEmotion"> 🗣️ Speech &amp; Emotion </a>
+
           <a href="#history"> 📜 Interview History </a>
 
           <a href="#recommendations"> 🤖 AI Recommendations </a>
@@ -324,46 +326,14 @@
             </label>
             <p id="setupResumeHint" class="hint">Upload a resume above to enable this.</p>
 
+            <p class="hint">
+              🖥️ Your interview opens in a dedicated full-screen page - camera/mic setup,
+              the timer, and question flow all happen there.
+            </p>
+
             <p id="setupError" class="form-error"></p>
 
             <button id="generateInterviewBtn" type="button">Generate Interview 🤖</button>
-          </div>
-
-          <!-- ================= AI INTERVIEW LIVE SESSION ================= -->
-          <div class="ai-interview-session" id="aiInterviewSession" style="display:none;">
-
-            <div class="session-progress">
-              <span id="sessionProgressText">Question 1</span>
-              <span id="sessionTimer" class="session-timer" style="display:none;">⏱ --:--</span>
-              <div class="session-progress-bar"><div id="sessionProgressFill"></div></div>
-            </div>
-
-            <div class="session-question-card">
-              <div class="question-category" id="questionCategory"></div>
-              <p id="questionText">...</p>
-              <button id="speakQuestionBtn" type="button">🔊 Repeat Question</button>
-            </div>
-
-            <div class="session-answer-area">
-              <div class="mic-controls">
-                <button id="micBtn" type="button">🎤 Speak Your Answer</button>
-                <span id="micStatus"></span>
-              </div>
-
-              <textarea id="answerText" placeholder="Your spoken answer appears here - or just type it directly."></textarea>
-
-              <p id="answerError" class="form-error"></p>
-
-              <button id="submitAnswerBtn" type="button">Submit Answer ✅</button>
-            </div>
-          </div>
-
-          <!-- ================= AI INTERVIEW COMPLETE ================= -->
-          <div class="ai-interview-complete" id="aiInterviewComplete" style="display:none;">
-            <h3>🎉 Interview Complete!</h3>
-            <p id="completeSummary"></p>
-            <button id="reviewAnswersBtn" type="button">Review My Answers</button>
-            <button id="newInterviewBtn" type="button">Start Another Interview</button>
           </div>
         </section>
 
@@ -423,6 +393,80 @@
           </p>
         </section>
 
+        <!-- ================= MODULE 5 & 6: SPEECH & EMOTION INSIGHTS ================= -->
+
+        <section id="speechEmotion" class="section">
+          <div class="section-heading">
+            <h2>🗣️ Speech &amp; Emotion Insights</h2>
+
+            <p>Real, computed-from-your-recordings analysis of how you spoke and presented yourself</p>
+          </div>
+
+          <h3 class="insights-subheading">🎙️ Speech-to-Text &amp; Communication Analysis</h3>
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <h3>Filler Words</h3>
+              <p class="hint">Avg. per spoken answer</p>
+              <h2 id="statAvgFillerWords">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Speaking Pace</h3>
+              <p class="hint">Ideal: 110-160 WPM</p>
+              <h2 id="statAvgPace">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Pronunciation Clarity</h3>
+              <div class="progress-bar">
+                <div class="clarity-progress" id="clarityProgressBar"></div>
+              </div>
+              <h2 id="statAvgClarity">-</h2>
+            </div>
+          </div>
+
+          <h3 class="insights-subheading">📷 Emotion Detection &amp; Eye Tracking</h3>
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <h3>Eye Contact</h3>
+              <div class="progress-bar">
+                <div class="eye-contact-progress" id="eyeContactProgressBar"></div>
+              </div>
+              <h2 id="statAvgEyeContact">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Attention</h3>
+              <p class="hint">% of time in frame</p>
+              <div class="progress-bar">
+                <div class="attention-progress" id="attentionProgressBar"></div>
+              </div>
+              <h2 id="statAvgAttention">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Visual Confidence</h3>
+              <div class="progress-bar">
+                <div class="visual-confidence-progress" id="visualConfidenceProgressBar"></div>
+              </div>
+              <h2 id="statAvgVisualConfidence">-</h2>
+            </div>
+
+            <div class="analytics-card">
+              <h3>Engagement</h3>
+              <div class="progress-bar">
+                <div class="engagement-progress" id="engagementProgressBar"></div>
+              </div>
+              <h2 id="statAvgEngagement">-</h2>
+            </div>
+          </div>
+
+          <p id="speechEmotionEmptyHint" class="hint" style="display:none;">
+            Enable your camera/microphone and speak your answers during a mock interview
+            to see your speech and emotion analysis here.
+          </p>
+        </section>
+
         <!-- ================= INTERVIEW HISTORY ================= -->
 
         <section id="history" class="section">
@@ -459,6 +503,11 @@
           <div class="history-detail-panel" id="historyDetailPanel" style="display:none;">
             <button id="closeHistoryDetail" type="button" class="close-detail-btn">&times; Close</button>
             <h3 id="historyDetailTitle"></h3>
+            <p id="historyDetailScore" class="history-detail-score"></p>
+
+            <!-- Module 4 - candidate can review their own session recording here -->
+            <div id="historyDetailRecordings" class="history-detail-recordings"></div>
+
             <div id="historyDetailQA"></div>
           </div>
         </section>

@@ -132,3 +132,112 @@ ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS confidence_score    REA
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS grammar_score       REAL;
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS overall_score       REAL;
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS word_count          INTEGER;
+
+-- ==========================================================
+-- 9. Module 4 - Interview Session Management
+--    (webcam access, microphone access, video/audio recording,
+--     timer-based workflow already added above, session storage)
+-- ==========================================================
+
+-- Per-question timing ("time spent per question")
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS question_shown_at TIMESTAMP;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS time_spent_seconds INTEGER;
+
+DO $$ BEGIN
+    CREATE TYPE session_status AS ENUM ('active', 'paused', 'completed');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE recording_type AS ENUM ('video', 'audio');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+-- A live/proctored attempt at an Interview. Kept as its own table
+-- (rather than columns on `interviews`) so pause/resume, webcam/mic
+-- state, and recordings don't get tangled up with question-answering.
+CREATE TABLE IF NOT EXISTS interview_sessions (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    candidate_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    interview_id          UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE UNIQUE,
+
+    start_time            TIMESTAMP,
+    end_time              TIMESTAMP,
+    duration_seconds      INTEGER,                        -- active (non-paused) seconds elapsed
+
+    status                session_status NOT NULL DEFAULT 'active',
+
+    camera_enabled        BOOLEAN NOT NULL DEFAULT FALSE,
+    microphone_enabled    BOOLEAN NOT NULL DEFAULT FALSE,
+
+    paused_at             TIMESTAMP,
+    total_paused_seconds  INTEGER NOT NULL DEFAULT 0,
+
+    -- Full-screen proctoring
+    fullscreen_violations INTEGER NOT NULL DEFAULT 0,
+
+    created_at            TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- One or more recordings belonging to a session (e.g. a video recording,
+-- or an audio-only fallback if the camera was denied).
+CREATE TABLE IF NOT EXISTS interview_recordings (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id        UUID NOT NULL REFERENCES interview_sessions(id) ON DELETE CASCADE,
+
+    recording_type    recording_type NOT NULL DEFAULT 'video',
+    file_path         VARCHAR(500) NOT NULL,             -- relative path under MEDIA_ROOT
+    mime_type         VARCHAR(100),
+    size_bytes        INTEGER,
+    duration_seconds  INTEGER,
+
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_interview_sessions_candidate  ON interview_sessions (candidate_id);
+CREATE INDEX IF NOT EXISTS idx_interview_sessions_interview  ON interview_sessions (interview_id);
+CREATE INDEX IF NOT EXISTS idx_interview_recordings_session  ON interview_recordings (session_id);
+
+-- For existing databases where interview_sessions was already created
+-- by an earlier version of this migration (without this column):
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS fullscreen_violations INTEGER NOT NULL DEFAULT 0;
+
+-- NOTE: earlier versions of this project stored camera_enabled /
+-- microphone_enabled / recording_* directly as columns on `interviews`.
+-- That approach has been replaced by the interview_sessions /
+-- interview_recordings tables above. If your database still has those
+-- old columns, they're simply unused now - drop them at your
+-- convenience with:
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS camera_enabled;
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS microphone_enabled;
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS recording_file_path;
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS recording_mime_type;
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS recording_size_bytes;
+--   ALTER TABLE interviews DROP COLUMN IF EXISTS recording_uploaded_at;
+
+-- ==========================================================
+-- 10. Module 5 - Speech-to-Text & Communication Analysis
+--     Real metrics captured client-side (browser Speech Recognition
+--     API) while the candidate spoke an answer. NULL whenever they
+--     typed instead of speaking.
+-- ==========================================================
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS filler_word_count      INTEGER;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS speaking_pace_wpm      REAL;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS pronunciation_score    REAL;   -- recognition-confidence-derived clarity, 0-100
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS speech_duration_seconds INTEGER;
+
+-- ==========================================================
+-- 11. Module 6 - Emotion Detection & Eye Tracking
+--     Running aggregates built from periodic client-side webcam
+--     analysis batches (face-api.js in the browser - see
+--     POST /sessions/{id}/emotion-samples). No image/video data is
+--     ever stored - only these summary counts/sums.
+-- ==========================================================
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS emotion_sample_count  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS face_detected_count   INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS eye_contact_count     INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS emotion_counts        JSON;             -- {"neutral": 12, "happy": 4, ...}
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS visual_confidence_sum REAL NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS engagement_sum        REAL NOT NULL DEFAULT 0;

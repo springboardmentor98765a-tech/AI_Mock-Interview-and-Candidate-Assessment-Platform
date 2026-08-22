@@ -21,6 +21,10 @@ don't get tangled up with question-answering/scoring.
     POST   /sessions/{id}/recordings      upload a webcam/mic recording (video or audio)
     GET    /sessions/{id}/recordings      list recordings for a session
     DELETE /sessions/{id}/recordings/{recording_id}   delete one recording
+    POST   /sessions/{id}/emotion-samples Module 6 - accepts a periodic batch summary of
+                                           client-side (face-api.js) emotion/eye-contact
+                                           samples and folds it into the session's running
+                                           aggregates (no image/video data involved)
 """
 
 import os
@@ -50,6 +54,7 @@ from app.schemas import (
     RecordingUploadOut,
     ViolationReportOut,
     MessageResponse,
+    EmotionSampleBatchRequest,
 )
 from app.auth import get_current_user
 from app.storage import storage
@@ -484,3 +489,47 @@ def delete_recording(
     db.delete(recording)
     db.commit()
     return MessageResponse(message="Recording deleted.")
+
+
+# ---------------------------------------------------------------------------
+# POST /sessions/{session_id}/emotion-samples
+# Module 6 - Emotion Detection & Eye Tracking.
+#
+# Face detection, expression classification, and an eye-contact heuristic
+# all run client-side (face-api.js against the candidate's own webcam
+# stream via <video>/<canvas> - see frontend/interview-session.js). The
+# frontend accumulates samples locally and periodically posts a small
+# batch summary here; raw frames/video never leave the browser. This
+# endpoint folds that batch into the session's running totals so
+# eye-contact %, dominant emotion, and a visual confidence/engagement
+# read are always derived from real, accumulated samples.
+# ---------------------------------------------------------------------------
+@router.post("/{session_id}/emotion-samples", response_model=SessionOut)
+def submit_emotion_samples(
+    session_id: str,
+    payload: EmotionSampleBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _get_owned_session(session_id, current_user, db)
+
+    session.emotion_sample_count += payload.samples_count
+    session.face_detected_count += payload.face_detected_count
+    session.eye_contact_count += payload.eye_contact_count
+
+    counts = dict(session.emotion_counts or {})
+    for emotion, count in payload.emotion_counts.items():
+        counts[emotion] = counts.get(emotion, 0) + count
+    session.emotion_counts = counts
+
+    # Batch averages are weighted back into running sums by how many
+    # face-detected samples they represent (avg_visual_confidence /
+    # avg_engagement are only meaningful when a face was found).
+    if payload.avg_visual_confidence is not None and payload.face_detected_count:
+        session.visual_confidence_sum += payload.avg_visual_confidence * payload.face_detected_count
+    if payload.avg_engagement is not None and payload.face_detected_count:
+        session.engagement_sum += payload.avg_engagement * payload.face_detected_count
+
+    db.commit()
+    db.refresh(session)
+    return SessionOut.model_validate(session)

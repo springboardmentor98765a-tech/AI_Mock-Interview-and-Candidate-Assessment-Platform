@@ -7,20 +7,27 @@ Run with:
     uvicorn app.main:app --reload
 """
 
+import os
+
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import auth_routes, user_routes, interview_routes, resume_routes
+from app.routes import auth_routes, user_routes, interview_routes, resume_routes, session_routes, candidate_management_routes
 
 # Create all tables on startup if they do not already exist.
 # (The provided sql/create_db.sql script does the same thing manually,
 #  in case the team prefers to run migrations by hand.)
 Base.metadata.create_all(bind=engine)
+
+# Module 4 - Interview Session Management: local folder that stores
+# uploaded webcam/microphone session recordings.
+os.makedirs(os.path.join(settings.MEDIA_ROOT, "recordings"), exist_ok=True)
 
 app = FastAPI(
     title="AI Interview Pro API",
@@ -43,6 +50,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve uploaded session recordings back to the frontend for playback
+# (e.g. GET /media/recordings/<interview_id>.webm). Access to the *route*
+# that returns this URL is still auth-protected - see
+# GET /interviews/{interview_id}/recording in interview_routes.py.
+app.mount("/media", StaticFiles(directory=settings.MEDIA_ROOT), name="media")
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +88,8 @@ app.include_router(auth_routes.router)
 app.include_router(user_routes.router)
 app.include_router(interview_routes.router)
 app.include_router(resume_routes.router)
+app.include_router(session_routes.router)
+app.include_router(candidate_management_routes.router)
 
 
 @app.get("/")

@@ -180,130 +180,12 @@
           <div class="section-heading">
             <h2>Candidate Management</h2>
 
-            <p>Review and manage applicants</p>
+            <p>Top mock-interview scorers across all candidates</p>
           </div>
 
-          <div class="candidate-grid">
-            <div class="candidate-card">
-              <div class="candidate-header">
-                <div class="candidate-avatar">RS</div>
+          <p id="candidatesStatus" class="hint">Loading candidates...</p>
 
-                <div>
-                  <h3>Rahul Sharma</h3>
-
-                  <p>Java Developer</p>
-                </div>
-
-                <span class="rank"> #1 </span>
-              </div>
-
-              <div class="skills">
-                <span> Java </span>
-
-                <span> Spring Boot </span>
-
-                <span> SQL </span>
-
-                <span> AWS </span>
-              </div>
-
-              <div class="candidate-score">
-                <div>
-                  <p>AI Match Score</p>
-
-                  <h2>94%</h2>
-                </div>
-
-                <div class="score-circle">A+</div>
-              </div>
-
-              <div class="candidate-actions">
-                <button class="view-btn">View Profile</button>
-
-                <button class="schedule-btn">Schedule</button>
-              </div>
-            </div>
-
-            <div class="candidate-card">
-              <div class="candidate-header">
-                <div class="candidate-avatar">PK</div>
-
-                <div>
-                  <h3>Priya Kumar</h3>
-
-                  <p>Python Developer</p>
-                </div>
-
-                <span class="rank"> #2 </span>
-              </div>
-
-              <div class="skills">
-                <span> Python </span>
-
-                <span> Django </span>
-
-                <span> ML </span>
-
-                <span> SQL </span>
-              </div>
-
-              <div class="candidate-score">
-                <div>
-                  <p>AI Match Score</p>
-
-                  <h2>91%</h2>
-                </div>
-
-                <div class="score-circle">A</div>
-              </div>
-
-              <div class="candidate-actions">
-                <button class="view-btn">View Profile</button>
-
-                <button class="schedule-btn">Schedule</button>
-              </div>
-            </div>
-
-            <div class="candidate-card">
-              <div class="candidate-header">
-                <div class="candidate-avatar">AP</div>
-
-                <div>
-                  <h3>Arjun Patel</h3>
-
-                  <p>Full Stack Developer</p>
-                </div>
-
-                <span class="rank"> #3 </span>
-              </div>
-
-              <div class="skills">
-                <span> React </span>
-
-                <span> Node.js </span>
-
-                <span> MongoDB </span>
-
-                <span> Java </span>
-              </div>
-
-              <div class="candidate-score">
-                <div>
-                  <p>AI Match Score</p>
-
-                  <h2>88%</h2>
-                </div>
-
-                <div class="score-circle">A-</div>
-              </div>
-
-              <div class="candidate-actions">
-                <button class="view-btn">View Profile</button>
-
-                <button class="schedule-btn">Schedule</button>
-              </div>
-            </div>
-          </div>
+          <div class="candidate-grid" id="candidatesGrid"></div>
         </section>
 
         <!-- ================= RESUME SCREENING ================= -->
@@ -312,74 +194,24 @@
           <div class="section-heading">
             <h2>AI Resume Screening</h2>
 
-            <p>AI-powered candidate evaluation</p>
+            <p>Candidates ranked by resume completeness score</p>
           </div>
+
+          <p id="screeningStatus" class="hint">Loading resumes...</p>
 
           <div class="screening-table">
             <table>
               <thead>
                 <tr>
                   <th>Candidate</th>
-
-                  <th>Role</th>
-
+                  <th>Top Skills</th>
                   <th>AI Score</th>
-
                   <th>Experience</th>
-
                   <th>Action</th>
                 </tr>
               </thead>
 
-              <tbody>
-                <tr>
-                  <td>Rahul Sharma</td>
-
-                  <td>Backend Developer</td>
-
-                  <td class="high">94%</td>
-
-                  <td>3 Years</td>
-
-                  <td>
-                    <button class="shortlist">Shortlist</button>
-
-                    <button class="reject">Reject</button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>Priya Kumar</td>
-
-                  <td>ML Engineer</td>
-
-                  <td class="high">91%</td>
-
-                  <td>2 Years</td>
-
-                  <td>
-                    <button class="shortlist">Shortlist</button>
-
-                    <button class="reject">Reject</button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>Arjun Patel</td>
-
-                  <td>Full Stack Developer</td>
-
-                  <td>88%</td>
-
-                  <td>1.5 Years</td>
-
-                  <td>
-                    <button class="shortlist">Shortlist</button>
-
-                    <button class="reject">Reject</button>
-                  </td>
-                </tr>
-              </tbody>
+              <tbody id="screeningTableBody"></tbody>
             </table>
           </div>
         </section>
@@ -1045,6 +877,21 @@ Save Settings
 
 
 
+
+
+
+
+
+<!-- ================= CANDIDATE PROFILE MODAL (Module 4 - View Profile) ================= -->
+<div class="profile-modal-overlay" id="candidateProfileOverlay" style="display:none;">
+  <div class="profile-modal">
+    <button id="closeCandidateProfileBtn" type="button" class="profile-modal-close">&times;</button>
+
+    <div id="candidateProfileContent">
+      <p class="hint">Loading profile...</p>
+    </div>
+  </div>
+</div>
 
 
 </main>

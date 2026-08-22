@@ -113,6 +113,32 @@ Then open **http://127.0.0.1:5500/index.html**.
 
 ---
 
+## 4b. Running with Docker (optional)
+
+The project also ships a `Dockerfile` per side plus a root `docker-compose.yml`
+(Postgres + backend + a static nginx server for the frontend):
+
+```bash
+cp backend/.env.example backend/.env
+# fill in JWT_SECRET_KEY / SESSION_SECRET_KEY (openssl rand -hex 32 each)
+# leave DATABASE_URL as-is - compose overrides it to point at the postgres service
+
+docker compose up --build
+```
+
+- Frontend: http://localhost:5500
+- Backend / API docs: http://localhost:8000/docs
+- Recordings persist in the `recordings_data` volume; Postgres data in `postgres_data`.
+
+## 4c. API testing with Postman
+
+`backend/postman_collection.json` covers auth, interview generation, and every
+Module 4 `/sessions` endpoint. Import it into Postman, set `base_url`
+(defaults to `http://127.0.0.1:8000`), run **Login** once to populate the
+`token` variable automatically, then the rest of the requests are ready to go.
+
+---
+
 ## 5. Google OAuth Setup
 
 1. Go to https://console.cloud.google.com/apis/credentials
@@ -279,3 +305,16 @@ previously fake (`alert("Login Successful!")`) to call the real API.
   if recruiters/admins need to sign up via Google too.
 - Rate limiting / brute-force protection on `/login` is not included —
   add `slowapi` or a reverse-proxy rule before production use.
+- **Frontend stays plain HTML/CSS/JS on purpose.** The Module 4 spec's
+  tech-stack table lists React.js, but this project intentionally keeps
+  the existing vanilla frontend rather than migrating - all the Module 4
+  behavior (device access, recording, timer, pause/resume, full-screen
+  proctoring) is framework-agnostic and works the same either way.
+- **File storage is local disk, not S3/Azure**, since no cloud credentials
+  are assumed for local grading/running. Every read/write goes through
+  `backend/app/storage.py`, a single choke point - swapping in S3/Azure
+  later means implementing one class with `save/delete/url_for` there,
+  not touching the routes.
+- FFmpeg-based video/audio post-processing (the spec lists it as
+  optional) isn't implemented - recordings are stored exactly as the
+  browser's `MediaRecorder` produces them (webm/mp4).

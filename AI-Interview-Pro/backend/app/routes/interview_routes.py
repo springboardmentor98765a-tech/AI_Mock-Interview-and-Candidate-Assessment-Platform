@@ -10,10 +10,17 @@ Module 3 - AI Interview Generation.
     GET    /interviews/{id}           one interview with its questions
     PUT    /interviews/{id}           update domain/difficulty (only while "created")
     DELETE /interviews/{id}           delete an interview
-    POST   /interviews/start          mark an interview as started, return question 1 + timer deadline
+    POST   /interviews/start          mark an interview as started, create its session,
+                                       return question 1 + timer deadline
     PUT    /interviews/{id}/questions/{question_id}/answer
                                        save + score a candidate's (voice-transcribed) answer
     POST   /interviews/{id}/timeout   force-end an interview when its time limit runs out
+    GET    /interviews/{id}/session   poll: current question + timer + session state
+
+Module 4 - Interview Session Management (webcam / mic / recording / pause-
+resume) now lives in routes/session_routes.py under /sessions/*. This file
+only creates/ends the InterviewSession that backs each interview attempt
+and keeps the question timer pause-aware.
 """
 
 import uuid
@@ -29,6 +36,7 @@ from app.models import (
     InterviewTypeEnum,
     DifficultyEnum,
     InterviewStatusEnum,
+    SessionStatusEnum,
     User,
 )
 from app.schemas import (
@@ -38,14 +46,16 @@ from app.schemas import (
     InterviewDetailOut,
     InterviewQuestionOut,
     InterviewSessionOut,
+    SessionOut,
     AnswerSubmitRequest,
     MessageResponse,
     AnalyticsOut,
 )
 from app.auth import get_current_user
 from app.ai_question_generator import generate_questions
-from app.scoring import analyze_answer
+from app.scoring import analyze_answer, apply_speech_metrics, apply_visual_confidence
 from app.resume_parser import compute_resume_score
+from app.routes.session_routes import get_or_create_session, _end_session_internal
 
 router = APIRouter(prefix="/interviews", tags=["Interviews"])
 
@@ -56,14 +66,34 @@ def _compute_deadline_at(interview: Interview):
     limit / the interview hasn't started). Stored timestamps are naive
     UTC (datetime.utcnow()); we explicitly attach tzinfo=UTC before this
     goes out over the API so the browser's `new Date(...)` parses it as
-    UTC instead of silently assuming local time (which was previously
-    causing the timer to look like it had already expired for anyone
-    not in a UTC+0 timezone).
+    UTC instead of silently assuming local time.
+
+    Module 4 - pause-aware: every second the session spends paused
+    pushes the deadline back by the same amount, so the candidate's
+    remaining time is preserved across a pause/resume instead of
+    ticking down while they're paused.
     """
     if not interview.started_at or not interview.duration_minutes:
         return None
+
     deadline = interview.started_at + timedelta(minutes=interview.duration_minutes)
+
+    session = interview.session
+    if session:
+        paused_seconds = session.total_paused_seconds
+        if session.status == SessionStatusEnum.paused and session.paused_at:
+            paused_seconds += int((datetime.utcnow() - session.paused_at).total_seconds())
+        deadline += timedelta(seconds=paused_seconds)
+
     return deadline.replace(tzinfo=timezone.utc)
+
+
+def _mark_question_shown(question: InterviewQuestion) -> None:
+    """Module 4 - Timer-Based Workflow: lazily stamp the moment a
+    question is actually served to the candidate, so time-spent-per-
+    question reflects real time on screen."""
+    if question and not question.question_shown_at:
+        question.question_shown_at = datetime.utcnow()
 
 
 def _get_owned_interview(interview_id: str, current_user: User, db: Session) -> Interview:
@@ -74,7 +104,7 @@ def _get_owned_interview(interview_id: str, current_user: User, db: Session) -> 
 
     interview = (
         db.query(Interview)
-        .options(joinedload(Interview.questions))
+        .options(joinedload(Interview.questions), joinedload(Interview.session))
         .filter(Interview.id == interview_uuid)
         .first()
     )
@@ -188,19 +218,16 @@ def interview_history(
 
 
 # ---------------------------------------------------------------------------
-# GET /interviews/analytics  (real, computed-from-history dashboard data)
-# NOTE: declared before /{interview_id} so "analytics" isn't parsed as an id
+# Shared analytics computation - used by GET /interviews/analytics (self)
+# and by the recruiter-facing GET /candidates/{id}/profile (candidate_routes.py)
+# so both surfaces compute the exact same numbers the exact same way.
 # ---------------------------------------------------------------------------
-@router.get("/analytics", response_model=AnalyticsOut)
-def interview_analytics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+def compute_analytics_for_user(user: User, db: Session) -> AnalyticsOut:
     completed = (
         db.query(Interview)
-        .options(joinedload(Interview.questions))
+        .options(joinedload(Interview.questions), joinedload(Interview.session))
         .filter(
-            Interview.user_id == current_user.id,
+            Interview.user_id == user.id,
             Interview.status == InterviewStatusEnum.completed,
         )
         .order_by(Interview.completed_at.asc())
@@ -208,14 +235,14 @@ def interview_analytics(
     )
 
     resume_score = None
-    if current_user.resume_uploaded_at:
-        skills = [s for s in (current_user.resume_skills or "").split(",") if s]
+    if user.resume_uploaded_at:
+        skills = [s for s in (user.resume_skills or "").split(",") if s]
         resume_score = compute_resume_score(
             skills=skills,
-            experience_years=current_user.resume_experience_years,
-            experience=current_user.resume_experience or [],
-            education=current_user.resume_education or [],
-            summary=current_user.resume_summary,
+            experience_years=user.resume_experience_years,
+            experience=user.resume_experience or [],
+            education=user.resume_education or [],
+            summary=user.resume_summary,
         )
 
     if not completed:
@@ -248,8 +275,6 @@ def interview_analytics(
     ]
     average_duration_minutes = round(sum(durations) / len(durations), 1) if durations else None
 
-    # Skill growth: compare the average score of the second half of
-    # completed interviews (most recent) against the first half.
     skill_growth_percent = 0.0
     if len(scored_interviews) >= 2:
         mid = len(scored_interviews) // 2
@@ -266,6 +291,23 @@ def interview_analytics(
     elif resume_score is not None:
         interview_readiness = resume_score
 
+    # Module 5 - Speech-to-Text & Communication Analysis: averaged only
+    # across answers that were actually spoken (voice input), not typed.
+    spoken_questions = [q for q in answered_questions if q.speech_duration_seconds]
+    avg_filler_word_count = _avg([q.filler_word_count for q in spoken_questions])
+    avg_speaking_pace_wpm = _avg([q.speaking_pace_wpm for q in spoken_questions])
+    avg_pronunciation_score = _avg([q.pronunciation_score for q in spoken_questions])
+
+    # Module 6 - Emotion Detection & Eye Tracking: averaged across
+    # completed interviews' sessions that collected webcam samples.
+    sessions_with_emotion = [
+        i.session for i in completed if i.session and i.session.emotion_sample_count
+    ]
+    avg_eye_contact_percentage = _avg([s.eye_contact_percentage for s in sessions_with_emotion])
+    avg_attention_percentage = _avg([s.attention_percentage for s in sessions_with_emotion])
+    avg_visual_confidence = _avg([s.avg_visual_confidence for s in sessions_with_emotion])
+    avg_engagement = _avg([s.avg_engagement for s in sessions_with_emotion])
+
     return AnalyticsOut(
         completed_interviews=len(completed),
         total_questions_answered=len(answered_questions),
@@ -279,7 +321,26 @@ def interview_analytics(
         skill_growth_percent=skill_growth_percent,
         resume_score=resume_score,
         interview_readiness=interview_readiness,
+        avg_filler_word_count=avg_filler_word_count,
+        avg_speaking_pace_wpm=avg_speaking_pace_wpm,
+        avg_pronunciation_score=avg_pronunciation_score,
+        avg_eye_contact_percentage=avg_eye_contact_percentage,
+        avg_attention_percentage=avg_attention_percentage,
+        avg_visual_confidence=avg_visual_confidence,
+        avg_engagement=avg_engagement,
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /interviews/analytics  (real, computed-from-history dashboard data)
+# NOTE: declared before /{interview_id} so "analytics" isn't parsed as an id
+# ---------------------------------------------------------------------------
+@router.get("/analytics", response_model=AnalyticsOut)
+def interview_analytics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return compute_analytics_for_user(current_user, db)
 
 
 # ---------------------------------------------------------------------------
@@ -296,15 +357,24 @@ def start_interview(
     if interview.status == InterviewStatusEnum.created:
         interview.status = InterviewStatusEnum.in_progress
         interview.started_at = datetime.utcnow()
-        db.commit()
-        db.refresh(interview)
+
+    # Module 4 - Interview Session Management: every attempt gets a
+    # backing InterviewSession (created once, reused if the candidate
+    # refreshes and resumes).
+    session = get_or_create_session(interview, db)
 
     first_question = interview.questions[0] if interview.questions else None
+    _mark_question_shown(first_question)
+
+    db.commit()
+    db.refresh(interview)
+    db.refresh(session)
 
     deadline_at = _compute_deadline_at(interview)
 
     return {
         "interview": InterviewOut.model_validate(interview),
+        "session": SessionOut.model_validate(session),
         "first_question": InterviewQuestionOut.model_validate(first_question) if first_question else None,
         "total_questions": len(interview.questions),
         "deadline_at": deadline_at,
@@ -328,13 +398,21 @@ def get_interview_session(
     current_question = next((q for q in interview.questions if not q.answer_text), None)
     is_complete = current_question is None and len(interview.questions) > 0
 
+    _mark_question_shown(current_question)
+    if current_question is not None:
+        db.commit()
+        db.refresh(interview)
+
     deadline_at = _compute_deadline_at(interview)
+    is_paused = bool(interview.session and interview.session.status == SessionStatusEnum.paused)
 
     return InterviewSessionOut(
         interview=InterviewOut.model_validate(interview),
+        session=SessionOut.model_validate(interview.session) if interview.session else None,
         total_questions=len(interview.questions),
         answered_count=answered_count,
         is_complete=is_complete,
+        is_paused=is_paused,
         current_question=InterviewQuestionOut.model_validate(current_question) if current_question else None,
         deadline_at=deadline_at,
     )
@@ -432,6 +510,23 @@ def submit_answer(
         resume_skills=resume_skills,
     )
 
+    # Module 5 - Speech-to-Text & Communication Analysis: blend in real
+    # speech-delivery metrics captured client-side while the candidate
+    # spoke this answer (no-op if they typed instead - see scoring.py).
+    scores = apply_speech_metrics(
+        scores,
+        filler_word_count=payload.filler_word_count,
+        speaking_pace_wpm=payload.speaking_pace_wpm,
+        pronunciation_score=payload.pronunciation_score,
+        word_count=scores["word_count"],
+    )
+
+    # Module 6 - Emotion Detection & Eye Tracking: lightly blend in the
+    # session's running facial/eye-contact confidence signal, if the
+    # webcam was on and samples have been collected so far.
+    if interview.session:
+        scores = apply_visual_confidence(scores, interview.session.avg_visual_confidence)
+
     question.answer_text = payload.answer_text
     question.answered_at = datetime.utcnow()
     question.technical_score = scores["technical_score"]
@@ -440,6 +535,17 @@ def submit_answer(
     question.grammar_score = scores["grammar_score"]
     question.overall_score = scores["overall_score"]
     question.word_count = scores["word_count"]
+
+    question.filler_word_count = payload.filler_word_count
+    question.speaking_pace_wpm = payload.speaking_pace_wpm
+    question.pronunciation_score = payload.pronunciation_score
+    question.speech_duration_seconds = payload.speech_duration_seconds
+
+    # Module 4 - Timer-Based Workflow: time spent on this question.
+    if question.question_shown_at:
+        question.time_spent_seconds = max(
+            0, int((question.answered_at - question.question_shown_at).total_seconds())
+        )
 
     # If every question now has an answer, mark the interview completed
     # and compute its real overall score from the answered questions.
@@ -453,6 +559,8 @@ def submit_answer(
             interview.overall_score = round(
                 sum(q.overall_score for q in answered) / len(answered), 1
             )
+        if interview.session:
+            _end_session_internal(interview.session, db)
 
     db.commit()
     db.refresh(question)
@@ -485,6 +593,9 @@ def timeout_interview(
         interview.overall_score = round(
             sum(q.overall_score for q in answered) / len(answered), 1
         )
+
+    if interview.session:
+        _end_session_internal(interview.session, db)
 
     db.commit()
     db.refresh(interview)

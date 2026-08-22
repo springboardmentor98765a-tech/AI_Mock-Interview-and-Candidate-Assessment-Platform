@@ -1219,6 +1219,87 @@ body{
 
 }
 
+/* ===============================
+    MODULE 5 & 6 - SPEECH & EMOTION INSIGHTS
+================================ */
+
+.insights-subheading {
+    margin: 28px 0 14px;
+    font-size: 16px;
+    color: #e2e8f0;
+}
+
+.clarity-progress,
+.eye-contact-progress,
+.attention-progress,
+.visual-confidence-progress,
+.engagement-progress {
+    height: 100%;
+    border-radius: 20px;
+    width: 0%;
+    transition: width 0.6s ease;
+}
+
+.clarity-progress {
+    background: linear-gradient(90deg, #7c3aed, #a855f7);
+}
+
+.eye-contact-progress {
+    background: linear-gradient(90deg, #0891b2, #06b6d4);
+}
+
+.attention-progress {
+    background: linear-gradient(90deg, #4f46e5, #818cf8);
+}
+
+.visual-confidence-progress {
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.engagement-progress {
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.qa-speech-metrics {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0 0;
+}
+
+.qa-speech-metrics span {
+    background: rgba(255,255,255,.06);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
+.session-emotion-summary {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin: 14px 0;
+}
+
+.session-emotion-summary h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.session-emotion-summary .emotion-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+}
+
+.session-emotion-summary .emotion-stat-row strong {
+    color: #f3f4f6;
+}
+
 
 
 
@@ -1604,6 +1685,175 @@ td{
 
 }
 
+
+/* ===============================
+    MODULE 4 - PAUSE / RESUME
+================================ */
+
+.pause-resume-btn {
+  background: #374151;
+  color: #f9fafb;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.pause-resume-btn:hover {
+  background: #4b5563;
+}
+
+/* ===============================
+    MODULE 4 - DEVICE CHECK
+    (webcam / microphone access)
+================================ */
+
+.device-check-panel {
+  margin: 20px 0;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: #111827;
+  color: #f3f4f6;
+}
+
+.device-check-panel h4 {
+  margin: 0 0 6px;
+}
+
+.device-check-panel .hint {
+  color: #9ca3af;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.device-check-row {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.device-preview-box {
+  position: relative;
+  width: 200px;
+  height: 150px;
+  border-radius: 12px;
+  background: #000;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.device-preview-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.device-preview-placeholder {
+  position: absolute;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.device-check-status {
+  flex: 1;
+  min-width: 220px;
+}
+
+.device-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #d1d5db;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6b7280;
+  display: inline-block;
+}
+
+.status-dot.status-on {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
+}
+
+.status-dot.status-off {
+  background: #dc2626;
+}
+
+#enableDevicesBtn {
+  margin-top: 6px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#enableDevicesBtn.devices-ready {
+  background: #16a34a;
+}
+
+/* ===============================
+    MODULE 4 - LIVE SESSION CAMERA
+    + RECORDING INDICATOR
+================================ */
+
+.session-camera-box {
+  position: relative;
+  width: 220px;
+  max-width: 100%;
+  height: 165px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  margin: 0 0 20px;
+}
+
+.session-camera-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rec-indicator {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  animation: recBlink 1.2s infinite;
+}
+
+@keyframes recBlink {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+#recordingPlaybackWrap video {
+  max-width: 100%;
+  width: 360px;
+  border-radius: 12px;
+  margin-top: 8px;
+}
 
 /* ===============================
         LIVE INTERVIEW TIMER
@@ -2429,6 +2679,63 @@ td{
     font-size: 15px;
     line-height: 1.7;
     margin-top: 10px;
+}
+
+/* ===============================
+    MODULE 4 - HISTORY DETAIL:
+    SCORE + RECORDING PLAYBACK
+================================ */
+
+.history-detail-score {
+  font-size: 18px;
+  font-weight: 700;
+  color: #4ade80;
+  margin: 6px 0 16px;
+}
+
+.history-detail-recordings {
+  margin-bottom: 20px;
+}
+
+.history-recording-clip {
+  margin-top: 8px;
+}
+
+.history-recording-clip video,
+.history-recording-clip audio {
+  display: block;
+}
+
+.history-recording-clip .recording-clip-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.history-recording-clip .recording-clip-error a {
+  color: #fecaca;
+  font-weight: 600;
+}
+
+.delete-recording-btn {
+  margin-top: 6px;
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-recording-btn:hover {
+  background: rgba(220, 38, 38, 0.3);
+  color: #fecaca;
 }
 
 .resume-skills-card,
