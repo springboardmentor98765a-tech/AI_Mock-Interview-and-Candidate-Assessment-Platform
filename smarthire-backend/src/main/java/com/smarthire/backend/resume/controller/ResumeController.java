@@ -120,6 +120,45 @@ public class ResumeController {
         }
     }
 
+
+    @GetMapping("/latest")
+    public ResponseEntity<ResumeAnalysisResponse> getLatestResumeAnalysis() {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return resumeRepository.findTopByUserIdOrderByUpdatedAtDesc(userId)
+                .map(this::toAnalysisResponse)
+                .map(response -> ResponseEntity.ok(response))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    private ResumeAnalysisResponse toAnalysisResponse(Resume resume) {
+        ResumeAnalysisResponse analysis = new ResumeAnalysisResponse();
+        analysis.setSuccess(true);
+        analysis.setResumeId(resume.getId());
+        analysis.setFileName(resume.getFileName());
+        analysis.setPageCount(resume.getPageCount() == null ? 0 : resume.getPageCount());
+        analysis.setExtractedText(resume.getExtractedText());
+        analysis.setSummary(resume.getSummary());
+        analysis.setExperience(resume.getExperience());
+        analysis.setEducation(resume.getEducation());
+        analysis.setAtsScore(resume.getAtsScore());
+        analysis.setKeywordScore(resume.getKeywordScore());
+        analysis.setFormattingScore(resume.getFormattingScore());
+        analysis.setSkillsScore(resume.getSkillsScore());
+        analysis.setExperienceScore(resume.getExperienceScore());
+        analysis.setEducationScore(resume.getEducationScore());
+        analysis.setMessage("Latest saved resume analysis loaded.");
+        if (resume.getSkills() != null && !resume.getSkills().isBlank()) analysis.setSkills(java.util.Arrays.asList(resume.getSkills().split(",")));
+        if (resume.getTechnologies() != null && !resume.getTechnologies().isBlank()) analysis.setTechnologies(java.util.Arrays.asList(resume.getTechnologies().split(",")));
+        if (resume.getMissingSkills() != null && !resume.getMissingSkills().isBlank()) analysis.setMissingSkills(java.util.Arrays.asList(resume.getMissingSkills().split(",")));
+        if (resume.getStrengths() != null && !resume.getStrengths().isBlank()) analysis.setStrengths(java.util.Arrays.asList(resume.getStrengths().split(",")));
+        if (resume.getWeaknesses() != null && !resume.getWeaknesses().isBlank()) analysis.setWeaknesses(java.util.Arrays.asList(resume.getWeaknesses().split(",")));
+        if (resume.getImprovementSuggestions() != null && !resume.getImprovementSuggestions().isBlank()) analysis.setImprovementSuggestions(java.util.Arrays.asList(resume.getImprovementSuggestions().split(",")));
+        return analysis;
+    }
+
     @GetMapping("/report/{id}")
     public ResponseEntity<byte[]> downloadResumeReport(@PathVariable Long id) {
         try {

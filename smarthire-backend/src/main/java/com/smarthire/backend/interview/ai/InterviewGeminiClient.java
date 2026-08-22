@@ -73,7 +73,7 @@ public class InterviewGeminiClient {
                                                         String domain,
                                                         String experienceLevel,
                                                         String difficulty) {
-        return generateQuestionsWithSource(jobRole, interviewType, domain, experienceLevel, difficulty).getQuestions();
+        return generateQuestionsWithSource(jobRole, interviewType, domain, experienceLevel, difficulty, "").getQuestions();
     }
 
     public InterviewQuestionGenerationResult generateQuestionsWithSource(String jobRole,
@@ -81,6 +81,15 @@ public class InterviewGeminiClient {
                                                                           String domain,
                                                                           String experienceLevel,
                                                                           String difficulty) {
+        return generateQuestionsWithSource(jobRole, interviewType, domain, experienceLevel, difficulty, "");
+    }
+
+    public InterviewQuestionGenerationResult generateQuestionsWithSource(String jobRole,
+                                                                          String interviewType,
+                                                                          String domain,
+                                                                          String experienceLevel,
+                                                                          String difficulty,
+                                                                          String resumeContext) {
         if (!questionGenerationEnabled) {
             return fallbackResult(jobRole, interviewType, difficulty, "AI question generation is disabled; SmartHire used the question bank.");
         }
@@ -125,7 +134,7 @@ public class InterviewGeminiClient {
                 "contents", List.of(
                         Map.of(
                                 "parts", List.of(
-                                        Map.of("text", buildPrompt(jobRole, interviewType, domain, experienceLevel, difficulty))
+                                        Map.of("text", buildPrompt(jobRole, interviewType, domain, experienceLevel, difficulty, resumeContext))
                                 )
                         )
                 ),
@@ -277,7 +286,8 @@ public class InterviewGeminiClient {
         String safeType = normalizeInterviewType(interviewType);
         boolean shouldUseMcq = safeType.toLowerCase(Locale.ROOT).contains("technical")
                 || safeType.toLowerCase(Locale.ROOT).contains("assessment")
-                || safeType.toLowerCase(Locale.ROOT).contains("quiz");
+                || safeType.toLowerCase(Locale.ROOT).contains("quiz")
+                || safeType.toLowerCase(Locale.ROOT).contains("aptitude");
         if (!shouldUseMcq) {
             return aiQuestions.stream().limit(10).toList();
         }
@@ -409,6 +419,7 @@ public class InterviewGeminiClient {
     private String normalizeInterviewType(String interviewType) {
         String value = safeValue(interviewType, "Technical").trim().toLowerCase(Locale.ROOT);
         if (value.contains("technical") || value.contains("assessment") || value.contains("quiz")) return "Technical";
+        if (value.contains("aptitude")) return "Aptitude";
         if (value.contains("hr")) return "HR";
         if (value.contains("behavior")) return "Behavioral";
         if (value.contains("resume")) return "Resume";
@@ -418,7 +429,7 @@ public class InterviewGeminiClient {
 
     private boolean isObjectiveInterview(String interviewType) {
         String value = safeValue(interviewType, "Technical").toLowerCase(Locale.ROOT);
-        return value.contains("technical") || value.contains("assessment") || value.contains("quiz");
+        return value.contains("technical") || value.contains("assessment") || value.contains("quiz") || value.contains("aptitude");
     }
 
     private List<InterviewQuestionDto> mergeStaticMcqFallback(List<InterviewQuestionDto> existing, String difficulty) {
@@ -473,9 +484,13 @@ public class InterviewGeminiClient {
                                String interviewType,
                                String domain,
                                String experienceLevel,
-                               String difficulty) {
+                               String difficulty,
+                               String resumeContext) {
+        String resumeInstruction = (resumeContext == null || resumeContext.isBlank())
+                ? "No resume context was provided. Do not invent candidate-specific experience."
+                : "Use the following uploaded resume as the primary personalization source. Ask questions grounded in the candidate's actual skills, technologies, experience, education, projects, and resume summary. Do not invent technologies or experience that are not present in the resume.\n" + resumeContext;
         return "You are an expert interviewer. Generate exactly 10 interview questions. "
-                + "Return ONLY valid JSON and no markdown/code fences. For Technical, Assessment, or Quiz interviews, ALL 10 questions must be multiple-choice: set answerMode to MCQ, provide exactly four plausible options, and provide the exact correctAnswer matching one option. For HR or Behavioral interviews, use TEXT questions with an empty options array and an empty correctAnswer. "
+                + "Return ONLY valid JSON and no markdown/code fences. For Technical, Assessment, Quiz, or Aptitude interviews, ALL 10 questions must be multiple-choice: set answerMode to MCQ, provide exactly four plausible options, and provide the exact correctAnswer matching one option. For HR, Behavioral, or Resume Based interviews, use TEXT questions with an empty options array and an empty correctAnswer. "
                 + "Use exactly this schema: {\"questions\":[{\"question\":\"...\",\"category\":\"Technical\",\"difficulty\":\"Medium\"}]}. "
                 + "Input details: "
                 + "Job Role=" + safeValue(jobRole, "Not provided") + ", "
@@ -485,9 +500,11 @@ public class InterviewGeminiClient {
                 + "Difficulty=" + safeValue(difficulty, "Medium") + ". "
                 + "Distribution rules: "
                 + "If Interview Type is Technical, generate 10 technical MCQs covering different concepts. "
+                + "If Interview Type is Aptitude, generate 10 aptitude MCQs covering quantitative aptitude, logical reasoning, averages, ratios, percentages, speed/work, probability, series, and similar reasoning topics appropriate to the selected difficulty. "
                 + "If Interview Type is HR, cover behavioural, communication, leadership, and career goals across 10 text questions. "
                 + "Every question object must include non-empty question, category, and difficulty. "
-                + "Difficulty values should be aligned with input difficulty.";
+                + "Difficulty values should be aligned with input difficulty. "
+                + resumeInstruction;
     }
 
     private List<String> parseOptions(String optionsJson) {

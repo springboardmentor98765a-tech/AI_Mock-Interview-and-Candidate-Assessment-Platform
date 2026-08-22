@@ -164,6 +164,13 @@ public class ResumeAnalysisService {
         Integer experienceScore = readScore(root, "experienceScore");
         Integer educationScore = readScore(root, "educationScore");
 
+        // Keep the displayed overall ATS score mathematically consistent with its
+        // five breakdown components whenever all components are available.
+        if (keywordScore != null && formattingScore != null && skillsScore != null
+                && experienceScore != null && educationScore != null) {
+            atsScore = weightedAtsScore(keywordScore, skillsScore, formattingScore, experienceScore, educationScore);
+        }
+
         // Parse missing skills detection
         List<String> missingSkills = readStringListFlexible(root, "missingSkills");
 
@@ -172,7 +179,7 @@ public class ResumeAnalysisService {
         List<String> weaknesses = readStringListFlexible(root, "weaknesses");
         List<String> improvementSuggestions = readStringListFlexible(root, "improvementSuggestions");
 
-        return new ResumeAnalysisResponse(
+        ResumeAnalysisResponse response = new ResumeAnalysisResponse(
                 true,
                 fileName,
                 pageCount,
@@ -193,6 +200,16 @@ public class ResumeAnalysisService {
                 weaknesses,
                 improvementSuggestions
         );
+        response.setExtractedText(extractedText);
+        return response;
+    }
+
+    private int weightedAtsScore(int keywordScore, int skillsScore, int formattingScore, int experienceScore, int educationScore) {
+        return Math.max(0, Math.min(100, Math.round((keywordScore * 0.25f)
+                + (skillsScore * 0.25f)
+                + (formattingScore * 0.20f)
+                + (experienceScore * 0.20f)
+                + (educationScore * 0.10f))));
     }
 
     private List<String> readStringListFlexible(JsonNode root, String fieldName) {
@@ -352,9 +369,11 @@ public class ResumeAnalysisService {
         suggestions.add("Use measurable achievements and clear role/project descriptions.");
         suggestions.add("Keep standard headings and concise bullet points for ATS readability.");
 
-        return new ResumeAnalysisResponse(true, fileName, pageCount, skills, experience, technologies, education, summary, reason,
+        ResumeAnalysisResponse response = new ResumeAnalysisResponse(true, fileName, pageCount, skills, experience, technologies, education, summary, reason,
                 atsScore, keywordScore, formattingScore, skillScore, experienceScore, educationScore,
                 missingSkills, strengths, weaknesses, suggestions);
+        response.setExtractedText(extractedText);
+        return response;
     }
 
     private boolean containsAny(String text, String... needles) {
@@ -438,9 +457,9 @@ public class ResumeAnalysisService {
             resume.setFileName(response.getFileName());
             resume.setPageCount(response.getPageCount());
             resume.setExtractedText(extractResponse.getExtractedText());
-            resume.setSkills(String.join(",", response.getSkills()));
+            resume.setSkills(String.join(",", response.getSkills() == null ? java.util.List.of() : response.getSkills()));
             resume.setExperience(response.getExperience());
-            resume.setTechnologies(String.join(",", response.getTechnologies()));
+            resume.setTechnologies(String.join(",", response.getTechnologies() == null ? java.util.List.of() : response.getTechnologies()));
             resume.setEducation(response.getEducation());
             resume.setSummary(response.getSummary());
             resume.setAtsScore(response.getAtsScore());
@@ -449,10 +468,10 @@ public class ResumeAnalysisService {
             resume.setSkillsScore(response.getSkillsScore());
             resume.setExperienceScore(response.getExperienceScore());
             resume.setEducationScore(response.getEducationScore());
-            resume.setMissingSkills(String.join(",", response.getMissingSkills()));
-            resume.setStrengths(String.join(",", response.getStrengths()));
-            resume.setWeaknesses(String.join(",", response.getWeaknesses()));
-            resume.setImprovementSuggestions(String.join(",", response.getImprovementSuggestions()));
+            resume.setMissingSkills(String.join(",", response.getMissingSkills() == null ? java.util.List.of() : response.getMissingSkills()));
+            resume.setStrengths(String.join(",", response.getStrengths() == null ? java.util.List.of() : response.getStrengths()));
+            resume.setWeaknesses(String.join(",", response.getWeaknesses() == null ? java.util.List.of() : response.getWeaknesses()));
+            resume.setImprovementSuggestions(String.join(",", response.getImprovementSuggestions() == null ? java.util.List.of() : response.getImprovementSuggestions()));
 
             Resume saved = resumeRepository.save(resume);
             return saved.getId();

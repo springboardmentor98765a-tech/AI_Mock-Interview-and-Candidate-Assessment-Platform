@@ -8,6 +8,7 @@ public class InterviewRequest {
     private String domain;
     private String experienceLevel;
     private String difficulty;
+    private Long resumeId;
 
     public InterviewRequest() {
     }
@@ -67,5 +68,13 @@ public class InterviewRequest {
 
     public void setDifficulty(String difficulty) {
         this.difficulty = difficulty;
+    }
+
+    public Long getResumeId() {
+        return resumeId;
+    }
+
+    public void setResumeId(Long resumeId) {
+        this.resumeId = resumeId;
     }
 }

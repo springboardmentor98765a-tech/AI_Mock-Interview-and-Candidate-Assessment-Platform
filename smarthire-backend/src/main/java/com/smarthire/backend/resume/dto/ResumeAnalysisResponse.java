@@ -13,6 +13,7 @@ public class ResumeAnalysisResponse {
     private List<String> technologies;
     private String education;
     private String summary;
+    private String extractedText;
     private String message;
 
     // AI Skill Extraction Fields
@@ -167,6 +168,14 @@ public class ResumeAnalysisResponse {
 
     public void setSummary(String summary) {
         this.summary = summary;
+    }
+
+    public String getExtractedText() {
+        return extractedText;
+    }
+
+    public void setExtractedText(String extractedText) {
+        this.extractedText = extractedText;
     }
 
     public String getMessage() {

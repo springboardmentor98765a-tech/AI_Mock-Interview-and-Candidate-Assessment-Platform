@@ -27,6 +27,10 @@ public class InterviewEvaluationRequest {
     private Integer recordingDurationSeconds;
     private Integer timerSecondsRemaining;
     private List<InterviewSessionStepDto> sessionTimeline;
+    private Integer pronunciationScore;
+    private Integer transcriptionConfidence;
+    private Integer grammarIssueCount;
+    private String grammarIssueSummary;
     private String liveSignalsJson;
     private String speechInsightsJson;
 
@@ -230,6 +234,15 @@ public class InterviewEvaluationRequest {
     public void setSessionTimeline(List<InterviewSessionStepDto> sessionTimeline) {
         this.sessionTimeline = sessionTimeline;
     }
+
+    public Integer getPronunciationScore() { return pronunciationScore; }
+    public void setPronunciationScore(Integer pronunciationScore) { this.pronunciationScore = pronunciationScore; }
+    public Integer getTranscriptionConfidence() { return transcriptionConfidence; }
+    public void setTranscriptionConfidence(Integer transcriptionConfidence) { this.transcriptionConfidence = transcriptionConfidence; }
+    public Integer getGrammarIssueCount() { return grammarIssueCount; }
+    public void setGrammarIssueCount(Integer grammarIssueCount) { this.grammarIssueCount = grammarIssueCount; }
+    public String getGrammarIssueSummary() { return grammarIssueSummary; }
+    public void setGrammarIssueSummary(String grammarIssueSummary) { this.grammarIssueSummary = grammarIssueSummary; }
 
     public String getLiveSignalsJson() {
         return liveSignalsJson;

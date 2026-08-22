@@ -89,7 +89,7 @@
       <div class="header-actions">
         <button class="header-icon" type="button" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
         <button class="header-icon notification-button" type="button" aria-label="Notifications">
-          <i class="fa-regular fa-bell"></i><span>3</span>
+          <i class="fa-regular fa-bell"></i><span data-notification-count="true">0</span>
         </button>
         <button class="header-theme" id="candidateThemeToggle" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><button class="header-logout" id="shLogoutBtn" data-sh-logout type="button" aria-label="Log out"><i class="fa-solid fa-right-from-bracket"></i><span>Log out</span></button>
         <div class="header-profile">
@@ -252,6 +252,12 @@
         </article>
       </section>
 
+
+      <section class="surface-card" style="margin-top:18px;">
+        <div class="card-heading"><div><span class="eyebrow">AI WEAK-AREA PREDICTION</span><h2>Priority Practice Areas</h2></div><a href="practice-assessment.html">Practice</a></div>
+        <div id="candidateWeakAreas" class="check-list"><p>Complete an interview to receive weak-area predictions.</p></div>
+      </section>
+
       <section class="ai-recommendation">
         <div class="ai-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
         <div><span class="eyebrow">AI RECOMMENDATION</span><h3>Keep improving one skill at a time.</h3><p id="aiRecommendationText">Based on your interview history, SmartHire will highlight the areas that need the most practice.</p></div>
@@ -263,5 +269,6 @@
   <script src="../js/api-client.js"></script>
   <script src="../js/candidate-dashboard.js"></script>
 <script src="../js/smarthire-theme.js"></script><script src="../js/role-guard.js"></script>
+<script src="../js/smarthire-notifications.js"></script>
 </body>
 </html>

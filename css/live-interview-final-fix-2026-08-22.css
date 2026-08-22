@@ -1,0 +1,20 @@
+/* FINAL SmartHire live interview layout/state fix — 2026-08-22 */
+@media (min-width:1101px){
+  body.live-room-clean.camera-pinned .clean-live-main{box-sizing:border-box!important;padding-right:340px!important;width:min(1500px,95vw)!important;}
+  body.live-room-clean.camera-pinned .clean-question-card{padding-right:20px!important;}
+  body.live-room-clean.camera-pinned .clean-video-card{top:92px!important;right:18px!important;width:300px!important;}
+}
+body.live-room-clean.camera-pinned .clean-video-card .clean-video-frame video{object-fit:cover!important;min-height:0!important;}
+body.live-room-clean.camera-pinned .clean-video-card .clean-card-heading h2{font-size:16px!important;}
+body.live-room-clean.camera-pinned .clean-video-card .clean-ready-pill.on{background:#dff8eb!important;color:#16834f!important;}
+body.live-room-clean.camera-pinned .clean-video-card .clean-ready-pill.off{background:#f2f4f8!important;color:#68748a!important;}
+body.live-room-clean .sh-insight-metrics strong,body.live-room-clean .sh-system-list strong,body.live-room-clean .sh-insight-metrics em,body.live-room-clean .sh-system-summary{opacity:1!important;visibility:visible!important;}
+body.live-room-clean:not(.dark-mode) .sh-insight-metrics strong,body.live-room-clean:not(.dark-mode) .sh-system-list strong,body.live-room-clean:not(.dark-mode) .sh-insight-metrics em{color:#16213a!important;}
+body.dark-mode.live-room-clean .sh-insight-metrics strong,body.dark-mode.live-room-clean .sh-system-list strong,body.dark-mode.live-room-clean .sh-insight-metrics em{color:#f4f7ff!important;}
+body.live-room-clean .sh-system-list strong.ok{color:#16834f!important;background:#e7f8ef!important;}
+body.live-room-clean .sh-system-list strong.warning{color:#9a6700!important;background:#fff4d6!important;}
+body.live-room-clean .sh-system-list strong.error{color:#a61b2b!important;background:#ffe8eb!important;}
+body.dark-mode.live-room-clean .sh-system-list strong.ok{color:#83edbb!important;background:#123d2c!important;}
+body.dark-mode.live-room-clean .sh-system-list strong.warning{color:#ffe08a!important;background:#3b3220!important;}
+body.dark-mode.live-room-clean .sh-system-list strong.error{color:#ffb0ba!important;background:#351c24!important;}
+@media(max-width:1100px){body.live-room-clean.camera-pinned .clean-live-main{padding-right:0!important;}}

@@ -1,5 +1,7 @@
 package com.smarthire.backend.interview.service;
 
+import java.util.Locale;
+
 import com.smarthire.backend.interview.ai.InterviewEvaluationGeminiClient;
 import com.smarthire.backend.interview.ai.InterviewFollowUpGeminiClient;
 import com.smarthire.backend.interview.ai.InterviewGeminiClient;
@@ -35,6 +37,8 @@ import com.smarthire.backend.interview.repository.InterviewEvaluationRepository;
 import com.smarthire.backend.interview.repository.QuestionBankQuestionRepository;
 import com.smarthire.backend.interview.repository.InterviewRepository;
 import com.smarthire.backend.entity.User;
+import com.smarthire.backend.entity.Resume;
+import com.smarthire.backend.repository.ResumeRepository;
 import com.smarthire.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -64,6 +68,7 @@ public class InterviewService {
     private final QuestionBankQuestionRepository questionBankQuestionRepository;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final ResumeRepository resumeRepository;
 
     public InterviewService(InterviewRepository interviewRepository,
                             InterviewAnswerRepository interviewAnswerRepository,
@@ -74,7 +79,8 @@ public class InterviewService {
                             InterviewCareerRoadmapGeminiClient interviewCareerRoadmapGeminiClient,
                             QuestionBankQuestionRepository questionBankQuestionRepository,
                             ObjectMapper objectMapper,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            ResumeRepository resumeRepository) {
         this.interviewRepository = interviewRepository;
         this.interviewAnswerRepository = interviewAnswerRepository;
         this.interviewEvaluationRepository = interviewEvaluationRepository;
@@ -85,6 +91,7 @@ public class InterviewService {
         this.questionBankQuestionRepository = questionBankQuestionRepository;
         this.objectMapper = objectMapper;
         this.userRepository = userRepository;
+        this.resumeRepository = resumeRepository;
     }
 
     public Interview createInterview(InterviewRequest request) {
@@ -212,7 +219,12 @@ public class InterviewService {
                         normalizeValue(evaluation.getRecommendation(), "Not available"),
                         evaluation.getEvaluationDate()
                     );
-                response.setEvaluation(evaluationSummary);
+                int[] objectiveMetrics = calculateObjectiveMetrics(interviewId);
+            evaluationSummary.setObjectiveTotalQuestions(objectiveMetrics[0]);
+            evaluationSummary.setObjectiveAnsweredQuestions(objectiveMetrics[1]);
+            evaluationSummary.setObjectiveCorrectAnswers(objectiveMetrics[2]);
+            evaluationSummary.setObjectiveAttemptedAccuracy(objectiveMetrics[3]);
+            response.setEvaluation(evaluationSummary);
                 response.setFeedback(parseFeedback(evaluation.getFeedback()));
             });
 
@@ -220,14 +232,20 @@ public class InterviewService {
     }
 
     public InterviewResponse startInterview(InterviewRequest request) {
+        Long authenticatedUserId = currentUserId();
+        if (authenticatedUserId == null) {
+            throw new InterviewException("Authenticated user is required to create an interview.");
+        }
         Interview interview = createInterview(request);
 
+        String resumeContext = loadResumeContext(request, authenticatedUserId);
         InterviewQuestionGenerationResult generationResult = interviewGeminiClient.generateQuestionsWithSource(
                 request.getJobRole(),
                 request.getInterviewType(),
                 request.getDomain(),
                 request.getExperienceLevel(),
-                request.getDifficulty()
+                request.getDifficulty(),
+                resumeContext
         );
 
         List<InterviewQuestionDto> questions = generationResult.getQuestions();
@@ -245,6 +263,48 @@ public class InterviewService {
                 generationResult.getSourceMessage(),
                 questions
         );
+    }
+
+    private String loadResumeContext(InterviewRequest request, Long authenticatedUserId) {
+        String interviewType = normalizeValue(request.getInterviewType(), "Technical");
+        boolean resumeBased = interviewType.toLowerCase(java.util.Locale.ROOT).contains("resume");
+        if (!resumeBased && request.getResumeId() == null) {
+            return "";
+        }
+
+        Resume resume;
+        if (request.getResumeId() != null) {
+            resume = resumeRepository.findById(request.getResumeId())
+                    .orElseThrow(() -> new InterviewException("Selected resume was not found."));
+            if (resume.getUserId() == null || !resume.getUserId().equals(authenticatedUserId)) {
+                throw new InterviewException("You do not have access to the selected resume.");
+            }
+        } else {
+            resume = resumeRepository.findTopByUserIdOrderByUpdatedAtDesc(authenticatedUserId)
+                    .orElseThrow(() -> new InterviewException("Upload and analyze a resume before starting a resume-based interview."));
+        }
+
+        StringBuilder context = new StringBuilder();
+        context.append("RESUME PROFILE\n");
+        appendResumeField(context, "Filename", resume.getFileName());
+        appendResumeField(context, "Skills", resume.getSkills());
+        appendResumeField(context, "Technologies", resume.getTechnologies());
+        appendResumeField(context, "Experience", resume.getExperience());
+        appendResumeField(context, "Education", resume.getEducation());
+        appendResumeField(context, "Summary", resume.getSummary());
+        appendResumeField(context, "Projects/Resume Text", resume.getExtractedText());
+
+        String value = context.toString().trim();
+        if (value.length() > 12000) {
+            value = value.substring(0, 12000) + "\n[Resume context truncated for prompt size]";
+        }
+        return value;
+    }
+
+    private void appendResumeField(StringBuilder context, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            context.append(label).append(": ").append(value.trim()).append("\n");
+        }
     }
 
     private void persistGeneratedMcqQuestions(InterviewRequest request, List<InterviewQuestionDto> questions) {
@@ -296,8 +356,10 @@ public class InterviewService {
         if (request.getInterviewId() == null) {
             throw new InterviewException("Interview ID is required for evaluation.");
         }
-        interviewRepository.findById(request.getInterviewId())
+        Interview interview = interviewRepository.findById(request.getInterviewId())
                 .orElseThrow(() -> new InterviewException("Interview not found"));
+        boolean aptitudeAssessment = interview.getInterviewType() != null
+                && interview.getInterviewType().toLowerCase(Locale.ROOT).contains("aptitude");
 
         if (request.getQuestions() == null) {
             request.setQuestions(List.of());
@@ -315,16 +377,108 @@ public class InterviewService {
         } else if (isAllStoredMcqQuestions(request.getQuestions())) {
             // Objective interviews are scored deterministically from the stored answer key.
             // Do not call Gemini for the numeric score; this prevents subjective drift.
-            evaluationResponse = buildDeterministicMcqEvaluation(request, totalQuestions, answeredQuestions);
+            evaluationResponse = buildDeterministicMcqEvaluation(request, totalQuestions, answeredQuestions, aptitudeAssessment);
         } else {
             evaluationResponse = interviewEvaluationGeminiClient.evaluateInterview(request);
             evaluationResponse = applyEvaluationGuards(request, evaluationResponse, totalQuestions, answeredQuestions);
         }
 
+        // Always apply measured speech/live telemetry after the base evaluator.
+        // This is intentionally outside the MCQ/open-answer branch: a live voice
+        // answer is still valid communication evidence even when the interview
+        // contains objective questions.
+        evaluationResponse = applyLiveCommunicationMetrics(request, evaluationResponse);
+
         saveInterviewSessionMetadata(request);
         saveInterviewAnswers(request);
         saveInterviewEvaluation(request.getInterviewId(), evaluationResponse);
         return evaluationResponse;
+    }
+
+    private InterviewEvaluationResponse applyLiveCommunicationMetrics(InterviewEvaluationRequest request, InterviewEvaluationResponse response) {
+        if (response == null) response = new InterviewEvaluationResponse();
+        int pronunciation = clampScore(request.getPronunciationScore() == null ? response.getPronunciationScore() : request.getPronunciationScore());
+        int transcriptionConfidence = clampScore(request.getTranscriptionConfidence() == null ? response.getTranscriptionConfidence() : request.getTranscriptionConfidence());
+        int grammarIssues = Math.max(0, request.getGrammarIssueCount() == null ? response.getGrammarIssueCount() : request.getGrammarIssueCount());
+        if (pronunciation > 0) response.setPronunciationScore(pronunciation);
+        if (transcriptionConfidence > 0) response.setTranscriptionConfidence(transcriptionConfidence);
+        response.setGrammarIssueCount(grammarIssues);
+
+        int grammar = response.getGrammarScore();
+        int pace = response.getSpeakingPaceScore();
+        int filler = response.getFillerWordScore();
+        int completeness = response.getResponseCompletenessScore();
+        int speechCommunication = 0;
+        int storedSpeechPronunciation = pronunciation;
+        try {
+            if (request.getSpeechInsightsJson() != null && !request.getSpeechInsightsJson().isBlank()) {
+                var node = objectMapper.readTree(request.getSpeechInsightsJson());
+                speechCommunication = clampScore(node.path("communicationScore").asInt(0));
+                storedSpeechPronunciation = clampScore(Math.max(storedSpeechPronunciation, node.path("pronunciationScore").asInt(0)));
+                if (grammar <= 0) grammar = clampScore(node.path("grammarQuality").asInt(0));
+                if (pace <= 0) pace = paceScoreFromWpm(node.path("speakingPaceWpm").asInt(0));
+                if (filler <= 0) filler = clampScore(100 - (node.path("fillerWordCount").asInt(node.path("fillerWords").asInt(0)) * 8));
+                if (completeness <= 0) completeness = completenessFromAverageResponse(node.path("averageResponseLength").asInt(0));
+            }
+        } catch (Exception ignored) { }
+        if (storedSpeechPronunciation > 0) response.setPronunciationScore(storedSpeechPronunciation);
+        if (transcriptionConfidence > 0 && response.getSpeechClarityScore() <= 0) response.setSpeechClarityScore(transcriptionConfidence);
+        if (grammar <= 0) grammar = clampScore(95 - grammarIssues * 6);
+        if (pace <= 0) pace = response.getSpeakingPaceScore();
+        if (filler <= 0) filler = response.getFillerWordScore();
+        if (completeness <= 0) completeness = response.getResponseCompletenessScore();
+        int clarity = response.getSpeechClarityScore() > 0 ? response.getSpeechClarityScore() : storedSpeechPronunciation;
+
+        int heuristicCommunication = clampScore(Math.round((grammar * 0.30f) + (Math.max(0, pace) * 0.20f)
+                + (Math.max(0, filler) * 0.15f) + (Math.max(0, clarity) * 0.20f)
+                + (Math.max(0, completeness) * 0.15f)));
+        int communication = speechCommunication > 0 ? Math.round(speechCommunication * 0.60f + heuristicCommunication * 0.40f) : heuristicCommunication;
+        response.setGrammarScore(grammar);
+        response.setSpeakingPaceScore(pace);
+        response.setFillerWordScore(filler);
+        response.setResponseCompletenessScore(completeness);
+        response.setSpeechClarityScore(clarity);
+        response.setCommunicationScore(clampScore(communication));
+
+        // Confidence score explicitly consumes actual eye-contact + emotion telemetry when available.
+        int eye = response.getEyeContactPercentage();
+        int engagement = response.getFacialEngagementScore();
+        if (request.getLiveSignalsJson() != null && !request.getLiveSignalsJson().isBlank()) {
+            try {
+                var signalNode = objectMapper.readTree(request.getLiveSignalsJson());
+                eye = clampScore(signalNode.path("eyeContact").path("eyeContactPercentage").asInt(eye));
+                engagement = clampScore(signalNode.path("emotion").path("confidence").asInt(engagement));
+            } catch (Exception ignored) { }
+        }
+        response.setEyeContactPercentage(eye);
+        response.setFacialEngagementScore(engagement);
+        if (eye > 0 || engagement > 0 || response.getResponseHesitationScore() > 0 || storedSpeechPronunciation > 0) {
+            int hesitation = response.getResponseHesitationScore() > 0 ? response.getResponseHesitationScore() : 60;
+            response.setConfidenceScore(clampScore(Math.round(eye * 0.40f + engagement * 0.30f + hesitation * 0.15f + storedSpeechPronunciation * 0.15f)));
+        }
+
+        // Final rubric is always authoritative: Communication 30%, Confidence 25%,
+        // Technical Relevance 30%, Professionalism 15%.
+        response.setOverallScore(clampScore(Math.round(
+                response.getCommunicationScore() * 0.30f
+                        + response.getConfidenceScore() * 0.25f
+                        + response.getTechnicalScore() * 0.30f
+                        + response.getProfessionalismScore() * 0.15f)));
+        if (response.getOverallScore() > 0) {
+            response.setRating(ratingForScore(response.getOverallScore()));
+        }
+        return response;
+    }
+
+    private int paceScoreFromWpm(int wpm) {
+        if (wpm <= 0) return 0;
+        return clampScore(wpm >= 100 && wpm <= 160 ? 92 : Math.max(40, 100 - Math.abs(130 - wpm) / 2));
+    }
+
+    private int completenessFromAverageResponse(int words) {
+        if (words >= 15) return 92;
+        if (words >= 8) return 76;
+        return Math.max(30, words * 5);
     }
 
     private int countAnsweredQuestions(List<String> answers) {
@@ -349,7 +503,7 @@ public class InterviewService {
         return true;
     }
 
-    private InterviewEvaluationResponse buildDeterministicMcqEvaluation(InterviewEvaluationRequest request, int totalQuestions, int answeredQuestions) {
+    private InterviewEvaluationResponse buildDeterministicMcqEvaluation(InterviewEvaluationRequest request, int totalQuestions, int answeredQuestions, boolean aptitudeAssessment) {
         InterviewEvaluationResponse response = new InterviewEvaluationResponse();
         List<String> questions = request.getQuestions() == null ? List.of() : request.getQuestions();
         List<String> answers = request.getAnswers() == null ? List.of() : request.getAnswers();
@@ -364,8 +518,15 @@ public class InterviewService {
         }
         int overall = totalQuestions == 0 ? 0 : clampScore((int) Math.round(correct * 100.0 / totalQuestions));
         int attemptedAccuracy = answeredQuestions == 0 ? 0 : clampScore((int) Math.round(correct * 100.0 / answeredQuestions));
+        // For aptitude assessments, unanswered questions count as incorrect.
+        // The primary score therefore uses the full assessment denominator (correct/total),
+        // while attemptedAccuracy remains useful for diagnostics.
         response.setOverallScore(overall);
-        response.setTechnicalScore(attemptedAccuracy);
+        response.setTechnicalScore(aptitudeAssessment ? overall : attemptedAccuracy);
+        response.setObjectiveTotalQuestions(totalQuestions);
+        response.setObjectiveAnsweredQuestions(answeredQuestions);
+        response.setObjectiveCorrectAnswers(correct);
+        response.setObjectiveAttemptedAccuracy(attemptedAccuracy);
         response.setCommunicationScore(0);
         response.setConfidenceScore(0);
         response.setProfessionalismScore(0);
@@ -386,16 +547,23 @@ public class InterviewService {
         response.setAnswerOrganizationScore(0);
         response.setInterviewEtiquetteScore(0);
         response.setRating(answeredQuestions < totalQuestions ? "Incomplete" : ratingForScore(overall));
+        String assessmentLabel = aptitudeAssessment ? "Aptitude" : "Objective";
         response.setRecommendation(answeredQuestions < totalQuestions
-                ? "Incomplete MCQ assessment: " + answeredQuestions + "/" + totalQuestions + " answered; " + correct + " correct."
-                : "MCQ assessment completed: " + correct + "/" + totalQuestions + " correct (" + overall + "%).");
-        response.setFeedback(List.of("Technical score is calculated from the stored MCQ answer key."));
+                ? "Incomplete " + assessmentLabel + " assessment: " + answeredQuestions + "/" + totalQuestions + " answered; " + correct + " correct. Score: " + overall + "%."
+                : assessmentLabel + " assessment completed: " + correct + "/" + totalQuestions + " correct (" + overall + "%).");
+        response.setFeedback(List.of(aptitudeAssessment
+                ? "Aptitude score is calculated deterministically from the stored MCQ answer key; unanswered questions count as incorrect."
+                : "Objective score is calculated deterministically from the stored MCQ answer key."));
         response.setStrengths(correct > 0 ? List.of("Answered " + correct + " objective question(s) correctly.") : List.of());
-        response.setWeaknesses(answeredQuestions < totalQuestions ? List.of("Some questions were not answered.") : List.of());
+        response.setWeaknesses(answeredQuestions < totalQuestions
+                ? List.of("Some questions were not answered; unanswered questions count toward the assessment denominator.")
+                : List.of("Some objective questions were answered incorrectly."));
         response.setImprovementSuggestions(answeredQuestions < totalQuestions
-                ? List.of("Complete every question for a full assessment.")
+                ? List.of("Complete every question for a full assessment and review missed concepts.")
                 : List.of("Review the concepts behind any incorrect answers."));
-        response.setPracticeRecommendations(List.of("Practice role-specific technical multiple-choice questions."));
+        response.setPracticeRecommendations(List.of(aptitudeAssessment
+                ? "Practice timed aptitude MCQs across quantitative and logical reasoning topics."
+                : "Practice role-specific technical multiple-choice questions."));
         response.setLearningResources(List.of("SmartHire interview preparation guide"));
         return response;
     }
@@ -452,6 +620,10 @@ public class InterviewService {
             response.setKeywordMatchingScore(0);
             response.setDomainRelevanceScore(0);
             response.setTechnicalAccuracyScore(clampScore(technicalAccuracy));
+            response.setObjectiveTotalQuestions(totalQuestions);
+            response.setObjectiveAnsweredQuestions(answeredQuestions);
+            response.setObjectiveCorrectAnswers(mcqCorrect);
+            response.setObjectiveAttemptedAccuracy(clampScore(technicalAccuracy));
             response.setProblemSolvingScore(0);
             response.setAnswerCompletenessScore(0);
             response.setTimeManagementScore(0);
@@ -510,10 +682,11 @@ public class InterviewService {
     }
 
     private String ratingForScore(int score) {
-        if (score >= 85) return "Excellent";
-        if (score >= 70) return "Strong";
-        if (score >= 55) return "Average";
-        if (score > 0) return "Needs Improvement";
+        if (score >= 90) return "Excellent";
+        if (score >= 75) return "Good";
+        if (score >= 60) return "Average";
+        if (score >= 40) return "Needs Improvement";
+        if (score > 0) return "Poor";
         return "Not Attempted";
     }
 
@@ -643,6 +816,31 @@ public class InterviewService {
 
         return response;
         }
+
+    private int[] calculateObjectiveMetrics(Long interviewId) {
+        int total = 0;
+        int answered = 0;
+        int correct = 0;
+
+        List<InterviewAnswer> storedAnswers = interviewAnswerRepository.findByInterviewIdOrderByIdAsc(interviewId);
+        for (InterviewAnswer answerRow : storedAnswers) {
+            if (answerRow == null || answerRow.getQuestion() == null || answerRow.getQuestion().isBlank()) continue;
+            QuestionBankQuestion bankRow = questionBankQuestionRepository
+                    .findByQuestionIgnoreCase(answerRow.getQuestion().trim())
+                    .orElse(null);
+            if (bankRow == null || !"MCQ".equalsIgnoreCase(bankRow.getAnswerMode())
+                    || bankRow.getCorrectAnswer() == null || bankRow.getCorrectAnswer().isBlank()) continue;
+
+            total++;
+            String answer = answerRow.getAnswer();
+            if (answer == null || answer.isBlank() || "No answer provided.".equalsIgnoreCase(answer.trim())) continue;
+            answered++;
+            if (bankRow.getCorrectAnswer().trim().equalsIgnoreCase(answer.trim())) correct++;
+        }
+
+        int attemptedAccuracy = answered == 0 ? 0 : clampScore((int) Math.round(correct * 100.0 / answered));
+        return new int[]{total, answered, correct, attemptedAccuracy};
+    }
 
     @Transactional
     public CareerRoadmapResponse generateCareerRoadmap(Long userId, CareerRoadmapRequest request) {
@@ -828,6 +1026,9 @@ public class InterviewService {
         evaluation.setSpeakingPaceScore(evaluationResponse.getSpeakingPaceScore());
         evaluation.setFillerWordScore(evaluationResponse.getFillerWordScore());
         evaluation.setResponseCompletenessScore(evaluationResponse.getResponseCompletenessScore());
+        evaluation.setPronunciationScore(evaluationResponse.getPronunciationScore());
+        evaluation.setTranscriptionConfidence(evaluationResponse.getTranscriptionConfidence());
+        evaluation.setGrammarIssueCount(evaluationResponse.getGrammarIssueCount());
         evaluation.setEyeContactPercentage(evaluationResponse.getEyeContactPercentage());
         evaluation.setFacialEngagementScore(evaluationResponse.getFacialEngagementScore());
         evaluation.setResponseHesitationScore(evaluationResponse.getResponseHesitationScore());
@@ -898,6 +1099,9 @@ public class InterviewService {
         response.setSpeakingPaceScore(safeNumber(evaluation.getSpeakingPaceScore()));
         response.setFillerWordScore(safeNumber(evaluation.getFillerWordScore()));
         response.setResponseCompletenessScore(safeNumber(evaluation.getResponseCompletenessScore()));
+        response.setPronunciationScore(safeNumber(evaluation.getPronunciationScore()));
+        response.setTranscriptionConfidence(safeNumber(evaluation.getTranscriptionConfidence()));
+        response.setGrammarIssueCount(safeNumber(evaluation.getGrammarIssueCount()));
         response.setEyeContactPercentage(safeNumber(evaluation.getEyeContactPercentage()));
         response.setFacialEngagementScore(safeNumber(evaluation.getFacialEngagementScore()));
         response.setResponseHesitationScore(safeNumber(evaluation.getResponseHesitationScore()));

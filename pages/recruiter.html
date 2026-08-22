@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/candidate-dashboard.css">
   <link rel="stylesheet" href="../css/role-dashboards.css">
-  <link rel="stylesheet" href="../css/smarthire-popups.css">
+  <link rel="stylesheet" href="../css/smarthire-popups.css"><link rel="stylesheet" href="../css/admin-recruiter-fixes.css">
   <link rel="stylesheet" href="../css/recruiter-enhanced.css">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@
   </aside>
 
   <main class="candidate-main">
-    <header class="candidate-header"><button class="mobile-menu" id="mobileMenu" type="button"><i class="fa-solid fa-bars"></i></button><div class="breadcrumb"><span>Recruiter</span><i class="fa-solid fa-chevron-right"></i><strong>Dashboard</strong></div><div class="header-actions"><button class="header-icon notification-button" type="button"><i class="fa-regular fa-bell"></i><span>4</span></button><button class="header-theme" id="candidateThemeToggle" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><button class="header-logout" id="shLogoutBtn" data-sh-logout type="button" aria-label="Log out"><i class="fa-solid fa-right-from-bracket"></i><span>Log out</span></button><div class="header-profile"><div class="profile-avatar small"><i class="fa-solid fa-user-tie"></i></div><div><strong id="dashboardUserName">Recruiter</strong><span id="dashboardUserRole">Recruiter</span></div><i class="fa-solid fa-chevron-down"></i></div></div></header>
+    <header class="candidate-header"><button class="mobile-menu" id="mobileMenu" type="button"><i class="fa-solid fa-bars"></i></button><div class="breadcrumb"><span>Recruiter</span><i class="fa-solid fa-chevron-right"></i><strong>Dashboard</strong></div><div class="header-actions"><button class="header-icon notification-button" type="button"><i class="fa-regular fa-bell"></i><span data-notification-count="true">0</span></button><button class="header-theme" id="candidateThemeToggle" type="button"><i class="fa-solid fa-moon"></i><span>Dark</span></button><button class="header-logout" id="shLogoutBtn" data-sh-logout type="button" aria-label="Log out"><i class="fa-solid fa-right-from-bracket"></i><span>Log out</span></button><div class="header-profile"><div class="profile-avatar small"><i class="fa-solid fa-user-tie"></i></div><div><strong id="dashboardUserName">Recruiter</strong><span id="dashboardUserRole">Recruiter</span></div><i class="fa-solid fa-chevron-down"></i></div></div></header>
 
     <div class="candidate-content">
       <section class="role-hero"><div><span class="eyebrow">RECRUITER WORKSPACE</span><h1 id="welcomeHeading">Welcome Recruiter 👋</h1><p id="welcomeSubtitle">Manage your hiring pipeline, review AI assessments and move the strongest candidates forward.</p><div class="role-quick-actions" style="margin-top:16px"><a class="primary" href="#candidate-management"><i class="fa-solid fa-users"></i> Review Candidates</a><a class="ghost" href="#job-management"><i class="fa-solid fa-plus"></i> Create Job</a><a class="ghost" href="#interview-schedule"><i class="fa-solid fa-calendar-plus"></i> Schedule Interview</a></div></div><div class="hero-meta"><span class="hero-pill"><i class="fa-solid fa-circle-check"></i> AI Hiring Assist On</span><span id="recruiterInterviewTodayBadge" class="hero-pill"><i class="fa-solid fa-bolt"></i> 0 interviews today</span></div></section>
@@ -76,4 +76,5 @@
 
   <script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script><script src="../js/script.js"></script><script src="../js/recruiter-dashboard-enhanced.js"></script>
   <script src="../js/role-guard.js"></script>
+<script src="../js/smarthire-notifications.js"></script>
 </body></html>

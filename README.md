@@ -54,3 +54,10 @@ Production-ready AI Mock Interview and Candidate Assessment platform with integr
 - `API_DOCUMENTATION.md`
 - `PROJECT_STRUCTURE.md`
 - `DEPLOYMENT.md`
+## Final implementation notes
+
+- The implemented application stack in this repository is **Spring Boot + vanilla HTML/CSS/JavaScript** with PostgreSQL. The project specification mentions Python/Django/FastAPI + React as an alternative stack; the functional requirements are implemented in the existing Spring Boot architecture rather than rewritten into a different stack.
+- Docker, Docker Compose, and a Render deployment manifest are included. Actual cloud deployment and third-party credentials must be configured in the target environment.
+- Real DeepFace, MediaPipe, and Whisper providers are enabled by default in the local configuration, with deterministic/browser fallbacks when those services are unavailable.
+- Pronunciation is represented by a speech-clarity/pronunciation proxy using speech-recognition confidence and transcript clarity; it is not a phoneme-level pronunciation benchmark.
+

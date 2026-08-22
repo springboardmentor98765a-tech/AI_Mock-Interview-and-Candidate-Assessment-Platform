@@ -122,6 +122,10 @@ public class InterviewHistoryDetailResponse {
         private String rating;
         private String recommendation;
         private LocalDateTime evaluationDate;
+        private int objectiveTotalQuestions;
+        private int objectiveAnsweredQuestions;
+        private int objectiveCorrectAnswers;
+        private int objectiveAttemptedAccuracy;
 
         public EvaluationSummary() {
         }
@@ -209,6 +213,15 @@ public class InterviewHistoryDetailResponse {
         public void setRecommendation(String recommendation) {
             this.recommendation = recommendation;
         }
+
+        public int getObjectiveTotalQuestions() { return objectiveTotalQuestions; }
+        public void setObjectiveTotalQuestions(int value) { this.objectiveTotalQuestions = value; }
+        public int getObjectiveAnsweredQuestions() { return objectiveAnsweredQuestions; }
+        public void setObjectiveAnsweredQuestions(int value) { this.objectiveAnsweredQuestions = value; }
+        public int getObjectiveCorrectAnswers() { return objectiveCorrectAnswers; }
+        public void setObjectiveCorrectAnswers(int value) { this.objectiveCorrectAnswers = value; }
+        public int getObjectiveAttemptedAccuracy() { return objectiveAttemptedAccuracy; }
+        public void setObjectiveAttemptedAccuracy(int value) { this.objectiveAttemptedAccuracy = value; }
 
         public LocalDateTime getEvaluationDate() {
             return evaluationDate;

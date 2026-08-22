@@ -164,7 +164,7 @@
             var response = await fetch(AI_API_BASE + "/emotion", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: "" })
+                body: JSON.stringify({ image: (function(){var v=document.getElementById("liveInterviewVideo"); if(!v||!v.videoWidth||!v.videoHeight)return ""; var c=document.createElement("canvas"); var s=Math.min(1,640/v.videoWidth); c.width=Math.round(v.videoWidth*s); c.height=Math.round(v.videoHeight*s); c.getContext("2d").drawImage(v,0,0,c.width,c.height); return c.toDataURL("image/jpeg",0.72);})() })
             });
             if (response.ok) {
                 var data = await response.json();
@@ -227,7 +227,7 @@
             var response = await fetch(AI_API_BASE + "/eye-tracking", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: "" })
+                body: JSON.stringify({ image: (function(){var v=document.getElementById("liveInterviewVideo"); if(!v||!v.videoWidth||!v.videoHeight)return ""; var c=document.createElement("canvas"); var s=Math.min(1,640/v.videoWidth); c.width=Math.round(v.videoWidth*s); c.height=Math.round(v.videoHeight*s); c.getContext("2d").drawImage(v,0,0,c.width,c.height); return c.toDataURL("image/jpeg",0.72);})() })
             });
             if (response.ok) {
                 var data = await response.json();

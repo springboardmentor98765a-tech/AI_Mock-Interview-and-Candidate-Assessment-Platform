@@ -34,7 +34,7 @@
     window.smartHireModal?.open("interviewBlueprintModal");
   });
   document.getElementById("confirmEnterInterview")?.addEventListener("click",()=>{
-    const c=getConfig(); sessionStorage.setItem("smarthire.interviewSetup",JSON.stringify({jobRole:c.jobRole,interviewType:c.type,difficulty:c.difficulty,duration:c.duration,resumeName:c.resume?.name||""}));
+    const c=getConfig(); sessionStorage.setItem("smarthire.interviewSetup",JSON.stringify({jobRole:c.jobRole,interviewType:c.type,difficulty:c.difficulty,duration:c.duration,resumeName:c.resume?.name||"",resumeId:Number(localStorage.getItem("smarthire.latestResumeId")||0)||null}));
     window.smartHireModal?.close("interviewBlueprintModal"); window.smartHireModal?.open("deviceCheckModal");
   });
   document.getElementById("continueToLiveRoom")?.addEventListener("click",()=>{window.smartHireModal?.close("deviceCheckModal");window.location.href="live-interview.html";});

@@ -51,6 +51,15 @@ public class InterviewEvaluation {
     @Column(name = "response_completeness_score")
     private Integer responseCompletenessScore;
 
+    @Column(name = "pronunciation_score")
+    private Integer pronunciationScore;
+
+    @Column(name = "transcription_confidence")
+    private Integer transcriptionConfidence;
+
+    @Column(name = "grammar_issue_count")
+    private Integer grammarIssueCount;
+
     @Column(name = "eye_contact_percentage")
     private Integer eyeContactPercentage;
 
@@ -214,6 +223,13 @@ public class InterviewEvaluation {
     public void setResponseCompletenessScore(Integer responseCompletenessScore) {
         this.responseCompletenessScore = responseCompletenessScore;
     }
+
+    public Integer getPronunciationScore() { return pronunciationScore; }
+    public void setPronunciationScore(Integer pronunciationScore) { this.pronunciationScore = pronunciationScore; }
+    public Integer getTranscriptionConfidence() { return transcriptionConfidence; }
+    public void setTranscriptionConfidence(Integer transcriptionConfidence) { this.transcriptionConfidence = transcriptionConfidence; }
+    public Integer getGrammarIssueCount() { return grammarIssueCount; }
+    public void setGrammarIssueCount(Integer grammarIssueCount) { this.grammarIssueCount = grammarIssueCount; }
 
     public Integer getEyeContactPercentage() {
         return eyeContactPercentage;

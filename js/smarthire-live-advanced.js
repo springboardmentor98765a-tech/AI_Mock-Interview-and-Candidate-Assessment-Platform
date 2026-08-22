@@ -1,21 +1,33 @@
+/* SmartHire Live Interview — synchronized signals/controller */
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const q = (sel) => document.querySelector(sel);
-
   const typeLabel = (type) => {
     const map = { technical: "Technical Interview", hr: "HR / Behavioral", behavioral: "Behavioral Interview", resume: "Resume-Based Interview", coding: "Coding Practice", mixed: "Job Ready / Mixed" };
     return map[String(type || "").toLowerCase()] || "AI Interview";
   };
-
   const getState = () => window.interviewSessionState || null;
   const getLiveState = () => window.liveInterviewState || null;
+
+  const actualTracks = () => {
+    const live = getLiveState();
+    const stream = live?.stream || $("liveInterviewVideo")?.srcObject || null;
+    const videoTrack = stream?.getVideoTracks?.()[0] || null;
+    const audioTrack = stream?.getAudioTracks?.()[0] || null;
+    return {
+      stream,
+      videoTrack,
+      audioTrack,
+      cameraOn: Boolean(videoTrack && videoTrack.readyState !== "ended" && videoTrack.enabled),
+      micOn: Boolean(audioTrack && audioTrack.readyState !== "ended" && audioTrack.enabled)
+    };
+  };
 
   const updateStepper = (state) => {
     const wrap = $("shQuestionStepper");
     if (!wrap) return;
     const questions = Array.isArray(state?.questions) ? state.questions : [];
-    const total = questions.length || 0;
+    const total = questions.length;
     const current = Number(state?.currentIndex || 0);
     const answers = state?.answers || {};
     wrap.innerHTML = "";
@@ -56,49 +68,101 @@
   };
 
   const updateInsights = (state) => {
-    const answer = $("interviewAnswerBox")?.value || "";
-    const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+    const answerBox = $("interviewAnswerBox");
+    const live = getLiveState();
+    let speechInsight = null;
+    try { speechInsight = JSON.parse(localStorage.getItem("smarthire.speechInsights") || "null"); } catch (_) {}
+    const speechText = [live?.transcript || "", live?.speechInterimTranscript || ""].filter(Boolean).join(" ").trim();
+    const answer = (answerBox?.value || speechText || live?.transcript || "").trim();
+    const words = answer ? answer.split(/\s+/).length : 0;
     const started = Number(state?.questionStartedAt || 0);
-    const elapsed = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+    const paused = Boolean(state?.paused);
+    const elapsed = started && !paused ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
     const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
     if ($("shAnswerWords")) $("shAnswerWords").textContent = `${words} word${words === 1 ? "" : "s"}`;
     if ($("shResponseTime")) $("shResponseTime").textContent = `${mins}:${String(secs).padStart(2, "0")}`;
     if ($("shAnswerLengthState")) $("shAnswerLengthState").textContent = words === 0 ? "Waiting" : words < 30 ? "Short" : words <= 180 ? "Healthy" : "Detailed";
-    if ($("shResponseTimeState")) $("shResponseTimeState").textContent = elapsed === 0 ? "Not started" : elapsed <= 120 ? "On pace" : "Take your time";
+    if ($("shResponseTimeState")) $("shResponseTimeState").textContent = elapsed === 0 ? (paused ? "Paused" : "Not started") : elapsed <= 120 ? "On pace" : "Take your time";
     let tip = "Give a structured answer with a clear situation, action and result.";
     if (words > 0 && words < 30) tip = "Add one concrete example or result to make your answer stronger.";
     else if (words > 180) tip = "Good detail. Keep the next answer focused on the most relevant points.";
     else if (elapsed > 120 && words < 20) tip = "Take a breath, then answer with your main point and one supporting example.";
     if ($("shAiTip")) $("shAiTip").textContent = tip;
+
+    const pace = Number(speechInsight?.speakingPaceWpm || 0);
+    const fillers = Number(speechInsight?.fillerWordCount || 0);
+    const communication = Number(speechInsight?.communicationScore || 0);
+    if ($("shSpeechPace")) $("shSpeechPace").textContent = `${Math.round(pace)} WPM`;
+    if ($("shSpeechPaceState")) $("shSpeechPaceState").textContent = pace === 0 ? "Waiting" : pace <= 165 ? "Good pace" : "Fast";
+    if ($("shFillerWords")) $("shFillerWords").textContent = String(Math.round(fillers));
+    if ($("shFillerWordsState")) $("shFillerWordsState").textContent = fillers <= 3 ? "Excellent" : fillers <= 8 ? "Good" : "Needs focus";
+    if ($("shCommunicationScore")) $("shCommunicationScore").textContent = `${Math.round(communication)}%`;
+    if ($("shCommunicationState")) $("shCommunicationState").textContent = communication === 0 ? "Waiting" : communication >= 75 ? "Good" : communication >= 60 ? "Average" : "Improve";
   };
 
-  const status = (el, text, state="ok") => {
+  const status = (el, text, state = "ok") => {
     if (!el) return;
     el.textContent = text;
-    el.classList.remove("warning", "error");
-    if (state !== "ok") el.classList.add(state);
+    el.classList.remove("warning", "error", "ok");
+    el.classList.add(state);
   };
 
   const updateSystem = () => {
     const live = getLiveState();
-    const camera = !!live?.cameraOn;
-    const mic = !!live?.micOn;
-    const recording = !!live?.recordingActive;
-    status($("shSystemCamera"), camera ? "Ready" : "Off", camera ? "ok" : "warning");
-    status($("shSystemMic"), mic ? "Ready" : "Muted", mic ? "ok" : "warning");
-    status($("shSystemRecording"), recording ? "Active" : "Idle", recording ? "ok" : "warning");
-    status($("shSystemInternet"), navigator.onLine ? "Excellent" : "Offline", navigator.onLine ? "ok" : "error");
+    const tracks = actualTracks();
+    const camera = tracks.cameraOn;
+    const mic = tracks.micOn;
+    const recording = Boolean(live?.recordingActive || live?.videoRecorder?.state === "recording" || live?.audioRecorder?.state === "recording");
+    const speechListening = Boolean(live?.speechListening);
+    const online = navigator.onLine;
     const fetchError = $("interviewError")?.textContent?.toLowerCase().includes("failed to fetch") || false;
-    status($("shSystemAI"), fetchError ? "Unavailable" : "Ready", fetchError ? "error" : "ok");
-    const issues = [!camera, !mic, !navigator.onLine, fetchError].filter(Boolean).length;
+
+    // Keep the source state synchronized with actual MediaStream tracks.
+    if (live && live.stream === tracks.stream) {
+      live.cameraOn = camera;
+      live.micOn = mic;
+      live.recordingActive = recording;
+    }
+
+    status($("shSystemCamera"), camera ? "ON" : "OFF", camera ? "ok" : "warning");
+    status($("shSystemMic"), mic ? "LIVE" : "MUTED", mic ? "ok" : "warning");
+    status($("shSystemRecording"), recording ? "RECORDING" : "IDLE", recording ? "ok" : "warning");
+    status($("shSystemInternet"), online ? "ONLINE" : "OFFLINE", online ? "ok" : "error");
+    status($("shSystemAI"), fetchError ? "UNAVAILABLE" : "READY", fetchError ? "error" : "ok");
+
+    // The main camera card and environment summary use the same real state.
+    const cameraPill = $("liveCameraStatus");
+    if (cameraPill) {
+      cameraPill.textContent = camera ? "On" : "Off";
+      cameraPill.classList.toggle("on", camera);
+      cameraPill.classList.toggle("off", !camera);
+    }
+    if ($("liveCameraStatusText")) $("liveCameraStatusText").textContent = camera ? "ON" : "OFF";
+    if ($("liveMicStatus")) $("liveMicStatus").textContent = mic ? "LIVE" : "MUTED";
+    if ($("liveRecordingStatusText")) $("liveRecordingStatusText").textContent = recording ? "RECORDING" : "IDLE";
+    if ($("liveRecordingStatus")) {
+      $("liveRecordingStatus").textContent = recording ? "Recording" : "Idle";
+      $("liveRecordingStatus").classList.toggle("on", recording);
+      $("liveRecordingStatus").classList.toggle("off", !recording);
+    }
+
     const summary = $("shSystemSummary");
     const note = $("shSystemNote");
+    const issues = [!camera, !mic, !online, fetchError].filter(Boolean).length;
     if (issues === 0) {
-      if (summary) summary.textContent = "Ready";
-      if (note) { note.className = "sh-system-note"; note.innerHTML = '<i class="fa-solid fa-circle-check"></i> Your interview environment is ready.'; }
+      if (summary) summary.textContent = "All systems operational";
+      if (note) { note.className = "sh-system-note"; note.innerHTML = '<i class="fa-solid fa-circle-check"></i> Camera, microphone, connection and AI services are ready.'; }
     } else {
       if (summary) summary.textContent = `${issues} check${issues > 1 ? "s" : ""}`;
-      if (note) { note.className = fetchError || !navigator.onLine ? "sh-system-note error" : "sh-system-note warning"; note.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${fetchError ? "AI service connection needs attention." : "Turn on your camera and microphone before answering."}`; }
+      let message = !camera || !mic ? "Turn on your camera and microphone before answering." : "Interview environment needs attention.";
+      if (fetchError) message = "AI service connection needs attention.";
+      if (!online) message = "Internet connection is offline.";
+      if (note) { note.className = fetchError || !online ? "sh-system-note error" : "sh-system-note warning"; note.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${message}`; }
+    }
+
+    const monitoring = $("liveAdvancedValidation");
+    if (monitoring && !speechListening && camera && mic) {
+      monitoring.style.display = "none";
     }
   };
 
@@ -130,7 +194,12 @@
     updateSystem();
   };
 
-  bind();
-  tick();
-  setInterval(tick, 1000);
+  const init = () => {
+    bind();
+    tick();
+    window.setInterval(tick, 500);
+  };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();

@@ -145,7 +145,27 @@ body{background:#f7f7fb}
         return;
     }
 
-    const renderScores = (evaluation) => {
+    const renderScores = (evaluation, interviewType) => {
+        const type = String(interviewType || "").toLowerCase();
+        const isAptitude = type.includes("aptitude");
+        const container = document.getElementById("reportScores");
+        if (isAptitude) {
+            const total = Number(evaluation?.objectiveTotalQuestions || 0);
+            const answered = Number(evaluation?.objectiveAnsweredQuestions || 0);
+            const correct = Number(evaluation?.objectiveCorrectAnswers || 0);
+            const score = Number.isFinite(Number(evaluation?.overallScore)) ? Number(evaluation.overallScore) : 0;
+            const unanswered = Math.max(0, total - answered);
+            const status = evaluation?.rating === "Incomplete" ? "Incomplete" : "Completed";
+            const cards = [
+                ["Aptitude Score", score],
+                ["Correct", total ? `${correct}/${total}` : "-"],
+                ["Answered", total ? `${answered}/${total}` : "-"],
+                ["Unanswered", total ? String(unanswered) : "-"],
+                ["Status", status]
+            ];
+            container.innerHTML = cards.map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong style="font-size:${typeof value === "number" ? "28px" : "22px"};">${typeof value === "number" ? pct(value) : value}</strong></div>`).join("");
+            return;
+        }
         const scores = [
             ["Overall", evaluation?.overallScore],
             ["Communication", evaluation?.communicationScore],
@@ -153,7 +173,6 @@ body{background:#f7f7fb}
             ["Technical", evaluation?.technicalScore],
             ["Professionalism", evaluation?.professionalismScore]
         ];
-        const container = document.getElementById("reportScores");
         container.innerHTML = scores.map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong>${pct(value)}</strong></div>`).join("");
     };
 
@@ -176,6 +195,8 @@ body{background:#f7f7fb}
         const evaluation = data?.evaluation || null;
         const liveSignals = readJsonSafe(data?.liveSignalsJson, {});
         const speechInsights = readJsonSafe(data?.speechInsightsJson, {});
+        const interviewType = safeText(data?.interviewType, "");
+        const isAptitude = interviewType.toLowerCase().includes("aptitude");
         const evaluationStatus = evaluation?.rating === "Not Attempted" ? "Not Attempted" : (evaluation?.rating === "Incomplete" ? "Incomplete" : "Evaluated");
         document.getElementById("reportSummary").innerHTML = `
             <p><strong>Evaluation Status:</strong> ${evaluationStatus}</p>
@@ -186,6 +207,7 @@ body{background:#f7f7fb}
             <p><strong>Difficulty:</strong> ${safeText(data?.difficulty, "Not provided")}</p>
             <p><strong>Experience:</strong> ${safeText(data?.experienceLevel, "Not provided")}</p>
             <p><strong>Session Summary:</strong> ${safeText(data?.sessionSummary, "Not available")}</p>
+            ${isAptitude ? `<p><strong>Aptitude Result:</strong> ${Number(evaluation?.objectiveCorrectAnswers || 0)}/${Number(evaluation?.objectiveTotalQuestions || 0)} correct (${pct(evaluation?.overallScore)})</p>` : ""}
             <p><strong>Evaluation Date:</strong> ${formatDate(evaluation?.evaluationDate)}</p>
         `;
 
@@ -219,17 +241,29 @@ body{background:#f7f7fb}
             .map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong style="font-size:20px;">${value}</strong></div>`)
             .join("");
 
-        document.getElementById("reportSpeechInsights").innerHTML = `
-            <p><strong>Grammar Quality:</strong> ${Number.isFinite(Number(speechInsights?.grammarQuality)) ? Math.round(Number(speechInsights.grammarQuality)) + "%" : "Pending"}</p>
-            <p><strong>Speaking Pace:</strong> ${Number.isFinite(Number(speechInsights?.speakingPaceWpm)) ? Math.round(Number(speechInsights.speakingPaceWpm)) + " WPM" : "Pending"}</p>
-            <p><strong>Filler Words:</strong> ${Number.isFinite(Number(speechInsights?.fillerWords)) ? Math.round(Number(speechInsights.fillerWords)) : "Pending"}</p>
-            <p><strong>Average Response Length:</strong> ${Number.isFinite(Number(speechInsights?.averageResponseLength)) ? Math.round(Number(speechInsights.averageResponseLength)) + " words" : "Pending"}</p>
-            <p><strong>Communication Insights:</strong> ${safeText(speechInsights?.insights, "No speech insights recorded.")}</p>
-        `;
+        const liveSignalsSection = document.querySelector("#reportLiveSignals")?.closest("section");
+        if (isAptitude) {
+            if (liveSignalsSection) liveSignalsSection.style.display = "none";
+        } else {
+            if (liveSignalsSection) liveSignalsSection.style.display = "block";
+            document.getElementById("reportSpeechInsights").innerHTML = `
+                <p><strong>Grammar Quality:</strong> ${Number.isFinite(Number(speechInsights?.grammarQuality)) ? Math.round(Number(speechInsights.grammarQuality)) + "%" : "Pending"}</p>
+                <p><strong>Grammar Issues:</strong> ${Array.isArray(speechInsights?.grammarIssues) ? speechInsights.grammarIssues.length : (Number.isFinite(Number(evaluation?.grammarIssueCount)) ? Number(evaluation.grammarIssueCount) : "Pending")}</p>
+                <p><strong>Speaking Pace:</strong> ${Number.isFinite(Number(speechInsights?.speakingPaceWpm)) ? Math.round(Number(speechInsights.speakingPaceWpm)) + " WPM" : "Pending"}</p>
+                <p><strong>Filler Words:</strong> ${Number.isFinite(Number(speechInsights?.fillerWordCount ?? speechInsights?.fillerWords)) ? Math.round(Number(speechInsights?.fillerWordCount ?? speechInsights?.fillerWords)) : "Pending"}</p>
+                <p><strong>Pronunciation / Clarity:</strong> ${Number.isFinite(Number(speechInsights?.pronunciationScore)) ? Math.round(Number(speechInsights.pronunciationScore)) + "%" : (Number.isFinite(Number(evaluation?.pronunciationScore)) ? Math.round(Number(evaluation.pronunciationScore)) + "%" : "Pending")}</p>
+                <p><strong>Transcription Confidence:</strong> ${Number.isFinite(Number(speechInsights?.transcriptionConfidence)) ? Math.round(Number(speechInsights.transcriptionConfidence)) + "%" : (Number.isFinite(Number(evaluation?.transcriptionConfidence)) ? Math.round(Number(evaluation.transcriptionConfidence)) + "%" : "Pending")}</p>
+                <p><strong>Average Response Length:</strong> ${Number.isFinite(Number(speechInsights?.averageResponseLength)) ? Math.round(Number(speechInsights.averageResponseLength)) + " words" : "Pending"}</p>
+                <p><strong>Pronunciation Feedback:</strong> ${safeText(speechInsights?.pronunciationFeedback, "No pronunciation feedback recorded.")}</p>
+                <p><strong>Communication Insights:</strong> ${safeText(speechInsights?.insights, "No speech insights recorded.")}</p>
+            `;
+        }
 
-        renderScores(evaluation);
+        renderScores(evaluation, interviewType);
         renderTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
-        document.getElementById("reportSubtitle").textContent = `Completed interview #${data?.interviewId || interviewId} with an overall score of ${pct(evaluation?.overallScore)}.`;
+        document.getElementById("reportSubtitle").textContent = isAptitude
+            ? `Aptitude assessment #${data?.interviewId || interviewId}: ${Number(evaluation?.objectiveCorrectAnswers || 0)}/${Number(evaluation?.objectiveTotalQuestions || 0)} correct, overall score ${pct(evaluation?.overallScore)}.`
+            : `Completed interview #${data?.interviewId || interviewId} with an overall score of ${pct(evaluation?.overallScore)}.`;
 
         const transcriptBlob = new Blob([safeText(data?.transcript, "")], { type: "text/plain;charset=utf-8" });
         document.getElementById("downloadTranscriptBtn").onclick = () => {

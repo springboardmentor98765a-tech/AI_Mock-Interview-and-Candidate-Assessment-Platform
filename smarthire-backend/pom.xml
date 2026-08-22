@@ -78,6 +78,11 @@
             <artifactId>pdfbox</artifactId>
             <version>3.0.4</version>
         </dependency>
+        <dependency>
+            <groupId>org.languagetool</groupId>
+            <artifactId>language-en</artifactId>
+            <version>6.8</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

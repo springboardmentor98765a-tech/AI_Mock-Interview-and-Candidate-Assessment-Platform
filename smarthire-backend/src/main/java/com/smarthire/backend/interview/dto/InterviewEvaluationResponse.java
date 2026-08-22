@@ -15,6 +15,9 @@ public class InterviewEvaluationResponse {
     private int speakingPaceScore;
     private int fillerWordScore;
     private int responseCompletenessScore;
+    private int pronunciationScore;
+    private int transcriptionConfidence;
+    private int grammarIssueCount;
     private int eyeContactPercentage;
     private int facialEngagementScore;
     private int responseHesitationScore;
@@ -33,6 +36,10 @@ public class InterviewEvaluationResponse {
     private List<String> learningResources = new ArrayList<>();
     private List<String> feedback = new ArrayList<>();
     private String recommendation;
+    private int objectiveTotalQuestions;
+    private int objectiveAnsweredQuestions;
+    private int objectiveCorrectAnswers;
+    private int objectiveAttemptedAccuracy;
     private String rating;
 
     public InterviewEvaluationResponse() {
@@ -125,6 +132,13 @@ public class InterviewEvaluationResponse {
     public void setResponseCompletenessScore(int responseCompletenessScore) {
         this.responseCompletenessScore = responseCompletenessScore;
     }
+
+    public int getPronunciationScore() { return pronunciationScore; }
+    public void setPronunciationScore(int pronunciationScore) { this.pronunciationScore = pronunciationScore; }
+    public int getTranscriptionConfidence() { return transcriptionConfidence; }
+    public void setTranscriptionConfidence(int transcriptionConfidence) { this.transcriptionConfidence = transcriptionConfidence; }
+    public int getGrammarIssueCount() { return grammarIssueCount; }
+    public void setGrammarIssueCount(int grammarIssueCount) { this.grammarIssueCount = grammarIssueCount; }
 
     public int getEyeContactPercentage() {
         return eyeContactPercentage;
@@ -252,6 +266,38 @@ public class InterviewEvaluationResponse {
 
     public void setFeedback(List<String> feedback) {
         this.feedback = feedback;
+    }
+
+    public int getObjectiveTotalQuestions() {
+        return objectiveTotalQuestions;
+    }
+
+    public void setObjectiveTotalQuestions(int objectiveTotalQuestions) {
+        this.objectiveTotalQuestions = objectiveTotalQuestions;
+    }
+
+    public int getObjectiveAnsweredQuestions() {
+        return objectiveAnsweredQuestions;
+    }
+
+    public void setObjectiveAnsweredQuestions(int objectiveAnsweredQuestions) {
+        this.objectiveAnsweredQuestions = objectiveAnsweredQuestions;
+    }
+
+    public int getObjectiveCorrectAnswers() {
+        return objectiveCorrectAnswers;
+    }
+
+    public void setObjectiveCorrectAnswers(int objectiveCorrectAnswers) {
+        this.objectiveCorrectAnswers = objectiveCorrectAnswers;
+    }
+
+    public int getObjectiveAttemptedAccuracy() {
+        return objectiveAttemptedAccuracy;
+    }
+
+    public void setObjectiveAttemptedAccuracy(int objectiveAttemptedAccuracy) {
+        this.objectiveAttemptedAccuracy = objectiveAttemptedAccuracy;
     }
 
     public String getRecommendation() {

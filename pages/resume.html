@@ -139,7 +139,8 @@
   const fileName=$('resumeFileName'), pageCount=$('resumePageCount'), extractedText=$('resumeExtractedText');
   const analysisLoading=$('resumeAnalysisLoading'), analysisError=$('resumeAnalysisError'), analysisResults=$('resumeAnalysisResults'), analysisEmpty=$('resumeAnalysisResultsEmpty');
   const skillsEl=$('resumeSkills'), techEl=$('resumeTechnologies'), missingEl=$('resumeMissingSkills');
-  const atsEl=$('resumeAtsScore'), summaryEl=$('resumeSummary'), experienceEl=$('resumeExperience'), educationEl=$('resumeEducation');
+  const atsEl=$('resumeAtsScore'), ringEl=$('resumeScoreRingValue'), pageAts=$('resumePageAts'), summaryEl=$('resumeSummary'), experienceEl=$('resumeExperience'), educationEl=$('resumeEducation');
+  const providerEl=$('resumeAnalysisProvider');
   const scoreEls={keyword:$('keywordScore'),formatting:$('formattingScore'),skills:$('skillsScore'),experience:$('experienceScore'),education:$('educationScore')};
   const bars={keyword:$('keywordScoreBar'),formatting:$('formattingScoreBar'),skills:$('skillsScoreBar'),experience:$('experienceScoreBar'),education:$('educationScoreBar')};
 
@@ -148,28 +149,123 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const list=(...vals)=>{const out=[]; const visit=v=>{if(Array.isArray(v)){v.forEach(visit);return;} if(typeof v==='string'){v.split(/[,;|\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>out.push(x));return;} if(v&&typeof v==='object') Object.values(v).forEach(visit);}; vals.forEach(visit); return [...new Set(out)];};
   const dict=['Java','JavaScript','TypeScript','Python','C','C++','C#','SQL','HTML','CSS','React','Angular','Vue','Spring Boot','Spring','REST APIs','REST','Git','GitHub','Docker','Kubernetes','AWS','Azure','PostgreSQL','MySQL','MongoDB','Node.js','Express','Data Structures','Algorithms','OOP','Problem Solving','Communication','Teamwork','Machine Learning','Deep Learning','TensorFlow','PyTorch','Pandas','NumPy','Power BI','Excel'];
-  const show=(el,items,empty,cls='')=>{if(!el)return; el.innerHTML=items.length?items.map(x=>`<span class="${cls}">${esc(x)}</span>`).join(''):`<span class="resume-muted">${esc(empty)}</span>`;};
+  const show=(el,items,empty,cls)=>{if(!el)return; el.innerHTML=items.length?items.map(x=>`<span class="${cls||''}">${esc(x)}</span>`).join(''):`<span class="resume-muted">${esc(empty)}</span>`;};
   const setStatus=(text,ok=false)=>{if(status){status.textContent=text;status.style.color=ok?'#27ae60':'#6c63ff';}};
   const toast=msg=>{try{if(typeof showToast==='function')showToast(msg);}catch(_){} console.log('[Resume]',msg);};
 
-  // The file input is physically inside the visible label. This gives Chrome
-  // a native picker target and avoids fragile programmatic-click behavior.
+  const weightedAts=(d)=>{
+    const vals=['keywordScore','skillsScore','formattingScore','experienceScore','educationScore'].map(k=>Number(d?.[k]));
+    if(vals.every(Number.isFinite)) return Math.round(vals[0]*.25 + vals[1]*.25 + vals[2]*.20 + vals[3]*.20 + vals[4]*.10);
+    const fallback=Number(d?.atsScore);
+    return Number.isFinite(fallback) ? Math.round(fallback) : null;
+  };
+
+  const updateTopAts=(score)=>{
+    if(score==null) return;
+    const value=Math.max(0,Math.min(100,Math.round(Number(score))));
+    if(pageAts) pageAts.textContent=value+'%';
+    if(atsEl) atsEl.textContent=value+'%';
+    if(ringEl) ringEl.textContent=value+'%';
+    localStorage.setItem('smarthire.lastAtsScore',String(value));
+    localStorage.setItem('smarthire.lastResumeScore',String(value));
+  };
+
+  const setProvider=(message)=>{
+    const fallback=String(message||'').toLowerCase().includes('unavailable') || String(message||'').toLowerCase().includes('fallback');
+    if(providerEl){
+      providerEl.textContent=fallback?'ATS fallback':'Gemini + ATS';
+      providerEl.classList.toggle('warning',fallback);
+      providerEl.classList.toggle('ai',!fallback);
+    }
+    if(fallback && status && !String(status.textContent).includes('successfully')){
+      status.title=String(message||'AI analysis unavailable; deterministic ATS fallback was used.');
+    }
+  };
+
+  const renderListSection=(id,items,empty,cls)=>show($(id),items,empty,cls);
+
+  const applyAnalysis=(raw, text='', restored=false)=>{
+    const ad={...(raw||{})};
+    const normalizedText=String(text || ad.extractedText || '');
+    const skills=list(ad.skills,ad.technicalSkills,ad.softSkills,ad.programmingLanguages,ad.frameworks,ad.libraries,
+      dict.filter(skill=>normalizedText.toLowerCase().includes(skill.toLowerCase())));
+    const tech=list(ad.technologies,ad.programmingLanguages,ad.frameworks,ad.libraries,ad.databases,ad.tools,ad.cloudTechnologies);
+    const missing=list(ad.missingSkills);
+    const strengths=list(ad.strengths), weaknesses=list(ad.weaknesses), suggestions=list(ad.improvementSuggestions);
+    const atsScore=weightedAts(ad);
+    ad.atsScore=atsScore;
+
+    renderListSection('resumeSkills',skills,'No recognizable skills were found in the extracted resume text.','resume-skill-chip');
+    renderListSection('resumeTechnologies',tech,'No technologies found.','resume-tech-chip');
+    renderListSection('resumeMissingSkills',missing,'None identified.','resume-missing-chip');
+    if(summaryEl) summaryEl.textContent=ad.summary||'No summary generated.';
+    if(experienceEl) experienceEl.textContent=ad.experience||'No experience information found.';
+    if(educationEl) educationEl.textContent=ad.education||'No education information found.';
+    for(const key of Object.keys(scoreEls)){
+      const v=ad[key+'Score'];
+      if(scoreEls[key]) scoreEls[key].textContent=v!=null?v+'%':'N/A';
+      if(bars[key]) bars[key].style.width=v!=null?Math.max(0,Math.min(100,Number(v)))+'%':'0%';
+    }
+    updateTopAts(atsScore);
+
+    const breakdown=$('atsScoreBreakdown');
+    if(breakdown && ['keywordScore','formattingScore','skillsScore','experienceScore','educationScore'].some(k=>ad[k]!=null)) breakdown.style.display='block';
+
+    const improve=$('resumeImprovementSection');
+    const fill=(id,items,empty)=>{const el=$(id);if(!el)return;el.innerHTML=items.length?items.map(x=>`<li>${esc(x)}</li>`).join(''):`<li>${esc(empty)}</li>`;};
+    if(improve && (strengths.length||weaknesses.length||suggestions.length)){
+      improve.style.display='grid';
+      fill('resumeStrengths',strengths,'No specific strengths identified.');
+      fill('resumeWeaknesses',weaknesses,'No specific weaknesses identified.');
+      fill('resumeSuggestions',suggestions,'No specific suggestions available.');
+    }
+
+    if(fileName && ad.fileName) fileName.textContent=ad.fileName;
+    if(pageCount && ad.pageCount!=null) pageCount.textContent=ad.pageCount+' page(s)';
+    if(extractedText && normalizedText) extractedText.textContent=normalizedText;
+    if(extractResults && normalizedText) extractResults.style.display='block';
+    if(analysisResults) analysisResults.style.display='block';
+    if(analysisEmpty) analysisEmpty.style.display='none';
+    setProvider(ad.message);
+    if(preview && ad.fileName) preview.textContent=ad.fileName;
+    if(updated) updated.textContent=restored?'Previously analyzed':'Last Updated: '+new Date().toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+
+    try{
+      localStorage.setItem('smarthire.lastResumeAnalysis',JSON.stringify({
+        ...ad, extractedText:normalizedText, savedAt:new Date().toISOString()
+      }));
+      if(ad.resumeId!=null) localStorage.setItem('smarthire.latestResumeId',String(ad.resumeId));
+    }catch(_){ }
+    return {ad,skills,tech,atsScore};
+  };
+
+  const restoreLatest=async()=>{
+    if(!localStorage.getItem('authToken')) return;
+    try{
+      const r=await fetch(apiBase+'/api/resume/latest',{headers:headers()});
+      if(r.ok){
+        const ad=await r.json();
+        applyAnalysis(ad,ad.extractedText||'',true);
+        setStatus('Latest analyzed resume restored.',true);
+        console.log('[Resume] latest analysis restored from backend',ad.resumeId);
+        return;
+      }
+    }catch(err){ console.warn('[Resume] latest restore failed:',err.message); }
+    try{
+      const saved=JSON.parse(localStorage.getItem('smarthire.lastResumeAnalysis')||'null');
+      if(saved){applyAnalysis(saved,saved.extractedText||'',true);setStatus('Last analyzed resume restored locally.',true);}
+    }catch(_){ }
+  };
 
   input.addEventListener('change',async()=>{
-    console.log('[Resume] native file input change fired; file count:', input.files ? input.files.length : 0);
-    const file=input.files && input.files[0];
-    console.log('[Resume] change event fired',file ? {name:file.name,size:file.size,type:file.type} : null);
+    console.log('[Resume] change event fired; file count:',input.files?.length||0);
+    const file=input.files?.[0];
     if(!file) return;
     if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
       setStatus('Please select a PDF file.'); toast('Only PDF files are allowed'); input.value=''; return;
     }
-    const maxBytes = 10 * 1024 * 1024;
-    if(file.size > maxBytes){
-      setStatus('PDF is too large. Maximum allowed size is 10 MB.'); toast('Please choose a PDF smaller than 10 MB'); input.value=''; return;
-    }
-    if(!localStorage.getItem('authToken')){
-      setStatus('Please log in before uploading a resume.'); toast('Login required for resume analysis'); return;
-    }
+    if(file.size>10*1024*1024){setStatus('PDF is too large. Maximum allowed size is 10 MB.');toast('Please choose a PDF smaller than 10 MB');input.value='';return;}
+    if(!localStorage.getItem('authToken')){setStatus('Please log in before uploading a resume.');toast('Login required for resume analysis');return;}
     if(preview) preview.textContent=file.name;
     if(updated) updated.textContent='Selected just now';
     setStatus('Resume selected: '+file.name+' — uploading...');
@@ -182,62 +278,45 @@
       if(!upload.ok||!ud.success) throw new Error(ud.message||`Upload failed (HTTP ${upload.status})`);
       localStorage.setItem('resumeFileName',ud.fileName||file.name);
       if(preview) preview.textContent=ud.fileName||file.name;
-      if(updated) updated.textContent='Last Updated: '+new Date().toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
       setStatus('Resume uploaded. Extracting text...');
-
       if(extractLoading) extractLoading.style.display='block';
       const exfd=new FormData(); exfd.append('resume',file,file.name);
       const ex=await fetch(apiBase+'/api/resume/extract',{method:'POST',headers:headers(),body:exfd});
       const xd=await ex.json().catch(()=>({}));
       if(extractLoading) extractLoading.style.display='none';
       if(!ex.ok||!xd.success) throw new Error(xd.message||`Extraction failed (HTTP ${ex.status})`);
+      const text=String(xd.extractedText||'');
       if(fileName) fileName.textContent=xd.fileName||file.name;
       if(pageCount) pageCount.textContent=(xd.pageCount??'N/A')+' page(s)';
-      const text=String(xd.extractedText||'');
       if(extractedText) extractedText.textContent=text||'No text could be extracted from this resume.';
       if(extractResults) extractResults.style.display='block';
       setStatus('Resume uploaded and text extracted. Analyzing with AI...');
-
       if(analysisLoading) analysisLoading.style.display='block';
       const afd=new FormData(); afd.append('resume',file,file.name);
       const ar=await fetch(apiBase+'/api/resume/analyze',{method:'POST',headers:headers(),body:afd});
       const ad=await ar.json().catch(()=>({}));
       if(analysisLoading) analysisLoading.style.display='none';
       if(!ar.ok||!ad.success) throw new Error(ad.message||`AI analysis failed (HTTP ${ar.status})`);
-
-      const detected=dict.filter(skill=>text.toLowerCase().includes(skill.toLowerCase()));
-      const skills=list(ad.skills,ad.technicalSkills,ad.softSkills,ad.programmingLanguages,ad.frameworks,ad.libraries,detected);
-      const tech=list(ad.technologies,ad.programmingLanguages,ad.frameworks,ad.libraries,ad.databases,ad.tools,ad.cloudTechnologies);
-      show(skillsEl,skills,'No recognizable skills were found in the extracted resume text.','resume-skill-chip');
-      show(techEl,tech,'No technologies found.','resume-tech-chip');
-      show(missingEl,list(ad.missingSkills),'None identified.','resume-missing-chip');
-      if(atsEl && ad.atsScore!=null){atsEl.textContent=ad.atsScore+'%'; localStorage.setItem('smarthire.lastAtsScore',String(ad.atsScore));}
-      if(summaryEl) summaryEl.textContent=ad.summary||'No summary generated.';
-      if(experienceEl) experienceEl.textContent=ad.experience||'No experience information found.';
-      if(educationEl) educationEl.textContent=ad.education||'No education information found.';
-      for(const key of Object.keys(scoreEls)){const v=ad[key+'Score']; if(scoreEls[key]) scoreEls[key].textContent=v!=null?v+'%':'N/A'; if(bars[key]) bars[key].style.width=v!=null?v+'%':'0%';}
-      const breakdown=$('atsScoreBreakdown'); if(breakdown && ['keywordScore','formattingScore','skillsScore','experienceScore','educationScore'].some(k=>ad[k]!=null)) breakdown.style.display='block';
-      const strengths=list(ad.strengths), weaknesses=list(ad.weaknesses), suggestions=list(ad.improvementSuggestions), improve=$('resumeImprovementSection');
-      const fill=(id,items,empty)=>{const el=$(id);if(!el)return;el.innerHTML=items.length?items.map(x=>`<li>${esc(x)}</li>`).join(''):`<li>${esc(empty)}</li>`;};
-      if(improve && (strengths.length||weaknesses.length||suggestions.length)){improve.style.display='block';fill('resumeStrengths',strengths,'No specific strengths identified.');fill('resumeWeaknesses',weaknesses,'No specific weaknesses identified.');fill('resumeSuggestions',suggestions,'No specific suggestions available.');}
-      if(analysisResults) analysisResults.style.display='block'; if(analysisEmpty) analysisEmpty.style.display='none';
-      setStatus('Resume uploaded, extracted, and analyzed successfully!',true); toast('AI Resume Analysis Complete!');
-      console.log('[Resume] skills rendered:',skills);
+      const rendered=applyAnalysis(ad,text,false);
+      if(ad.resumeId!=null) localStorage.setItem('smarthire.latestResumeId',String(ad.resumeId));
+      setStatus(String(ad.message||'').toLowerCase().includes('unavailable')?'Resume analyzed with ATS fallback.':'Resume uploaded, extracted, and analyzed successfully!',true);
+      toast('Resume analysis complete');
+      console.log('[Resume] rendered analysis',rendered);
     }catch(err){
       console.error('[Resume] pipeline failed:',err);
       if(extractLoading) extractLoading.style.display='none'; if(analysisLoading) analysisLoading.style.display='none';
       const msg=err?.message||'Unknown error';
-      if(extractError) {extractError.textContent='❌ '+msg;extractError.style.display='block';}
-      if(analysisError) {analysisError.textContent='❌ '+msg;analysisError.style.display='block';}
-      if(analysisEmpty) analysisEmpty.style.display='block';
-      if(analysisResults) analysisResults.style.display='none';
+      if(extractError){extractError.textContent='❌ '+msg;extractError.style.display='block';}
+      if(analysisError){analysisError.textContent='❌ '+msg;analysisError.style.display='block';}
+      if(analysisEmpty) analysisEmpty.style.display='block'; if(analysisResults) analysisResults.style.display='none';
       setStatus('❌ '+msg); toast('Resume processing failed: '+msg);
     }finally{input.value='';}
   });
 
   const saved=localStorage.getItem('resumeFileName');
   if(saved && preview && preview.textContent==='No file selected'){preview.textContent=saved;if(updated)updated.textContent='Previously uploaded';}
-  console.log('[Resume] standalone uploader initialized');
+  restoreLatest();
+  console.log('[Resume] enhanced uploader initialized');
 })();
 </script>
 <script>
@@ -249,4 +328,5 @@
  sync(); new MutationObserver(sync).observe(score,{childList:true,characterData:true,subtree:true});
 })();
 </script>
+
 </body></html>

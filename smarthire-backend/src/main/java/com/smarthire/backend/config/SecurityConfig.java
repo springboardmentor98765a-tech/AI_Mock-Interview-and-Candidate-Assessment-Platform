@@ -42,6 +42,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                     .requestMatchers("/api/public/**").permitAll()
+                    .requestMatchers("/api/health").permitAll()
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                     .requestMatchers("/api/resume/upload", "/api/resume/extract", "/api/resume/analyze").hasRole("CANDIDATE")
                     .requestMatchers("/api/ai/**").authenticated()

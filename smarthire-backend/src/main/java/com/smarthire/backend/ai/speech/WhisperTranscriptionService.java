@@ -22,6 +22,6 @@ public class WhisperTranscriptionService {
   MultiValueMap<String,Object> form=new LinkedMultiValueMap<>(); form.add("audio",resource);
   Map<?,?> result=client.post().uri(url+"/transcribe").contentType(MediaType.MULTIPART_FORM_DATA).body(form).retrieve().body(Map.class);
   if(result==null) throw new IllegalStateException("Whisper service returned no response");
-  return Map.of("transcript",String.valueOf(result.get("text") == null ? "" : result.get("text")),"provider","whisper","simulated",false);
+  return Map.of("transcript",String.valueOf(result.get("text") == null ? "" : result.get("text")),"provider","whisper","confidence",result.get("confidence") == null ? 0 : result.get("confidence"),"segments",result.get("segments") == null ? 0 : result.get("segments"),"simulated",false);
  }
 }

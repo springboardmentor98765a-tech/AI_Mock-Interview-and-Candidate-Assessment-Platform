@@ -283,3 +283,37 @@ body.dark-mode.candidate-dashboard-page .ai-recommendation { background:#211b31 
 body.dark-mode .header-actions .header-logout{background:#1b2233;color:#e9edf5;border-color:#354057;}
 body.dark-mode .header-actions .header-logout:hover{background:#251d3c;border-color:#6650a4;color:#d9caff;}
 @media(max-width:850px){.header-actions .header-logout span{display:none}.header-actions .header-logout{width:38px;justify-content:center;padding:0}.header-actions .header-logout i{margin:0}}
+
+
+/* Candidate sidebar usability fix: keep navigation expanded by default and
+   keep the collapse/expand control accessible even while collapsed. */
+body.candidate-dashboard-page .sidebar-collapse {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 32px;
+  position:relative;
+  z-index:2;
+}
+body.candidate-dashboard-page .candidate-sidebar.collapsed .sidebar-collapse {
+  display:flex !important;
+}
+body.candidate-dashboard-page .candidate-sidebar.collapsed .brand-row {
+  gap:8px;
+}
+body.candidate-dashboard-page .candidate-sidebar.collapsed .brand {
+  display:flex;
+  justify-content:center;
+  min-width:32px;
+}
+@media (max-width:850px) {
+  body.candidate-dashboard-page .candidate-sidebar.collapsed {
+    width:260px;
+  }
+  body.candidate-dashboard-page .candidate-sidebar.collapsed .candidate-nav-link span,
+  body.candidate-dashboard-page .candidate-sidebar.collapsed .sidebar-upgrade,
+  body.candidate-dashboard-page .candidate-sidebar.collapsed .profile-copy,
+  body.candidate-dashboard-page .candidate-sidebar.collapsed .sidebar-profile>i {
+    display:block;
+  }
+}

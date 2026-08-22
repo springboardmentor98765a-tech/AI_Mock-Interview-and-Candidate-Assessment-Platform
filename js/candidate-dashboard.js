@@ -33,11 +33,27 @@
 
   // Sidebar + responsive navigation
   const sidebar = $("candidateSidebar");
-  $("sidebarCollapse")?.addEventListener("click", () => {
+  const sidebarCollapse = $("sidebarCollapse");
+  const SIDEBAR_PREF_KEY = "smarthire.sidebarCollapsed.v2";
+  const syncSidebarToggle = () => {
+    const collapsed = sidebar?.classList.contains("collapsed");
+    if (sidebarCollapse) {
+      sidebarCollapse.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      sidebarCollapse.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      const icon = sidebarCollapse.querySelector("i");
+      if (icon) icon.className = collapsed ? "fa-solid fa-chevron-right" : "fa-solid fa-chevron-left";
+    }
+  };
+  sidebarCollapse?.addEventListener("click", () => {
     sidebar?.classList.toggle("collapsed");
-    localStorage.setItem("smarthire.sidebarCollapsed", sidebar?.classList.contains("collapsed") ? "1" : "0");
+    localStorage.setItem(SIDEBAR_PREF_KEY, sidebar?.classList.contains("collapsed") ? "1" : "0");
+    syncSidebarToggle();
   });
-  if (localStorage.getItem("smarthire.sidebarCollapsed") === "1") sidebar?.classList.add("collapsed");
+  // Start expanded by default. The v2 preference intentionally ignores the
+  // old collapsed flag created by earlier builds so users are not surprised
+  // by a permanently collapsed navigation after an upgrade.
+  if (localStorage.getItem(SIDEBAR_PREF_KEY) === "1") sidebar?.classList.add("collapsed");
+  syncSidebarToggle();
   $("mobileMenu")?.addEventListener("click", () => sidebar?.classList.toggle("mobile-open"));
   document.querySelectorAll(".candidate-nav-link").forEach((link) => {
     link.addEventListener("click", () => sidebar?.classList.remove("mobile-open"));
@@ -164,6 +180,7 @@
       setText("reportConfidence", scoreText(e.confidenceScore));
       setText("latestReportScore", scoreText(e.overallScore));
       if (e.recommendation) setText("aiRecommendationText", e.recommendation);
+      renderWeakAreas(e);
       setText("skillTechnical", scoreText(e.technicalScore));
       setText("skillCommunication", scoreText(e.communicationScore));
       setText("skillConfidence", scoreText(e.confidenceScore));
@@ -177,6 +194,21 @@
       if (reportLink && interviewId) reportLink.href = `interview-report.html?interviewId=${encodeURIComponent(interviewId)}`;
       localStorage.setItem("smarthire.latestReportInterviewId", String(interviewId));
     } catch (_) {}
+  };
+
+  const renderWeakAreas = (evaluation) => {
+    const el = $("candidateWeakAreas");
+    if (!el) return;
+    const metrics = [
+      ["Communication", Number(evaluation?.communicationScore)],
+      ["Confidence", Number(evaluation?.confidenceScore)],
+      ["Technical relevance", Number(evaluation?.technicalScore)],
+      ["Professionalism", Number(evaluation?.professionalismScore)],
+      ["Problem solving", Number(evaluation?.problemSolvingScore)]
+    ].filter(([,score]) => Number.isFinite(score)).sort((a,b) => a[1]-b[1]);
+    if (!metrics.length) { el.innerHTML = '<p>Complete an interview to receive weak-area predictions.</p>'; return; }
+    const focus=metrics.slice(0,3);
+    el.innerHTML=focus.map(([label,score])=>`<p><i class="fa-solid fa-triangle-exclamation"></i> <strong>${escapeHtml(label)}</strong> — ${Math.round(score)}%. Focus practice here before the next interview.</p>`).join('');
   };
 
   const loadDashboard = async () => {

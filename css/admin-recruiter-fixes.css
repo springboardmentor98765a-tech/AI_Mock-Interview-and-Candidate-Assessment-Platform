@@ -1,0 +1,168 @@
+/* SmartHire AI — final role dashboard usability/contrast fixes */
+
+/* Keep role dashboard header controls visible and consistent. */
+.role-dashboard-page .candidate-header .header-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+.role-dashboard-page .candidate-header .header-logout {
+  min-height:38px;
+  border:1px solid var(--sh-border,#e5e7eb);
+  background:var(--sh-card,#fff);
+  color:var(--sh-ink,#413b4e);
+  border-radius:11px;
+  cursor:pointer;
+  padding:0 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  white-space:nowrap;
+  transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease;
+}
+.role-dashboard-page .candidate-header .header-logout:hover {
+  background:#faf8ff;
+  border-color:#cfc0ff;
+  color:#6330d8;
+  transform:translateY(-1px);
+}
+.role-dashboard-page .candidate-header .header-logout i { color:#6d35e8; }
+
+/* Admin: override older .admin-table rules so dark/light themes stay readable. */
+.admin-dashboard-page .admin-table {
+  background:var(--sh-card,#fff) !important;
+  color:var(--sh-ink,#322e40) !important;
+}
+.admin-dashboard-page .admin-table th {
+  background:#faf9fc !important;
+  color:#6d6878 !important;
+  border-bottom:1px solid #e9e5f0 !important;
+}
+.admin-dashboard-page .admin-table td {
+  background:transparent !important;
+  color:#322e40 !important;
+  border-bottom:1px solid #eeeaf4 !important;
+}
+.admin-dashboard-page .admin-table tr:hover { background:#f8f6fc !important; }
+.admin-dashboard-page .admin-table .table-btn {
+  background:#f0eaff !important;
+  color:#6d35e8 !important;
+  border:1px solid #e4dafa !important;
+}
+.admin-dashboard-page .admin-table .table-btn.primary {
+  background:#6d35e8 !important;
+  color:#fff !important;
+  border-color:#6d35e8 !important;
+}
+
+/* Admin light theme: clear, readable surfaces and controls. */
+body:not(.dark-mode).admin-dashboard-page .role-card,
+body:not(.dark-mode).admin-dashboard-page .role-stat {
+  background:#fff !important;
+  color:#252235 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .role-card h2,
+body:not(.dark-mode).admin-dashboard-page .role-card strong,
+body:not(.dark-mode).admin-dashboard-page .role-stat-value,
+body:not(.dark-mode).admin-dashboard-page .role-stat-top {
+  color:#242033 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .role-card p,
+body:not(.dark-mode).admin-dashboard-page .role-stat-meta,
+body:not(.dark-mode).admin-dashboard-page .role-note {
+  color:#777184 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .pipeline-step,
+body:not(.dark-mode).admin-dashboard-page .ai-summary,
+body:not(.dark-mode).admin-dashboard-page .activity-item,
+body:not(.dark-mode).admin-dashboard-page .health-item,
+body:not(.dark-mode).admin-dashboard-page .control-card {
+  background:#fff !important;
+  color:#252235 !important;
+  border-color:#ece8f3 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .pipeline-step strong,
+body:not(.dark-mode).admin-dashboard-page .control-card strong,
+body:not(.dark-mode).admin-dashboard-page .health-item strong {
+  color:#2a2538 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .pipeline-step span,
+body:not(.dark-mode).admin-dashboard-page .health-item span,
+body:not(.dark-mode).admin-dashboard-page .control-card p {
+  color:#858091 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .search-inline {
+  background:#fff !important;
+  color:#252235 !important;
+}
+body:not(.dark-mode).admin-dashboard-page .search-inline::placeholder { color:#9b96a6 !important; }
+
+/* Admin dark theme: explicitly override the legacy white .admin-table background. */
+body.dark-mode.admin-dashboard-page .candidate-header {
+  background:rgba(17,23,38,.97) !important;
+  border-color:#2b3448 !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table,
+body.dark-mode.admin-dashboard-page .admin-table tbody,
+body.dark-mode.admin-dashboard-page .admin-table tr {
+  background:#111a2d !important;
+  color:#eaf0fa !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table th {
+  background:#0f1728 !important;
+  color:#bfcbe0 !important;
+  border-color:#303b54 !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table td {
+  background:transparent !important;
+  color:#e7edf7 !important;
+  border-color:#303b54 !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table tr:hover {
+  background:#18243a !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table .table-btn {
+  background:#2b2447 !important;
+  color:#d5c8ff !important;
+  border-color:#493b73 !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table .table-btn.primary {
+  background:#6d35e8 !important;
+  color:#fff !important;
+  border-color:#6d35e8 !important;
+}
+body.dark-mode.admin-dashboard-page .admin-table .status {
+  filter:none;
+}
+
+/* Dark header controls remain readable on both dashboards. */
+body.dark-mode.role-dashboard-page .candidate-header .header-logout {
+  background:#1b2233 !important;
+  color:#e9edf5 !important;
+  border-color:#354057 !important;
+}
+body.dark-mode.role-dashboard-page .candidate-header .header-logout:hover {
+  background:#251d3c !important;
+  border-color:#6650a4 !important;
+  color:#d9caff !important;
+}
+body.dark-mode.role-dashboard-page .candidate-header .header-logout i { color:#b99cff !important; }
+
+/* At narrow widths keep the action usable without causing header overflow. */
+@media (max-width:850px) {
+  .role-dashboard-page .candidate-header .header-logout span { display:none; }
+  .role-dashboard-page .candidate-header .header-logout {
+    width:38px;
+    min-width:38px;
+    padding:0;
+  }
+}
+@media (max-width:620px) {
+  .role-dashboard-page .candidate-header .header-actions { gap:5px; }
+}

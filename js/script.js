@@ -1397,6 +1397,12 @@ speechSupported:false,
 speechListening:false,
 
 speechRecognition:null,
+speechStartedAt:null,
+speechAnalysisRequestId:0,
+
+speechConfidenceTotal:0,
+
+speechConfidenceCount:0,
 
 followUpLoading:false
 
@@ -2832,9 +2838,25 @@ showToast(error.message || "Unable to prepare email preview");
 
 };
 
+const getLiveSpeechText=()=>{
+
+return [liveInterviewState.transcript,liveInterviewState.speechInterimTranscript]
+
+.filter((part)=>typeof part==="string" && part.trim())
+
+.join(" ").trim();
+
+};
+
 const renderLiveTranscript=(interimText="")=>{
 
 const { transcriptEl }=getLiveInterviewElements();
+
+if(typeof interimText==="string"){
+
+liveInterviewState.speechInterimTranscript=interimText.trim();
+
+}
 
 if(!transcriptEl){
 
@@ -2842,7 +2864,7 @@ return;
 
 }
 
-const fullText=[liveInterviewState.transcript,interimText].filter((part)=>typeof part==="string" && part.trim()).join(" ").trim();
+const fullText=getLiveSpeechText();
 
 transcriptEl.textContent=fullText || "Your speech will appear here when listening starts.";
 
@@ -2867,6 +2889,34 @@ liveInterviewState.speechRecognition.stop();
 }
 
 }
+
+// Browser SpeechRecognition may stop before converting the last interim phrase
+// into a final result. Analyze the visible transcript immediately and then
+// re-run after the recognition engine has had a chance to deliver its final event.
+
+const visibleTranscript=getLiveSpeechText();
+
+if(visibleTranscript){
+
+const durationSeconds=liveInterviewState.speechStartedAt
+?Math.max(1,Math.round((Date.now()-liveInterviewState.speechStartedAt)/1000))
+:null;
+
+renderSpeechAnalysis(calculateLocalSpeechAnalysis(visibleTranscript,durationSeconds));
+
+}
+
+setTimeout(()=>{
+
+const finalTranscript=getLiveSpeechText();
+
+if(finalTranscript){
+
+scheduleLiveSpeechAnalysis();
+
+}
+
+},350);
 
 refreshLiveInterviewUI();
 
@@ -2893,6 +2943,7 @@ return;
 }
 
 liveInterviewState.speechListening=true;
+if(!liveInterviewState.speechStartedAt){liveInterviewState.speechStartedAt=Date.now();}
 
 refreshLiveInterviewUI();
 
@@ -2910,6 +2961,125 @@ refreshLiveInterviewUI();
 
 }
 
+};
+
+const renderSpeechAnalysis=({grammarQuality=0,speakingPaceWpm=0,fillerWordCount=0,averageResponseLength=0,communicationScore=0,pronunciationScore=0,transcriptionConfidence=0,grammarIssues=[],insights="Communication analysis updated.",durationSeconds=null})=>{
+const statusEl=document.getElementById("speechAnalysisStatus");
+const modeEl=document.getElementById("speechAnalysisMode");
+const grammarEl=document.getElementById("speechGrammarQuality");
+const paceEl=document.getElementById("speechPace");
+const fillerEl=document.getElementById("speechFillerWords");
+const avgEl=document.getElementById("speechAvgResponseLength");
+const scoreEl=document.getElementById("speechCommunicationScore");
+const pronunciationEl=document.getElementById("speechPronunciationScore");
+const confidenceEl=document.getElementById("speechTranscriptionConfidence");
+const grammarIssuesEl=document.getElementById("speechGrammarIssues");
+const insightEl=document.getElementById("speechCommunicationInsights");
+const hasSpeech=Boolean(getLiveSpeechText());
+
+if(statusEl){
+
+statusEl.textContent=hasSpeech ? "Live analysis active" : "Waiting for speech";
+
+statusEl.style.color=hasSpeech ? "#16a34a" : "#64748b";
+
+}
+
+if(modeEl && hasSpeech){
+
+modeEl.textContent="Speech captured. Metrics update in real time; backend LanguageTool analysis is applied to finalized transcript.";
+
+}
+
+if(grammarEl)grammarEl.textContent=`${Number(grammarQuality)||0}%`;
+if(paceEl)paceEl.textContent=`${Number(speakingPaceWpm)||0} WPM`;
+if(fillerEl)fillerEl.textContent=String(Number(fillerWordCount)||0);
+if(avgEl)avgEl.textContent=`${Number(averageResponseLength)||0} words`;
+if(scoreEl)scoreEl.textContent=`${Number(communicationScore)||0}%`;
+if(pronunciationEl)pronunciationEl.textContent=`${Number(pronunciationScore)||0}%`;
+if(confidenceEl)confidenceEl.textContent=`${Number(transcriptionConfidence)||0}%`;
+if(grammarIssuesEl)grammarIssuesEl.textContent=Array.isArray(grammarIssues)?String(grammarIssues.length):"0";
+if(insightEl)insightEl.textContent=insights||"Communication analysis updated.";
+localStorage.setItem("smarthire.speechInsights",JSON.stringify({grammarQuality,speakingPaceWpm,fillerWordCount,averageResponseLength,communicationScore,pronunciationScore,transcriptionConfidence,grammarIssues,insights,durationSeconds}));
+};
+
+const calculateLocalSpeechAnalysis=(transcript,durationSeconds)=>{
+const text=String(transcript||"").trim();
+if(!text){
+return {grammarQuality:0,speakingPaceWpm:0,fillerWordCount:0,averageResponseLength:0,communicationScore:0,pronunciationScore:0,transcriptionConfidence:0,grammarIssues:["No transcript captured yet."],insights:"Communication insights will appear once transcript is available.",durationSeconds};
+}
+const words=text.split(/\s+/).filter(Boolean);
+const wordCount=words.length;
+const sentences=text.split(/[.!?]+/).map((part)=>part.trim()).filter(Boolean);
+const responseCount=Math.max(1,sentences.length);
+const averageResponseLength=Math.round(wordCount/responseCount);
+const lower=text.toLowerCase();
+const fillers=["um","uh","like","you know","basically","actually","literally","kind of","sort of","hmm","well","so"];
+let fillerWordCount=0;
+for(const filler of fillers){
+let index=0;
+while((index=lower.indexOf(filler,index))>=0){
+const beforeOk=index===0 || !/[a-z0-9]/i.test(lower[index-1]);
+const end=index+filler.length;
+const afterOk=end>=lower.length || !/[a-z0-9]/i.test(lower[end]);
+if(beforeOk&&afterOk)fillerWordCount+=1;
+index=end;
+}
+}
+const grammarIssues=[];
+if(/\s{2,}/.test(text))grammarIssues.push("Avoid double spaces between words.");
+if(/\s+[,.!?;:]/.test(text))grammarIssues.push("Remove spaces before punctuation.");
+if(/(?:^|[.!?]\s+)[a-z]/.test(text))grammarIssues.push("Start sentences with a capital letter.");
+if(/\b([A-Za-z]+)\s+\1\b/i.test(text))grammarIssues.push("Avoid accidental repeated words.");
+const grammarPenalty=fillerWordCount*2+grammarIssues.length*4;
+const grammarQuality=Math.max(20,Math.min(100,96-grammarPenalty));
+let speakingPaceWpm=0;
+if(Number(durationSeconds)>0){
+ speakingPaceWpm=Math.round(wordCount/(Number(durationSeconds)/60));
+}else{
+ const estimatedMinutes=Math.max(1,Math.round(wordCount/130));
+ speakingPaceWpm=Math.round(wordCount/estimatedMinutes);
+}
+const paceScore=speakingPaceWpm>=100&&speakingPaceWpm<=160?90:(speakingPaceWpm>0?Math.max(40,100-Math.abs(130-speakingPaceWpm)/2):0);
+const fillerScore=Math.max(0,100-fillerWordCount*8);
+const lengthScore=averageResponseLength>=15?90:(averageResponseLength>=8?75:Math.max(30,averageResponseLength*5));
+const transcriptionConfidence=liveInterviewState.speechConfidenceCount?Math.round(liveInterviewState.speechConfidenceTotal/liveInterviewState.speechConfidenceCount*100):72;
+const pronunciationScore=Math.max(0,Math.min(100,Math.round(transcriptionConfidence*0.7+Math.max(35,100-fillerWordCount*3-grammarIssues.length*2)*0.3)));
+const communicationScore=Math.max(0,Math.min(100,Math.round(grammarQuality*0.3+paceScore*0.2+fillerScore*0.15+Math.max(35,100-fillerWordCount*3-grammarIssues.length*2)*0.15+pronunciationScore*0.2)));
+let insights="Communication quality is stable with balanced pace and useful response detail.";
+if(fillerWordCount>10)insights="High filler-word usage detected. Slow down and use short pauses between key points.";
+else if(speakingPaceWpm>165)insights="Speaking pace is fast. Aim for 120-150 WPM to improve clarity.";
+else if(averageResponseLength<12)insights="Responses are short. Add one concrete example to each answer for better impact.";
+return {grammarQuality,speakingPaceWpm,fillerWordCount,averageResponseLength,communicationScore,pronunciationScore,transcriptionConfidence,grammarIssues,insights,durationSeconds};
+};
+
+const analyzeLiveSpeechWithBackend=async(transcriptOverride=null)=>{
+const transcript=String(transcriptOverride ?? getLiveSpeechText() ?? "").trim();
+if(!transcript){return;}
+const requestId=++liveInterviewState.speechAnalysisRequestId;
+const startedAt=liveInterviewState.speechStartedAt;
+const durationSeconds=startedAt?Math.max(1,Math.round((Date.now()-startedAt)/1000)):null;
+const localAnalysis=calculateLocalSpeechAnalysis(transcript,durationSeconds);
+renderSpeechAnalysis(localAnalysis);
+try{
+const form=new URLSearchParams();
+form.set("transcript",transcript);
+if(durationSeconds){form.set("durationSeconds",String(durationSeconds));}
+form.set("transcriptionConfidence",String(liveInterviewState.speechConfidenceCount?Math.round(liveInterviewState.speechConfidenceTotal/liveInterviewState.speechConfidenceCount*100):72));
+const response=await fetch(`${API_BASE}/api/ai/speech/analyze`,{method:"POST",headers:{...getAuthHeaders(false),"Content-Type":"application/x-www-form-urlencoded"},body:form.toString()});
+if(!response.ok){throw new Error("Speech analysis unavailable");}
+const analysis=await response.json();
+if(requestId!==liveInterviewState.speechAnalysisRequestId)return;
+renderSpeechAnalysis({...analysis,durationSeconds});
+}catch(error){
+console.warn("Backend speech analysis unavailable; local speech analysis retained.",error);
+}
+};
+
+let speechAnalysisDebounceTimer=null;
+const scheduleLiveSpeechAnalysis=()=>{
+clearTimeout(speechAnalysisDebounceTimer);
+speechAnalysisDebounceTimer=setTimeout(()=>{analyzeLiveSpeechWithBackend();},650);
 };
 
 const initSpeechRecognition=()=>{
@@ -2946,6 +3116,16 @@ const result=event.results[i];
 
 const text=(result[0]?.transcript || "").trim();
 
+if(result[0]?.confidence!=null && Number.isFinite(Number(result[0].confidence))){
+
+const confidence=Number(result[0].confidence);
+
+liveInterviewState.speechConfidenceTotal+=confidence;
+
+liveInterviewState.speechConfidenceCount+=1;
+
+}
+
 if(!text){
 
 continue;
@@ -2964,7 +3144,37 @@ interimTranscript=(interimTranscript+" "+text).trim();
 
 }
 
+// Keep the interim text visible and analyze it locally in real time. This is
+// important because Chrome can display a useful interim transcript before it
+// emits a final result; the communication metrics must not remain at 0% during
+// that period.
+
+liveInterviewState.speechInterimTranscript=interimTranscript;
+
+const visibleTranscript=getLiveSpeechText();
+
 renderLiveTranscript(interimTranscript);
+
+if(visibleTranscript){
+
+const durationSeconds=liveInterviewState.speechStartedAt
+?Math.max(1,Math.round((Date.now()-liveInterviewState.speechStartedAt)/1000))
+:null;
+
+const localAnalysis=calculateLocalSpeechAnalysis(visibleTranscript,durationSeconds);
+
+renderSpeechAnalysis(localAnalysis);
+
+}
+
+// Backend LanguageTool analysis is still debounced and only needs the finalized
+// transcript. The local analysis above guarantees immediate UI feedback.
+
+if(liveInterviewState.transcript.trim()){
+
+scheduleLiveSpeechAnalysis();
+
+}
 
 };
 
@@ -3009,6 +3219,20 @@ liveInterviewState.speechListening=false;
 setLiveSpeechError("Speech recognition stopped unexpectedly. Please start listening again.");
 
 }
+
+}
+
+const finalTranscript=getLiveSpeechText();
+
+if(finalTranscript){
+
+const durationSeconds=liveInterviewState.speechStartedAt
+?Math.max(1,Math.round((Date.now()-liveInterviewState.speechStartedAt)/1000))
+:null;
+
+renderSpeechAnalysis(calculateLocalSpeechAnalysis(finalTranscript,durationSeconds));
+
+scheduleLiveSpeechAnalysis();
 
 }
 
@@ -3061,6 +3285,7 @@ liveInterviewState.micOn=false;
 liveInterviewState.followUpLoading=false;
 
 stopSpeechRecognition();
+scheduleLiveSpeechAnalysis();
 
 refreshLiveInterviewUI();
 
@@ -3337,6 +3562,8 @@ speechStopBtn.addEventListener("click",()=>{
 
 stopSpeechRecognition();
 
+scheduleLiveSpeechAnalysis();
+
 });
 
 }
@@ -3346,7 +3573,12 @@ if(speechClearBtn){
 speechClearBtn.addEventListener("click",()=>{
 
 liveInterviewState.transcript="";
-
+liveInterviewState.speechInterimTranscript="";
+liveInterviewState.speechStartedAt=null;
+liveInterviewState.speechAnalysisRequestId++;
+clearTimeout(speechAnalysisDebounceTimer);
+localStorage.removeItem("smarthire.speechInsights");
+renderSpeechAnalysis(calculateLocalSpeechAnalysis("",null));
 renderLiveTranscript();
 
 setLiveSpeechError("");
@@ -3633,9 +3865,14 @@ const createBackendInterviewSession=async (interviewId,totalQuestions)=>{
         const whisperResponse=await fetch(`${API_BASE}/api/ai/speech/transcribe`,{method:"POST",headers:getAuthHeaders(false),body:whisperForm});
         if(whisperResponse.ok){
           const whisper=await whisperResponse.json();
-          if(whisper?.transcript){
-            liveInterviewState.transcript=whisper.transcript;
+          if(whisper?.transcript || whisper?.text){
+            liveInterviewState.transcript=String(whisper.transcript || whisper.text || "").trim();
+            if(Number.isFinite(Number(whisper?.wordConfidence ?? whisper?.confidence))){
+              liveInterviewState.speechConfidenceTotal=Number(whisper.wordConfidence ?? whisper.confidence)/100;
+              liveInterviewState.speechConfidenceCount=1;
+            }
             const transcriptEl=document.getElementById("interviewTranscript"); if(transcriptEl) transcriptEl.value=whisper.transcript;
+            await analyzeLiveSpeechWithBackend();
           }
         }
       }catch(e){ console.warn("Whisper transcription unavailable; browser transcript retained.",e); }
@@ -4023,6 +4260,10 @@ const totalDurationSeconds=Math.max(0,getConfiguredInterviewDurationSeconds()-ti
 
 const timeline=buildLiveInterviewTimeline();
 
+const liveSignalPayload=(()=>{try{return JSON.parse(localStorage.getItem("smarthire.liveSignals")||"{}");}catch(_){return {};}})();
+
+const speechInsightPayload=(()=>{try{return JSON.parse(localStorage.getItem("smarthire.speechInsights")||"{}");}catch(_){return {};}})();
+
 const telemetry={
 
 transcript:liveTranscript,
@@ -4037,9 +4278,9 @@ cameraActive:Boolean(liveInterviewState.cameraOn),
 
 microphoneActive:Boolean(liveInterviewState.micOn),
 
-eyeContactPercentage:clampScore(liveInterviewState.cameraOn ? 72 + Math.min(10, liveTranscript.length/40) : 48),
+eyeContactPercentage:clampScore((liveSignalPayload?.eyeContact?.eyeContactPercentage) ?? (liveInterviewState.cameraOn ? 55 : 0)),
 
-facialEngagementScore:clampScore(liveInterviewState.cameraOn ? 68 + Math.min(12, liveTranscript.length/55) : 50),
+facialEngagementScore:clampScore((liveSignalPayload?.emotion?.confidence) ?? (liveInterviewState.cameraOn ? 55 : 0)),
 
 responseHesitationScore:clampScore(100 - Math.min(35, countFillerWords(liveTranscript)*8) - (liveTranscript.length < 80 ? 10 : 0))
 
@@ -4066,6 +4307,10 @@ payload.liveSignalsJson=localStorage.getItem("smarthire.liveSignals") || "{}";
 payload.speechInsightsJson=localStorage.getItem("smarthire.speechInsights") || "{}";
 
 Object.assign(payload,telemetry);
+payload.pronunciationScore=Number(speechInsightPayload.pronunciationScore)||0;
+payload.transcriptionConfidence=Number(speechInsightPayload.transcriptionConfidence)||0;
+payload.grammarIssueCount=Array.isArray(speechInsightPayload.grammarIssues)?speechInsightPayload.grammarIssues.length:0;
+payload.grammarIssueSummary=Array.isArray(speechInsightPayload.grammarIssues)?speechInsightPayload.grammarIssues.join(" | "):"";
 
 const response=await fetch(`${API_BASE}/api/interviews/evaluate`,{
 
@@ -4912,7 +5157,15 @@ difficulty:readInterviewInput([
 "#interviewDifficulty",
 "select[name='difficulty']",
 "input[name='difficulty']"
-],"medium")
+],"medium"),
+
+resumeId:(()=>{
+  try {
+    const setup=JSON.parse(sessionStorage.getItem("smarthire.interviewSetup")||"null");
+    const value=Number(setup?.interviewType==="resume" ? (setup?.resumeId || localStorage.getItem("smarthire.latestResumeId") || 0) : 0);
+    return Number.isFinite(value) && value>0 ? value : null;
+  } catch (_) { return null; }
+})()
 
 };
 
@@ -4963,7 +5216,7 @@ options: Array.isArray(item?.options) ? item.options.filter((option)=>typeof opt
 
 .filter((item)=>item.question.length>0);
 
-const objectiveInterview = ["technical","assessment","quiz"].some(type => String(interviewPayload.interviewType || "").toLowerCase().includes(type));
+const objectiveInterview = ["technical","assessment","quiz","aptitude"].some(type => String(interviewPayload.interviewType || "").toLowerCase().includes(type));
 const invalidObjectiveQuestions = objectiveInterview
   ? normalizedQuestions.filter(item => item.answerMode !== "MCQ" || item.options.length !== 4)
   : [];
@@ -4996,6 +5249,13 @@ window.smartHireInterviewQuestionCount=normalizedQuestions.length || 10;
 interviewSessionState.timerSecondsRemaining=getConfiguredInterviewDurationSeconds();
 
 interviewSessionState.interviewId=Number(data.interviewId)||null;
+localStorage.removeItem("smarthire.speechInsights");
+liveInterviewState.transcript="";
+liveInterviewState.speechInterimTranscript="";
+liveInterviewState.speechStartedAt=null;
+liveInterviewState.speechAnalysisRequestId=0;
+liveInterviewState.speechConfidenceTotal=0;
+liveInterviewState.speechConfidenceCount=0;
 
 interviewSessionState.jobRole=interviewPayload.jobRole;
 

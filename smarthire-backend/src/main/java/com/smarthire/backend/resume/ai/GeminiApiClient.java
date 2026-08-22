@@ -48,6 +48,10 @@ public class GeminiApiClient {
      * (which should contain JSON when the prompt requests JSON).
      */
     public String analyzeResume(String resumeText) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new RuntimeException("GEMINI_API_KEY is not configured in the backend environment.");
+        }
+
         String url = "https://generativelanguage.googleapis.com/v1beta/models/"
                 + model
                 + ":generateContent?key="
