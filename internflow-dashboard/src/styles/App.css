@@ -1,0 +1,137 @@
+/* Navbar Styles */
+.navbar-custom {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  padding: 12px 0;
+}
+
+.navbar-brand-custom {
+  font-weight: 700;
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.navbar-brand-custom i {
+  -webkit-text-fill-color: white;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  padding: 8px;
+  border-radius: 10px;
+  margin-right: 8px;
+}
+
+.nav-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.btn-login {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 50px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-login:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+  color: white;
+}
+
+.btn-logout {
+  background: #e5e7eb;
+  color: #374151;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 50px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+  background: #d1d5db;
+  transform: scale(1.05);
+}
+
+.page-container {
+  padding-top: 80px;
+  min-height: 100vh;
+}
+
+/* Glass Effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+}
+
+/* Gradient Background */
+.gradient-bg {
+  background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+  min-height: 100vh;
+}
+
+/* Shadow */
+.shadow-soft {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+/* Dashboard Card */
+.dashboard-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 20, 30, 0.1);
+}
+
+/* Stat Numbers */
+.stat-number {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Status Badges */
+.badge-interviewed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-shortlisted {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badge-hired {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-review {
+  background: #fef3c7;
+  color: #92400e;
+}
