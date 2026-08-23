@@ -99,6 +99,35 @@ class InterviewSession(Base):
     candidate = relationship("User", foreign_keys=[candidate_id])
     attempts = relationship("InterviewQuestionAttempt", back_populates="session", cascade="all, delete-orphan")
     recordings = relationship("InterviewRecording", back_populates="session", cascade="all, delete-orphan")
+    speech_analyses = relationship("SpeechAnalysis", back_populates="session", cascade="all, delete-orphan")
+
+class SpeechAnalysis(Base):
+    __tablename__ = "speech_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("interview_sessions.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("interview_questions.id"), nullable=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    transcript = Column(Text, nullable=True)
+    word_count = Column(Integer, default=0)
+    duration_seconds = Column(Float, default=0.0)
+    words_per_minute = Column(Float, default=0.0)
+
+    filler_word_count = Column(Integer, default=0)
+    filler_words = Column(JSON, nullable=True)
+
+    grammar_score = Column(Float, default=0.0)
+    pronunciation_score = Column(Float, nullable=True, default=None)  # Saved as null when unavailable per spec
+    clarity_score = Column(Float, default=0.0)
+    communication_score = Column(Float, default=0.0)
+
+    feedback = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    session = relationship("InterviewSession", back_populates="speech_analyses")
+    question = relationship("InterviewQuestion")
+    candidate = relationship("User", foreign_keys=[candidate_id])
 
 class InterviewQuestionAttempt(Base):
     __tablename__ = "interview_question_attempts"

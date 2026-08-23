@@ -9,6 +9,7 @@ from routers.interview import (
     singular_noapi_router as interview_singular_noapi_router
 )
 from routers.question import router as question_router, api_router as question_api_router
+from routers.speech import router as speech_router
 
 __all__ = [
     "auth_router",
@@ -20,6 +21,7 @@ __all__ = [
     "interview_singular_api_router",
     "interview_singular_noapi_router",
     "question_router",
-    "question_api_router"
+    "question_api_router",
+    "speech_router"
 ]
 

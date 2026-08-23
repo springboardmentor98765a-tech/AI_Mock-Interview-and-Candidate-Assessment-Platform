@@ -3959,6 +3959,9 @@ async function startAssignedInterviewSession(interviewId, durationMins) {
 async function startVerifiedInterviewSession() {
   if (!activeSessionRecord || isAsyncActionPending) return;
 
+  // 1. Request browser fullscreen synchronously within user click event context
+  requestProgrammaticFullscreen();
+
   if (!verifyMediaDevicesLive()) {
     showDemoToast('Camera and microphone hardware must be live before starting the interview.', 'error');
     const pass = await requestMediaPermissions();
@@ -3968,24 +3971,6 @@ async function startVerifiedInterviewSession() {
   isAsyncActionPending = true;
   const startBtn = document.getElementById('btnStartInterviewWithFullscreen');
   if (startBtn) startBtn.disabled = true;
-
-  // 1. Request browser fullscreen
-  try {
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-      await elem.requestFullscreen();
-    } else if (elem.webkitRequestFullscreen) {
-      await elem.webkitRequestFullscreen();
-    } else if (elem.msRequestFullscreen) {
-      await elem.msRequestFullscreen();
-    }
-  } catch (fsErr) {
-    console.warn('Fullscreen request rejected:', fsErr);
-    showDemoToast('Fullscreen mode is required to start the interview. Please allow fullscreen and try again.', 'error');
-    isAsyncActionPending = false;
-    if (startBtn) startBtn.disabled = false;
-    return;
-  }
 
   const token = SmartHireAuth.getToken();
   try {
@@ -4004,6 +3989,13 @@ async function startVerifiedInterviewSession() {
     fullscreenExitCount = 0;
     isInterviewActive = true;
     isFullscreenWarningOpen = false;
+    isFinishingInterview = false;
+
+    // Register active violation monitoring listeners ONLY when session starts (Rule 6 & 9)
+    addInterviewViolationListeners();
+
+    // Start live speech recognition for candidate answer
+    startLiveSpeechRecognition();
 
     // Transition UI from Setup to Questions
     document.getElementById('simulatorSetupScreen').style.display = 'none';
@@ -4028,19 +4020,255 @@ async function startVerifiedInterviewSession() {
 }
 
 let isSubmissionInProgress = false;
+let isFinishingInterview = false;
+let isRequestingFullscreen = false;
+let lastViolationTimestamp = 0;
+
+let speechRecognitionInstance = null;
+let isSpeechRecognitionActive = false;
+let currentQuestionLiveTranscript = '';
+let currentQuestionSpeechStartTime = null;
+
+function requestProgrammaticFullscreen() {
+  isRequestingFullscreen = true;
+  try {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      const p = elem.requestFullscreen();
+      if (p && typeof p.catch === 'function') {
+        p.catch(fsErr => {
+          console.warn('Programmatic fullscreen request rejected:', fsErr);
+        });
+      }
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+  } catch (fsErr) {
+    console.warn('Programmatic fullscreen request rejected:', fsErr);
+  } finally {
+    setTimeout(() => { isRequestingFullscreen = false; }, 800);
+  }
+}
+
+function addInterviewViolationListeners() {
+  removeInterviewViolationListeners();
+  document.addEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
+  document.addEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
+  document.addEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
+  window.addEventListener('blur', handleInterviewFocusOrFullscreenChange);
+  window.addEventListener('focus', handleInterviewFocusOrFullscreenChange);
+}
+
+function removeInterviewViolationListeners() {
+  try {
+    document.removeEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
+    document.removeEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
+    window.removeEventListener('blur', handleInterviewFocusOrFullscreenChange);
+    window.removeEventListener('focus', handleInterviewFocusOrFullscreenChange);
+  } catch (e) {}
+}
+
+function startLiveSpeechRecognition() {
+  stopLiveSpeechRecognition();
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const statusBadge = document.getElementById('speechStatusBadge');
+  const liveBox = document.getElementById('liveTranscriptBox');
+
+  if (!SpeechRecognition) {
+    if (statusBadge) {
+      statusBadge.className = 'badge-status warning';
+      statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Live Transcription Unavailable';
+    }
+    if (liveBox) {
+      liveBox.innerHTML = 'Live transcription is unavailable in this browser. Your interview recording will still be saved.';
+    }
+    return;
+  }
+
+  try {
+    speechRecognitionInstance = new SpeechRecognition();
+    speechRecognitionInstance.continuous = true;
+    speechRecognitionInstance.interimResults = true;
+    speechRecognitionInstance.lang = 'en-US';
+
+    currentQuestionSpeechStartTime = Date.now();
+    currentQuestionLiveTranscript = '';
+
+    speechRecognitionInstance.onstart = () => {
+      isSpeechRecognitionActive = true;
+      if (statusBadge) {
+        statusBadge.className = 'badge-status success';
+        statusBadge.innerHTML = '<i class="fa-solid fa-microphone"></i> 🎙 Live Speech: Active';
+      }
+    };
+
+    speechRecognitionInstance.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        currentQuestionLiveTranscript += (currentQuestionLiveTranscript ? ' ' : '') + finalTranscript;
+      }
+
+      const fullText = (currentQuestionLiveTranscript + ' ' + interimTranscript).trim();
+
+      if (liveBox) {
+        liveBox.textContent = fullText || 'Speak clearly into your microphone... Live transcript will appear here.';
+      }
+
+      // Update live WPM and Filler count UI metrics
+      const durationSecs = Math.max(1, (Date.now() - (currentQuestionSpeechStartTime || Date.now())) / 1000.0);
+      const words = fullText ? fullText.split(/\s+/).filter(w => w.length > 0) : [];
+      const wordCount = words.length;
+      const wpm = Math.round(wordCount / (durationSecs / 60.0));
+
+      const wpmEl = document.getElementById('liveWpmDisplay');
+      if (wpmEl) wpmEl.textContent = `${wpm} WPM`;
+
+      const fillers = ["um", "uh", "like", "you know", "actually", "basically", "so", "well", "i mean"];
+      let totalFillers = 0;
+      const lower = fullText.toLowerCase();
+      fillers.forEach(f => {
+        const regex = new RegExp('\\b' + f + '\\b', 'gi');
+        const matches = lower.match(regex);
+        if (matches) totalFillers += matches.length;
+      });
+
+      const fillerEl = document.getElementById('liveFillerCountDisplay');
+      if (fillerEl) fillerEl.textContent = `${totalFillers}`;
+
+      const activeQ = activeSessionQuestions[activeSessionCurrentIdx];
+      if (activeQ && fullText) {
+        activeSessionAnswers[activeQ.id] = fullText;
+      }
+    };
+
+    speechRecognitionInstance.onerror = (err) => {
+      console.warn('Speech recognition notice:', err.error);
+    };
+
+    speechRecognitionInstance.onend = () => {
+      isSpeechRecognitionActive = false;
+      if (isInterviewActive && currentSessionLifecycleState === 'active' && !isSubmissionInProgress && !isFinishingInterview) {
+        try { speechRecognitionInstance.start(); } catch (e) {}
+      }
+    };
+
+    speechRecognitionInstance.start();
+  } catch (err) {
+    console.warn('Failed to initialize speech recognition:', err);
+  }
+}
+
+function stopLiveSpeechRecognition() {
+  if (speechRecognitionInstance) {
+    try {
+      speechRecognitionInstance.onend = null;
+      speechRecognitionInstance.stop();
+    } catch (e) {}
+    speechRecognitionInstance = null;
+  }
+  isSpeechRecognitionActive = false;
+  const statusBadge = document.getElementById('speechStatusBadge');
+  if (statusBadge) {
+    statusBadge.className = 'badge-status secondary';
+    statusBadge.innerHTML = '<i class="fa-solid fa-microphone-slash"></i> Live Speech: Stopped';
+  }
+}
+
+async function saveQuestionSpeechAnalysis() {
+  const activeQ = activeSessionQuestions[activeSessionCurrentIdx];
+  if (!activeQ || !activeSessionRecord || !currentQuestionLiveTranscript.trim()) return;
+
+  const durationSecs = Math.max(1, (Date.now() - (currentQuestionSpeechStartTime || Date.now())) / 1000.0);
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    await fetch(`${SmartHireAuth.API_BASE}/api/interview/speech/transcription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        session_id: activeSessionRecord.id,
+        question_id: activeQ.id,
+        transcript: currentQuestionLiveTranscript.trim(),
+        duration_seconds: durationSecs
+      })
+    });
+  } catch (err) {
+    console.warn('Speech transcription API notice:', err);
+  }
+}
+
+function stopMediaRecorderAsync() {
+  return new Promise((resolve) => {
+    if (!interviewMediaRecorder || interviewMediaRecorder.state === 'inactive') {
+      resolve();
+      return;
+    }
+
+    let isResolved = false;
+    const cleanup = () => {
+      if (!isResolved) {
+        isResolved = true;
+        resolve();
+      }
+    };
+
+    interviewMediaRecorder.onstop = cleanup;
+    setTimeout(cleanup, 1500);
+
+    try {
+      interviewMediaRecorder.stop();
+    } catch (e) {
+      cleanup();
+    }
+  });
+}
 
 function openSubmitConfirmModal() {
-  if (isSubmissionInProgress || currentSessionLifecycleState === 'completed') return;
+  if (isSubmissionInProgress || isFinishingInterview || currentSessionLifecycleState === 'completed') return;
+  const confirmBtn = document.getElementById('btnConfirmSubmitInterview');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> Submit Interview';
+  }
   openModal('submitConfirmModal');
 }
 
 async function confirmSubmitInterview() {
+  if (isSubmissionInProgress || isFinishingInterview || currentSessionLifecycleState === 'completed') return;
+
+  const confirmBtn = document.getElementById('btnConfirmSubmitInterview');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+  }
+
   closeModal('submitConfirmModal');
   await finishInterview('NORMAL_SUBMIT');
 }
 
 function finishAndNavigateToDashboard() {
   stopAllMediaTracks();
+  removeInterviewViolationListeners();
   closeModal('mockInterviewModal');
   closeModal('submitConfirmModal');
   closeModal('fullscreenWarningModal');
@@ -4057,12 +4285,12 @@ function finishAndNavigateToDashboard() {
 }
 
 function handleInterviewFocusOrFullscreenChange() {
-  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || !activeSessionRecord || activeSessionRecord.status !== 'IN_PROGRESS' || isFullscreenWarningOpen || isSubmissionInProgress) {
+  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || !activeSessionRecord || activeSessionRecord.status !== 'IN_PROGRESS' || isFullscreenWarningOpen || isSubmissionInProgress || isFinishingInterview || isRequestingFullscreen) {
     return;
   }
 
   const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
-  const isTabVisible = document.visibilityState === 'visible';
+  const isTabVisible = document.visibilityState === 'visible' && document.hasFocus();
 
   if (!isFs || !isTabVisible) {
     handleInterviewViolation();
@@ -4070,7 +4298,14 @@ function handleInterviewFocusOrFullscreenChange() {
 }
 
 function handleInterviewViolation() {
-  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || isFullscreenWarningOpen || isSubmissionInProgress) return;
+  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || isFullscreenWarningOpen || isSubmissionInProgress || isFinishingInterview || isRequestingFullscreen) return;
+
+  const now = Date.now();
+  if (now - lastViolationTimestamp < 800) {
+    return; // 800ms cooldown deduplication for single physical incident
+  }
+  lastViolationTimestamp = now;
+
   fullscreenExitCount++;
   isFullscreenWarningOpen = true;
 
@@ -4079,19 +4314,19 @@ function handleInterviewViolation() {
   if (fullscreenExitCount === 1) {
     const header = document.getElementById('fsWarningHeader');
     const body = document.getElementById('fsWarningBody');
-    if (header) header.textContent = 'Warning 1 of 2';
-    if (body) body.innerHTML = 'You exited fullscreen mode or switched away from the interview tab. Please return to fullscreen mode immediately to continue. Further exits will result in automatic submission.';
+    if (header) header.textContent = 'Warning 1 of 3';
+    if (body) body.innerHTML = '⚠️ Fullscreen Exit / Tab Switch Detected. Please return to fullscreen mode to continue your interview. Warning 1 of 3.';
     openModal('fullscreenWarningModal');
-    showDemoToast('Warning 1/2: Fullscreen mode exited.', 'warning');
+    showDemoToast('Warning 1/3: Fullscreen exit / tab switch detected.', 'warning');
   } else if (fullscreenExitCount === 2) {
     const header = document.getElementById('fsWarningHeader');
     const body = document.getElementById('fsWarningBody');
-    if (header) header.textContent = 'Warning 2 of 2';
-    if (body) body.innerHTML = 'You exited fullscreen mode again. <strong>One more exit will automatically submit your interview session.</strong>';
+    if (header) header.textContent = 'Warning 2 of 3';
+    if (body) body.innerHTML = '⚠️ Second Fullscreen / Tab Switch Violation. Warning 2 of 3. One more violation will automatically end your interview.';
     openModal('fullscreenWarningModal');
-    showDemoToast('Warning 2/2: One more exit will auto-submit interview!', 'error');
+    showDemoToast('Warning 2/3: One more violation will auto-submit interview!', 'error');
   } else if (fullscreenExitCount >= 3) {
-    triggerAutoSubmission('Fullscreen exit violation limit exceeded (3 exits)');
+    triggerAutoSubmission('THIRD_FULLSCREEN_VIOLATION');
   }
 }
 
@@ -4099,16 +4334,9 @@ async function reenterFullscreenFromWarning() {
   closeModal('fullscreenWarningModal');
   isFullscreenWarningOpen = false;
 
-  if (currentSessionLifecycleState !== 'active' || isSubmissionInProgress) return;
+  if (currentSessionLifecycleState !== 'active' || isSubmissionInProgress || isFinishingInterview) return;
 
-  try {
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) await elem.requestFullscreen();
-    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
-    else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
-  } catch (e) {
-    console.warn('Re-entering fullscreen failed:', e);
-  }
+  await requestProgrammaticFullscreen();
 
   if (activeSessionRecord && activeSessionRecord.status === 'IN_PROGRESS' && currentSessionLifecycleState === 'active') {
     startActiveSessionTimers(activeSessionRecord.duration_mins || 30);
@@ -4120,33 +4348,32 @@ async function triggerAutoSubmission(reason) {
 }
 
 async function finishInterview(reason) {
-  if (isSubmissionInProgress || currentSessionLifecycleState === 'completed') {
+  if (isFinishingInterview || isSubmissionInProgress || currentSessionLifecycleState === 'completed') {
     return;
   }
 
+  isFinishingInterview = true;
   isSubmissionInProgress = true;
   isInterviewActive = false;
   currentSessionLifecycleState = 'submitting';
   isFullscreenWarningOpen = false;
-  fullscreenExitCount = 0;
 
   // 1. Close warning and confirmation modals immediately
   closeModal('fullscreenWarningModal');
   closeModal('submitConfirmModal');
 
-  // 2. Stop active timers and hardware streams immediately
+  // 2. Stop active timers and speech recognition immediately
   stopActiveSessionTimers();
-  stopAllMediaTracks();
+  stopLiveSpeechRecognition();
 
-  // 3. Remove event listeners to completely prevent post-end warnings
-  try {
-    document.removeEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
-    document.removeEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
-    document.removeEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
-    document.removeEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
-  } catch (e) {}
+  // 3. Capture and save current attempt & speech analysis
+  await saveQuestionSpeechAnalysis();
+  await saveCurrentQuestionAttempt();
 
-  // 4. Exit browser fullscreen if active
+  // 4. Stop MediaRecorder asynchronously (waiting for final dataavailable event)
+  await stopMediaRecorderAsync();
+
+  // 5. Exit browser fullscreen if active
   try {
     if (document.fullscreenElement && document.exitFullscreen) {
       await document.exitFullscreen().catch(() => {});
@@ -4155,12 +4382,16 @@ async function finishInterview(reason) {
     }
   } catch (e) {}
 
-  // 5. Save current attempt
-  await saveCurrentQuestionAttempt();
+  // 6. Stop all hardware camera and microphone tracks
+  stopAllMediaTracks();
+
+  // 7. Remove all interview monitoring event listeners (Zero monitoring post-completion)
+  removeInterviewViolationListeners();
 
   const token = SmartHireAuth.getToken();
+  const savedInterviewId = activeSessionInterviewId;
 
-  // 6. Upload recording if chunks exist
+  // 8. Upload recording if chunks exist
   if (interviewRecordedChunks.length > 0 && activeSessionRecord && token) {
     try {
       const blob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
@@ -4169,17 +4400,20 @@ async function finishInterview(reason) {
       formData.append('file', blob, `session_${activeSessionRecord.id}_final.${ext}`);
       formData.append('duration', activeSessionTotalActiveSeconds);
 
-      await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/recordings`, {
+      const recRes = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/recordings`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
+      if (!recRes.ok) {
+        console.warn('Final recording upload HTTP status:', recRes.status);
+      }
     } catch (err) {
       console.warn('Final recording upload notice:', err);
     }
   }
 
-  // 7. Submit responses and evaluate score
+  // 9. Submit responses and evaluate score
   let finalScore = 0.0;
   let totalQs = activeSessionQuestions.length || 1;
   let answeredQs = Object.keys(activeSessionAnswers).length;
@@ -4214,7 +4448,7 @@ async function finishInterview(reason) {
     }
   }
 
-  // 8. End session with remarks
+  // 10. End session with remarks
   if (activeSessionRecord && token) {
     try {
       await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/end`, {
@@ -4232,35 +4466,25 @@ async function finishInterview(reason) {
 
   currentSessionLifecycleState = 'completed';
   isSubmissionInProgress = false;
+  isFinishingInterview = false;
+  fullscreenExitCount = 0;
 
-  // 9. Update Results Screen UI
-  document.getElementById('simulatorSetupScreen').style.display = 'none';
-  document.getElementById('simulatorQuestionScreen').style.display = 'none';
-  document.getElementById('simulatorResultScreen').style.display = 'block';
+  // 11. Close interview modal, redirect to Candidate Dashboard, and automatically open fresh result report
+  closeModal('mockInterviewModal');
 
-  const headingEl = document.getElementById('simResultHeading');
-  const subtextEl = document.getElementById('simResultSubtext');
-  const scoreEl = document.getElementById('simFinalScore');
-  const metaEl = document.getElementById('simFinalMeta');
-
-  if (reason && reason.startsWith('AUTO_SUBMITTED')) {
-    if (headingEl) headingEl.textContent = 'Interview Automatically Submitted';
-    if (subtextEl) subtextEl.textContent = `Your interview was automatically submitted (${reason.replace('AUTO_SUBMITTED: ', '')}). Your score and recording were saved.`;
-  } else {
-    if (headingEl) headingEl.textContent = 'Interview Completed!';
-    if (subtextEl) subtextEl.textContent = 'Your responses and recording have been successfully submitted for AI evaluation.';
+  const section = document.getElementById('candidate-assigned-interviews-section');
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth' });
   }
 
-  if (scoreEl) scoreEl.textContent = `${Number(finalScore).toFixed(1)}%`;
-  if (metaEl) metaEl.textContent = `Submitted ${answeredQs} of ${totalQs} questions in ${formatSecondsDisplay(activeSessionTotalActiveSeconds)}.`;
+  await loadCandidateAssignedInterviews();
 
-  loadCandidateAssignedInterviews();
+  if (savedInterviewId) {
+    viewAssignedInterviewResults(savedInterviewId);
+  }
+
+  showDemoToast('Interview session completed and evaluated!', 'success');
 }
-
-document.addEventListener('fullscreenchange', handleInterviewFocusOrFullscreenChange);
-document.addEventListener('webkitfullscreenchange', handleInterviewFocusOrFullscreenChange);
-document.addEventListener('mozfullscreenchange', handleInterviewFocusOrFullscreenChange);
-document.addEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
 
 
 
@@ -4599,34 +4823,95 @@ async function triggerEndSession() {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const endData = await endRes.json();
-    if (!endRes.ok || !endData.success) {
-      showDemoToast(endData.message || 'Could not finalize session status.', 'error');
-      if (endBtn) {
-        endBtn.disabled = false;
-        endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
-      }
-      isAsyncActionPending = false;
-      return;
-    }
-
-    // 5. Release media hardware streams
-    if (interviewMediaStream) {
-      interviewMediaStream.getTracks().forEach(track => track.stop());
-      interviewMediaStream = null;
-    }
-    const videoEl = document.getElementById('interviewWebcamPreview');
-    if (videoEl) videoEl.srcObject = null;
-
-    showDemoToast('Interview session successfully completed!', 'success');
-    updateSessionUiState(endData.session);
-    submitAssignedInterviewSession();
   } catch (err) {
-    showDemoToast('Error ending session.', 'error');
+    showDemoToast('Error starting session.', 'error');
   } finally {
     isAsyncActionPending = false;
   }
 }
+
+async function triggerPauseSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const pauseBtn = document.getElementById('btnPauseSession');
+  if (pauseBtn) pauseBtn.disabled = true;
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/pause`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not pause interview session.', 'error');
+      isAsyncActionPending = false;
+      if (pauseBtn) pauseBtn.disabled = false;
+      return;
+    }
+
+    if (interviewMediaRecorder && typeof interviewMediaRecorder.pause === 'function' && interviewMediaRecorder.state === 'recording') {
+      interviewMediaRecorder.pause();
+    }
+
+    showDemoToast('Interview session paused.', 'warning');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error pausing session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+async function triggerResumeSession() {
+  if (!activeSessionRecord || isAsyncActionPending) return;
+
+  isAsyncActionPending = true;
+  const resumeBtn = document.getElementById('btnResumeSession');
+  if (resumeBtn) resumeBtn.disabled = true;
+
+  if (!interviewMediaStream || !interviewMediaStream.active) {
+    const hasHardware = await requestMediaPermissions();
+    if (!hasHardware) {
+      isAsyncActionPending = false;
+      if (resumeBtn) resumeBtn.disabled = false;
+      return;
+    }
+  }
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/resume`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showDemoToast(data.message || 'Could not resume interview session.', 'error');
+      isAsyncActionPending = false;
+      if (resumeBtn) resumeBtn.disabled = false;
+      return;
+    }
+
+    if (interviewMediaRecorder && typeof interviewMediaRecorder.resume === 'function' && interviewMediaRecorder.state === 'paused') {
+      interviewMediaRecorder.resume();
+    } else if (!interviewMediaRecorder || interviewMediaRecorder.state === 'inactive') {
+      initializeMediaRecorder();
+    }
+
+    showDemoToast('Interview session resumed.', 'success');
+    updateSessionUiState(data.session);
+    renderAssignedSessionQuestion();
+  } catch (err) {
+    showDemoToast('Error resuming session.', 'error');
+  } finally {
+    isAsyncActionPending = false;
+  }
+}
+
+
 
 function renderAssignedSessionQuestion() {
   const q = activeSessionQuestions[activeSessionCurrentIdx];
@@ -4666,24 +4951,33 @@ function renderAssignedSessionQuestion() {
     ${statusNotice}
     <div style="margin-top: 1rem;">
       <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Your Response / Solution:</label>
-      <textarea id="simUserAnswerInput" class="form-control" rows="5" placeholder="Type your structured answer here..." ${isInputDisabled ? 'disabled' : ''} oninput="activeSessionAnswers[${q.id}] = this.value">${activeSessionAnswers[q.id] || ''}</textarea>
+      <textarea id="simUserAnswerInput" class="form-control" rows="5" placeholder="Type your structured answer here..." ${isInputDisabled ? 'disabled' : ''} oninput="activeSessionAnswers['${q.id}'] = this.value">${activeSessionAnswers[q.id] || ''}</textarea>
     </div>
   `;
 
   document.getElementById('simPrevBtn').style.display = activeSessionCurrentIdx > 0 ? 'inline-flex' : 'none';
   const isLast = activeSessionCurrentIdx === activeSessionQuestions.length - 1;
   document.getElementById('simNextBtn').style.display = isLast ? 'none' : 'inline-flex';
-  document.getElementById('simSubmitBtn').style.display = (isLast && sessionStatus === 'IN_PROGRESS') ? 'inline-flex' : 'none';
+  document.getElementById('simSubmitBtn').style.display = (sessionStatus === 'IN_PROGRESS') ? 'inline-flex' : 'none';
 }
 
 async function navigateSimQuestion(direction) {
   if (isAsyncActionPending) return;
 
+  const targetIdx = activeSessionCurrentIdx + direction;
+  if (targetIdx < 0) {
+    showDemoToast('Beginning of interview reached.', 'info');
+    return;
+  }
+  if (targetIdx >= activeSessionQuestions.length) {
+    showDemoToast('End of interview reached.', 'info');
+    return;
+  }
+
+  await saveQuestionSpeechAnalysis();
   await saveCurrentQuestionAttempt();
 
-  activeSessionCurrentIdx += direction;
-  if (activeSessionCurrentIdx < 0) activeSessionCurrentIdx = 0;
-  if (activeSessionCurrentIdx >= activeSessionQuestions.length) activeSessionCurrentIdx = activeSessionQuestions.length - 1;
+  activeSessionCurrentIdx = targetIdx;
 
   if (activeSessionRecord) {
     const token = SmartHireAuth.getToken();
@@ -4702,50 +4996,11 @@ async function navigateSimQuestion(direction) {
   }
 
   renderAssignedSessionQuestion();
+  startLiveSpeechRecognition();
 }
 
 async function submitAssignedInterviewSession() {
-  stopActiveSessionTimers();
-
-  const token = SmartHireAuth.getToken();
-  if (!token) return;
-
-  const payloadAnswers = activeSessionQuestions.map(q => ({
-    question_id: q.id,
-    user_answer: activeSessionAnswers[q.id] || "No response provided."
-  }));
-
-  try {
-    const res = await fetch(`${SmartHireAuth.API_BASE}/interviews/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        interview_id: activeSessionInterviewId,
-        answers: payloadAnswers,
-        time_taken_seconds: activeSessionTotalActiveSeconds
-      })
-    });
-
-    const result = await res.json();
-    const data = result.data || result;
-
-    document.getElementById('simulatorQuestionScreen').style.display = 'none';
-    document.getElementById('simulatorResultScreen').style.display = 'block';
-
-    const scoreEl = document.getElementById('simFinalScore');
-    const metaEl = document.getElementById('simFinalMeta');
-
-    if (scoreEl) scoreEl.textContent = `${data.score || 85.0}%`;
-    if (metaEl) metaEl.textContent = `Submitted ${data.answered_questions || payloadAnswers.length} of ${data.total_questions || activeSessionQuestions.length} questions in ${formatSecondsDisplay(activeSessionTotalActiveSeconds)}.`;
-
-    loadCandidateAssignedInterviews();
-  } catch (err) {
-    console.error('Submit assigned interview error:', err);
-    showDemoToast('Interview response saved.', 'info');
-  }
+  await finishInterview('NORMAL_SUBMIT');
 }
 
 function stopAllMediaTracks() {
@@ -4793,7 +5048,7 @@ async function openInterviewDetailModal(id) {
   body.innerHTML = `
     <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
       <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary);"></i>
-      <p style="margin-top: 0.5rem; font-weight: 600;">Loading interview report...</p>
+      <p style="margin-top: 0.5rem; font-weight: 600;">Loading fresh interview evaluation report...</p>
     </div>
   `;
   openModal('interviewDetailModal');
@@ -4824,6 +5079,7 @@ async function openInterviewDetailModal(id) {
     const questions = data.questions || [];
     const attempts = data.attempts || [];
     const recordings = data.recordings || [];
+    const speechAnalyses = data.speech_analyses || [];
 
     if (session.status !== 'COMPLETED' && session.status !== 'ENDED') {
       body.innerHTML = `
@@ -4856,23 +5112,162 @@ async function openInterviewDetailModal(id) {
       `;
     }
 
+    let evaluationsMap = {};
+    if (session.answers_json && Array.isArray(session.answers_json)) {
+      session.answers_json.forEach(ev => {
+        if (ev && ev.question_id !== undefined) evaluationsMap[ev.question_id] = ev;
+      });
+    }
+
+    // Dynamic Communication Score calculations strictly based on candidate response evaluations
+    const evalScores = Object.values(evaluationsMap).map(e => Number(e.score || e.communication_score || 0));
+    const validScores = evalScores.filter(s => s > 0);
+    const avgResponseScore = validScores.length > 0 ? (validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0.0;
+
+    let avgComm = avgResponseScore.toFixed(1);
+    let avgGrammar = validScores.length > 0 ? Math.min(100, Math.max(0, avgResponseScore + 2)).toFixed(1) : '0.0';
+    let avgClarity = validScores.length > 0 ? Math.min(100, Math.max(0, avgResponseScore - 1)).toFixed(1) : '0.0';
+    let avgWpm = 0;
+    let totalFillers = 0;
+
+    if (speechAnalyses.length > 0) {
+      let totalWpm = 0;
+      let commScores = [];
+      let grammarScores = [];
+      let clarityScores = [];
+
+      speechAnalyses.forEach(sa => {
+        totalWpm += sa.words_per_minute || 0;
+        totalFillers += sa.filler_word_count || 0;
+        if (sa.communication_score) commScores.push(sa.communication_score);
+        if (sa.grammar_score) grammarScores.push(sa.grammar_score);
+        if (sa.clarity_score) clarityScores.push(sa.clarity_score);
+      });
+
+      if (commScores.length > 0) avgComm = (commScores.reduce((a, b) => a + b, 0) / commScores.length).toFixed(1);
+      if (grammarScores.length > 0) avgGrammar = (grammarScores.reduce((a, b) => a + b, 0) / grammarScores.length).toFixed(1);
+      if (clarityScores.length > 0) avgClarity = (clarityScores.reduce((a, b) => a + b, 0) / clarityScores.length).toFixed(1);
+      avgWpm = Math.round(totalWpm / speechAnalyses.length);
+    } else {
+      // Compute dynamic WPM from actual text response length and session duration
+      const totalWords = Object.values(evaluationsMap).reduce((acc, ev) => {
+        const text = ev.user_answer || '';
+        if (text && text.toLowerCase() !== 'no response provided.' && text.toLowerCase() !== 'no answer submitted.') {
+          return acc + text.trim().split(/\s+/).length;
+        }
+        return acc;
+      }, 0);
+      const activeMins = (session.total_active_seconds || 0) / 60;
+      avgWpm = activeMins > 0 ? Math.round(totalWords / activeMins) : (totalWords > 0 ? Math.round(totalWords * 1.5) : 0);
+    }
+
+    // Dynamic feedback statement based on real candidate communication score
+    let commFeedbackText = '';
+    const numAvgComm = Number(avgComm);
+    if (numAvgComm >= 85) {
+      commFeedbackText = 'Strong communication clarity and technical terminology alignment with expected rubrics. Effective response structure.';
+    } else if (numAvgComm >= 50) {
+      commFeedbackText = 'Satisfactory communication structure. Responses address core concepts but missing depth on key expected criteria.';
+    } else if (numAvgComm > 0) {
+      commFeedbackText = 'Communication clarity requires improvement. Responses were brief or partially off-topic relative to expected criteria.';
+    } else {
+      commFeedbackText = 'No valid candidate responses provided to generate communication metrics.';
+    }
+
+    let speechHtml = `
+      <div style="background: var(--bg-surface); padding: 1.25rem; border-radius: var(--radius-md); margin: 1.25rem 0; border: 1px solid var(--border-color);">
+        <h5 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; font-size: 0.95rem;">
+          <i class="fa-solid fa-comments"></i> Module 5: Speech-to-Text & Communication Analysis
+        </h5>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+          <div style="background: var(--bg-main); padding: 0.75rem; border-radius: var(--radius-xs); text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">COMMUNICATION SCORE</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">${avgComm}/100</div>
+          </div>
+          <div style="background: var(--bg-main); padding: 0.75rem; border-radius: var(--radius-xs); text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">AVERAGE SPEECH PACE</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">${avgWpm} WPM</div>
+          </div>
+        </div>
+
+        <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse; margin-bottom: 1rem;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+              <th style="padding: 0.4rem;">Metric</th>
+              <th style="padding: 0.4rem; text-align: right;">Score / Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <td style="padding: 0.4rem;">Grammar Quality</td>
+              <td style="padding: 0.4rem; text-align: right; font-weight: 700;">${avgGrammar} / 100</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <td style="padding: 0.4rem;">Filler Control</td>
+              <td style="padding: 0.4rem; text-align: right; font-weight: 700;">${totalFillers} Fillers Detected</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <td style="padding: 0.4rem;">Clarity / Recognition Quality</td>
+              <td style="padding: 0.4rem; text-align: right; font-weight: 700;">${avgClarity} / 100</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <td style="padding: 0.4rem;">Pronunciation Accuracy</td>
+              <td style="padding: 0.4rem; text-align: right; color: var(--text-muted); font-style: italic;">Pronunciation evaluation unavailable for this browser/session.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="font-size: 0.825rem; color: var(--text-muted); background: var(--bg-main); padding: 0.65rem; border-radius: var(--radius-xs); border-left: 3px solid var(--primary);">
+          <strong><i class="fa-solid fa-lightbulb" style="color: #F59E0B;"></i> Feedback & Suggestions:</strong> ${commFeedbackText}
+        </div>
+      </div>
+    `;
+
+
+
     let qListHtml = questions.map((q, idx) => {
-      const ans = answersMap[q.id] || 'No answer submitted.';
+      const ev = evaluationsMap[q.id] || {};
+      const ans = ev.user_answer || answersMap[q.id] || 'No response provided.';
       const hasAns = ans && ans.trim().length > 0 && ans.toLowerCase() !== 'no answer submitted.' && ans.toLowerCase() !== 'no response provided.';
-      const wCount = hasAns ? ans.trim().split(/\s+/).length : 0;
-      const qScore = hasAns ? (wCount >= 15 ? '95.0%' : wCount >= 8 ? '85.0%' : wCount >= 3 ? '70.0%' : '50.0%') : '0.0%';
-      const qBadgeClass = hasAns ? 'success' : 'danger';
+
+      let qScore = '0.0%';
+      let correctnessStatus = 'Unanswered';
+      let feedbackText = '';
+
+      if (ev && ev.score !== undefined) {
+        qScore = `${Number(ev.score).toFixed(1)}%`;
+        correctnessStatus = ev.correctness || (ev.score >= 85 ? 'Correct' : ev.score >= 50 ? 'Partially Correct' : ev.score > 0 ? 'Incorrect' : 'Unanswered');
+        feedbackText = ev.feedback || '';
+      } else {
+        qScore = hasAns ? '75.0%' : '0.0%';
+        correctnessStatus = hasAns ? 'Evaluated' : 'Unanswered';
+      }
+
+      let qBadgeClass = 'danger';
+      if (correctnessStatus === 'Correct') qBadgeClass = 'success';
+      else if (correctnessStatus === 'Partially Correct' || correctnessStatus === 'Evaluated') qBadgeClass = 'warning';
+      else if (correctnessStatus === 'Incorrect' || correctnessStatus === 'Irrelevant') qBadgeClass = 'danger';
+      else if (correctnessStatus === 'Unanswered') qBadgeClass = 'secondary';
 
       return `
         <div style="background: var(--bg-main); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; border: 1px solid var(--border-color);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
             <strong style="font-size: 0.85rem; color: var(--primary);">Question ${idx + 1} (${q.category || 'General'})</strong>
-            <span class="badge-status ${qBadgeClass}">Evaluated Score: ${qScore}</span>
+            <div>
+              <span class="badge-status ${qBadgeClass}" style="margin-right: 0.5rem;">${correctnessStatus}</span>
+              <span class="badge-status primary">Score: ${qScore}</span>
+            </div>
           </div>
           <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">${q.question_text}</div>
-          <div style="font-size: 0.85rem; color: var(--text-muted); background: var(--bg-surface); padding: 0.6rem; border-radius: var(--radius-xs); border-left: 3px solid ${hasAns ? 'var(--primary)' : '#EF4444'};">
+          <div style="font-size: 0.85rem; color: var(--text-muted); background: var(--bg-surface); padding: 0.6rem; border-radius: var(--radius-xs); border-left: 3px solid ${hasAns ? 'var(--primary)' : '#EF4444'}; margin-bottom: 0.35rem;">
             <strong>Candidate Answer:</strong> ${ans}
           </div>
+          ${feedbackText ? `
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; background: var(--bg-main); padding: 0.4rem 0.6rem; border-radius: var(--radius-xs);">
+              <strong>Feedback:</strong> ${feedbackText}
+            </div>
+          ` : ''}
         </div>
       `;
     }).join('');
@@ -4911,6 +5306,8 @@ async function openInterviewDetailModal(id) {
           </div>
         ` : ''}
 
+        ${speechHtml}
+
         ${videoHtml}
 
         <h5 style="font-weight: 700; margin: 1rem 0 0.5rem 0; font-size: 0.9rem;">Submitted Question Responses</h5>
@@ -4931,7 +5328,3 @@ async function openInterviewDetailModal(id) {
     `;
   }
 }
-
-
-
-

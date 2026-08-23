@@ -84,8 +84,7 @@ def register_candidate_service(data: CandidateRegisterRequest, db: Session) -> T
         is_active=True
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    db.flush()
 
     candidate_profile = CandidateProfile(
         user_id=new_user.id,
@@ -105,6 +104,7 @@ def register_candidate_service(data: CandidateRegisterRequest, db: Session) -> T
     )
     db.add(candidate_profile)
     db.commit()
+    db.refresh(new_user)
 
     token = create_access_token({"sub": str(new_user.id), "email": new_user.email, "role": new_user.role})
     return TokenResponse(
@@ -139,8 +139,7 @@ def register_recruiter_service(data: RecruiterRegisterRequest, db: Session) -> T
         is_active=True
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    db.flush()
 
     recruiter_profile = RecruiterProfile(
         user_id=new_user.id,
@@ -154,6 +153,7 @@ def register_recruiter_service(data: RecruiterRegisterRequest, db: Session) -> T
     )
     db.add(recruiter_profile)
     db.commit()
+    db.refresh(new_user)
 
     token = create_access_token({"sub": str(new_user.id), "email": new_user.email, "role": new_user.role})
     return TokenResponse(
@@ -178,7 +178,7 @@ def login_user_service(data: LoginRequest, db: Session) -> TokenResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your user account is suspended or deactivated. Please contact admin."
         )
-    if user.password and not verify_password(data.password, user.password):
+    if not user.password or not verify_password(data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password."
@@ -268,6 +268,11 @@ def complete_google_role_service(data: GoogleRoleCompleteRequest, db: Session) -
     existing_user = db.query(User).filter(User.email == target_email).first()
     
     if existing_user:
+        if not existing_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your user account is suspended or deactivated. Please contact admin."
+            )
         token = create_access_token({"sub": str(existing_user.id), "email": existing_user.email, "role": existing_user.role})
         return TokenResponse(
             access_token=token,
@@ -297,8 +302,7 @@ def complete_google_role_service(data: GoogleRoleCompleteRequest, db: Session) -
         is_active=True
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    db.flush()
 
     if role == "CANDIDATE":
         profile = CandidateProfile(
@@ -321,6 +325,7 @@ def complete_google_role_service(data: GoogleRoleCompleteRequest, db: Session) -
         db.add(profile)
     
     db.commit()
+    db.refresh(new_user)
 
     token = create_access_token({"sub": str(new_user.id), "email": new_user.email, "role": new_user.role})
     return TokenResponse(

@@ -32,7 +32,8 @@ from routers import (
     interview_singular_api_router,
     interview_singular_noapi_router,
     question_router,
-    question_api_router
+    question_api_router,
+    speech_router
 )
 from seed_questions import seed_question_bank
 
@@ -109,6 +110,7 @@ app.include_router(interview_singular_api_router)
 app.include_router(interview_singular_noapi_router)
 app.include_router(question_router)
 app.include_router(question_api_router)
+app.include_router(speech_router)
 
 
 
@@ -221,6 +223,37 @@ def seed_database():
                 interview_score=89.0
             )
             db.add(p2)
+            db.commit()
+
+        # Seed sample Candidate 3 (Harshitha Narahari)
+        cand3 = db.query(User).filter(User.email == "harshitha@smarthire.ai").first()
+        if not cand3:
+            u3_cand = User(
+                name="Harshitha Narahari",
+                email="harshitha@smarthire.ai",
+                password=hash_password("Password123!"),
+                role="CANDIDATE",
+                provider="LOCAL",
+                is_active=True
+            )
+            db.add(u3_cand)
+            db.commit()
+            db.refresh(u3_cand)
+
+            p3 = CandidateProfile(
+                user_id=u3_cand.id,
+                phone="+1 (555) 333-4444",
+                college="Carnegie Mellon University",
+                degree="M.S. Software Engineering",
+                branch="Computer Science",
+                graduation_year=2025,
+                skills="Python, Java, React, SQL, Machine Learning",
+                preferred_role="AI Engineer",
+                experience_level="Senior",
+                ats_score=95.0,
+                interview_score=96.0
+            )
+            db.add(p3)
             db.commit()
 
         # Seed sample Recruiter

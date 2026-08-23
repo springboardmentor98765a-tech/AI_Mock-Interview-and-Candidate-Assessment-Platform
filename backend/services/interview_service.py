@@ -364,8 +364,149 @@ def start_interview_service(current_user: User, data: InterviewStartRequest, db:
     }
 
 
+def _evaluate_answer_fallback(q: InterviewQuestion, user_ans: str) -> dict:
+    """
+    Deterministic semantic concept matching evaluator comparing candidate answer
+    against question text, expected answer, and evaluation points.
+    """
+    ans_clean = user_ans.strip()
+    ans_lower = ans_clean.lower()
+
+    if not ans_clean or ans_lower in ["no response provided.", "no response provided", "no answer submitted.", "no answer submitted", "n/a", "none"]:
+        return {
+            "question_id": q.id,
+            "sequence_no": q.sequence_no,
+            "question_text": q.question_text,
+            "category": q.category,
+            "user_answer": "No response provided.",
+            "score": 0.0,
+            "correctness": "Unanswered",
+            "feedback": "No response was provided for this question."
+        }
+    
+    stop_words = {
+        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "to", "in", "for", "of",
+        "and", "or", "on", "at", "by", "with", "from", "as", "it", "its",
+        "this", "that", "these", "those", "i", "you", "he", "she", "we", "they",
+        "my", "your", "his", "her", "our", "their", "what", "which", "who", "whom",
+        "am", "so", "if", "not", "no", "can", "will", "just", "should"
+    }
+
+    def tokenize(text: str) -> set:
+        import re
+        words = re.findall(r'\b[a-zA-Z0-9_-]{3,}\b', text.lower())
+        return {w for w in words if w not in stop_words}
+
+    ans_tokens = tokenize(ans_clean)
+    q_tokens = tokenize(q.question_text or "")
+    exp_tokens = tokenize(q.expected_answer or "")
+    pts_tokens = set()
+    if q.evaluation_points:
+        for pt in q.evaluation_points:
+            pts_tokens.update(tokenize(str(pt)))
+
+    all_target_tokens = q_tokens | exp_tokens | pts_tokens
+
+    # Safe handling if expected answer and points are unavailable
+    if not q.expected_answer and not q.evaluation_points:
+        if len(ans_tokens) == 0:
+            return {
+                "question_id": q.id,
+                "sequence_no": q.sequence_no,
+                "question_text": q.question_text,
+                "category": q.category,
+                "user_answer": user_ans,
+                "score": 0.0,
+                "correctness": "Unanswered",
+                "feedback": "No response was provided for this question."
+            }
+        overlap = len(ans_tokens & q_tokens)
+        word_count = len(ans_clean.split())
+        score = 70.0 if overlap > 0 else (50.0 if word_count >= 8 else 30.0)
+        return {
+            "question_id": q.id,
+            "sequence_no": q.sequence_no,
+            "question_text": q.question_text,
+            "category": q.category,
+            "user_answer": user_ans,
+            "score": score,
+            "correctness": "Evaluated without reference answer",
+            "feedback": "Evaluated based on domain context (reference answer unavailable)."
+        }
+
+    # Check for Irrelevant / Off-topic
+    if len(all_target_tokens) > 0:
+        overlap_with_target = len(ans_tokens & all_target_tokens)
+    else:
+        overlap_with_target = 0
+
+    word_count = len(ans_clean.split())
+
+    # Check if answer is completely off-topic
+    if overlap_with_target == 0 and word_count >= 3 and len(exp_tokens | pts_tokens) > 0:
+        return {
+            "question_id": q.id,
+            "sequence_no": q.sequence_no,
+            "question_text": q.question_text,
+            "category": q.category,
+            "user_answer": user_ans,
+            "score": 10.0,
+            "correctness": "Irrelevant",
+            "communication_score": 10.0,
+            "feedback": "Answer appears off-topic or unrelated to the question."
+        }
+
+    # Evaluate concept coverage against expected answer and evaluation points
+    key_ref_tokens = exp_tokens | pts_tokens
+    if len(key_ref_tokens) > 0:
+        ref_overlap = len(ans_tokens & key_ref_tokens)
+        coverage = ref_overlap / float(len(key_ref_tokens))
+    else:
+        coverage = 0.5
+        ref_overlap = 0
+
+    negation_words = {"not", "no", "never", "without", "dont", "don't", "neither", "nor", "false", "wrong"}
+    has_negation = any(w in ans_lower.split() for w in negation_words)
+
+    # Check coverage ratios & criteria
+    if (coverage >= 0.55 or (ref_overlap >= 3 and word_count >= 8)) and not has_negation:
+        score = round(85.0 + min(15.0, coverage * 15.0), 1)
+        correctness = "Correct"
+        feedback = "Demonstrates strong understanding and covers key expected criteria."
+    elif coverage >= 0.20 or (ref_overlap >= 1 and word_count >= 5):
+        if has_negation and coverage < 0.5:
+            score = round(25.0 + min(15.0, coverage * 20.0), 1)
+            correctness = "Incorrect"
+            feedback = "Response contains negating terms or inaccurate claims regarding the question."
+        else:
+            score = round(50.0 + min(25.0, coverage * 30.0), 1)
+            correctness = "Partially Correct"
+            feedback = "Covers some relevant points, but missing complete detail or key criteria."
+    else:
+        score = round(20.0 + min(20.0, coverage * 30.0), 1)
+        correctness = "Incorrect"
+        feedback = "Response does not sufficiently address the expected answer requirements."
+
+    return {
+        "question_id": q.id,
+        "sequence_no": q.sequence_no,
+        "question_text": q.question_text,
+        "category": q.category,
+        "user_answer": user_ans,
+        "score": score,
+        "correctness": correctness,
+        "communication_score": score,
+        "feedback": feedback
+    }
+
+
 def evaluate_session_answers(session_rec: InterviewSession, interview: Interview, answers_payload: list, db: Session) -> float:
-    """Calculates deterministic evaluation score strictly from actual candidate submitted answers."""
+    """
+    Calculates genuine evaluation score strictly comparing actual candidate answers
+    against question_text, expected_answer, and evaluation_points.
+    Persists evaluation breakdown into session_rec.answers_json.
+    """
     questions = interview.questions if (interview and interview.questions) else []
     total_q = len(questions) if len(questions) > 0 else (len(answers_payload) if answers_payload else 1)
 
@@ -380,47 +521,102 @@ def evaluate_session_answers(session_rec: InterviewSession, interview: Interview
                 ans = getattr(a, "user_answer", "") or getattr(a, "selected_option", "")
             if qid is not None:
                 answers_map[qid] = str(ans).strip()
-    else:
-        # Check attempts stored in DB for this session
-        db_attempts = db.query(InterviewQuestionAttempt).filter(
-            InterviewQuestionAttempt.session_id == session_rec.id
-        ).all()
-        for att in db_attempts:
-            if att.question_id and att.answer:
-                answers_map[att.question_id] = str(att.answer).strip()
+
+    # Also check stored attempts in DB for any unmapped questions
+    db_attempts = db.query(InterviewQuestionAttempt).filter(
+        InterviewQuestionAttempt.session_id == session_rec.id
+    ).all()
+    for att in db_attempts:
+        if att.question_id and att.question_id not in answers_map and att.answer:
+            answers_map[att.question_id] = str(att.answer).strip()
 
     if total_q == 0:
+        session_rec.answers_json = []
         return 0.0
 
+    evaluations_list = []
     total_score = 0.0
+
+    # Try Gemini Service if API key is present
+    gemini_svc = None
+    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+        try:
+            from services.ai_service import GeminiService
+            gemini_svc = GeminiService()
+        except Exception:
+            gemini_svc = None
 
     if questions:
         for q in questions:
             user_ans = answers_map.get(q.id, "")
-            if not user_ans or user_ans.lower() == "no response provided." or len(user_ans) == 0:
-                q_score = 0.0
+            eval_result = None
+
+            # 1. Unanswered / empty check
+            if not user_ans or user_ans.lower() in ["no response provided.", "no answer submitted.", "n/a", "none"] or len(user_ans.strip()) == 0:
+                eval_result = {
+                    "question_id": q.id,
+                    "sequence_no": q.sequence_no,
+                    "question_text": q.question_text,
+                    "category": q.category,
+                    "user_answer": "No response provided.",
+                    "score": 0.0,
+                    "correctness": "Unanswered",
+                    "feedback": "No response was provided for this question."
+                }
             else:
-                words = user_ans.split()
-                w_count = len(words)
-                if w_count >= 15:
-                    q_score = 95.0
-                elif w_count >= 8:
-                    q_score = 85.0
-                elif w_count >= 3:
-                    q_score = 70.0
-                else:
-                    q_score = 50.0
-            total_score += q_score
+                # 2. Attempt AI evaluation if available
+                if gemini_svc:
+                    try:
+                        ai_eval = gemini_svc.evaluate_answer_correctness(
+                            question_text=q.question_text,
+                            expected_answer=q.expected_answer,
+                            evaluation_points=q.evaluation_points,
+                            user_answer=user_ans
+                        )
+                        eval_result = {
+                            "question_id": q.id,
+                            "sequence_no": q.sequence_no,
+                            "question_text": q.question_text,
+                            "category": q.category,
+                            "user_answer": user_ans,
+                            "score": ai_eval["score"],
+                            "correctness": ai_eval["correctness"],
+                            "feedback": ai_eval["feedback"]
+                        }
+                    except Exception as e:
+                        logger.warning(f"AI evaluation failed for question {q.id}, using fallback: {e}")
+                        eval_result = None
+
+                # 3. Fallback evaluation if AI unavailable or failed
+                if not eval_result:
+                    eval_result = _evaluate_answer_fallback(q, user_ans)
+
+            total_score += eval_result["score"]
+            evaluations_list.append(eval_result)
+
         calculated_score = round(total_score / len(questions), 1)
     else:
-        valid_ans_count = len([v for v in answers_map.values() if v and v.lower() != "no response provided."])
+        # Fallback for dynamic payloads without predefined DB questions
+        valid_ans_count = 0
+        for qid, ans in answers_map.items():
+            has_ans = ans and ans.lower() not in ["no response provided.", "no answer submitted."]
+            if has_ans:
+                valid_ans_count += 1
+            evaluations_list.append({
+                "question_id": qid,
+                "user_answer": ans or "No response provided.",
+                "score": 75.0 if has_ans else 0.0,
+                "correctness": "Partially Correct" if has_ans else "Unanswered",
+                "feedback": "Response evaluated." if has_ans else "No response provided."
+            })
         calculated_score = round((valid_ans_count / total_q) * 100.0, 1)
 
+    session_rec.answers_json = evaluations_list
     return calculated_score
 
 
 def submit_interview_service(current_user: User, data: InterviewSubmitRequest, db: Session) -> dict:
-    """Submits interview answers, calculates score, and updates status to Completed."""
+    """Submits interview answers, calculates score, and updates status to Completed (Idempotent)."""
     interview = db.query(Interview).filter(Interview.id == data.interview_id, Interview.is_deleted == False).first()
     if not interview:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
@@ -436,20 +632,33 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
         session_rec = InterviewSession(
             interview_id=interview.id,
             candidate_id=interview.candidate_id,
-            status="ENDED",
+            status="IN_PROGRESS",
             started_at=datetime.datetime.utcnow()
         )
         db.add(session_rec)
 
-    session_rec.status = "ENDED"
+    # Idempotent check: if already completed AND answers were evaluated and no new answers provided:
+    if session_rec.status in ["COMPLETED", "ENDED"] and session_rec.answers_json and not data.answers:
+        total_q = len(interview.questions) if (interview and interview.questions) else 1
+        answered_q = len([a for a in session_rec.answers_json if a.get("correctness") != "Unanswered"])
+        return {
+            "interview_id": interview.id,
+            "status": "Completed",
+            "score": session_rec.score,
+            "answered_questions": answered_q,
+            "total_questions": total_q,
+            "time_taken_seconds": session_rec.duration or data.time_taken_seconds
+        }
+
+    session_rec.status = "COMPLETED"
     session_rec.ended_at = datetime.datetime.utcnow()
-    session_rec.duration = data.time_taken_seconds
-    
-    # Calculate score from actual submitted answers
+    if data.time_taken_seconds > 0:
+        session_rec.duration = data.time_taken_seconds
+
+    # Calculate score from actual submitted answers or saved attempts
     calculated_score = evaluate_session_answers(session_rec, interview, data.answers, db)
 
     session_rec.score = calculated_score
-    session_rec.answers_json = [a.model_dump() for a in data.answers]
     interview.status = "Completed"
 
     # Update CandidateProfile average interview score
@@ -460,10 +669,7 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
             Interview.status == "Completed"
         ).all()
         if all_completed:
-            cand_profile.interview_score = round(sum(s.score for s in all_completed) / len(all_completed), 1)
-
-    db.commit()
-
+            cand_profile.interview_score = round(sum(s.score for s in all_completed if s.score is not None) / len(all_completed), 1)
 
     db.commit()
 
@@ -478,7 +684,7 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
     )
 
     total_q = len(interview.questions) if (interview and interview.questions) else len(data.answers)
-    answered_q = len([a for a in data.answers if a.user_answer or a.selected_option is not None])
+    answered_q = len([a for a in (session_rec.answers_json or []) if a.get("correctness") != "Unanswered"])
 
     return {
         "interview_id": interview.id,
@@ -488,6 +694,7 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
         "total_questions": total_q,
         "time_taken_seconds": session_rec.duration
     }
+
 
 
 
@@ -827,7 +1034,7 @@ resume_session_service_v2 = resume_session_service
 
 
 def end_session_service(current_user: User, session_id: int, db: Session, remarks: Optional[str] = None) -> dict:
-    """Ends an active or paused interview session (IN_PROGRESS or PAUSED -> COMPLETED)."""
+    """Ends an active or paused interview session (IN_PROGRESS or PAUSED -> COMPLETED, Idempotent)."""
     session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
     if not session_rec:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
@@ -835,8 +1042,16 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
     if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to end this interview session.")
 
+    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
+    if interview:
+        interview.status = "Completed"
+
+    # Idempotent handling: if session is already completed, update remarks if provided and return response
     if session_rec.status in ["COMPLETED", "ENDED"]:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session has already been completed.")
+        if remarks:
+            session_rec.remarks = remarks
+            db.commit()
+        return _format_session_response(session_rec, interview, db)
 
     if session_rec.status not in ["IN_PROGRESS", "PAUSED"]:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot end a session that is not active or paused.")
@@ -854,10 +1069,6 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
         session_rec.remarks = remarks
     session_rec.ended_at = now
     session_rec.duration = session_rec.total_active_seconds or 0
-
-    interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
-    if interview:
-        interview.status = "Completed"
 
     # Calculate and persist evaluated score
     session_rec.score = evaluate_session_answers(session_rec, interview, [], db)
@@ -937,6 +1148,26 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
             "created_at": rec.created_at.strftime("%Y-%m-%d %H:%M:%S") if rec.created_at else None
         })
 
+    speech_list = []
+    if hasattr(session_rec, "speech_analyses") and session_rec.speech_analyses:
+        for sa in session_rec.speech_analyses:
+            speech_list.append({
+                "id": sa.id,
+                "question_id": sa.question_id,
+                "transcript": sa.transcript,
+                "word_count": sa.word_count,
+                "duration_seconds": sa.duration_seconds,
+                "words_per_minute": sa.words_per_minute,
+                "filler_word_count": sa.filler_word_count,
+                "filler_words": sa.filler_words or {},
+                "grammar_score": sa.grammar_score,
+                "pronunciation_score": sa.pronunciation_score, # null per spec
+                "clarity_score": sa.clarity_score,
+                "communication_score": sa.communication_score,
+                "feedback": sa.feedback or {},
+                "created_at": sa.created_at.strftime("%Y-%m-%d %H:%M:%S") if sa.created_at else None
+            })
+
     return {
         "success": True,
         "session": {
@@ -952,6 +1183,7 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
             "current_question_index": session_rec.current_question_index or 0,
             "score": session_rec.score or 0.0,
             "remarks": session_rec.remarks or "",
+            "answers_json": session_rec.answers_json or [],
             "created_at": session_rec.created_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.created_at else None
         },
 
@@ -965,7 +1197,8 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
         },
         "questions": formatted_questions,
         "attempts": attempts_list,
-        "recordings": recordings_list
+        "recordings": recordings_list,
+        "speech_analyses": speech_list
     }
 
 
