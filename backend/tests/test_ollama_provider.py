@@ -53,6 +53,14 @@ RESUME_JSON = {
     ],
 }
 
+SCORE_JSON = {
+    "communication": 78,
+    "confidence": 65,
+    "technical_relevance": 82,
+    "professionalism": 90,
+    "rationale": "Clear and on-topic, with some hedging language.",
+}
+
 COMMUNICATION_JSON = {
     "grammar_issues": [
         {"excerpt": "I has done", "issue": "Subject-verb agreement.", "suggestion": "I have done"}
@@ -269,6 +277,11 @@ class TestProviderSelection:
         for module in (ai_provider, gemini, ollama_provider):
             assert not hasattr(module, "text_to_speech")
 
+    def test_every_provider_offers_score_answer(self):
+        """Module 6's score is text-only, so unlike speech it must follow AI_PROVIDER."""
+        for module in (ai_provider, gemini, ollama_provider):
+            assert hasattr(module, "score_answer")
+
     def test_ollama_offers_no_speech_to_text(self):
         """Ollama serves no speech models, so it must not pretend to."""
         assert not hasattr(ollama_provider, "speech_to_text")
@@ -301,6 +314,35 @@ class TestProviderSelection:
 
         assert result.clarity == "Direct and to the point."
         assert isinstance(client.calls[0]["format"], dict), "must use native structured output"
+
+    def test_score_answer_follows_the_provider(self, monkeypatch, use_ollama):
+        """Module 6's rubric score is text-only, so it stays local too."""
+        client = install(monkeypatch, FakeClient(SCORE_JSON))
+        result = ai_provider.score_answer(
+            question="Why?",
+            transcript="Because.",
+            interview_type="HR",
+            domain="support lead",
+            difficulty="EASY",
+        )
+
+        assert result.communication == 78
+        assert result.confidence == 65
+        assert result.technical_relevance == 82
+        assert result.professionalism == 90
+        assert isinstance(client.calls[0]["format"], dict), "must use native structured output"
+
+    def test_score_answer_malformed_becomes_AIUnavailable(self, monkeypatch, use_ollama):
+        class Broken(FakeClient):
+            def chat(self, **kwargs):
+                return SimpleNamespace(message=SimpleNamespace(content="not json"))
+
+        install(monkeypatch, Broken())
+        with pytest.raises(AIUnavailable):
+            ai_provider.score_answer(
+                question="Why?", transcript="Because.",
+                interview_type="HR", domain="x", difficulty="EASY",
+            )
 
     def test_status_shape(self, monkeypatch, use_ollama):
         install(monkeypatch, FakeClient(QUESTIONS_JSON))

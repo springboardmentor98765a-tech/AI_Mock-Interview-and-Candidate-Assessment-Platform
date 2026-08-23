@@ -147,10 +147,7 @@ Tables are created automatically on startup. For a real deployment, replace that
 Alembic migrations.
 
 ### 4. Google OAuth2 (optional)
-
-1. <https://console.cloud.google.com/apis/credentials> → **Create credentials** →
-   **OAuth client ID** → **Web application**
-2. Add authorised redirect URI: `http://localhost:8000/api/auth/google/callback`
+ 2. Add authorised redirect URI: `http://localhost:8000/api/auth/google/callback`
 3. Copy the client ID and secret into `.env`
 
 Flow: `/api/auth/google/login` → Google verifies → callback exchanges the code for the

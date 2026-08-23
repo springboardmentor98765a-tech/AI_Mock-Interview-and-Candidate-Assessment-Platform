@@ -218,7 +218,10 @@ def start_interview(
     # mid-interview would change the time remaining for a candidate already
     # part-way through answering.
     interview.question_seconds = per_question_seconds(
-        get_settings(db).session_minutes, len(interview.questions)
+        get_settings(db).session_minutes,
+        len(interview.questions),
+        difficulty=interview.difficulty.value,
+        interview_type=interview.interview_type.value,
     )
 
     db.commit()
@@ -758,9 +761,14 @@ def get_interview_analysis(
     rather than being quietly dropped — the count of what was analysed is part
     of how trustworthy the summary is.
 
-    There is no score here, and there will not be one from this endpoint.
     Filler counts and pace are measurements; grammar and communication notes
-    are an AI assessment. Scoring a candidate is a separate module.
+    are an AI assessment with no number attached. `summary.score` (Module 6)
+    IS a number — the rubric-weighted average of the answered questions'
+    scores — but it is graded against a fixed, disclosed rubric, not a
+    certified evaluation, and every place it is shown says so. The same figure
+    is stamped onto Interview.overall_score once the interview completes; this
+    endpoint recomputes it live so a still-running interview shows its score
+    so far rather than nothing.
     """
     interview = _owned(db, current_user, interview_id, with_questions=True)
 

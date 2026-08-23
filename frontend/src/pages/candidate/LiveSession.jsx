@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
+import AnalysisReport from '../../components/AnalysisReport';
 
 /**
  * The real voice interview (Modules 3, 4 and 5).
@@ -79,6 +80,60 @@ function mediaUnsupportedReason() {
   return null;
 }
 
+/**
+ * Read the question aloud (Module 3, feature 8).
+ *
+ * The browser's own speech engine rather than a cloud voice: it is free,
+ * offline, instant, and has no daily quota. Gemini's TTS free tier is about
+ * ten requests a day, which one eight-question interview would exhaust — a
+ * nicer voice is not worth an interviewer that goes silent mid-session.
+ *
+ * `speechSynthesis` is absent in some browsers and blocked before a user
+ * gesture in others. Both are handled by simply not speaking: the question is
+ * on screen as text regardless, so silence degrades the experience without
+ * breaking the interview.
+ */
+function speak(text, { onEnd } = {}) {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !text) {
+    onEnd?.();
+    return false;
+  }
+  try {
+    // Cancel anything still speaking, or a skipped question's audio would
+    // overlap the next one.
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    // Slightly under default: interview questions carry detail, and the stock
+    // rate reads them faster than a person would ask.
+    utterance.rate = 0.95;
+    utterance.onend = () => onEnd?.();
+    utterance.onerror = () => onEnd?.();
+    window.speechSynthesis.speak(utterance);
+    return true;
+  } catch {
+    onEnd?.();
+    return false;
+  }
+}
+
+function stopSpeaking() {
+  try {
+    window.speechSynthesis?.cancel();
+  } catch {
+    /* nothing to stop */
+  }
+}
+
+/** Rating → badge tone. Kept beside the component rather than inline so the
+ *  bands stay in one place if the rubric is retuned. */
+const SCORE_TONE = {
+  Excellent: 'badge-ok',
+  Good: 'badge-ok',
+  Average: 'badge-warn',
+  'Needs Improvement': 'badge-warn',
+  Poor: 'badge-bad',
+};
+
 /** Counted words as badges. Hoisted: a component defined inside the page would
  *  be a new type on every render and remount its children each time. */
 function CountTags({ counts, variant = 'badge-muted' }) {
@@ -108,7 +163,7 @@ function AnswerAnalysis({ data }) {
     );
   }
 
-  const { fillers, pace, communication, pronunciation, transcript } = data;
+  const { fillers, pace, communication, pronunciation, transcript, score } = data;
 
   return (
     <div className="gap-top">
@@ -123,6 +178,38 @@ function AnswerAnalysis({ data }) {
             </p>
           )}
         </>
+      )}
+
+      {/* --- scored (Module 6) --- */}
+      {score?.available ? (
+        <>
+          <div className="row gap-top">
+            <div>
+              <strong>Score for this answer</strong>
+              <small>{score.rationale}</small>
+            </div>
+            <span className={`badge ${SCORE_TONE[score.rating] ?? 'badge-muted'}`}>
+              {score.overall} &middot; {score.rating}
+            </span>
+          </div>
+          <div className="tags">
+            {Object.entries(score.weights || {}).map(([axis, weight]) => (
+              <span className="badge badge-muted" key={axis}>
+                {axis.replace(/_/g, ' ')} {score[axis]} &middot; {Math.round(weight * 100)}%
+              </span>
+            ))}
+          </div>
+          <small className="muted">
+            An AI assessment against a fixed rubric, not a measurement — the weights are shown so
+            the overall figure can be checked rather than taken on trust.
+          </small>
+        </>
+      ) : (
+        score && (
+          <p className="note gap-top">
+            {score.reason || 'This answer was not scored.'}
+          </p>
+        )
       )}
 
       {/* --- measured --- */}
@@ -314,7 +401,20 @@ export default function LiveSession() {
   const [cameraError, setCameraError] = useState(null);
   // { state: 'uploading' | 'saved' | 'failed', detail } for the video upload.
   const [upload, setUpload] = useState(null);
+  // The full Module 5/6 report, fetched once the interview is over. Held apart
+  // from the live `analysis` frames so a mid-interview outage cannot leave a
+  // half-filled report on the completion screen.
+  const [report, setReport] = useState({ state: 'idle', data: null, error: null });
   const [recording, setRecording] = useState(false);
+  // Reading the question aloud. On by default — it is the point of a voice
+  // interviewer — but a candidate who finds it slower than reading, or who is
+  // in a shared room, can turn it off and it stays off for the session.
+  const [readAloud, setReadAloud] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
+  // Mirrored into a ref because the socket's onmessage closure is created once,
+  // when the effect runs — reading the state variable there would capture the
+  // value it had on mount and never see the toggle change.
+  const readAloudRef = useRef(true);
 
   // Elapsed interview time — a real measurement, not a decorative counter.
   // It stops while paused, because paused time is real time but it is not
@@ -369,6 +469,14 @@ export default function LiveSession() {
     };
   }, [recorded, interviewId]);
 
+  useEffect(() => {
+    readAloudRef.current = readAloud;
+    if (!readAloud) {
+      stopSpeaking();
+      setSpeaking(false);
+    }
+  }, [readAloud]);
+
   const send = useCallback((payload) => {
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload));
@@ -406,6 +514,10 @@ export default function LiveSession() {
         setRecorded(null);
         setAnalysis(null);
         setStatus('asking');
+        if (readAloudRef.current) {
+          setSpeaking(true);
+          speak(message.text, { onEnd: () => setSpeaking(false) });
+        }
       } else if (message.type === 'recorded') {
         setRecorded(message);
         setLastSkipped(null);
@@ -457,6 +569,7 @@ export default function LiveSession() {
 
     return () => {
       disposed = true;
+      stopSpeaking();
       socket.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
@@ -619,6 +732,11 @@ export default function LiveSession() {
     const recorder = recorderRef.current;
     if (!recorder) return;
     if (!recording) {
+      // The microphone is about to open. Anything still being read aloud would
+      // be captured into the candidate's own answer, transcribed as their
+      // words, and scored as their content — so silence it first.
+      stopSpeaking();
+      setSpeaking(false);
       chunksRef.current = [];
       startedAtRef.current = Date.now();
       recorder.start();
@@ -648,6 +766,42 @@ export default function LiveSession() {
     // The `closed` frame drives the navigation instead.
     send({ type: 'end' });
   };
+
+  // Pull the whole report once the interview is over. Analysis of the final
+  // answer may still be in flight when `complete` arrives, so this retries a
+  // couple of times rather than showing a report that is missing its last
+  // question.
+  useEffect(() => {
+    if (status !== 'complete' || !interviewId) return undefined;
+
+    let cancelled = false;
+    let attempt = 0;
+
+    const load = () => {
+      setReport((prev) => (prev.data ? prev : { state: 'loading', data: null, error: null }));
+      api
+        .interviewAnalysis(interviewId)
+        .then((data) => {
+          if (cancelled) return;
+          const pending = (data.questions || []).some(
+            (q) => q.transcript === null && q.analysis?.available === undefined,
+          );
+          setReport({ state: 'ready', data, error: null });
+          if (pending && attempt < 3) {
+            attempt += 1;
+            setTimeout(load, 3000);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) setReport({ state: 'error', data: null, error: err.message });
+        });
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, interviewId]);
 
   // Leave for the history page once the server confirms the session is closed.
   useEffect(() => {
@@ -723,29 +877,41 @@ export default function LiveSession() {
         )}
 
         {status === 'complete' && (
-          <div className="card">
-            <h2>Interview complete</h2>
-            <p className="note">
-              You answered {progress.answered} of {progress.total} questions in{' '}
-              {formatTime(elapsed)} of interview time.
-              {progress.answered + progress.skipped < progress.total &&
-                ` ${
-                  progress.total - progress.answered - progress.skipped
-                } were left unanswered — the session was ended early, and they are recorded as unanswered rather than skipped.`}
-              {progress.skipped > 0 &&
-                ` ${progress.skipped} ${
-                  progress.skipped === 1 ? 'question was' : 'questions were'
-                } skipped and count as not attempted.`}
-            </p>
-            <p className="muted">
-              Your recordings, transcripts and per-answer communication analysis are saved against
-              this interview. There is no overall score — scoring is a separate module that is not
-              built, so nothing here ranks or grades you.
-            </p>
-            <button className="btn btn-primary" onClick={() => navigate('/candidate#history')}>
-              Back to history
-            </button>
-          </div>
+          <>
+            <div className="card">
+              <h2>Interview complete</h2>
+              <p className="note">
+                You answered {progress.answered} of {progress.total} questions in{' '}
+                {formatTime(elapsed)} of interview time.
+                {progress.skipped > 0 &&
+                  ` ${progress.skipped} ${
+                    progress.skipped === 1 ? 'question was' : 'questions were'
+                  } skipped and count as not attempted.`}
+                {progress.answered + progress.skipped < progress.total &&
+                  ` ${
+                    progress.total - progress.answered - progress.skipped
+                  } were left unanswered — the session was ended early, and they are recorded as unanswered rather than skipped.`}
+              </p>
+              <div className="actions">
+                <button className="btn btn-primary" onClick={() => navigate('/candidate#history')}>
+                  Back to history
+                </button>
+              </div>
+            </div>
+
+            {report.state === 'loading' && (
+              <p className="note">
+                Preparing your analysis — transcription of the last answer may still be finishing.
+              </p>
+            )}
+            {report.state === 'error' && (
+              <p className="error">
+                The analysis could not be loaded: {report.error}. Your answers are saved — open this
+                interview from your history to try again.
+              </p>
+            )}
+            {report.data && <AnalysisReport report={report.data} />}
+          </>
         )}
 
         {session && status !== 'complete' && status !== 'error' && (
@@ -772,10 +938,24 @@ export default function LiveSession() {
 
               <div className="row">
                 <div>
+                  <strong>Read questions aloud</strong>
+                  <small>
+                    {readAloud
+                      ? 'Each question is spoken when it appears. Your browser reads it — nothing is sent anywhere.'
+                      : 'Off. Questions appear as text only.'}
+                  </small>
+                </div>
+                <button className="btn" onClick={() => setReadAloud((v) => !v)}>
+                  {readAloud ? 'Turn off' : 'Turn on'}
+                </button>
+              </div>
+
+              <div className="row">
+                <div>
                   <strong>Time per question</strong>
                   <small>
                     {session.question_seconds
-                      ? `${formatTime(session.question_seconds)} — set by your administrator's session length, split across ${progress.total} questions`
+                      ? `${formatTime(session.question_seconds)} — your administrator's session length split across ${progress.total} questions, then scaled for a ${session.difficulty} ${session.interview_type} interview`
                       : 'No limit set for this interview.'}
                   </small>
                 </div>
@@ -843,9 +1023,10 @@ export default function LiveSession() {
               )}
 
               <p className="muted gap-top">
-                Your spoken answer is recorded, stored, transcribed and analysed for fillers, pace,
-                grammar and clarity. No eye-contact, emotion or confidence analysis exists — that
-                is an unbuilt module, so nothing here claims to measure it.
+                Your spoken answer is recorded, stored, transcribed, analysed for fillers, pace,
+                grammar and clarity, and scored against a fixed rubric. Confidence is part of that
+                rubric and is judged from what you said, not from your face or voice — no
+                eye-contact or emotion analysis exists, so nothing here reads your expression.
               </p>
             </section>
 
@@ -859,7 +1040,27 @@ export default function LiveSession() {
               {question ? (
                 <>
                   <p className="quote">{question.text}</p>
-                  <small className="muted">{question.category}</small>
+                  <div className="row">
+                    <div>
+                      <small className="muted">{question.category}</small>
+                    </div>
+                    {!recording && (
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          if (speaking) {
+                            stopSpeaking();
+                            setSpeaking(false);
+                            return;
+                          }
+                          setSpeaking(true);
+                          speak(question.text, { onEnd: () => setSpeaking(false) });
+                        }}
+                      >
+                        {speaking ? 'Stop reading' : 'Read again'}
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : (
                 <p className="note">Press “Next question” to begin. Read it, then answer aloud.</p>
@@ -907,7 +1108,22 @@ export default function LiveSession() {
                 </>
               )}
 
-              <AnswerAnalysis data={analysis} />
+              {/* During the interview the candidate gets a confirmation, not a
+                  critique: a full breakdown mid-session invites them to start
+                  performing for the metrics instead of answering. Everything
+                  is shown together on the completion screen. */}
+              {analysis && (
+                analysis.available === false ? (
+                  <p className="note gap-top">
+                    {analysis.reason} Your recording was saved either way.
+                  </p>
+                ) : (
+                  <p className="note gap-top">
+                    Answer {analysis.sequence_no} analysed. Your transcript, filler count, pace,
+                    grammar and pronunciation notes are all in the report at the end.
+                  </p>
+                )
+              )}
 
               <div className="actions gap-top">
                 {question && (

@@ -200,6 +200,11 @@ h2 {
 .modal-box > .muted {
   margin-bottom: 16px;
 }
+/* A review with transcripts, per-question scores and a video player needs
+   more room than a short form like the report dialog. */
+.modal-box-wide {
+  max-width: 760px;
+}
 
 /* ---------- page header ---------- */
 .page-head {
@@ -230,6 +235,9 @@ h2 {
 }
 .cols-4 {
   grid-template-columns: repeat(4, 1fr);
+}
+.cols-5 {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 /* ---------- card ---------- */
@@ -830,7 +838,8 @@ h2 {
   .cols-3 {
     grid-template-columns: 1fr;
   }
-  .cols-4 {
+  .cols-4,
+  .cols-5 {
     grid-template-columns: repeat(2, 1fr);
   }
   .topbar {
@@ -857,7 +866,8 @@ h2 {
 }
 
 @media (max-width: 480px) {
-  .cols-4 {
+  .cols-4,
+  .cols-5 {
     grid-template-columns: 1fr;
   }
 }

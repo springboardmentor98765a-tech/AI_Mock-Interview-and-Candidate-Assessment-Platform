@@ -69,14 +69,40 @@ export function buildActivityReport({ candidate, email, stats, interviews, resum
     rows.push('');
   }
 
-  rows.push(
-    'SCORING',
-    '-'.repeat(58),
-    'Not available. This platform records spoken answers as audio, but does not',
-    'transcribe or score them, so this report deliberately contains no scores,',
-    'skill ratings or performance percentages.',
-    ''
-  );
+  // Scores come from the interview rows themselves, so this section reports
+  // exactly what is stored — and stays silent where nothing is. An interview
+  // that was never scored prints "not scored" rather than a zero, because a
+  // zero here would read as a result the candidate actually earned.
+  const scored = (interviews ?? []).filter((i) => i.overall_score !== null
+                                              && i.overall_score !== undefined);
+
+  rows.push('SCORING', '-'.repeat(58));
+
+  if (scored.length === 0) {
+    rows.push(
+      'No interview in this account has been scored yet. Scores are produced',
+      'from answered questions, so an interview with no answers has none.',
+      ''
+    );
+  } else {
+    const mean = scored.reduce((sum, i) => sum + i.overall_score, 0) / scored.length;
+    rows.push(
+      line('Scored interviews', `${scored.length} of ${(interviews ?? []).length}`),
+      line('Average score', `${mean.toFixed(1)} / 100`),
+      ''
+    );
+    scored.forEach((i) => {
+      rows.push(`  #${i.id}  ${i.interview_type} · ${i.domain}`);
+      rows.push(`      ${i.overall_score.toFixed(1)} / 100 · ${i.score_rating ?? ''}`);
+    });
+    rows.push(
+      '',
+      'Scores are an AI assessment against a fixed rubric (communication 30%,',
+      'confidence 25%, technical relevance 30%, professionalism 15%), not a',
+      'measurement. They are not a hiring decision.',
+      ''
+    );
+  }
 
   return rows.join('\n');
 }

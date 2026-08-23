@@ -208,6 +208,8 @@ export const api = {
   recruiterCandidates: (params) =>
     request(`/analytics/recruiter/candidates${query(params)}`, { auth: true }),
   liveInterviews: () => request('/analytics/live', { auth: true }),
+  /** Module 6: candidates ranked by their most recently completed interview. */
+  leaderboard: (params) => request(`/analytics/leaderboard${query(params)}`, { auth: true }),
 
   /* ---------------- admin ---------------- */
 

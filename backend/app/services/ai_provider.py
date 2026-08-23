@@ -28,6 +28,7 @@ from app.services.providers.base import (  # re-exported: callers import these f
     AIQuotaExceeded,
     AIUnavailable,
     AIUnreachable,
+    AnswerScore,
     CommunicationAssessment,
     GeneratedQuestion,
     GeneratedQuestionSet,
@@ -47,6 +48,7 @@ __all__ = [
     "AIQuotaExceeded",
     "AIUnavailable",
     "AIUnreachable",
+    "AnswerScore",
     "CommunicationAssessment",
     "GeneratedQuestion",
     "GeneratedQuestionSet",
@@ -57,6 +59,7 @@ __all__ = [
     "extract_resume",
     "generate_questions",
     "provider_status",
+    "score_answer",
     "speech_to_text",
     "strict_json_schema",
 ]
@@ -126,6 +129,19 @@ def extract_resume(resume_text: str):
 def analyse_communication(*, question: str, transcript: str) -> CommunicationAssessment:
     """Grammar and communication quality. Text only, so it follows AI_PROVIDER."""
     return active_provider().analyse_communication(question=question, transcript=transcript)
+
+
+def score_answer(
+    *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
+) -> AnswerScore:
+    """Module 6's rubric score for one answer. Text only, so it follows AI_PROVIDER."""
+    return active_provider().score_answer(
+        question=question,
+        transcript=transcript,
+        interview_type=interview_type,
+        domain=domain,
+        difficulty=difficulty,
+    )
 
 
 # --- speech: always Gemini, whatever AI_PROVIDER says ---------------------

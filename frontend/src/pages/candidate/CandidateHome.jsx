@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/AppLayout';
 import Section from '../../components/Section';
 import ReportDialog from '../../components/ReportDialog';
-import { Panel, NotAvailable } from '../../components/Panel';
+import InterviewReview from '../../components/InterviewReview';
+import { Panel } from '../../components/Panel';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
@@ -91,6 +92,7 @@ export default function CandidateHome() {
   const [generateError, setGenerateError] = useState(null);
 
   const [reportTarget, setReportTarget] = useState(null);
+  const [reviewTarget, setReviewTarget] = useState(null);
 
   const pick = (field, value) => setSetup((prev) => ({ ...prev, [field]: value }));
 
@@ -413,7 +415,9 @@ export default function CandidateHome() {
                     <th>Questions</th>
                     <th>Created</th>
                     <th>Duration</th>
-                    <th className="end">Status</th>
+                    <th className="num">Score</th>
+                    <th>Status</th>
+                    <th className="end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -425,10 +429,26 @@ export default function CandidateHome() {
                       <td className="num">{row.question_count}</td>
                       <td className="num">{shortTime(row.created_at)}</td>
                       <td className="num">{duration(row.started_at, row.completed_at)}</td>
-                      <td className="end">
+                      <td className="num">
+                        {row.overall_score != null ? (
+                          <span className="mono">
+                            {row.overall_score.toFixed(1)} &middot; {row.score_rating}
+                          </span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                      <td>
                         <span className={`badge ${STATUS_TONE[row.status]}`}>
                           {row.status.toLowerCase().replace('_', ' ')}
                         </span>
+                      </td>
+                      <td className="end">
+                        {row.status === 'COMPLETED' && (
+                          <button className="btn" onClick={() => setReviewTarget(row)}>
+                            View
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -474,14 +494,45 @@ export default function CandidateHome() {
         </Panel>
 
         <div className="grid cols-2">
-          <NotAvailable
-            what="Skill ratings"
-            reason="Communication, technical, confidence and professionalism ratings need the scoring engine, which is not built. Nothing in the platform produces these numbers yet."
-          />
-          <NotAvailable
-            what="Score breakdown"
-            reason="The 30/25/30/15 weighting is defined in the project spec, but no interview has ever been scored, so there is nothing to weight."
-          />
+          <div className="card">
+            <h2>Your score</h2>
+            {s?.latest_score != null ? (
+              <>
+                <div className="row">
+                  <div>
+                    <strong>Most recent</strong>
+                    <small>From your latest scored interview</small>
+                  </div>
+                  <span className={`badge ${STATUS_TONE.COMPLETED}`}>
+                    {s.latest_score.toFixed(1)} &middot; {s.latest_score_rating}
+                  </span>
+                </div>
+                {s.best_score != null && (
+                  <div className="row">
+                    <div>
+                      <strong>Best</strong>
+                      <small>Across every scored interview</small>
+                    </div>
+                    <span className="mono">{s.best_score.toFixed(1)}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="note">
+                Complete an interview with the microphone answered to see your score here.
+              </p>
+            )}
+          </div>
+          <div className="card">
+            <h2>How scoring works</h2>
+            <p className="muted">
+              Each answer is graded 0-100 on four axes — communication (30%), confidence (25%),
+              technical relevance (30%) and professionalism (15%) — and averaged across the
+              interview. It is an AI assessment against a fixed rubric, not a certified
+              evaluation. Open a past interview from History below to see the breakdown per
+              question.
+            </p>
+          </div>
         </div>
       </Section>
 
@@ -616,6 +667,10 @@ export default function CandidateHome() {
             tickets.reload();
           }}
         />
+      )}
+
+      {reviewTarget && (
+        <InterviewReview interview={reviewTarget} onClose={() => setReviewTarget(null)} />
       )}
     </AppLayout>
   );

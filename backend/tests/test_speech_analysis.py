@@ -26,6 +26,7 @@ from app.services.session_timing import (  # noqa: E402
     remaining_seconds,
     session_budget_seconds,
 )
+from app.services.scoring import rating_label  # noqa: E402
 from app.services.speech_analysis import (  # noqa: E402
     MAX_PLAUSIBLE_WPM,
     analyse_pace,
@@ -209,8 +210,11 @@ class TestSummary:
         assert result["pace"]["measured_over_answers"] == 1
         assert result["analysed_answers"] == 2
 
-    def test_summary_carries_no_score(self):
-        """Scoring is a separate unbuilt module. Nothing here may look like one."""
+    def test_summary_score_unavailable_when_answers_carry_no_score(self):
+        """
+        An analysis written before Module 6 existed has no "score" key at
+        all — summarise must report that as unscored, not crash or invent one.
+        """
         result = summarise(
             [
                 {
@@ -221,8 +225,33 @@ class TestSummary:
                 }
             ]
         )
-        for key in result:
-            assert "score" not in key and "rating" not in key and "rank" not in key
+        assert result["score"]["available"] is False
+        assert result["score"]["graded_answers"] == 0
+
+    def test_summary_rolls_up_score_when_present(self):
+        """The interview-level score is the average of its answers' scores."""
+        result = summarise(
+            [
+                {
+                    "available": True,
+                    "transcript_word_count": 40,
+                    "fillers": {"total": 0, "by_word": {}},
+                    "pace": {"available": True, "words_per_minute": 130},
+                    "score": {"available": True, "overall": 90},
+                },
+                {
+                    "available": True,
+                    "transcript_word_count": 35,
+                    "fillers": {"total": 0, "by_word": {}},
+                    "pace": {"available": True, "words_per_minute": 125},
+                    "score": {"available": True, "overall": 70},
+                },
+            ]
+        )
+        assert result["score"]["available"] is True
+        assert result["score"]["overall"] == 80.0
+        assert result["score"]["rating"] == rating_label(80.0)
+        assert result["score"]["graded_answers"] == 2
 
 
 class TestQuestionTimer:
@@ -344,3 +373,49 @@ class TestTimeOnQuestion:
 
     def test_never_asked_is_none(self):
         assert question_seconds_spent(_FakeQuestion()) is None
+
+
+class TestTimerRespondsToSetup:
+    """
+    The clock has to reflect the interview the candidate actually chose.
+
+    Before this, difficulty and type had no effect and every short interview
+    came out at the clamp — which reads as a timer that never changes.
+    """
+
+    def test_harder_gets_more_time(self):
+        easy = per_question_seconds(30, 5, difficulty="EASY", interview_type="TECHNICAL")
+        hard = per_question_seconds(30, 5, difficulty="HARD", interview_type="TECHNICAL")
+        assert hard > easy
+
+    def test_type_changes_the_clock(self):
+        hr = per_question_seconds(30, 5, difficulty="MEDIUM", interview_type="HR")
+        aptitude = per_question_seconds(30, 5, difficulty="MEDIUM", interview_type="APTITUDE")
+        assert aptitude > hr, "aptitude needs working-out time; HR is recall"
+
+    def test_same_count_different_setup_differs(self):
+        """The exact defect reported: same question count, identical timer."""
+        a = per_question_seconds(30, 3, difficulty="EASY", interview_type="HR")
+        b = per_question_seconds(30, 3, difficulty="HARD", interview_type="APTITUDE")
+        assert a != b
+
+    def test_short_interviews_are_no_longer_flattened(self):
+        """1, 2 and 3 questions used to all clamp to exactly 10:00."""
+        seconds = {
+            per_question_seconds(30, n, difficulty="MEDIUM", interview_type="TECHNICAL")
+            for n in (2, 3, 4)
+        }
+        assert len(seconds) > 1, "short interviews still collapse to one value"
+
+    def test_unknown_setup_degrades_to_the_plain_split(self):
+        """An unrecognised value must not raise or zero the clock."""
+        plain = per_question_seconds(30, 5)
+        assert per_question_seconds(30, 5, difficulty="WHATEVER", interview_type="NONSENSE") == plain
+
+    def test_still_clamped_at_both_ends(self):
+        assert per_question_seconds(1, 60, difficulty="EASY", interview_type="HR") == MIN_QUESTION_SECONDS
+        assert per_question_seconds(180, 1, difficulty="HARD", interview_type="APTITUDE") == MAX_QUESTION_SECONDS
+
+    def test_case_insensitive(self):
+        assert per_question_seconds(30, 5, difficulty="hard", interview_type="aptitude") == \
+               per_question_seconds(30, 5, difficulty="HARD", interview_type="APTITUDE")

@@ -2,9 +2,11 @@
 Real analytics, computed from real rows.
 
 Nothing here is estimated or seeded. If a figure cannot be derived from the
-database it is not in this file — that is why there are no score, skill-rating,
-confidence or distribution endpoints. Those need the scoring engine (Module 7),
-which does not exist.
+database it is not in this file. Module 6 added a real one: Interview.
+overall_score, stamped by the voice interviewer when a session completes —
+so score and leaderboard figures below are that column, read and ranked, not
+invented here. There is still no eye-contact, emotion or confidence-from-video
+figure; those need modules that do not exist.
 """
 
 from collections import Counter
@@ -32,11 +34,13 @@ from app.schemas.analytics import (
     AdminAnalytics,
     CandidateAnalytics,
     CountPoint,
+    LeaderboardEntry,
     LiveInterview,
     RecruiterAnalytics,
     RecruiterCandidate,
     TimePoint,
 )
+from app.services.scoring import rating_label
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -89,6 +93,9 @@ def admin_analytics(db: Session = Depends(get_db)):
         day = str(today - timedelta(days=offset))
         series.append(TimePoint(date=day, count=by_day.get(day, 0)))
 
+    scored = db.query(Interview).filter(Interview.overall_score.isnot(None))
+    average_score = scored.with_entities(func.avg(Interview.overall_score)).scalar()
+
     return AdminAnalytics(
         users_total=db.query(User).count(),
         users_by_role=users_by_role,
@@ -105,6 +112,8 @@ def admin_analytics(db: Session = Depends(get_db)):
         tickets_open=db.query(Ticket).filter(Ticket.status == TicketStatus.OPEN).count(),
         tickets_total=db.query(Ticket).count(),
         interviews_last_14_days=series,
+        average_score=round(average_score, 1) if average_score is not None else None,
+        scored_interviews=scored.count(),
     )
 
 
@@ -117,7 +126,7 @@ def candidate_analytics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """The signed-in candidate's own real activity. No scores — none exist."""
+    """The signed-in candidate's own real activity."""
     mine = db.query(Interview).filter(Interview.user_id == current_user.id)
 
     question_q = (
@@ -131,6 +140,12 @@ def candidate_analytics(
         .order_by(Interview.started_at.desc())
         .first()
     )
+
+    # Module 6. Latest by completion, not by creation — an interview generated
+    # but never finished has no score to show.
+    scored = mine.filter(Interview.overall_score.isnot(None))
+    latest_scored = scored.order_by(Interview.completed_at.desc()).first()
+    best_score = scored.with_entities(func.max(Interview.overall_score)).scalar()
 
     resume = (
         db.query(Resume)
@@ -153,7 +168,11 @@ def candidate_analytics(
         resume_skills_count=len(resume.skills or []) if resume else 0,
         resume_technologies_count=len(resume.technologies or []) if resume else 0,
         resume_experience_years=resume.total_experience_years if resume else None,
-        scoring_available=False,
+        latest_score=latest_scored.overall_score if latest_scored else None,
+        latest_score_rating=(
+            rating_label(latest_scored.overall_score) if latest_scored else None
+        ),
+        best_score=round(best_score, 1) if best_score is not None else None,
     )
 
 
@@ -163,7 +182,7 @@ def candidate_analytics(
     dependencies=[Depends(require_roles(Role.RECRUITER, Role.ADMIN))],
 )
 def recruiter_analytics(db: Session = Depends(get_db)):
-    """Pool-level counts across all candidates. No scores, no distribution."""
+    """Pool-level counts across all candidates."""
     candidate_ids = [
         row[0] for row in db.query(User.id).filter(User.role == Role.CANDIDATE).all()
     ]
@@ -183,6 +202,9 @@ def recruiter_analytics(db: Session = Depends(get_db)):
 
     tech = _technology_counts(list(newest.values()))
 
+    scored = interviews.filter(Interview.overall_score.isnot(None))
+    average_score = scored.with_entities(func.avg(Interview.overall_score)).scalar()
+
     return RecruiterAnalytics(
         candidates_total=len(candidate_ids),
         candidates_with_resume=len(newest),
@@ -196,7 +218,8 @@ def recruiter_analytics(db: Session = Depends(get_db)):
         top_technologies=[
             CountPoint(label=label, count=count) for label, count in tech.most_common(10)
         ],
-        scoring_available=False,
+        average_score=round(average_score, 1) if average_score is not None else None,
+        scored_interviews=scored.count(),
     )
 
 
@@ -213,8 +236,8 @@ def recruiter_candidates(
     """
     The real candidate list.
 
-    Ordered by activity (most interviews first), not by score — there is no
-    score to rank on.
+    Ordered by activity (most interviews first) — this is a directory, not a
+    ranking. For a ranking, see GET /analytics/leaderboard.
     """
     candidates = (
         db.query(User)
@@ -237,6 +260,12 @@ def recruiter_candidates(
             .first()
         )
 
+        latest_scored = (
+            mine.filter(Interview.overall_score.isnot(None))
+            .order_by(Interview.completed_at.desc())
+            .first()
+        )
+
         out.append(
             RecruiterCandidate(
                 user_id=user.id,
@@ -249,11 +278,71 @@ def recruiter_candidates(
                 has_resume=resume is not None,
                 top_technologies=[str(t) for t in (resume.technologies or [])[:6]] if resume else [],
                 last_active_at=last.created_at if last else None,
+                latest_score=latest_scored.overall_score if latest_scored else None,
+                latest_score_rating=(
+                    rating_label(latest_scored.overall_score) if latest_scored else None
+                ),
             )
         )
 
     out.sort(key=lambda c: c.interviews_total, reverse=True)
     return out
+
+
+@router.get(
+    "/leaderboard",
+    response_model=List[LeaderboardEntry],
+    dependencies=[Depends(require_roles(Role.RECRUITER, Role.ADMIN))],
+)
+def leaderboard(db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=500)):
+    """
+    Module 6: candidates ranked by their most recently completed interview.
+
+    "Most recent", not best-ever or averaged: this is meant to read as current
+    standing, so one strong recent interview outranks a stronger one from
+    months ago, and a bad day only costs a candidate their rank until they
+    complete another interview.
+
+    A candidate appears here only if their most recent completed interview was
+    actually scored. That excludes candidates with no completed interview, and
+    interviews completed before scoring existed — both are "no data", not
+    "scored zero", and a ranked row with no score behind it would say
+    otherwise.
+    """
+    candidates = db.query(User).filter(User.role == Role.CANDIDATE).all()
+
+    entries: List[LeaderboardEntry] = []
+    for user in candidates:
+        latest_completed = (
+            db.query(Interview)
+            .filter(Interview.user_id == user.id, Interview.status == SessionStatus.COMPLETED)
+            .order_by(Interview.completed_at.desc())
+            .first()
+        )
+        if latest_completed is None or latest_completed.overall_score is None:
+            continue
+
+        entries.append(
+            LeaderboardEntry(
+                rank=0,  # assigned below, after sorting
+                user_id=user.id,
+                name=user.name,
+                email=user.email,
+                score=latest_completed.overall_score,
+                rating=rating_label(latest_completed.overall_score),
+                interview_id=latest_completed.id,
+                interview_type=latest_completed.interview_type.value,
+                domain=latest_completed.domain,
+                difficulty=latest_completed.difficulty.value,
+                completed_at=latest_completed.completed_at,
+            )
+        )
+
+    entries.sort(key=lambda e: e.score, reverse=True)
+    for position, entry in enumerate(entries[:limit], start=1):
+        entry.rank = position
+
+    return entries[:limit]
 
 
 @router.get(

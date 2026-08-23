@@ -19,6 +19,7 @@ export const SECTIONS = {
   recruiter: [
     ['overview', 'Overview'],
     ['candidates', 'Candidates'],
+    ['leaderboard', 'Leaderboard'],
     ['analytics', 'Analytics'],
     ['compare', 'Compare'],
     ['templates', 'Templates'],
@@ -28,6 +29,7 @@ export const SECTIONS = {
   admin: [
     ['overview', 'Overview'],
     ['users', 'Users'],
+    ['leaderboard', 'Leaderboard'],
     ['tickets', 'Tickets'],
     ['api', 'API'],
     ['activity', 'Activity'],

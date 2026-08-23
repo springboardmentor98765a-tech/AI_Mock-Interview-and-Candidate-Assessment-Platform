@@ -3,6 +3,7 @@ import AppLayout from '../../components/AppLayout';
 import Section from '../../components/Section';
 import ReportDialog from '../../components/ReportDialog';
 import { Panel, NotAvailable } from '../../components/Panel';
+import Leaderboard from '../../components/Leaderboard';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
@@ -90,6 +91,7 @@ export default function RecruiterHome() {
                     <th>Candidate</th>
                     <th>Interviews</th>
                     <th>Completed</th>
+                    <th className="num">Latest score</th>
                     <th>Résumé</th>
                     <th>Last active</th>
                     <th className="end">Actions</th>
@@ -106,6 +108,15 @@ export default function RecruiterHome() {
                       </td>
                       <td className="num">{c.interviews_total}</td>
                       <td className="num">{c.interviews_completed}</td>
+                      <td className="num">
+                        {c.latest_score != null ? (
+                          <span className="mono">
+                            {c.latest_score.toFixed(1)} &middot; {c.latest_score_rating}
+                          </span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
                       <td>
                         <span className={`badge ${c.has_resume ? 'badge-ok' : 'badge-muted'}`}>
                           {c.has_resume ? 'Parsed' : 'None'}
@@ -179,6 +190,15 @@ export default function RecruiterHome() {
         )}
       </Section>
 
+      {/* ---------- leaderboard ---------- */}
+      <Section
+        id="leaderboard"
+        title="Leaderboard"
+        subtitle="Candidates ranked by their most recently completed interview."
+      >
+        <Leaderboard />
+      </Section>
+
       {/* ---------- analytics ---------- */}
       <Section
         id="analytics"
@@ -214,13 +234,24 @@ export default function RecruiterHome() {
         </Panel>
 
         <div className="grid cols-2">
-          <NotAvailable
-            what="Score distribution"
-            reason="Interviews are recorded but not yet scored, so there is no distribution to plot. This needs the scoring engine (Module 7)."
-          />
+          <div className="card">
+            <h2>Average score</h2>
+            {s?.average_score != null ? (
+              <>
+                <p className="quote mono">{s.average_score.toFixed(1)}</p>
+                <small className="muted">
+                  Across {s.scored_interviews} scored interview{s.scored_interviews === 1 ? '' : 's'}
+                  , rubric-weighted (communication 30%, confidence 25%, technical relevance 30%,
+                  professionalism 15%).
+                </small>
+              </>
+            ) : (
+              <p className="note">No interview has been scored yet.</p>
+            )}
+          </div>
           <NotAvailable
             what="Pool skill averages"
-            reason="Communication, confidence, technical and professionalism ratings do not exist yet — nothing in the platform produces them."
+            reason="Per-axis averages (communication, confidence, technical relevance, professionalism) across the whole pool are not broken out yet — open a candidate's interview to see their per-answer breakdown."
           />
         </div>
       </Section>
@@ -233,7 +264,7 @@ export default function RecruiterHome() {
       >
         <NotAvailable
           what="Score comparison"
-          reason="Comparing candidates requires scores, and no interview has ever been scored. Until the scoring engine exists, use the Candidates table above — interview counts, completion and résumé data are real."
+          reason="Selecting specific candidates for a side-by-side view is not built yet. See the Leaderboard tab for candidates ranked by score, and the Candidates table above for interview counts, completion and résumé data."
         />
       </Section>
 

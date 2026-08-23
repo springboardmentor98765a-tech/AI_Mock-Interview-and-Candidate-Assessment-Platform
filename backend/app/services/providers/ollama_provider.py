@@ -16,15 +16,18 @@ from app.core.config import settings
 from app.services.providers.base import (
     AIUnavailable,
     AIUnreachable,
+    AnswerScore,
     COMMUNICATION_SYSTEM_PROMPT,
     CommunicationAssessment,
     GeneratedQuestion,
     GeneratedQuestionSet,
     QUESTION_SYSTEM_PROMPT,
     RESUME_SYSTEM_PROMPT,
+    SCORE_SYSTEM_PROMPT,
     communication_prompt,
     question_prompt,
     resume_prompt,
+    score_prompt,
     strict_json_schema,
 )
 
@@ -131,6 +134,28 @@ def extract_resume(resume_text: str):
         return ExtractedResume.model_validate_json(content)
     except Exception as exc:  # noqa: BLE001
         raise AIUnavailable(f"The local model returned unusable résumé data: {exc}") from exc
+
+
+def score_answer(
+    *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
+) -> AnswerScore:
+    """Module 6's rubric score, run locally."""
+    content = _chat(
+        SCORE_SYSTEM_PROMPT,
+        score_prompt(
+            question=question,
+            transcript=transcript,
+            interview_type=interview_type,
+            domain=domain,
+            difficulty=difficulty,
+        ),
+        strict_json_schema(AnswerScore),
+    )
+
+    try:
+        return AnswerScore.model_validate_json(content)
+    except Exception as exc:  # noqa: BLE001
+        raise AIUnavailable(f"The local model returned an unusable answer score: {exc}") from exc
 
 
 def analyse_communication(*, question: str, transcript: str) -> CommunicationAssessment:

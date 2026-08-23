@@ -66,9 +66,10 @@ class CommunicationAssessment(BaseModel):
     The AI-judgement half of Module 5.
 
     Everything here is an opinion, not a measurement, and the API labels it as
-    such. There is deliberately no overall score: a single number would be read
-    as an interview result, and interview scoring is a separate unbuilt module
-    with its own rubric.
+    such. There is deliberately no number on this model: the qualitative notes
+    and the scored rubric are produced by separate calls (see
+    `score_answer` / AnswerScore), so a communication outage costs the notes
+    without silently changing anyone's score.
     """
 
     grammar_issues: List[GrammarIssue] = Field(
@@ -81,6 +82,45 @@ class CommunicationAssessment(BaseModel):
     strengths: List[str] = Field(default_factory=list, description="What the candidate did well.")
     improvements: List[str] = Field(
         default_factory=list, description="Specific, actionable changes for next time."
+    )
+
+
+class AnswerScore(BaseModel):
+    """
+    Module 6 — the interview scoring rubric.
+
+    Unlike CommunicationAssessment, this IS a graded judgement: each axis is
+    0-100 against the platform's fixed rubric (communication 30%, confidence
+    25%, technical relevance 30%, professionalism 15%), combined by
+    app.services.scoring into the interview's overall score. It is still an
+    AI opinion of one answer, not a certified evaluation — the API and UI
+    both say so wherever the number is shown.
+    """
+
+    communication: int = Field(
+        ge=0, le=100, description="Grammar, clarity and structure of the answer."
+    )
+    confidence: int = Field(
+        ge=0,
+        le=100,
+        description=(
+            "How assured and decisive the delivery sounds — directness, hedging "
+            "language, filler use. Judged from the transcript, not the audio."
+        ),
+    )
+    technical_relevance: int = Field(
+        ge=0,
+        le=100,
+        description=(
+            "How directly and how thoroughly the content answers the specific "
+            "question asked, for the stated role and difficulty."
+        ),
+    )
+    professionalism: int = Field(
+        ge=0, le=100, description="Tone and interview-appropriate language."
+    )
+    rationale: str = Field(
+        description="One or two sentences justifying the four scores together."
     )
 
 
@@ -194,6 +234,20 @@ COMMUNICATION_SYSTEM_PROMPT = (
     "correct or a good interview answer — only how it was communicated."
 )
 
+SCORE_SYSTEM_PROMPT = (
+    "You are an interview assessor grading one spoken interview answer against "
+    "a fixed rubric. Score each of four dimensions from 0 to 100: "
+    "communication is grammar, clarity and structure; confidence is how "
+    "assured and decisive the delivery sounds — penalise hedging and filler "
+    "language, reward directness; technical_relevance is how directly and how "
+    "thoroughly the content answers the specific question asked for the "
+    "stated role and difficulty; professionalism is tone and "
+    "interview-appropriate language. Grade only this answer as given — do not "
+    "reward length for its own sake, and do not invent facts about the "
+    "candidate. An empty, silent or off-topic answer should score low on "
+    "technical_relevance and confidence rather than being refused."
+)
+
 PRONUNCIATION_SYSTEM_PROMPT = (
     "You are listening to a recording of one spoken interview answer. Report "
     "only how intelligible the speech was: articulation, pace of delivery, "
@@ -213,6 +267,22 @@ def communication_prompt(*, question: str, transcript: str) -> str:
         "grammar issues only where the phrasing is genuinely wrong, quoting the "
         "candidate's own words. Strengths and improvements should be specific "
         "to this answer — generic advice that would fit any answer is useless."
+    )
+
+
+def score_prompt(
+    *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
+) -> str:
+    return (
+        "Grade this interview answer.\n\n"
+        f"INTERVIEW TYPE: {interview_type}\n"
+        f"ROLE / DOMAIN: {domain}\n"
+        f"DIFFICULTY: {difficulty}\n\n"
+        f"QUESTION ASKED:\n{question}\n\n"
+        f"TRANSCRIPT OF THE SPOKEN ANSWER:\n{transcript}\n\n"
+        "Score communication, confidence, technical_relevance and "
+        "professionalism from 0-100 each, and give one short rationale "
+        "covering all four together."
     )
 
 

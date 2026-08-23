@@ -28,12 +28,57 @@ MIN_QUESTION_SECONDS = 30
 
 # The other end: one question should not be allowed to eat a whole afternoon
 # just because an administrator typed 180 minutes and asked for two questions.
-MAX_QUESTION_SECONDS = 10 * 60
+#
+# Raised from 10 minutes because that ceiling silently flattened the clock for
+# short interviews: at a 30-minute budget, 1, 2 and 3 questions all came out at
+# exactly 10:00, which reads as "the timer never changes" rather than as a cap.
+MAX_QUESTION_SECONDS = 15 * 60
+
+# How the interview's own setup stretches or compresses the clock.
+#
+# The administrator's session_minutes is the budget for a MEDIUM interview. A
+# HARD question genuinely takes longer to think through than an EASY one, so
+# difficulty scales the whole session rather than redistributing a fixed pot —
+# a hard interview is allowed to run longer than an easy one.
+DIFFICULTY_FACTORS = {
+    "EASY": 0.75,
+    "MEDIUM": 1.0,
+    "HARD": 1.35,
+}
+
+# Type matters too, and not in the same direction as difficulty.
+#
+# APTITUDE questions are worked out on paper before they can be answered, so
+# they need the most time per question. HR questions are recall — motivation,
+# notice period — and need the least. TECHNICAL and BEHAVIORAL sit in between,
+# with BEHAVIORAL slightly longer because a STAR answer has four parts to get
+# through.
+TYPE_FACTORS = {
+    "APTITUDE": 1.4,
+    "TECHNICAL": 1.1,
+    "BEHAVIORAL": 1.15,
+    "HR": 0.85,
+}
 
 
-def per_question_seconds(session_minutes: int, question_count: int) -> int:
+def per_question_seconds(
+    session_minutes: int,
+    question_count: int,
+    *,
+    difficulty: Optional[str] = None,
+    interview_type: Optional[str] = None,
+) -> int:
     """
-    Split a whole-session budget evenly across the questions, clamped.
+    Seconds per question for one interview, from the admin budget and the
+    interview's own setup.
+
+    The split is the base; `difficulty` and `interview_type` then scale it, so
+    two interviews with the same question count but different setups get
+    different clocks. Without this the timer was the same 10:00 whatever the
+    candidate chose, which is what makes a countdown look decorative.
+
+    Both factors default to 1.0 when the setup is unknown or unrecognised, so
+    an unfamiliar value degrades to the plain even split rather than raising.
 
     Returns a value in [MIN_QUESTION_SECONDS, MAX_QUESTION_SECONDS]. A
     question_count of zero would be a division by zero rather than a
@@ -44,8 +89,12 @@ def per_question_seconds(session_minutes: int, question_count: int) -> int:
         return MIN_QUESTION_SECONDS
 
     budget = max(int(session_minutes), 0) * 60
-    share = round(budget / question_count)
-    return max(MIN_QUESTION_SECONDS, min(MAX_QUESTION_SECONDS, share))
+    share = budget / question_count
+
+    share *= DIFFICULTY_FACTORS.get((difficulty or "").upper(), 1.0)
+    share *= TYPE_FACTORS.get((interview_type or "").upper(), 1.0)
+
+    return max(MIN_QUESTION_SECONDS, min(MAX_QUESTION_SECONDS, round(share)))
 
 
 def _now() -> datetime:

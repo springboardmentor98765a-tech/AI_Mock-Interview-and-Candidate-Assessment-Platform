@@ -1,26 +1,31 @@
 """
-Module 5 — communication analysis.
+Module 5 — communication analysis. Module 6 — scoring — hangs off the same
+per-answer pipeline and is folded in here rather than kept in a separate
+pass, because it needs the same transcript and the same duration check.
 
-Two halves, kept visibly apart because they are not equally trustworthy:
+Three tiers, kept visibly apart because they are not equally trustworthy:
 
   measured   filler counts and speaking pace. Arithmetic over the transcript
              and the recorded duration. Reproducible, explainable, and the
              same answer every time.
 
-  assessed   grammar, communication quality, pronunciation. A model's opinion.
-             Useful, but an opinion — the API labels it so, and the UI must
-             not present it as if it were measured.
+  assessed   grammar, communication quality, pronunciation. A model's opinion,
+             with no number attached — the API labels it as an opinion, and
+             the UI must not present it as if it were measured.
 
-Nothing here produces an overall score. Scoring a candidate is a separate
-unbuilt module with its own rubric, and a number invented here would be read
-as an interview result.
+  scored     the Module 6 rubric (communication, confidence, technical
+             relevance, professionalism). Also a model's opinion, but unlike
+             `assessed` it IS reduced to a number, because scoring a
+             candidate was explicitly asked for. It is graded against a fixed,
+             disclosed rubric — not a certified evaluation — and every place
+             the score is shown says so.
 """
 
 import logging
 import re
 from typing import Dict, List, Optional
 
-from app.services import ai_provider
+from app.services import ai_provider, scoring
 from app.services.ai_provider import AIUnavailable
 
 logger = logging.getLogger(__name__)
@@ -297,12 +302,43 @@ def summarise(analyses: List[Dict]) -> Dict:
         },
         "grammar_issue_total": grammar_total,
         "grammar_reviewed_answers": graded,
-        # Stated explicitly so nobody reads the numbers above as a result.
+        "score": _summarise_score(usable),
+        # Stated explicitly so nobody reads the measured/assessed numbers
+        # above as the score.
         "note": (
-            "Counts and pace are measured. Grammar and communication notes are "
-            "an AI assessment. Neither is an interview score — this platform "
-            "does not score candidates."
+            "Filler counts and pace are measured. Grammar and communication "
+            "notes are an AI assessment with no number attached. `score` is "
+            "also an AI assessment, graded against a fixed rubric — not a "
+            "certified evaluation."
         ),
+    }
+
+
+def _summarise_score(usable: List[Dict]) -> Dict:
+    """
+    The interview's overall score, folded into the summary block.
+
+    Delegates to scoring.aggregate_score so this figure and the one stored on
+    Interview.overall_score at completion are always the same number, computed
+    the same way — see that module for why skipped questions are excluded
+    rather than counted as zero.
+    """
+    overall = scoring.aggregate_score(usable)
+    graded = sum(1 for a in usable if (a.get("score") or {}).get("available"))
+
+    if overall is None:
+        return {
+            "available": False,
+            "reason": "No answer in this interview has been scored yet.",
+            "graded_answers": graded,
+        }
+
+    return {
+        "available": True,
+        "overall": overall,
+        "rating": scoring.rating_label(overall),
+        "graded_answers": graded,
+        "weights": scoring.WEIGHTS,
     }
 
 
@@ -313,14 +349,22 @@ def analyse_answer(
     duration_seconds: Optional[float] = None,
     audio: Optional[bytes] = None,
     audio_mime: str = "audio/webm",
+    interview_type: Optional[str] = None,
+    domain: Optional[str] = None,
+    difficulty: Optional[str] = None,
 ) -> Dict:
     """
-    Everything Module 5 knows about one spoken answer.
+    Everything Modules 5 and 6 know about one spoken answer.
 
     Each AI section fails independently: a provider that is down or out of
     quota costs you that section and nothing else. The measured half never
     depends on a provider at all, so filler counts and pace survive an outage
-    that takes the grammar review with it.
+    that takes the grammar review — or the score — down with it.
+
+    interview_type/domain/difficulty are needed only for scoring (technical
+    relevance is meaningless without knowing what was asked and of whom), so
+    they are optional: a caller that cannot supply them gets every other
+    section and a score marked unavailable, rather than an error.
     """
     transcript = (transcript or "").strip()
     if not transcript:
@@ -371,6 +415,36 @@ def analyse_answer(
         analysis["pronunciation"] = {
             "available": False,
             "reason": "No recording was kept for this answer.",
+        }
+
+    # --- scored: Module 6's rubric (text, any provider) ---
+    if interview_type and domain and difficulty:
+        try:
+            graded = ai_provider.score_answer(
+                question=question_text,
+                transcript=transcript,
+                interview_type=interview_type,
+                domain=domain,
+                difficulty=difficulty,
+            )
+            axes = graded.model_dump(exclude={"rationale"})
+            overall = scoring.weighted_overall(axes)
+            analysis["score"] = {
+                "available": True,
+                "source": "ai_assessment",
+                **axes,
+                "overall": overall,
+                "rating": scoring.rating_label(overall),
+                "rationale": graded.rationale,
+                "weights": scoring.WEIGHTS,
+            }
+        except AIUnavailable as exc:
+            logger.warning("Answer scoring unavailable: %s", exc)
+            analysis["score"] = {"available": False, "reason": str(exc)}
+    else:
+        analysis["score"] = {
+            "available": False,
+            "reason": "Interview context was not supplied, so this answer was not scored.",
         }
 
     return analysis

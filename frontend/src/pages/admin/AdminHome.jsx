@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AppLayout from '../../components/AppLayout';
 import Section from '../../components/Section';
 import { Panel } from '../../components/Panel';
+import Leaderboard from '../../components/Leaderboard';
 import { api } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
 
@@ -86,7 +87,7 @@ export default function AdminHome() {
                 </div>
               </div>
 
-              <div className="grid cols-4">
+              <div className="grid cols-5">
                 <div className="stat">
                   <b>{s.users_by_role.CANDIDATE ?? 0}</b>
                   <span>Candidates</span>
@@ -104,6 +105,10 @@ export default function AdminHome() {
                 <div className="stat">
                   <b>{s.tickets_open}</b>
                   <span>Open tickets</span>
+                </div>
+                <div className="stat">
+                  <b>{s.average_score != null ? s.average_score.toFixed(1) : '—'}</b>
+                  <span>Avg. score ({s.scored_interviews} scored)</span>
                 </div>
               </div>
 
@@ -240,6 +245,15 @@ export default function AdminHome() {
             </div>
           </Panel>
         </div>
+      </Section>
+
+      {/* ---------- leaderboard ---------- */}
+      <Section
+        id="leaderboard"
+        title="Leaderboard"
+        subtitle="Candidates ranked by their most recently completed interview."
+      >
+        <Leaderboard />
       </Section>
 
       {/* ---------- tickets ---------- */}

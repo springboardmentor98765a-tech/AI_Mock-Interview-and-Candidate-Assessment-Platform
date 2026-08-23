@@ -87,9 +87,16 @@ class TestCandidateAnalytics:
         expected = db.query(Interview).filter(Interview.user_id == me["id"]).count()
         assert body["interviews_total"] == expected
 
-    def test_scoring_flagged_unavailable(self, client, candidate_token):
+    def test_scoring_fields_are_consistent(self, client, candidate_token):
+        """
+        Module 6 exists now, so the flag says so — and a score/rating are a
+        pair: one is present exactly when the other is, never a number with
+        no label or a label with no number.
+        """
         body = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
-        assert body["scoring_available"] is False, "must not claim scoring exists"
+        assert body["scoring_available"] is True
+        assert "latest_score" in body and "latest_score_rating" in body and "best_score" in body
+        assert (body["latest_score"] is None) == (body["latest_score_rating"] is None)
 
     def test_reflects_a_new_interview(self, client, candidate_token):
         before = client.get("/analytics/candidate", headers=auth(candidate_token)).json()
@@ -117,15 +124,27 @@ class TestRecruiterAnalytics:
             User.role == Role.CANDIDATE
         ).count()
 
-    def test_scoring_flagged_unavailable(self, client, recruiter_token):
+    def test_scoring_fields_are_consistent(self, client, recruiter_token):
         body = client.get("/analytics/recruiter", headers=auth(recruiter_token)).json()
-        assert body["scoring_available"] is False
+        assert body["scoring_available"] is True
+        assert isinstance(body["scored_interviews"], int) and body["scored_interviews"] >= 0
+        # None with nothing scored yet, never a fabricated 0.
+        assert body["average_score"] is None or isinstance(body["average_score"], float)
 
-    def test_candidate_list_has_no_score_or_rank(self, client, recruiter_token):
+    def test_candidate_list_carries_a_real_score_not_a_rank(self, client, recruiter_token):
+        """
+        Module 6 exists, so each row carries the candidate's latest score —
+        but this is a directory (see its own docstring), so it is still not
+        ranked. Ranking lives at GET /analytics/leaderboard.
+        """
         rows = client.get("/analytics/recruiter/candidates", headers=auth(recruiter_token)).json()
         assert isinstance(rows, list)
         for row in rows:
-            assert "score" not in row, "fabricated score in the candidate list"
+            assert "latest_score" in row and "latest_score_rating" in row
+            assert "rank" not in row
+            if row["latest_score"] is not None:
+                assert 0 <= row["latest_score"] <= 100
+                assert row["latest_score_rating"]
             assert "rank" not in row, "fabricated rank in the candidate list"
             assert row["interviews_total"] >= 0
 

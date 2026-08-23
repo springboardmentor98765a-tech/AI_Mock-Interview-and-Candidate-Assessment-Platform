@@ -8,10 +8,11 @@ Questions are delivered as text — there is no text-to-speech. The candidate's
 answer is kept as the recording the browser captured, which stays the primary
 artefact: exactly what they said, in their own voice.
 
-Module 5 then transcribes that recording and analyses it. The transcript is
-stored *alongside* the audio, never instead of it, so the machine's guess at
-what was said can always be checked against the recording — and an outage in
-the speech service costs the transcript, never the answer.
+Module 5 then transcribes that recording and analyses it, and Module 6 scores
+it against a fixed rubric off the same transcript. The transcript is stored
+*alongside* the audio, never instead of it, so the machine's guess at what was
+said can always be checked against the recording — and an outage in the
+speech service costs the transcript and the score, never the answer.
 
 Protocol (JSON text frames over a WebSocket):
 
@@ -31,7 +32,10 @@ Protocol (JSON text frames over a WebSocket):
                "analysis_pending":true,"answered":1,"skipped":0,"total":5}
     server -> {"type":"analysis","sequence_no":1,"transcript":"...",
                "fillers":{...},"pace":{...},"communication":{...},
-               "pronunciation":{...}}
+               "pronunciation":{...},
+               "score":{"available":true,"communication":78,"confidence":65,
+                        "technical_relevance":80,"professionalism":90,
+                        "overall":76.5,"rating":"Good","rationale":"..."}}
 
 `duration_seconds` is the browser's measured recording length. It is what pace
 is computed from — see the column comment on answer_duration_seconds for why
@@ -53,9 +57,16 @@ a complete interview.
 
     client -> {"type":"next"} ...    # until every question is done
     server -> {"type":"complete","interview_id":1,"answered":4,"skipped":1,
-               "total":5}
+               "total":5,"score":{"available":true,"overall":76.5,
+                                  "rating":"Good"}}
 
     errors -> {"type":"error","detail":"..."}
+
+`score` on `complete`/`closed` is the interview's overall — the average of its
+answered questions' scores (app.services.scoring), stamped onto
+Interview.overall_score at the same moment. {"available":false} when nothing
+was ever scored: analysis disabled, every provider call failed, or every
+question was skipped.
 
 A skip advances the interview on its own — the client does not send `next`
 afterwards. Skipped questions are *not attempted*: they never count towards
@@ -99,7 +110,7 @@ from app.models.interview import (
 )
 from app.models.setting import get_settings
 from app.models.user import User
-from app.services import ai_provider, speech_analysis
+from app.services import ai_provider, scoring, speech_analysis
 from app.services.session_timing import finalise_duration, per_question_seconds
 from app.services.ai_provider import AIUnavailable
 
@@ -166,6 +177,7 @@ def _duration(raw) -> Optional[float]:
 async def _analyse_answer(
     websocket: WebSocket,
     db: Session,
+    interview: Interview,
     question: InterviewQuestion,
     audio: bytes,
     mime: str,
@@ -245,6 +257,9 @@ async def _analyse_answer(
             duration_seconds=question.answer_duration_seconds,
             audio=audio,
             audio_mime=mime,
+            interview_type=interview.interview_type.value,
+            domain=interview.domain,
+            difficulty=interview.difficulty.value,
         )
     except Exception:  # noqa: BLE001
         logger.exception("Answer analysis failed for question %s", question.id)
@@ -317,6 +332,33 @@ def _progress(db: Session, interview_id: int) -> dict:
         "answered": asked.filter(QUESTION_ANSWERED).count(),
         "skipped": asked.filter(QUESTION_SKIPPED).count(),
     }
+
+
+def _score_interview(db: Session, interview: Interview) -> dict:
+    """
+    Module 6: stamp the interview's overall score as it completes.
+
+    Called from both places an interview reaches COMPLETED — running out of
+    questions and an explicit `end` — so neither path can leave a finished
+    interview unscored. Queried directly rather than via interview.questions,
+    which may be stale in this session by the time the last answer's score
+    was committed a moment ago.
+
+    Returns the same shape scoring.aggregate_score's caller in the analytics
+    endpoint uses, so the client can show the result immediately without a
+    second round trip.
+    """
+    analyses = [
+        row[0]
+        for row in db.query(InterviewQuestion.analysis)
+        .filter(InterviewQuestion.interview_id == interview.id)
+        .all()
+    ]
+    overall = scoring.aggregate_score(analyses)
+    interview.overall_score = overall
+    if overall is None:
+        return {"available": False}
+    return {"available": True, "overall": overall, "rating": scoring.rating_label(overall)}
 
 
 _DEMO_PAGE = """<!doctype html>
@@ -477,7 +519,10 @@ async def voice_interview(
     # never overwrite a value an earlier start already fixed.
     if interview.question_seconds is None:
         interview.question_seconds = per_question_seconds(
-            get_settings(db).session_minutes, progress["total"]
+            get_settings(db).session_minutes,
+            progress["total"],
+            difficulty=interview.difficulty.value,
+            interview_type=interview.interview_type.value,
         )
         db.commit()
 
@@ -516,11 +561,13 @@ async def voice_interview(
             interview.status = SessionStatus.COMPLETED
             interview.completed_at = datetime.now(timezone.utc)
             interview.duration_seconds = finalise_duration(interview)
+            score = _score_interview(db, interview)
             db.commit()
             await websocket.send_json(
                 {
                     "type": "complete",
                     "interview_id": interview.id,
+                    "score": score,
                     **_progress(db, interview.id),
                 }
             )
@@ -633,7 +680,7 @@ async def voice_interview(
                 )
 
                 if settings.ANALYSE_ANSWERS:
-                    await _analyse_answer(websocket, db, current, audio_bytes, mime)
+                    await _analyse_answer(websocket, db, interview, current, audio_bytes, mime)
 
                 current = None
 
@@ -733,11 +780,20 @@ async def voice_interview(
                         (interview.total_paused_seconds or 0) + max(paused_for, 0)
                     )
 
+                score = {"available": interview.overall_score is not None}
+                if score["available"]:
+                    score = {
+                        "available": True,
+                        "overall": interview.overall_score,
+                        "rating": scoring.rating_label(interview.overall_score),
+                    }
+
                 if interview.status != SessionStatus.COMPLETED:
                     interview.status = SessionStatus.COMPLETED
                     interview.completed_at = datetime.now(timezone.utc)
                     interview.paused_at = None
                     interview.duration_seconds = finalise_duration(interview)
+                    score = _score_interview(db, interview)
                     db.commit()
 
                 await websocket.send_json(
@@ -745,6 +801,7 @@ async def voice_interview(
                         "type": "closed",
                         "interview_id": interview.id,
                         "status": interview.status.value,
+                        "score": score,
                         **_progress(db, interview.id),
                     }
                 )

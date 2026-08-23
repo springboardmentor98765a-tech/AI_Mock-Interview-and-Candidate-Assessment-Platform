@@ -14,6 +14,7 @@ from app.services.providers.base import (
     AINotConfigured,
     AIQuotaExceeded,
     AIUnavailable,
+    AnswerScore,
     COMMUNICATION_SYSTEM_PROMPT,
     CommunicationAssessment,
     GeneratedQuestion,
@@ -22,9 +23,11 @@ from app.services.providers.base import (
     PronunciationNotes,
     QUESTION_SYSTEM_PROMPT,
     RESUME_SYSTEM_PROMPT,
+    SCORE_SYSTEM_PROMPT,
     communication_prompt,
     question_prompt,
     resume_prompt,
+    score_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -184,6 +187,46 @@ def analyse_communication(*, question: str, transcript: str) -> CommunicationAss
 
     if parsed is None:
         raise AIUnavailable("The model returned no communication assessment.")
+
+    return parsed
+
+
+def score_answer(
+    *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
+) -> AnswerScore:
+    """Module 6: grade one transcript against the fixed rubric. Text only."""
+    try:
+        from google.genai import types
+
+        client = _client()
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=score_prompt(
+                question=question,
+                transcript=transcript,
+                interview_type=interview_type,
+                domain=domain,
+                difficulty=difficulty,
+            ),
+            config=types.GenerateContentConfig(
+                system_instruction=SCORE_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=AnswerScore,
+            ),
+        )
+        parsed = getattr(response, "parsed", None)
+
+        if parsed is None and getattr(response, "text", None):
+            parsed = AnswerScore.model_validate_json(response.text)
+
+    except AIUnavailable:
+        raise
+    except Exception as exc:
+        logger.warning("Answer scoring failed: %s", exc)
+        raise _classify(exc) from exc
+
+    if parsed is None:
+        raise AIUnavailable("The model returned no answer score.")
 
     return parsed
 

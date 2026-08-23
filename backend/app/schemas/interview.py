@@ -124,6 +124,11 @@ class InterviewOut(BaseModel):
     total_paused_seconds: int = 0
     # Stamped when the interview ends; null while it is still running.
     duration_seconds: Optional[int] = None
+    # Module 6: the rubric score, 0-100 — average of the answered questions'
+    # scores. Null while running, and null forever if no answer was ever
+    # scored (analysis disabled, provider down, or every question skipped) —
+    # a different fact from "scored zero", so it is never displayed as one.
+    overall_score: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -131,6 +136,15 @@ class InterviewOut(BaseModel):
     @property
     def is_paused(self) -> bool:
         return self.status == SessionStatus.PAUSED
+
+    @computed_field
+    @property
+    def score_rating(self) -> Optional[str]:
+        if self.overall_score is None:
+            return None
+        from app.services.scoring import rating_label
+
+        return rating_label(self.overall_score)
 
 
 class InterviewDetail(InterviewOut):

@@ -151,6 +151,17 @@ class Interview(Base):
     # those simply have no countdown.
     question_seconds = Column(Integer, nullable=True)
 
+    # Module 6: the rubric score for this interview, 0-100 — the average of
+    # its answered questions' scores (app.services.scoring.aggregate_score).
+    # Stamped once when the interview reaches COMPLETED, the same "stored
+    # fact about a finished interview" reasoning as duration_seconds above: it
+    # must not silently reinterpret itself if the rubric weights are ever
+    # retuned. Null while running, and null forever on an interview where no
+    # answer was ever scored (no key, provider down, or every question
+    # skipped) — that is a different fact from "scored zero" and must not be
+    # displayed as one.
+    overall_score = Column(Float, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
