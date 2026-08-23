@@ -118,6 +118,15 @@ const state = {
   vision: null,
   attention: null,
   attentionTerminated: false,
+  resumeAnalyzer: {
+    stage: 'landing',
+    fileName: '',
+    level: '',
+    role: '',
+    roleCustom: '',
+    result: null,
+    error: '',
+  },
 };
 
 

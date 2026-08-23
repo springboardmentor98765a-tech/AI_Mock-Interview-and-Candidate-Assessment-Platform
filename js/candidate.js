@@ -3706,28 +3706,845 @@ function candidateAnalytics() {
   </div>${modalHtml}`;
 }
 
+/* ══════════════════════════════════════════════════
+   RESUME ANALYZER (AI-powered deep resume review)
+   Stages: landing → setup → processing → result
+   ══════════════════════════════════════════════════ */
+
+function raEsc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function raScoreColor(score) {
+  if (score >= 90) return '#10b981';
+  if (score >= 75) return '#34d399';
+  if (score >= 60) return '#f59e0b';
+  if (score >= 40) return '#fb923c';
+  return '#f43f5e';
+}
+
+function raScoreLabel(score) {
+  if (score >= 90) return 'Excellent';
+  if (score >= 75) return 'Strong';
+  if (score >= 60) return 'Decent Start';
+  if (score >= 40) return 'Needs Work';
+  return 'Needs Improvement';
+}
+
+var RA_LEVELS = [
+  { key: 'student', icon: 'bookOpen', title: 'Student / Fresher', desc: 'Currently studying or under 1 year of experience.' },
+  { key: 'entry', icon: 'briefcase', title: 'Entry-level', desc: 'Less than 2 years of work experience.' },
+  { key: 'mid', icon: 'users', title: 'Mid-level', desc: 'Between 2 and 10 years of experience.' },
+  { key: 'senior', icon: 'award', title: 'Senior-level', desc: 'More than 10 years of experience.' },
+  { key: 'switcher', icon: 'refreshCw', title: 'Career Switcher', desc: 'Moving into a new domain or industry.' },
+];
+
+var RA_ROLES = [
+  '', 'Software Engineer', 'Data Scientist', 'Data Analyst', 'Machine Learning Engineer',
+  'Web Developer', 'Product Manager', 'Business Analyst', 'DevOps Engineer', 'UI/UX Designer',
+  'QA Engineer', 'Cloud Engineer', 'Cybersecurity Analyst', 'Mobile App Developer',
+  'Digital Marketer', 'Operations Manager', 'HR Specialist', '__other__',
+];
+
+function raStepsHeader(activeIdx) {
+  var steps = ['Upload Resume', 'Personalize', 'Your Report'];
+  return `<div class="ra-steps">
+    ${steps.map(function (s, i) {
+      var cls = i === activeIdx ? 'active' : (i < activeIdx ? 'done' : '');
+      return `<div class="ra-step ${cls}">
+        <span class="ra-step-dot">${i < activeIdx ? icon('check', 11) : i + 1}</span>
+        <span class="ra-step-label">${s}</span>
+      </div>${i < steps.length - 1 ? '<span class="ra-step-line"></span>' : ''}`;
+    }).join('')}
+  </div>`;
+}
+
 function candidateResume() {
-  return `<div class="space-y-6">
-    <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Resume &amp; Skills</h1>
-    <div class="grid grid-cols-2 gap-4">
-      <div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
-        <p class="text-white font-semibold text-sm mb-4" style="font-family:'Outfit',sans-serif">Upload Resume</p>
-        <div class="upload-zone border-2 border-dashed rounded-xl p-8 text-center cursor-pointer group">
-          <div class="upload-icon-wrap">${icon('upload', 20)}</div>
-          <p class="text-white/60 text-sm font-medium mb-1">Drag &amp; drop your resume</p>
-          <p class="text-white/30 text-xs">PDF, DOCX — up to 5 MB</p>
-          <button class="mt-4 px-4 py-2 rounded-lg text-xs font-medium text-white/70 border border-white/10 hover:border-white/20 transition-colors">Browse Files</button>
-        </div>
+  var ra = state.resumeAnalyzer;
+  var stage = ra.stage || 'landing';
+  var body = '';
+  if (stage === 'landing') body = _raLanding();
+  else if (stage === 'setup') body = _raSetup();
+  else if (stage === 'processing') body = _raProcessing();
+  else if (stage === 'result') body = _raResult();
+
+  return `<div class="space-y-6 w-full max-w-none flex flex-col flex-1" style="min-height:calc(100vh - 120px)">
+    <div class="flex items-start justify-between gap-4 flex-wrap shrink-0">
+      <div>
+        <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Resume Analyzer</h1>
+        <p class="text-white/45 text-sm mt-1">AI-powered review that scores your resume like a real recruiter would.</p>
       </div>
-      <div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
-        <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">AI-Extracted Skills</p>
-        <p class="text-white/35 text-xs mb-4">Upload a resume to automatically detect skills</p>
-        <div class="flex flex-col items-center justify-center py-8 text-center">
-          <p class="text-white/30 text-sm">No resume uploaded yet.</p>
+      <span class="ra-hero-badge">${icon('shieldCheck', 13)} 100% private — processed securely</span>
+    </div>
+    ${stage !== 'landing' && stage !== 'processing' ? raStepsHeader(stage === 'setup' ? 1 : 2) : ''}
+    ${body}
+  </div>`;
+}
+
+function _raLanding() {
+  return `
+  <div class="flex flex-col flex-1 justify-center gap-6" style="min-height:calc(100vh - 220px)">
+    ${raStepsHeader(0)}
+    <div class="ra-hero rounded-2xl border p-10 md:p-12 text-center relative overflow-hidden flex flex-col items-center justify-center flex-1" style="min-height:420px">
+      <div class="ra-hero-glow"></div>
+      <h2 class="text-3xl md:text-4xl font-bold text-white mb-3 relative" style="font-family:'Outfit',sans-serif">
+        Get expert feedback on your resume, <span style="background:linear-gradient(90deg,#818cf8,#22d3ee);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">instantly</span>
+      </h2>
+      <p class="text-white/50 text-sm max-w-2xl mx-auto relative">Our AI reviews your resume against the same criteria recruiters and hiring managers use — then shows you exactly how to raise your score.</p>
+
+      <div id="ra-dropzone" class="ra-dropzone mt-8 mx-auto w-full max-w-2xl cursor-pointer group relative flex flex-col items-center justify-center" style="min-height:200px">
+        <input type="file" id="ra-file-input" accept=".pdf,.docx" style="display:none" />
+        <div class="ra-dropzone-icon group-hover:scale-105 transition-transform">${icon('fileText', 26)}</div>
+        <p class="text-white text-base font-semibold mt-3">Drop your resume here, or <span class="ra-link">choose a file</span></p>
+        <p class="text-white/40 text-xs mt-1.5">English resumes in PDF or DOCX only. Max 5MB file size.</p>
+      </div>
+      ${state.resumeAnalyzer.error ? `<p class="ra-error mt-4 max-w-2xl mx-auto w-full"><span style="margin-right:6px">⚠</span>${raEsc(state.resumeAnalyzer.error)}</p>` : ''}
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      ${[
+        { icon: 'clipboard', t: '20+ Recruiter Checks', d: 'See if your resume passes the checks real recruiters run.' },
+        { icon: 'target', t: 'Resume Score /100', d: 'An honest score with a clear list of improvements.' },
+        { icon: 'zap', t: 'ATS Analysis', d: 'Make sure screening software can read and rank you.' },
+        { icon: 'lightbulb', t: 'Detailed Feedback', d: 'Section-by-section fixes with concrete rewrite examples.' },
+      ].map(function (c) {
+        return `<div class="ra-feature-card rounded-xl border p-5 flex flex-col">
+          <div class="ra-feature-icon">${icon(c.icon, 16)}</div>
+          <p class="text-white text-sm font-semibold mb-1">${c.t}</p>
+          <p class="text-white/40 text-xs leading-relaxed">${c.d}</p>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <p class="text-center text-white/30 text-xs">Trusted by candidates preparing for technical, HR &amp; behavioral interviews on SmartHire AI.</p>
+  </div>`;
+}
+
+function _raSetup() {
+  var ra = state.resumeAnalyzer;
+  var isOther = ra.role === '__other__';
+  return `
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch flex-1" style="min-height:calc(100vh - 240px)">
+    <div class="space-y-6 flex flex-col">
+      <div class="rounded-xl border p-6 flex-1 flex flex-col" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+        <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-3">Selected file</p>
+        <div class="ra-file-chip">
+          <div class="ra-file-icon">${icon('fileText', 18)}</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-sm font-medium truncate">${raEsc(ra.fileName || 'resume.pdf')}</p>
+            <p class="text-emerald-400 text-xs" style="color:#34d399">✓ Ready to analyze</p>
+          </div>
+          <button id="ra-change-file" class="ra-mini-btn">${icon('refreshCw', 12)} Replace</button>
+        </div>
+        <input type="file" id="ra-file-input" accept=".pdf,.docx" style="display:none" />
+      </div>
+      <div class="rounded-xl border p-6 flex-1 flex flex-col" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+        <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-3">Target role <span style="opacity:.5;text-transform:none;font-weight:400">(optional)</span></p>
+        <select id="ra-role-select" class="ra-select w-full">
+          ${RA_ROLES.map(function (r) {
+            var val = r;
+            var label = r === '' ? 'General — no specific role' : r === '__other__' ? 'Other (specify below)' : r;
+            return `<option value="${val}" ${ra.role === val ? 'selected' : ''}>${label}</option>`;
+          }).join('')}
+        </select>
+        ${isOther ? `<input type="text" id="ra-role-custom" value="${raEsc(ra.roleCustom)}" placeholder="e.g. Blockchain Developer" class="ra-input w-full mt-3" />` : ''}
+        <p class="text-white/35 text-xs mt-3">We tailor keyword &amp; ATS checks to the job you're aiming for.</p>
+        <div class="flex-1"></div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border p-6 flex flex-col" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+      <p class="text-lg text-white font-semibold" style="font-family:'Outfit',sans-serif">What best describes you?</p>
+      <p class="text-white/45 text-xs mt-1 mb-5">Our AI uses this to personalize your review.</p>
+      <div class="space-y-3 flex-1">
+        ${RA_LEVELS.map(function (l) {
+          var sel = ra.level === l.key;
+          return `<button data-level="${l.key}" class="ra-level-card w-full text-left ${sel ? 'selected' : ''}">
+            <span class="ra-level-icon">${icon(l.icon, 15)}</span>
+            <span class="flex-1 min-w-0">
+              <span class="block text-white text-sm font-semibold">${l.title}</span>
+              <span class="block text-white/40 text-xs mt-0.5">${l.desc}</span>
+            </span>
+            <span class="ra-level-check ${sel ? 'show' : ''}">${icon('check', 12)}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      ${state.resumeAnalyzer.error ? `<p class="ra-error mt-4">${raEsc(state.resumeAnalyzer.error)}</p>` : ''}
+      <button id="ra-analyze-btn" class="ra-primary-btn w-full mt-6 ${ra.level ? '' : 'disabled'}">
+        Analyze My Resume ${icon('arrowUpRight', 14)}
+      </button>
+    </div>
+  </div>`;
+}
+
+var RA_PROCESS_STEPS = [
+  'Extracting text from your resume…',
+  'Detecting sections & formatting…',
+  'Running 20+ recruiter checks…',
+  'Scoring impact & achievements…',
+  'Checking ATS keyword coverage…',
+  'Comparing against top resumes…',
+  'Preparing your personalized report…',
+];
+
+function _raProcessing() {
+  return `
+  <div class="flex flex-col flex-1 justify-center" style="min-height:calc(100vh - 200px)">
+    <div class="ra-processing rounded-2xl border py-20 px-10 text-center flex flex-col items-center justify-center w-full" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07);min-height:480px">
+      <div class="ra-spinner-wrap mx-auto">
+        <div class="ra-spinner"></div>
+        <div class="ra-spinner-core">${icon('brain', 22)}</div>
+      </div>
+      <h3 class="text-2xl font-semibold text-white mt-8" style="font-family:'Outfit',sans-serif">Processing your resume review…</h3>
+      <p id="ra-process-msg" class="text-indigo-300 text-sm mt-3" style="color:#a5b4fc">${RA_PROCESS_STEPS[0]}</p>
+      <div class="ra-progress-track mt-8 mx-auto w-full max-w-xl">
+        <div id="ra-progress-bar" class="ra-progress-bar"></div>
+      </div>
+      <p id="ra-progress-pct" class="text-white/35 text-xs mt-3">0%</p>
+      <p class="text-white/25 text-xs mt-8">This usually takes 15–40 seconds. Please keep this page open.</p>
+    </div>
+  </div>`;
+}
+
+function _raTabs() {
+  var ra = state.resumeAnalyzer;
+  _fetchRaHistory();
+  var count = ra.historyList ? ra.historyList.length : 0;
+  var onPrev = ra.view === 'prev' || ra.view === 'prev-list';
+  return `
+  <div class="ra-center-tabs">
+    <span class="ra-tab ${onPrev ? '' : 'active'}" data-ra-tab="latest">${icon('star', 11)} LATEST SCORE</span>
+    <span class="ra-tab ${onPrev ? 'active' : 'muted clickable'}" data-ra-tab="prev">${icon('clock', 11)} PREVIOUS SCORE${count ? ` <span class="ra-prev-count">${count}</span>` : ''}</span>
+  </div>`;
+}
+
+function raFmtDate(sqlDate) {
+  try {
+    var d = new Date(String(sqlDate).replace(' ', 'T') + (/[Zz]|[+-]\d\d:\d\d$/.test(String(sqlDate)) ? '' : 'Z'));
+    if (isNaN(d.getTime())) return String(sqlDate || '');
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return String(sqlDate || ''); }
+}
+
+function _fetchRaHistory() {
+  var ra = state.resumeAnalyzer;
+  if (ra.historyList) return;
+  api.getResumeHistory().then(function (res) {
+    ra.historyList = res.history || [];
+    render();
+  }).catch(function () { ra.historyList = []; render(); });
+}
+
+function _raPrevList() {
+  var ra = state.resumeAnalyzer;
+  if (!ra.historyList) {
+    _fetchRaHistory();
+    return `<div class="rounded-xl border p-12 text-center" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+      <div class="ra-spinner mx-auto"></div>
+      <p class="text-white/50 text-sm mt-4">Loading your saved reports…</p>
+    </div>`;
+  }
+  var histList = ra.historyList;
+  return `
+  <div class="rounded-xl border p-5" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+    <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">Previous resume scores</p>
+    <p class="text-white/40 text-xs mb-4">Every analysis you've run is saved automatically. Open any report to see the full breakdown.</p>
+    ${histList.length ? `<div class="ra-prev-list">
+      ${histList.map(function (h) {
+        var sc = Math.round(h.overall_score || 0);
+        var col = raScoreColor(sc);
+        var C = 2 * Math.PI * 21;
+        return `<div class="ra-prev-row" data-ra-open="${h.id}">
+          <div class="ra-prev-ring">
+            <svg viewBox="0 0 52 52" width="52" height="52">
+              <circle cx="26" cy="26" r="21" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="4"/>
+              <circle cx="26" cy="26" r="21" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - sc / 100)).toFixed(1)};transform:rotate(-90deg);transform-origin:26px 26px"/>
+            </svg>
+            <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:${col}">${sc}</span>
+          </div>
+          <div class="ra-prev-meta">
+            <p class="ra-prev-file">${raEsc(h.filename || 'Resume')}</p>
+            <p class="ra-prev-sub">${raFmtDate(h.created_at)}${h.target_role ? ' • ' + raEsc(h.target_role) : ''}${h.ai_model ? ' • ' + raEsc(h.ai_model) : ''}</p>
+          </div>
+          <span class="ra-prev-badge" style="color:${col};background:${col}22;border:1px solid ${col}44">${sc}/100</span>
+          <span class="ra-secondary-btn" style="padding:0.45rem 0.8rem;font-size:0.7rem;">View report ${icon('chevronRight', 11)}</span>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div class="ra-preview-empty-dark text-center py-10">
+      ${icon('clock', 24)}
+      <p class="text-white/50 text-sm mt-3">No previous reports yet.</p>
+      <p class="text-white/30 text-xs mt-1">Analyze a resume and your score will be saved here.</p>
+    </div>`}
+  </div>`;
+}
+
+function _raResult() {
+  var ra = state.resumeAnalyzer;
+  if (ra.view === 'prev-list') {
+    return `<div class="ra-detailed-wrap">${_raTabs()}${_raPrevList()}</div>`;
+  }
+  var isPrev = ra.view === 'prev';
+  if (isPrev && !ra.prevDetail) {
+    if (!ra._prevLoading) {
+      ra._prevLoading = true;
+      api.getResumeAnalysis(ra.prevId).then(function (res) {
+        ra.prevDetail = res.analysis || {};
+        ra._prevLoading = false;
+        render();
+      }).catch(function () {
+        ra._prevLoading = false; ra.view = 'latest'; render();
+      });
+    }
+    return `<div class="rounded-xl border p-12 text-center" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07)">
+      <div class="ra-spinner mx-auto"></div>
+      <p class="text-white/50 text-sm mt-4">Opening saved report…</p>
+    </div>`;
+  }
+  var a = isPrev ? ra.prevDetail : ra.result;
+  if (!a) return _raLanding();
+
+  var hour = new Date().getHours();
+  var greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  var firstName = (state.user && state.user.name ? state.user.name.split(' ')[0] : 'there');
+  var score = a.overall_score || 0;
+  var color = raScoreColor(score);
+  var cats = a.categories || [];
+  var issues = a.issues || [];
+  var checks = a.checks_passed || [];
+  var fixes = a.top_fixes || [];
+  var recs = a.recommendations || [];
+  var foundKw = a.keywords_found || [];
+  var missKw = a.keywords_missing || [];
+  var skills = a.detected_skills || [];
+  var audit = a.detailed_audit || [];
+  var preview = a.resume_preview || '';
+
+  // Split audit into needs-work vs completed for the left rail
+  var needsWork = audit.filter(function (x) { return x.score <= 6; }).sort(function (x, y) { return x.score - y.score; });
+  var completed = audit.filter(function (x) { return x.score >= 8; });
+  // Fallback to issues/checks if audit is sparse (older responses)
+  if (!audit.length) {
+    needsWork = fixes.slice(0, 5).map(function (f) { return { title: f.title, score: 5, bucket: 'Fix' }; });
+    completed = checks.slice(0, 4).map(function (c) { return { title: c.title, score: 10, bucket: 'Done' }; });
+  }
+
+  var C = 2 * Math.PI * 54;
+  var Csm = 2 * Math.PI * 42;
+
+  function auditBadge(c) {
+    var sc = c.score;
+    var bg = sc >= 9 ? 'rgba(16,185,129,0.15)' : sc >= 7 ? 'rgba(245,158,11,0.15)' : sc >= 5 ? 'rgba(251,146,60,0.15)' : 'rgba(244,63,94,0.15)';
+    var col = sc >= 9 ? '#34d399' : sc >= 7 ? '#fbbf24' : sc >= 5 ? '#fb923c' : '#f43f5e';
+    var bd = sc >= 9 ? 'rgba(52,211,153,0.35)' : sc >= 7 ? 'rgba(251,191,36,0.35)' : sc >= 5 ? 'rgba(251,146,60,0.35)' : 'rgba(244,63,94,0.35)';
+    return `<span class="ra-audit-score" style="background:${bg};color:${col};border-color:${bd}">${sc}</span>`;
+  }
+
+  // Resume preview — sanitize: if extraction is binary/garbled show friendly fallback
+  var previewHtml = '';
+  var isGarbled = false;
+  if (preview) {
+    var nonAscii = (preview.match(/[^\x20-\x7E\n\r\t]/g) || []).length;
+    var garbleRatio = preview.length ? nonAscii / preview.length : 1;
+    isGarbled = garbleRatio > 0.28 || preview.trim().length < 40;
+  }
+  if (preview && !isGarbled) {
+    var rawSlice = preview.slice(0, 1600);
+    var escPreview = raEsc(rawSlice).replace(/\n/g, '<br/>');
+    previewHtml = `<div class="ra-preview-resume">
+      <div class="ra-preview-name">RESUME PREVIEW</div>
+      <div class="ra-preview-text">${escPreview}${preview.length > 1600 ? '…' : ''}</div>
+    </div>`;
+  } else if (preview && isGarbled) {
+    previewHtml = `<div class="ra-preview-empty" style="background:rgba(244,63,94,0.06);border:1px dashed rgba(244,63,94,0.25);border-radius:0.6rem;padding:1.5rem;text-align:center;">
+      ${icon('alertTriangle', 22)}
+      <p class="text-sm font-semibold mt-3" style="color:#fda4af">Preview not available</p>
+      <p class="text-xs mt-1.5" style="color:rgba(255,255,255,0.55);line-height:1.5">We couldn't extract readable text from this file.<br/>It may be a scanned image or corrupted PDF.<br/><span style="color:#a5b4fc">Please upload a selectable-text PDF or DOCX.</span></p>
+    </div>`;
+  } else if (a.filename) {
+    previewHtml = `<div class="ra-preview-empty">${icon('fileText', 22)}<p class="text-sm text-white/40 mt-3">${raEsc(a.filename)}</p><p class="text-xs text-white/25 mt-1">Preview extracted from your upload</p></div>`;
+  }
+
+  return `
+  <div class="ra-detailed-wrap">
+    <!-- ── Three-panel detailed review (ResumeWorded-inspired) ── -->
+    <div class="ra-detailed-grid">
+      <!-- LEFT RAIL — audit navigation like 211400.png -->
+      <aside class="ra-rail">
+        <div class="ra-rail-overall-card">
+          <div class="ra-rail-ring">
+            <svg viewBox="0 0 110 110" width="96" height="96">
+              <circle cx="55" cy="55" r="42" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+              <circle cx="55" cy="55" r="42" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" style="stroke-dasharray:${Csm.toFixed(1)};stroke-dashoffset:${(Csm * (1 - score / 100)).toFixed(1)};transform:rotate(-90deg);transform-origin:55px 55px"/>
+            </svg>
+            <div class="ra-rail-ring-center"><span class="ra-rail-score" style="color:${color}">${score}</span><span class="ra-rail-label">OVERALL</span></div>
+          </div>
+          <span class="ra-rail-home">${icon('layout', 12)} Home</span>
+        </div>
+
+        <div class="ra-rail-section">
+          <p class="ra-rail-heading">TOP FIXES</p>
+          ${needsWork.slice(0, 5).map(function (c) {
+            return `<div class="ra-rail-item needs-work" data-audit-title="${raEsc(c.title)}">
+              <span class="ra-rail-item-title">${raEsc(c.title)}</span>${auditBadge(c)}
+            </div>`;
+          }).join('')}
+          ${issues.length > 2 ? `<button class="ra-rail-more" id="ra-rail-more-btn">${issues.length} ISSUES — SHOW ALL +</button>` : ''}
+        </div>
+
+        <div class="ra-rail-section">
+          <p class="ra-rail-heading">COMPLETED</p>
+          ${completed.slice(0, 4).map(function (c) {
+            return `<div class="ra-rail-item completed" data-audit-title="${raEsc(c.title)}">
+              <span class="ra-rail-item-title">${raEsc(c.title)}</span>${auditBadge(c)}
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div class="a-ra-full-audit-toggle-wrap" style="padding:0.75rem;">
+          <button id="ra-full-audit-toggle" class="ra-secondary-btn w-full" style="justify-content:center;padding:0.6rem;font-size:0.72rem;">${icon('clipboard', 12)} Full audit — all ${audit.length} checks</button>
+        </div>
+      </aside>
+
+      <!-- CENTER — score + issue cards + what you did well -->
+      <main class="ra-center-col">
+        <div class="ra-center-head">
+          <div>
+            <h2 class="ra-center-greet">${greet}, ${raEsc(firstName)}.</h2>
+            <p class="ra-center-sub">Welcome to your resume review${a.filename ? ' — <span class="text-white/60">' + raEsc(a.filename) + '</span>' : ''}.</p>
+          </div>
+        </div>
+
+        ${isPrev ? `<div class="ra-prev-banner">${icon('clock', 13)} Viewing saved report${a.created_at ? ' from ' + raFmtDate(a.created_at) : ''}${a.filename ? ' — ' + raEsc(a.filename) : ''}</div>` : ''}
+        ${_raTabs()}
+
+        <div class="ra-center-score-card">
+          <p class="ra-score-head">Your resume scored <strong>${score} out of 100.</strong></p>
+          <p class="ra-score-desc">${raEsc(a.verdict_line || 'This is a decent start, but there is clear room for improvement on key criteria hiring managers and screening software look for.')}</p>
+          <div class="ra-scale-wrap">
+            <div class="ra-scale-label-row"><span class="ra-scale-you">YOUR RESUME</span><span class="ra-scale-top">TOP RESUMES</span></div>
+            <div class="ra-scale-bar"><span class="ra-scale-marker" style="left:${Math.max(2, Math.min(98, score))}%"></span><span class="ra-scale-top-tick" style="left:82%"></span></div>
+            <div class="ra-scale-nums"><span>0</span><span>100</span></div>
+          </div>
+          <div class="ra-tip-box">${icon('lightbulb', 13)} Use the feedback to find and fix errors in your resume, then reupload it to get a new score. <strong>80% of people increase their score by over 20 points</strong> with just three uploads and revisions.</div>
+          ${a.source === 'heuristic_fallback' ? '<p class="text-amber-400/80 text-xs mt-3">⚠ AI provider unreachable — showing rule-based analysis. Try again later for the full AI review.</p>' : ''}
+        </div>
+
+        <!-- Issue cards — all visible so detailed analysis is actually seen -->
+        <div id="ra-issues-anchor"></div>
+        ${issues.length ? `<div class="ra-issue-featured" id="ra-issues">` : ''}
+        ${issues.map(function (it, idx) {
+            var isSummary = /summary/i.test(it.title);
+            var tag = isSummary ? 'SECTIONS' : (it.category || 'STYLE').toUpperCase();
+            var borderCol = it.severity === 'critical' ? 'rgba(244,63,94,0.35)' : it.severity === 'minor' ? 'rgba(6,182,212,0.35)' : 'rgba(251,146,60,0.35)';
+            var hiddenClass = idx >= 2 ? ' ra-hidden-issue' : '';
+            var hiddenStyle = idx >= 2 ? ' style="display:none"' : '';
+            return `<div class="ra-feature-issue-card${hiddenClass}" data-idx="${idx}" data-issue-title="${raEsc(it.title)}" style="border-left-color:${borderCol}${hiddenStyle ? ';' + hiddenStyle.replace('style=', '') : ''}">
+              <div class="ra-feature-issue-head">
+                <span class="ra-feature-x">${icon('alertTriangle', 12)}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="ra-feature-title">${idx + 1}. ${raEsc(it.title)}</p>
+                  <p class="ra-feature-detail">${raEsc(it.detail)}</p>
+                  ${it.fix ? `<p class="text-xs mt-1.5" style="color:#a5b4fc"><strong style="color:#818cf8">Fix:</strong> ${raEsc(it.fix)}</p>` : ''}
+                </div>
+                <span class="ra-feature-tag">${tag}</span>
+              </div>
+            </div>`;
+          }).join('')}
+        ${issues.length ? `</div>
+          ${issues.length > 2 ? `<button class="ra-show-more" id="ra-show-more-btn">SHOW ${issues.length - 2} MORE ISSUES +</button><button class="ra-show-more" id="ra-show-less-btn" style="display:none">SHOW LESS −</button>` : ''}` : ''}
+
+        ${(checks.length || completed.length) ? `<div class="ra-welldone-block">
+          <h3 class="ra-welldone-title">What you did well</h3>
+          <p class="ra-welldone-sub">We ran 20+ checks on your resume. Here's a rundown of key areas you did well in — well done.</p>
+          <div class="ra-welldone-grid">
+            ${(completed.length ? completed.slice(0, 3).map(function (c) {
+              return `<div class="ra-welldone-card">
+                <span class="ra-welldone-check">${icon('check', 13)}</span>
+                <div><p class="ra-welldone-name">${raEsc(c.title)} <span class="font-normal" style="color:#6ee7b7">(${c.score}/10)</span><span class="font-normal text-white/60"> — ${raEsc(c.bucket)} looks good.</span></p></div>
+              </div>`;
+            }) : checks.slice(0, 3).map(function (c) {
+              var d = c.detail && c.detail.trim() ? c.detail : 'Passed this recruiter check.';
+              return `<div class="ra-welldone-card">
+                <span class="ra-welldone-check">${icon('check', 13)}</span>
+                <div><p class="ra-welldone-name">${raEsc(c.title)}<span class="font-normal text-white/60"> — ${raEsc(d)}</span></p></div>
+              </div>`;
+            })).join('')}
+          </div>
+        </div>` : ''}
+
+      </main>
+
+      <!-- RIGHT — live resume preview -->
+      <aside class="ra-preview-col">
+        <div class="ra-preview-card" style="border-radius:0.75rem;border-top:1px solid rgba(255,255,255,0.07);">
+          ${previewHtml || `<div class="ra-preview-empty">${icon('fileText', 26)}<p>No preview available</p></div>`}
+        </div>
+      </aside>
+    </div>
+
+    <!-- Category breakdown — full window width -->
+    ${cats.length ? `<details class="ra-cats-details mt-4" open>
+      <summary>Category breakdown (${cats.length}) ${icon('chevronDown', 11)}</summary>
+      <div class="ra-cats-grid">
+        ${cats.map(function (c) {
+          var cc = raScoreColor(c.score);
+          return `<div class="ra-cat-mini">
+            <div class="flex justify-between text-xs mb-1"><span class="text-white/70">${raEsc(c.label)}</span><span style="color:${cc};font-weight:700">${c.score}/100</span></div>
+            <div class="ra-cat-track"><div class="ra-cat-fill" style="width:${c.score}%;background:${cc}"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </details>` : ''}
+
+    <!-- FULL AUDIT — every check with score bar -->
+    <div id="ra-full-audit" style="display:none;background:#0d0f1e;border-color:rgba(255,255,255,0.07);" class="rounded-xl border p-5 mt-4">
+      <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">Full audit — ${audit.length} recruiter checks</p>
+      <p class="text-white/40 text-xs mb-4">Every check we ran on your resume, scored 0-10.</p>
+      <div class="ra-fullaudit-grid">
+        ${audit.map(function (c) {
+          var col = c.score >= 9 ? '#34d399' : c.score >= 7 ? '#fbbf24' : c.score >= 5 ? '#fb923c' : '#f43f5e';
+          return `<div class="ra-cat-mini">
+            <div class="flex justify-between text-xs mb-1.5"><span class="text-white/80 font-medium">${raEsc(c.title)}</span><span style="color:${col};font-weight:800">${c.score}/10</span></div>
+            <div class="ra-cat-track"><div class="ra-cat-fill" style="width:${c.score * 10}%;background:${col}"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Below the 3-column grid — extra recruiter data -->
+    <div id="ra-keywords" class="ra-extra-grid mt-4" style="${(foundKw.length || missKw.length || skills.length) ? '' : 'display:none;'}">
+      <div style="${skills.length ? '' : 'display:none;'}" class="rounded-xl border p-5" data-card>
+        <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-3">Detected skills</p>
+        <div class="flex flex-wrap gap-1.5">${skills.map(function (s) { return `<span class="skill-tag">${raEsc(s)}</span>`; }).join('')}</div>
+      </div>
+      <div style="${(foundKw.length || missKw.length) ? '' : 'display:none;'}" class="rounded-xl border p-5" data-card>
+        <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-3">Role keywords ${a.target_role ? '— ' + raEsc(a.target_role) : ''}</p>
+        <div style="${foundKw.length ? '' : 'display:none;'}" class="flex flex-wrap gap-1.5 mb-2">${foundKw.map(function (k) { return `<span class="skill-tag" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);color:#6ee7b7">✓ ${raEsc(k)}</span>`; }).join('')}</div>
+        <div style="${missKw.length ? '' : 'display:none;'}">
+          <p class="text-white/35 text-[11px] mb-1.5">Missing keywords ATS may look for:</p>
+          <div class="flex flex-wrap gap-1.5">${missKw.map(function (k) { return `<span class="skill-tag-missing">+ ${raEsc(k)}</span>`; }).join('')}</div>
         </div>
       </div>
     </div>
+
+    <div id="ra-next-steps" style="background:#0d0f1e;border-color:rgba(255,255,255,0.07);${recs.length ? '' : 'display:none;'}" class="rounded-xl border p-5 mt-4">
+      <p class="text-white font-semibold text-sm mb-4" style="font-family:'Outfit',sans-serif">Next steps</p>
+      <div class="space-y-2.5">
+        ${recs.map(function (r, i) {
+          return `<div class="flex items-start gap-3">
+            <span class="ra-rec-num">${i + 1}</span>
+            <div><p class="text-white text-sm font-semibold">${raEsc(r.title)}</p><p class="text-white/45 text-xs mt-0.5 leading-relaxed">${raEsc(r.description)}</p></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 flex-wrap mt-4">
+      <button id="ra-restart-btn" class="ra-primary-btn">${icon('refreshCw', 14)} Analyze Another Resume</button>
+      <button id="ra-download-btn" class="ra-secondary-btn">${icon('printer', 14)} Download Report</button>
+      <span class="text-white/25 text-xs ml-auto">Reviewed by SmartHire AI • ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}${a.ai_model ? ' • ' + raEsc(a.ai_model) : ''}</span>
+    </div>
   </div>`;
+}
+
+async function startResumeAnalysis() {
+  var ra = state.resumeAnalyzer;
+  if (!ra.file) { ra.error = 'Please choose a resume file first.'; render(); return; }
+  if (!ra.level) { ra.error = 'Please select what best describes you.'; render(); return; }
+  if (ra.role === '__other__' && !(ra.roleCustom || '').trim()) {
+    ra.error = 'Please specify your target role.'; render(); return;
+  }
+  ra.error = '';
+  ra.stage = 'processing';
+  ra._progress = 0;
+  render();
+
+  var msgEl = document.getElementById('ra-process-msg');
+  var barEl = document.getElementById('ra-progress-bar');
+  var pctEl = document.getElementById('ra-progress-pct');
+  var stepIdx = 0;
+
+  clearInterval(ra._interval);
+  ra._interval = setInterval(function () {
+    if (document.getElementById('ra-progress-bar') === null) { clearInterval(ra._interval); return; }
+    ra._progress = Math.min(92, (ra._progress || 0) + Math.random() * 7 + 2);
+    if (barEl) barEl.style.width = ra._progress + '%';
+    if (pctEl) pctEl.textContent = Math.round(ra._progress) + '%';
+    var nextStep = Math.floor((ra._progress / 92) * RA_PROCESS_STEPS.length);
+    if (nextStep !== stepIdx && nextStep < RA_PROCESS_STEPS.length && msgEl) {
+      stepIdx = nextStep;
+      msgEl.textContent = RA_PROCESS_STEPS[stepIdx];
+    }
+  }, 700);
+
+  try {
+    var result = await api.analyzeResume(ra.file, ra.level, ra.role === '__other__' ? (ra.roleCustom || '').trim() : ra.role);
+    ra._progress = 100;
+    clearInterval(ra._interval);
+    ra.result = result;
+    ra.stage = 'result';
+    render();
+    // Ensure the detailed 3-panel result is visible from the top
+    setTimeout(function () {
+      var main = document.getElementById('main-content');
+      if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 80);
+  } catch (err) {
+    clearInterval(ra._interval);
+    ra.result = null;
+    ra.stage = 'setup';
+    ra.error = err.message || 'Analysis failed. Please try again.';
+    render();
+  }
+}
+
+function downloadResumeReportPDF(a) {
+  if (!a) return;
+  var color = raScoreColor(a.overall_score || 0);
+  var win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups to download the report.'); return; }
+  var rows = '';
+  function sec(title, inner) { rows += '<h2>' + title + '</h2>' + inner; }
+  sec('Overall Score', '<p class="big"><span style="color:' + color + ';font-size:34px;font-weight:800">' + (a.overall_score || 0) + '</span> / 100 — ' + raScoreLabel(a.overall_score || 0) + '</p><p>' + raEsc(a.verdict_line || '') + '</p>');
+  sec('Categories', '<table><tr><th>Category</th><th>Score</th><th>Notes</th></tr>' +
+    (a.categories || []).map(function (c) { return '<tr><td>' + raEsc(c.label) + '</td><td>' + c.score + '/100</td><td>' + raEsc(c.summary || '') + '</td></tr>'; }).join('') + '</table>');
+  if ((a.top_fixes || []).length) sec('Top Fixes', '<ul>' + a.top_fixes.map(function (f) { return '<li><b>' + raEsc(f.title) + '</b> — ' + raEsc(f.detail || '') + '</li>'; }).join('') + '</ul>');
+  if ((a.issues || []).length) sec('Issues & How To Fix Them', a.issues.map(function (it) {
+    return '<div class="issue"><b>[' + raEsc((it.severity || 'warning').toUpperCase()) + '] ' + raEsc(it.title || '') + '</b>' +
+      (it.category ? ' <i>(' + raEsc(it.category) + ')</i>' : '') + '<br/>' + raEsc(it.detail || '') +
+      (it.fix ? '<br/><b>Fix:</b> ' + raEsc(it.fix) : '') + '</div>';
+  }).join(''));
+  if ((a.checks_passed || []).length) sec('What You Did Well', '<ul>' + a.checks_passed.map(function (c) { return '<li><b>' + raEsc(c.title) + '</b> — ' + raEsc(c.detail || '') + '</li>'; }).join('') + '</ul>');
+  if ((a.recommendations || []).length) sec('Next Steps', '<ol>' + a.recommendations.map(function (r) { return '<li><b>' + raEsc(r.title) + '</b> — ' + raEsc(r.description || '') + '</li>'; }).join('') + '</ol>');
+  if ((a.keywords_found || []).length || (a.keywords_missing || []).length) {
+    sec('Role Keywords' + (a.target_role ? ' (' + raEsc(a.target_role) + ')' : ''),
+      '<p><b>Found:</b> ' + raEsc((a.keywords_found || []).join(', ')) + '</p><p><b>Missing:</b> ' + raEsc((a.keywords_missing || []).join(', ')) + '</p>');
+  }
+  if ((a.detected_skills || []).length) sec('Detected Skills', '<p>' + raEsc(a.detected_skills.join(', ')) + '</p>');
+
+  win.document.write('<!DOCTYPE html><html><head><title>SmartHire AI — Resume Analysis Report</title><style>' +
+    'body{font-family:Segoe UI,Arial,sans-serif;margin:36px;color:#111;line-height:1.55}' +
+    'h1{font-size:22px;border-bottom:3px solid #6366f1;padding-bottom:8px}h2{font-size:15px;margin-top:24px;color:#3730a3;text-transform:uppercase;letter-spacing:.5px}' +
+    '.meta{color:#666;font-size:12px;margin-bottom:18px}.big{margin:6px 0}table{width:100%;border-collapse:collapse;font-size:12px}' +
+    'th,td{border:1px solid #ddd;padding:7px 9px;text-align:left;vertical-align:top}th{background:#f3f4ff}' +
+    'ul,ol{padding-left:20px;font-size:12.5px}li{margin-bottom:6px}' +
+    '.issue{border-left:3px solid #f59e0b;background:#fffbeb;padding:8px 12px;margin-bottom:8px;font-size:12.5px;border-radius:0 6px 6px 0}' +
+    '@media print{body{margin:12mm}}</style></head><body>' +
+    '<h1>SmartHire AI — Resume Analysis Report</h1>' +
+    '<p class="meta">Candidate: ' + raEsc(state.user ? state.user.name : 'User') + ' | File: ' + raEsc(a.filename || '-') +
+    ' | Experience level: ' + raEsc(a.experience_level || '-') + ' | Target role: ' + raEsc(a.target_role || 'General') +
+    ' | Generated: ' + new Date().toLocaleString() + '</p>' + rows +
+    '<script>window.onload=function(){setTimeout(function(){window.print()},250);}<\/script></body></html>');
+  win.document.close();
+}
+
+function bindCandidateResumeEvents() {
+  var ra = state.resumeAnalyzer;
+
+  function validateFile(file) {
+    if (!file) return 'No file selected.';
+    var ext = (file.name || '').toLowerCase().split('.').pop();
+    if (['pdf', 'docx'].indexOf(ext) === -1) return 'Please upload a PDF or DOCX file.';
+    if (file.size > 5 * 1024 * 1024) return 'File exceeds the 5MB limit.';
+    return '';
+  }
+
+  function acceptFile(file) {
+    var err = validateFile(file);
+    if (err) { ra.error = err; if (ra.stage === 'landing') render(); else { render(); } return false; }
+    ra.file = file;
+    ra.fileName = file.name;
+    ra.error = '';
+    ra.stage = 'setup';
+    render();
+    return true;
+  }
+
+  var dz = document.getElementById('ra-dropzone');
+  var fileInput = document.getElementById('ra-file-input');
+
+  /* Landing dropzone */
+  if (dz && fileInput) {
+    dz.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () { acceptFile(this.files && this.files[0]); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); });
+    });
+    dz.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) acceptFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  /* Setup stage */
+  document.querySelectorAll('.ra-level-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      ra.level = this.dataset.level;
+      ra.error = '';
+      render();
+    });
+  });
+
+  var changeFileBtn = document.getElementById('ra-change-file');
+  if (changeFileBtn) {
+    changeFileBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var inp = document.getElementById('ra-file-input');
+      if (inp) inp.click();
+    });
+  }
+  if (fileInput && !dz) {
+    fileInput.addEventListener('change', function () { acceptFile(this.files && this.files[0]); });
+  }
+
+  var roleSelect = document.getElementById('ra-role-select');
+  if (roleSelect) {
+    roleSelect.addEventListener('change', function () { ra.role = this.value; render(); });
+  }
+  var roleCustom = document.getElementById('ra-role-custom');
+  if (roleCustom) {
+    roleCustom.addEventListener('input', function () { ra.roleCustom = this.value; });
+  }
+
+  var analyzeBtn = document.getElementById('ra-analyze-btn');
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener('click', function () {
+      if (!ra.level) { ra.error = 'Please select what best describes you.'; render(); return; }
+      startResumeAnalysis();
+    });
+  }
+
+  /* Result actions */
+  var restartBtn = document.getElementById('ra-restart-btn');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', function () {
+      clearInterval(ra._interval);
+      state.resumeAnalyzer = { stage: 'landing', fileName: '', level: '', role: '', roleCustom: '', result: null, error: '', file: null, view: 'latest', historyList: ra.historyList, prevId: null, prevDetail: null };
+      render();
+    });
+  }
+  var downloadBtn = document.getElementById('ra-download-btn');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', function () {
+      var active = (ra.view === 'prev' && ra.prevDetail) ? ra.prevDetail : ra.result;
+      downloadResumeReportPDF(active);
+    });
+  }
+
+  /* Issue accordion chevron rotation */
+  document.querySelectorAll('.ra-issue-card').forEach(function (d) {
+    d.addEventListener('toggle', function () {
+      var ch = d.querySelector('.ra-chevron');
+      if (ch) ch.style.transform = d.open ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+  });
+
+  /* SHOW MORE / SHOW LESS for detailed issues */
+  function raShowAllIssues() {
+    document.querySelectorAll('.ra-hidden-issue').forEach(function (el) { el.style.display = ''; });
+    var more = document.getElementById('ra-show-more-btn');
+    var less = document.getElementById('ra-show-less-btn');
+    if (more) more.style.display = 'none';
+    if (less) less.style.display = '';
+  }
+  var showMoreBtn = document.getElementById('ra-show-more-btn');
+  var showLessBtn = document.getElementById('ra-show-less-btn');
+  if (showMoreBtn) {
+    showMoreBtn.addEventListener('click', raShowAllIssues);
+  }
+  if (showLessBtn) {
+    showLessBtn.addEventListener('click', function () {
+      document.querySelectorAll('.ra-hidden-issue').forEach(function (el) { el.style.display = 'none'; });
+      showLessBtn.style.display = 'none';
+      if (showMoreBtn) showMoreBtn.style.display = '';
+      var main = document.getElementById('main-content');
+      if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+  var railMoreBtn = document.getElementById('ra-rail-more-btn');
+  if (railMoreBtn) {
+    railMoreBtn.addEventListener('click', function () {
+      raShowAllIssues();
+      setTimeout(function () {
+        var anchor = document.getElementById('ra-issues-anchor');
+        if (anchor && main_scroller()) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    });
+  }
+
+  /* Full audit toggle */
+  var auditToggle = document.getElementById('ra-full-audit-toggle');
+  if (auditToggle) {
+    auditToggle.addEventListener('click', function () {
+      var panel = document.getElementById('ra-full-audit');
+      if (!panel) return;
+      var open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : '';
+      if (!open) {
+        setTimeout(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+      }
+    });
+  }
+
+  /* Rail item clicks -> reveal + flash matching issue, or open full audit */
+  document.querySelectorAll('.ra-rail-item[data-audit-title]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var title = (this.dataset.auditTitle || '').toLowerCase();
+      var match = Array.prototype.find.call(document.querySelectorAll('[data-issue-title]'), function (el) {
+        return (el.dataset.issueTitle || '').toLowerCase().indexOf(title) !== -1 || title.indexOf((el.dataset.issueTitle || '').toLowerCase()) !== -1;
+      });
+      if (match) {
+        match.style.display = '';
+        setTimeout(function () {
+          match.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          match.classList.add('ra-flash');
+          setTimeout(function () { match.classList.remove('ra-flash'); }, 1600);
+        }, 50);
+      } else {
+        var panel = document.getElementById('ra-full-audit');
+        if (panel) {
+          panel.style.display = '';
+          setTimeout(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+        }
+      }
+    });
+  });
+
+  /* Score tabs — LATEST / PREVIOUS */
+  var tabLatest = document.querySelector('[data-ra-tab="latest"]');
+  var tabPrev = document.querySelector('[data-ra-tab="prev"]');
+  function raBackToLatest() {
+    ra.view = 'latest'; ra.prevId = null; ra.prevDetail = null; ra._prevLoading = false;
+    render();
+    var main = document.getElementById('main-content');
+    if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  if (tabLatest) tabLatest.addEventListener('click', raBackToLatest);
+  if (tabPrev) tabPrev.addEventListener('click', function () {
+    ra.view = 'prev-list'; ra.prevId = null; ra.prevDetail = null; ra._prevLoading = false;
+    render();
+  });
+
+  /* Open a saved previous report from the list */
+  document.querySelectorAll('[data-ra-open]').forEach(function (row) {
+    row.addEventListener('click', function () {
+      ra.view = 'prev';
+      ra.prevId = parseInt(this.dataset.raOpen, 10);
+      ra.prevDetail = null;
+      ra._prevLoading = false;
+      render();
+      var main = document.getElementById('main-content');
+      if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  function main_scroller() { return document.getElementById('main-content') || window; }
 }
 
 function candidateHistory() {

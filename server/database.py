@@ -429,6 +429,26 @@ def init_db():
     if "pronunciation_json" not in question_cols:
         conn.execute("ALTER TABLE interview_question ADD COLUMN pronunciation_json TEXT")
 
+    # ── Resume Analyzer: saved analyses history (purely additive, never touches
+    #    or deletes existing tables/data) ──
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS resume_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            filename TEXT,
+            overall_score REAL,
+            experience_level TEXT,
+            target_role TEXT,
+            source TEXT,
+            ai_model TEXT,
+            analysis_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_resume_analyses_user ON resume_analyses(user_id);")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_resume_analyses_created ON resume_analyses(created_at);")
+
     conn.commit()
     conn.close()
 

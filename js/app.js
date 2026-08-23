@@ -26,7 +26,7 @@ function render() {
       { key: 'interviews', label: 'Mock Interviews', icon: icon('monitorPlay') },
       { key: 'assessment', label: 'Practice Assessment', icon: icon('clipboard') },
       { key: 'analytics', label: 'Analytics', icon: icon('barChart2') },
-      { key: 'resume', label: 'Resume & Skills', icon: icon('fileText') },
+      { key: 'resume', label: 'Resume Analyzer', icon: icon('fileText') },
       { key: 'history', label: 'Interview History', icon: icon('clock') },
       { key: 'recordings', label: 'Interview Recordings', icon: icon('film') },
       { key: 'reports', label: 'Reports', icon: icon('downloadLg') },
@@ -790,6 +790,7 @@ function bindDashboardEvents() {
   if (state.page === 'candidate') {
     bindCandidateInterviewEvents();
     bindCandidateAssessmentEvents();
+    bindCandidateResumeEvents();
   }
 }
 

@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Ensure .env is found regardless of cwd (e.g. running `python server/main.py` from project root)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+# Fallback: also try project root
+if not os.getenv("GROQ_API_KEY"):
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 PORT = int(os.getenv("PORT", "8000"))
 JWT_SECRET = os.getenv("JWT_SECRET", "smarthire-default-secret")
@@ -39,6 +43,12 @@ GEMINI_QUESTION_MODEL = os.getenv("GEMINI_QUESTION_MODEL", "gemini-3.6-flash")
 GEMINI_QUESTION_MODEL_2 = os.getenv("GEMINI_QUESTION_MODEL_2", "gemini-3.5-flash")
 GEMINI_QUIZ_KEY = os.getenv("GEMINI_QUIZ_KEY", "")
 GEMINI_QUIZ_KEY_2 = os.getenv("GEMINI_QUIZ_KEY_2", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+GROQ_RESUME_MODEL = os.getenv("GROQ_RESUME_MODEL", "qwen/qwen3.6-27b")
+# Secondary Groq key/model used as automatic failover for the resume analyzer
+GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2", "")
+GROQ_RESUME_MODEL_2 = os.getenv("GROQ_RESUME_MODEL_2", "openai/gpt-oss-120b")
 
 
 

@@ -15,6 +15,7 @@ import threading
 from config import PORT
 from database import init_db
 from routes import auth, users, interviews, assessments, recruiter, notifications
+from routes import resume_analyzer
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ app.include_router(interviews.router)
 app.include_router(assessments.router)
 app.include_router(notifications.router)
 app.include_router(recruiter.router, prefix="/api/recruiter", tags=["Recruiter"])
+app.include_router(resume_analyzer.router)
 
 
 frontend_dir = os.path.join(os.path.dirname(__file__), "..")

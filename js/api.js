@@ -143,6 +143,31 @@ var api = {
       return data;
     });
   },
+  analyzeResume: function(file, experienceLevel, targetRole) {
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('experience_level', experienceLevel || 'entry');
+    formData.append('target_role', targetRole || '');
+    var token = localStorage.getItem('smarthire_token');
+    var headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(API_BASE + '/resume/analyze', {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    }).then(async function(res) {
+      var data;
+      try { data = await res.json(); } catch(_) { throw new Error('Analysis failed. Please try again.'); }
+      if (!res.ok) throw new Error(data.detail || data.error || data.message || 'Analysis failed.');
+      return data.analysis || data;
+    });
+  },
+  getResumeHistory: function(limit) {
+    return apiRequest('/resume/history' + (limit ? '?limit=' + limit : ''));
+  },
+  getResumeAnalysis: function(id) {
+    return apiRequest('/resume/history/' + id);
+  },
   transcribeChunk: function(audioBase64, mimeType) {
     return apiRequest('/interviews/transcribe-chunk', {
       method: 'POST',
