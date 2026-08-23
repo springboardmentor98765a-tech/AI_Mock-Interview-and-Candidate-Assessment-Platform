@@ -7,6 +7,60 @@
   <title>Live Mock Interview</title>
   <link rel="stylesheet" href="css/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Module 5 & 6 — Live Communication & Confidence HUD */
+    .live-hud {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.18);
+      font-size: 0.85rem;
+    }
+    .live-hud h4 { margin: 0 0 8px; font-size: 0.9rem; }
+    .hud-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; gap: 8px; }
+    .hud-label { opacity: 0.75; }
+    .hud-value { font-weight: 600; }
+    .hud-chip {
+      font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem;
+    }
+    .hud-tone-neutral { background: rgba(148,163,184,0.2); color: inherit; }
+    .hud-tone-ok { background: rgba(34,197,94,0.18); color: #16a34a; }
+    .hud-tone-warn { background: rgba(234,179,8,0.2); color: #b45309; }
+    .hud-tone-bad { background: rgba(239,68,68,0.18); color: #dc2626; }
+    .hud-bar-track { height: 6px; border-radius: 4px; background: rgba(148,163,184,0.25); overflow: hidden; margin: -2px 0 4px; }
+    .hud-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .hud-bar-filler { background: linear-gradient(90deg, #eab308, #ef4444); }
+    .hud-footnote { margin: 8px 0 0; font-size: 0.72rem; opacity: 0.6; }
+
+    /* Coding round — Run Code output panel */
+    .run-code-results {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      background: rgba(0,0,0,0.03); font-size: 0.85rem;
+    }
+    .run-code-summary { font-weight: 700; margin-bottom: 6px; }
+    .run-code-summary.run-code-pass { color: #16a34a; }
+    .run-code-summary.run-code-fail { color: #dc2626; }
+    .run-code-case { padding: 6px 0; border-top: 1px solid rgba(0,0,0,0.08); }
+    .run-code-case:first-of-type { border-top: none; }
+    .run-code-case code { white-space: pre-wrap; word-break: break-word; }
+    .run-code-case .run-code-case-pass { color: #16a34a; font-weight: 600; }
+    .run-code-case .run-code-case-fail { color: #dc2626; font-weight: 600; }
+
+    /* Module 5 & 6 — post-interview Communication & Confidence report */
+    .comm-report-box { text-align: left; margin-top: 18px; max-height: 420px; overflow: auto; }
+    .comm-report-box h3 { margin-bottom: 10px; }
+    .comm-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .comm-report-grid { grid-template-columns: 1fr; } }
+    .comm-report-card {
+      border: 1px solid var(--border, #ddd); border-radius: 10px; padding: 12px 14px;
+    }
+    .comm-report-card h4 { margin: 0 0 8px; font-size: 0.88rem; }
+    .comm-metric-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin: 6px 0; gap: 10px; }
+    .comm-emotion-breakdown { margin-top: 14px; font-size: 0.82rem; opacity: 0.85; }
+    .comm-report-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 14px; }
+    .comm-report-table th, .comm-report-table td { padding: 5px 6px; border-bottom: 1px solid var(--border, #e5e5e5); text-align: left; }
+  </style>
 </head>
 
 <body onload="checkRole('candidate'); initInterviewSession();">
@@ -82,6 +136,37 @@
           <li id="chkFace" class="warn">🙂 Face detection: <span>Starting…</span></li>
         </ul>
 
+        <!-- Module 5 & 6 — real-time speech + emotion/eye-contact HUD -->
+        <div id="liveAnalyticsHud" class="live-hud">
+          <h4>📊 Live Communication &amp; Confidence</h4>
+          <div class="hud-row">
+            <span class="hud-label">Words this answer</span>
+            <span id="hudWordCount" class="hud-value">0</span>
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Filler words</span>
+            <span id="hudFillerCount" class="hud-chip hud-tone-neutral">0</span>
+          </div>
+          <div class="hud-bar-track"><div id="hudFillerBar" class="hud-bar-fill hud-bar-filler"></div></div>
+          <div class="hud-row">
+            <span class="hud-label">Speaking pace</span>
+            <span id="hudWpm" class="hud-chip hud-tone-neutral">—</span>
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Eye contact</span>
+            <span id="hudEyeContact" class="hud-chip hud-tone-neutral">—</span>
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Dominant emotion</span>
+            <span id="hudEmotion" class="hud-value">—</span>
+          </div>
+          <div class="hud-row">
+            <span class="hud-label">Voice clarity</span>
+            <span id="hudPronunciation" class="hud-value">—</span>
+          </div>
+          <p class="hud-footnote">Live estimate for this question — the full report is scored after you finish.</p>
+        </div>
+
         <div class="warning-log-box">
           <h4>Warning Log</h4>
           <ul id="warningLog" class="warning-log">
@@ -101,17 +186,42 @@
           <button type="button" id="playAudioBtn" class="btn-ghost" onclick="playCurrentQuestionAudio()">🔊 Play question</button>
         </div>
 
-        <div class="answer-card">
+        <!-- Open-ended (typed/voice) answer -->
+        <div class="answer-card" id="openAnswerCard">
           <textarea id="answerText" class="answer-textarea" placeholder="Type your answer here, or use voice below…"></textarea>
 
           <div class="voice-controls">
             <button type="button" id="micBtn" class="mic-btn" onclick="toggleVoiceInput()">🎙️ Start Voice Answer</button>
             <span id="micStatus" class="voice-status"></span>
           </div>
+        </div>
 
-          <div class="answer-actions">
-            <button type="button" id="nextBtn" class="btn-primary" onclick="goToNextQuestion()">Save &amp; Next ▶</button>
+        <!-- MCQ answer -->
+        <div class="answer-card" id="mcqAnswerCard" style="display:none">
+          <ul id="mcqOptionsList" class="mcq-options-list" style="list-style:none;padding:0;margin:0"></ul>
+        </div>
+
+        <!-- Coding answer -->
+        <div class="answer-card" id="codingAnswerCard" style="display:none">
+          <div style="margin-bottom:8px;display:flex;gap:12px;align-items:center">
+            <label for="codeLanguageSelect" style="font-weight:600">Language:</label>
+            <select id="codeLanguageSelect" onchange="onCodeLanguageChange()">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+            </select>
+            <span style="opacity:0.7;font-size:0.85rem">Worth 10 marks · graded on test cases</span>
           </div>
+          <textarea id="codeAnswerText" class="answer-textarea" style="font-family:monospace;min-height:220px" spellcheck="false"></textarea>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+            <button type="button" id="runCodeBtn" class="btn-ghost" onclick="runCandidateCode()">▶ Run Code</button>
+            <span id="runCodeStatus" style="font-size:0.85rem;opacity:0.75"></span>
+          </div>
+          <div id="runCodeResultsBox" class="run-code-results" style="display:none"></div>
+          <div id="codingTestCasesBox" style="margin-top:10px;font-size:0.9rem"></div>
+        </div>
+
+        <div class="answer-actions">
+          <button type="button" id="nextBtn" class="btn-primary" onclick="goToNextQuestion()">Save &amp; Next ▶</button>
         </div>
       </main>
     </div>
@@ -126,6 +236,53 @@
         <div id="finishScoreCircle" class="finish-score-circle">—</div>
         <p id="finishFeedbackText" class="finish-feedback-text"></p>
       </div>
+      <div id="scoreSheetBox" style="display:none;text-align:left;margin-top:16px;max-height:320px;overflow:auto">
+        <h3 style="margin-bottom:8px">📝 MCQ + Coding Marks Sheet</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid var(--border, #ccc)">
+              <th style="padding:4px">#</th>
+              <th style="padding:4px">Type</th>
+              <th style="padding:4px">Question</th>
+              <th style="padding:4px">Result</th>
+              <th style="padding:4px">Marks</th>
+            </tr>
+          </thead>
+          <tbody id="scoreSheetBody"></tbody>
+        </table>
+        <p id="scoreSheetTotal" style="margin-top:10px;font-weight:700"></p>
+      </div>
+
+      <!-- Module 5 & 6 — full Communication & Confidence report -->
+      <div id="commReportBox" class="comm-report-box" style="display:none">
+        <h3>🗣️ Communication &amp; Confidence Report</h3>
+        <div class="comm-report-grid">
+          <div class="comm-report-card">
+            <h4>Communication Score parameters</h4>
+            <div class="comm-metric-row"><span>Speaking pace</span><span id="crWpm">—</span></div>
+            <div class="comm-metric-row"><span>Filler-word usage</span><span id="crFiller">—</span></div>
+            <div class="comm-metric-row"><span>Grammar issues (avg/answer)</span><span id="crGrammar">—</span></div>
+            <div class="comm-metric-row"><span>Keyword relevance</span><span id="crKeyword">—</span></div>
+            <div class="comm-metric-row"><span>Response completeness (avg words)</span><span id="crCompleteness">—</span></div>
+          </div>
+          <div class="comm-report-card">
+            <h4>Confidence Score parameters</h4>
+            <div class="comm-metric-row"><span>Eye-contact consistency</span><span id="crEyeContact">—</span></div>
+            <div class="comm-metric-row"><span>Facial engagement (dominant emotion)</span><span id="crEmotion">—</span></div>
+            <div class="comm-metric-row"><span>Voice clarity (pronunciation)</span><span id="crPronunciation">—</span></div>
+            <div class="comm-metric-row"><span>Answered by voice</span><span id="crVoiceRatio">—</span></div>
+            <div class="comm-metric-row"><span>Proctoring warnings</span><span id="crViolations">—</span></div>
+          </div>
+        </div>
+        <div id="crEmotionBreakdown" class="comm-emotion-breakdown"></div>
+        <table class="comm-report-table" id="crTable" style="display:none">
+          <thead>
+            <tr><th>#</th><th>Category</th><th>Words</th><th>Filler</th><th>WPM</th><th>Eye contact</th><th>Emotion</th></tr>
+          </thead>
+          <tbody id="crTableBody"></tbody>
+        </table>
+      </div>
+
       <a href="candidate.html" class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center;margin-top:16px">Back to Dashboard</a>
     </div>
   </div>

@@ -110,6 +110,13 @@ ALTER TABLE interviews ADD COLUMN IF NOT EXISTS session_id VARCHAR(36) UNIQUE;
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS questions_attempted INTEGER NOT NULL DEFAULT 0;
 
+-- Deterministic MCQ/coding marks sheet totals, computed at /finish
+-- from interview_questions.marks + interview_answers.marks_awarded.
+-- Separate from `score` (the holistic 0-100 AI score across ALL
+-- questions) since these are a straight sum of actual points earned.
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS marks_awarded NUMERIC(6,2);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS marks_total NUMERIC(6,2);
+
 -- ============================================================
 -- Interview Recordings — Module 5 (Recording). The proctored live
 -- session's combined video+audio, captured client-side with the
@@ -164,10 +171,28 @@ CREATE TABLE IF NOT EXISTS interview_questions (
     difficulty     VARCHAR(10) NOT NULL DEFAULT 'medium'
                        CHECK (difficulty IN ('easy', 'medium', 'hard')),
     sequence_no    INTEGER NOT NULL,
+    -- 3-6 comma-separated concepts a strong answer should mention;
+    -- only populated when an LLM provider generated the question.
+    expected_keywords TEXT,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_interview_questions_interview ON interview_questions (interview_id);
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS expected_keywords TEXT;
+
+-- MCQ / Coding round additions: question_type distinguishes plain
+-- open-ended questions (scored holistically by AI) from auto-gradable
+-- ones. options/correct_option back MCQ questions (Aptitude); marks
+-- is what the question is worth (MCQ = 1, coding = 10) so a
+-- deterministic marks sheet can be built alongside the AI score.
+-- test_cases/starter_code back the coding round.
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS question_type VARCHAR(10) NOT NULL DEFAULT 'open'
+    CHECK (question_type IN ('open', 'mcq', 'coding'));
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS options TEXT;         -- JSON array of option strings (MCQ)
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS correct_option VARCHAR(5); -- e.g. "A" (never sent to the client)
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS marks NUMERIC(6,2) NOT NULL DEFAULT 1;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS test_cases TEXT;      -- JSON array of {input, output} (coding)
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS starter_code TEXT;    -- JSON: {python: "...", javascript: "..."}
 
 -- ============================================================
 -- Interview Answers — the candidate's typed-or-voice-transcribed
@@ -177,15 +202,59 @@ CREATE INDEX IF NOT EXISTS idx_interview_questions_interview ON interview_questi
 -- falls back to the simulator in question_bank.py when empty.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS interview_answers (
-    id                  SERIAL PRIMARY KEY,
-    interview_id        INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
-    question_id         INTEGER NOT NULL REFERENCES interview_questions(id) ON DELETE CASCADE,
-    answer_text         TEXT,
-    input_mode          VARCHAR(10) NOT NULL DEFAULT 'typed'
-                            CHECK (input_mode IN ('typed', 'voice')),
-    time_taken_seconds  INTEGER,
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW()
+    id                     SERIAL PRIMARY KEY,
+    interview_id           INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+    question_id            INTEGER NOT NULL REFERENCES interview_questions(id) ON DELETE CASCADE,
+    answer_text            TEXT,
+    input_mode             VARCHAR(10) NOT NULL DEFAULT 'typed'
+                               CHECK (input_mode IN ('typed', 'voice')),
+    time_taken_seconds     INTEGER,
+    -- Milestone 3 — Speech Analysis & AI Monitoring. filler_word_count
+    -- and words_per_minute are computed server-side from answer_text +
+    -- time_taken_seconds (app/speech_analysis.py). dominant_emotion and
+    -- eye_contact_percentage are computed client-side per question via
+    -- face-api.js (frontend/js/interview-session.js) and sent up
+    -- alongside the answer — best-effort, null when the browser
+    -- couldn't load the face model or no face was detected.
+    filler_word_count      INTEGER,
+    words_per_minute       INTEGER,
+    dominant_emotion       VARCHAR(20),
+    eye_contact_percentage INTEGER,
+    -- grammar_issue_count: rule-based spot-check (app/speech_analysis.py
+    -- check_grammar), computed server-side from answer_text.
+    -- pronunciation_confidence: average Web Speech API recognition
+    -- confidence (0-100) for this answer's voice input — a rough
+    -- clarity proxy sent by the client; NULL for typed answers.
+    grammar_issue_count     INTEGER,
+    pronunciation_confidence INTEGER,
+    -- % of the question's expected_keywords found in this answer.
+    keyword_match_percentage INTEGER,
+    created_at             TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Safe to re-run against a database created before Milestone 3 —
+-- ADD COLUMN IF NOT EXISTS is a no-op on a fresh install where the
+-- CREATE TABLE above already included these columns.
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_word_count INTEGER;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS words_per_minute INTEGER;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS dominant_emotion VARCHAR(20);
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS eye_contact_percentage INTEGER;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS grammar_issue_count INTEGER;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS pronunciation_confidence INTEGER;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS keyword_match_percentage INTEGER;
+
+-- MCQ / Coding round grading. selected_option is the candidate's pick
+-- for an MCQ question, graded deterministically against
+-- interview_questions.correct_option (1 mark correct, 0 wrong).
+-- code_answer/code_language back the coding round; test_case_results
+-- is a JSON array of {input, expected, actual, passed} for each case
+-- run, and marks_awarded is partial credit: marks * passed/total.
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS selected_option VARCHAR(5);
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS code_answer TEXT;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS code_language VARCHAR(10);
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS is_correct BOOLEAN;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS marks_awarded NUMERIC(6,2);
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS test_case_results TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_interview_answers_interview ON interview_answers (interview_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_interview_answers_question ON interview_answers (question_id);

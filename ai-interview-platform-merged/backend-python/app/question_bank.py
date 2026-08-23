@@ -21,6 +21,7 @@ class GeneratedQuestion(TypedDict):
     text: str
     category: str
     difficulty: str
+    keywords: list[str]
 
 
 HR_QUESTIONS = {
@@ -214,6 +215,264 @@ TECHNICAL_QUESTIONS = {
 }
 
 
+# ================================================================
+# MCQ round — Aptitude questions are asked as multiple choice and
+# graded deterministically (1 mark for the correct option, 0 for a
+# wrong one) instead of being scored holistically by the AI/simulator.
+# ================================================================
+MCQ_APTITUDE_QUESTIONS = {
+    "easy": [
+        {
+            "text": "If a train travels 60 km in 1.5 hours, what is its average speed?",
+            "options": ["30 km/h", "40 km/h", "45 km/h", "60 km/h"],
+            "correct": "B",
+        },
+        {
+            "text": "What is 15% of 200?",
+            "options": ["20", "25", "30", "35"],
+            "correct": "C",
+        },
+        {
+            "text": "Find the next number in the series: 2, 4, 6, 8, __",
+            "options": ["9", "10", "12", "16"],
+            "correct": "B",
+        },
+        {
+            "text": "A shirt costs $40 after a 20% discount. What was the original price?",
+            "options": ["$45", "$48", "$50", "$60"],
+            "correct": "C",
+        },
+        {
+            "text": "If today is Monday, what day will it be after 17 days?",
+            "options": ["Wednesday", "Thursday", "Friday", "Saturday"],
+            "correct": "C",
+        },
+    ],
+    "medium": [
+        {
+            "text": "Two pipes can fill a tank in 6 and 8 hours respectively. How long will both take together?",
+            "options": ["3 hours", "3.43 hours", "4 hours", "7 hours"],
+            "correct": "B",
+        },
+        {
+            "text": "A is twice as old as B. In 10 years, A will be 1.5 times as old as B. What is B's current age?",
+            "options": ["10", "15", "20", "25"],
+            "correct": "C",
+        },
+        {
+            "text": "If the ratio of boys to girls in a class is 3:2 and there are 30 students, how many are girls?",
+            "options": ["10", "12", "15", "18"],
+            "correct": "B",
+        },
+        {
+            "text": "A sum of money doubles itself in 8 years at simple interest. Find the rate of interest.",
+            "options": ["10%", "12%", "12.5%", "15%"],
+            "correct": "C",
+        },
+        {
+            "text": "Find the missing number: 3, 7, 15, 31, __",
+            "options": ["47", "55", "63", "71"],
+            "correct": "C",
+        },
+    ],
+    "hard": [
+        {
+            "text": "A boat travels 30 km upstream in 6 hours and returns downstream in 3 hours. Find the speed of the boat in still water.",
+            "options": ["6 km/h", "7.5 km/h", "9 km/h", "10 km/h"],
+            "correct": "B",
+        },
+        {
+            "text": "In how many ways can 5 people be seated in a row such that two specific people always sit together?",
+            "options": ["24", "48", "60", "120"],
+            "correct": "B",
+        },
+        {
+            "text": "A dice is rolled twice. What is the probability that the sum of the two rolls is greater than 9?",
+            "options": ["1/6", "5/36", "1/9", "1/12"],
+            "correct": "B",
+        },
+        {
+            "text": "A works twice as fast as B. Together they finish a job in 12 days. How long would B alone take?",
+            "options": ["24 days", "30 days", "36 days", "18 days"],
+            "correct": "C",
+        },
+        {
+            "text": "Three numbers are in the ratio 2:3:5 and their sum is 200. Find the largest number.",
+            "options": ["60", "80", "100", "120"],
+            "correct": "C",
+        },
+    ],
+}
+
+MCQ_MARKS = 2  # each Aptitude MCQ is worth 2 marks — full marks if correct, 0 if wrong
+
+# ================================================================
+# Coding round — one auto-gradable coding question per session,
+# worth 10 marks, graded by running the candidate's program against
+# >=3 test cases (stdin -> stdout) and awarding partial credit for
+# marks * (test cases passed / total test cases).
+# ================================================================
+CODING_MARKS = 10
+
+CODING_QUESTIONS = [
+    {
+        "title": "Sum of Two Numbers",
+        "text": (
+            "Read two integers from a single line of input (space-separated) "
+            "and print their sum."
+        ),
+        "starter_code": {
+            "python": "# Read two integers separated by a space and print their sum\na, b = map(int, input().split())\nprint(a + b)\n",
+            "javascript": (
+                "// Read two integers separated by a space and print their sum\n"
+                "const line = require('fs').readFileSync(0, 'utf-8').trim();\n"
+                "const [a, b] = line.split(' ').map(Number);\n"
+                "console.log(a + b);\n"
+            ),
+        },
+        "test_cases": [
+            {"input": "2 3", "output": "5"},
+            {"input": "10 20", "output": "30"},
+            {"input": "-7 7", "output": "0"},
+        ],
+    },
+    {
+        "title": "Reverse a String",
+        "text": "Read a single line of text and print it reversed.",
+        "starter_code": {
+            "python": "# Read a line and print it reversed\ns = input()\nprint(s[::-1])\n",
+            "javascript": (
+                "// Read a line and print it reversed\n"
+                "const s = require('fs').readFileSync(0, 'utf-8').replace(/\\n$/, '');\n"
+                "console.log(s.split('').reverse().join(''));\n"
+            ),
+        },
+        "test_cases": [
+            {"input": "hello", "output": "olleh"},
+            {"input": "OpenAI", "output": "IAnepO"},
+            {"input": "a", "output": "a"},
+        ],
+    },
+    {
+        "title": "Check Palindrome",
+        "text": (
+            "Read a single word and print YES if it is a palindrome, "
+            "otherwise print NO (case-sensitive)."
+        ),
+        "starter_code": {
+            "python": "# Read a word; print YES if it's a palindrome, else NO\ns = input()\nprint('YES' if s == s[::-1] else 'NO')\n",
+            "javascript": (
+                "// Read a word; print YES if it's a palindrome, else NO\n"
+                "const s = require('fs').readFileSync(0, 'utf-8').replace(/\\n$/, '');\n"
+                "console.log(s === s.split('').reverse().join('') ? 'YES' : 'NO');\n"
+            ),
+        },
+        "test_cases": [
+            {"input": "madam", "output": "YES"},
+            {"input": "hello", "output": "NO"},
+            {"input": "level", "output": "YES"},
+        ],
+    },
+    {
+        "title": "FizzBuzz",
+        "text": (
+            "Read an integer N. For each i from 1 to N (inclusive), print 'Fizz' if i is "
+            "divisible by 3, 'Buzz' if divisible by 5, 'FizzBuzz' if divisible by both, "
+            "otherwise print i. Print each result on its own line."
+        ),
+        "starter_code": {
+            "python": (
+                "# Read N and print FizzBuzz from 1..N, one result per line\n"
+                "n = int(input())\n"
+                "for i in range(1, n + 1):\n"
+                "    if i % 15 == 0:\n"
+                "        print('FizzBuzz')\n"
+                "    elif i % 3 == 0:\n"
+                "        print('Fizz')\n"
+                "    elif i % 5 == 0:\n"
+                "        print('Buzz')\n"
+                "    else:\n"
+                "        print(i)\n"
+            ),
+            "javascript": (
+                "// Read N and print FizzBuzz from 1..N, one result per line\n"
+                "const n = parseInt(require('fs').readFileSync(0, 'utf-8').trim(), 10);\n"
+                "const lines = [];\n"
+                "for (let i = 1; i <= n; i++) {\n"
+                "  if (i % 15 === 0) lines.push('FizzBuzz');\n"
+                "  else if (i % 3 === 0) lines.push('Fizz');\n"
+                "  else if (i % 5 === 0) lines.push('Buzz');\n"
+                "  else lines.push(String(i));\n"
+                "}\n"
+                "console.log(lines.join('\\n'));\n"
+            ),
+        },
+        "test_cases": [
+            {"input": "5", "output": "1\n2\nFizz\n4\nBuzz"},
+            {"input": "3", "output": "1\n2\nFizz"},
+            {"input": "15", "output": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz"},
+        ],
+    },
+]
+
+
+def pick_mcq_questions(difficulty: str, count: int, exclude_texts: Optional[set[str]] = None) -> list[dict]:
+    """Pulls `count` Aptitude questions as MCQs (question_type='mcq'),
+    each worth 1 mark, graded deterministically against `correct`."""
+    excluded = exclude_texts or set()
+
+    def fresh_pool(*diffs: str) -> list[dict]:
+        pool: list[dict] = []
+        for d in diffs:
+            pool.extend(MCQ_APTITUDE_QUESTIONS.get(d, []))
+        random.shuffle(pool)
+        return [q for q in pool if _norm_text(q["text"]) not in excluded]
+
+    safe_difficulty = difficulty if difficulty in VALID_DIFFICULTIES else "medium"
+    picked = fresh_pool(safe_difficulty)[:count]
+    if len(picked) < count:
+        other_diffs = [d for d in VALID_DIFFICULTIES if d != safe_difficulty]
+        picked += fresh_pool(*other_diffs)[: count - len(picked)]
+    if len(picked) < count:
+        all_q = [q for d in VALID_DIFFICULTIES for q in MCQ_APTITUDE_QUESTIONS.get(d, [])]
+        random.shuffle(all_q)
+        picked += all_q[: count - len(picked)]
+
+    return [
+        {
+            "text": q["text"],
+            "category": "Aptitude",
+            "difficulty": safe_difficulty,
+            "keywords": [],
+            "question_type": "mcq",
+            "options": list(q["options"]),
+            "correct_option": q["correct"],
+            "marks": MCQ_MARKS,
+        }
+        for q in picked
+    ]
+
+
+def pick_coding_question(exclude_texts: Optional[set[str]] = None) -> dict:
+    """Picks one coding question (question_type='coding'), worth 10
+    marks, with >=3 stdin/stdout test cases for the judge to run."""
+    excluded = exclude_texts or set()
+    pool = [q for q in CODING_QUESTIONS if _norm_text(q["title"]) not in excluded]
+    if not pool:
+        pool = CODING_QUESTIONS
+    problem = random.choice(pool)
+    return {
+        "text": f"{problem['title']}: {problem['text']}",
+        "category": "Technical",
+        "difficulty": "medium",
+        "keywords": [],
+        "question_type": "coding",
+        "marks": CODING_MARKS,
+        "test_cases": problem["test_cases"],
+        "starter_code": problem["starter_code"],
+    }
+
+
 def normalize_domain(domain: Optional[str]) -> str:
     if not domain:
         return "general"
@@ -292,7 +551,9 @@ def pick_questions(
         needed = count - len(picked)
         picked += all_texts[:needed]
 
-    return [{"text": text, "category": category, "difficulty": difficulty} for text in picked]
+    return [
+        {"text": text, "category": category, "difficulty": difficulty, "keywords": []} for text in picked
+    ]
 
 
 def _generate_for_category(
@@ -308,6 +569,13 @@ def _generate_for_category(
     questions); falls back to the curated bank — in full, or to top
     up a short AI response — so output count is always satisfied even
     with zero API keys / no internet / Ollama not running."""
+    if category == "Aptitude":
+        # Aptitude is always asked as MCQs, graded deterministically
+        # (1 mark correct / 0 wrong) — never routed through the AI/open-
+        # text path, since a free-form AI-written question wouldn't
+        # have a single gradable correct option.
+        return pick_mcq_questions(difficulty, count, exclude_texts)
+
     if use_ai:
         try:
             ai_questions = ai_providers.generate_questions_llm(
@@ -364,12 +632,19 @@ def generate_questions(
                 )
             )
         random.shuffle(questions)
-        return questions[:safe_count]
+        questions = questions[:safe_count]
+    else:
+        safe_category = category if category in VALID_CATEGORIES else "Technical"
+        questions = _generate_for_category(
+            safe_category, safe_difficulty, domain, safe_count, interview_type, use_ai, exclude_texts
+        )
 
-    safe_category = category if category in VALID_CATEGORIES else "Technical"
-    return _generate_for_category(
-        safe_category, safe_difficulty, domain, safe_count, interview_type, use_ai, exclude_texts
-    )
+    # Coding round: every generated session gets exactly one auto-graded
+    # coding question worth 10 marks (>=3 test cases), appended after
+    # the requested question set — a separate round on top of it, not
+    # eating into questionCount.
+    questions.append(pick_coding_question(exclude_texts))
+    return questions
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:

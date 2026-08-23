@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,10 +48,34 @@ class AnswerIn(BaseModel):
     answerText: str = ""
     inputMode: Optional[str] = "typed"  # "typed" | "voice"
     timeTakenSeconds: Optional[int] = None
+    # Milestone 3 — computed client-side (face-api.js) while this
+    # question was on screen; optional, since the browser may not
+    # support/allow the camera-based model to load.
+    dominantEmotion: Optional[str] = None
+    eyeContactPercentage: Optional[int] = None
+    # Average Web Speech API recognition confidence (0-100) for this
+    # answer, computed client-side — a rough pronunciation-clarity
+    # proxy, null for typed answers or unsupported browsers.
+    pronunciationConfidence: Optional[int] = None
+    # MCQ: the option letter the candidate picked (e.g. "B").
+    selectedOption: Optional[str] = None
+    # Coding: the candidate's full program + which language it's in.
+    codeAnswer: Optional[str] = None
+    codeLanguage: Optional[str] = None  # "python" | "javascript"
 
 
 class ViolationIn(BaseModel):
     type: str = "tab_switch"  # tab_switch | fullscreen_exit | no_face | multi_face | look_away | copy_paste
+
+
+class RunCodeRequest(BaseModel):
+    """POST /interviews/{id}/questions/{qid}/run — candidate 'Run Code'
+    button. Executes against the question's test cases WITHOUT scoring
+    or persisting anything, so the candidate can iterate before saving
+    their final answer via the normal AnswerIn/submit_answer flow."""
+
+    codeAnswer: str = ""
+    codeLanguage: Optional[str] = "python"  # "python" | "javascript"
 
 
 # ---------------------------------------------------------------
@@ -65,6 +90,15 @@ class QuestionOut(BaseModel):
     category: str
     difficulty: str
     sequence_no: int
+    # MCQ / Coding round. question_type: "open" | "mcq" | "coding".
+    # options/test_cases are raw JSON strings (frontend JSON.parses
+    # them) — correct_option is intentionally NOT exposed here so the
+    # answer can't be read off the question payload.
+    question_type: str = "open"
+    options: Optional[str] = None
+    marks: float = 1
+    test_cases: Optional[str] = None
+    starter_code: Optional[str] = None
 
 
 class InterviewOut(BaseModel):
@@ -95,6 +129,9 @@ class InterviewOut(BaseModel):
     completed_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     candidate_name: Optional[str] = None
+    # Deterministic MCQ/coding marks sheet totals — see schema.sql.
+    marks_awarded: Optional[float] = None
+    marks_total: Optional[float] = None
 
 
 class InterviewWithQuestionsOut(BaseModel):
@@ -111,6 +148,23 @@ class AnswerOut(BaseModel):
     answer_text: Optional[str] = None
     input_mode: str
     time_taken_seconds: Optional[int] = None
+    filler_word_count: Optional[int] = None
+    words_per_minute: Optional[int] = None
+    dominant_emotion: Optional[str] = None
+    eye_contact_percentage: Optional[int] = None
+    # Module 5 — previously computed server-side (speech_analysis.py) but
+    # not exposed here; now returned so the frontend can render the full
+    # Communication/Confidence breakdown instead of only filler/WPM.
+    grammar_issue_count: Optional[int] = None
+    pronunciation_confidence: Optional[int] = None
+    keyword_match_percentage: Optional[int] = None
+    # MCQ / Coding round grading result for this answer.
+    selected_option: Optional[str] = None
+    code_answer: Optional[str] = None
+    code_language: Optional[str] = None
+    is_correct: Optional[bool] = None
+    marks_awarded: Optional[float] = None
+    test_case_results: Optional[str] = None  # JSON string; frontend JSON.parses it
 
 
 class ViolationOut(BaseModel):
@@ -166,6 +220,48 @@ class TTSManifestOut(BaseModel):
     questions: list[dict]
 
 
+class ScoreSheetRow(BaseModel):
+    question_id: int
+    sequence_no: int
+    question_type: str
+    question_text: str
+    marks: float
+    marks_awarded: float
+    is_correct: Optional[bool] = None          # MCQ only
+    selected_option: Optional[str] = None       # MCQ only
+    correct_option: Optional[str] = None        # MCQ only — revealed here, after submission
+    test_cases_passed: Optional[int] = None     # coding only
+    test_cases_total: Optional[int] = None      # coding only
+
+
+class ScoreSheetOut(BaseModel):
+    """GET /interviews/{id}/scoresheet — the deterministic, per-question
+    marks breakdown for the MCQ + coding round (2 marks/MCQ, 10 marks
+    for the coding question), independent of the holistic AI score."""
+
+    interview_id: int
+    marks_awarded: float
+    marks_total: float
+    rows: list[ScoreSheetRow]
+
+
+class RunCodeTestCaseResult(BaseModel):
+    input: str
+    expected: str
+    actual: str
+    passed: bool
+
+
+class RunCodeResult(BaseModel):
+    """GET-time response for the candidate's 'Run Code' button — a
+    test execution, not a graded submission."""
+
+    question_id: int
+    passed_count: int
+    total_count: int
+    results: list[RunCodeTestCaseResult]
+
+
 class RecordingOut(BaseModel):
     """Metadata for a session's video+audio recording — returned by
     the upload endpoint and by the lightweight /recording/meta check
@@ -183,3 +279,57 @@ class RecordingOut(BaseModel):
     created_at: Optional[datetime] = None
     audio_file_path: Optional[str] = None
     audio_mime_type: Optional[str] = None
+
+
+# ---------------------------------------------------------------
+# Module 5 & 6 — Communication / Confidence report
+# (GET /interviews/{id}/communication-report)
+# ---------------------------------------------------------------
+class CommunicationReportRow(BaseModel):
+    """Per-question Module 5/6 signal breakdown — one row per answered
+    open-ended question, in the order it was asked."""
+
+    question_id: int
+    sequence_no: int
+    category: str
+    question_text: str
+    word_count: int
+    filler_word_count: Optional[int] = None
+    words_per_minute: Optional[int] = None
+    grammar_issue_count: Optional[int] = None
+    keyword_match_percentage: Optional[int] = None
+    dominant_emotion: Optional[str] = None
+    eye_contact_percentage: Optional[int] = None
+    pronunciation_confidence: Optional[int] = None
+    input_mode: str
+
+
+class CommunicationReportOut(BaseModel):
+    """Aggregated Module 5 (Speech-to-Text & Communication Analysis) +
+    Module 6 (Emotion Detection & Eye Tracking) report for one
+    interview, shaped around the scoring-rubric parameters from the
+    project spec: Communication (clarity/grammar/filler/pace/
+    completeness) and Confidence (eye contact/facial engagement/
+    hesitation/attention)."""
+
+    interview_id: int
+    questions_analyzed: int
+    # Communication Score (30%) parameters
+    avg_words_per_minute: Optional[int] = None
+    total_filler_words: int
+    filler_word_ratio: Optional[float] = None  # fillers / total words, 0-1
+    avg_grammar_issues: Optional[float] = None
+    avg_keyword_match_percentage: Optional[int] = None
+    avg_response_completeness: Optional[int] = None  # avg word_count as a rough completeness proxy
+    # Confidence Score (25%) parameters
+    avg_eye_contact_percentage: Optional[int] = None
+    avg_pronunciation_confidence: Optional[int] = None
+    dominant_emotion_overall: Optional[str] = None
+    emotion_breakdown: dict = {}
+    voice_answer_ratio: Optional[float] = None  # fraction of answers given by voice vs typed
+    # Module 6 attention / engagement proxies, pulled from proctoring.
+    proctoring_violations: int = 0
+    pace_label: Optional[str] = None       # "slow" | "good" | "fast"
+    filler_label: Optional[str] = None     # "low" | "moderate" | "heavy"
+    confidence_label: Optional[str] = None # "low" | "moderate" | "high"
+    rows: list[CommunicationReportRow] = []

@@ -229,8 +229,10 @@ def generate_questions_llm(
         f'candidate applying for a "{interview_type}" role{domain_clause}. '
         "Vary the phrasing and topics so no two questions are similar."
         f"{avoid_clause}\n\n"
+        "For each question, also give 3-6 short keywords/key concepts a strong answer "
+        "should mention (used later to check answer relevance — not shown to the candidate).\n\n"
         'Respond with ONLY a raw JSON array, no markdown, no commentary, in this exact '
-        'shape: [{"text": "..."}, {"text": "..."}]'
+        'shape: [{"text": "...", "keywords": ["...", "..."]}]'
     )
     raw = _call_llm_chain(prompt)
     parsed = _extract_json(raw) if raw else None
@@ -240,12 +242,16 @@ def generate_questions_llm(
     questions = []
     for item in parsed:
         text = None
+        keywords: list[str] = []
         if isinstance(item, str):
             text = item.strip()
         elif isinstance(item, dict):
             text = str(item.get("text") or item.get("question") or "").strip()
+            raw_keywords = item.get("keywords") or []
+            if isinstance(raw_keywords, list):
+                keywords = [str(k).strip() for k in raw_keywords if str(k).strip()][:6]
         if text:
-            questions.append({"text": text, "category": category, "difficulty": difficulty})
+            questions.append({"text": text, "category": category, "difficulty": difficulty, "keywords": keywords})
 
     if not questions:
         return None
@@ -274,13 +280,21 @@ def score_interview_llm(interview_type: str, qa_pairs: list[dict]) -> Optional[d
         return None
 
     transcript = "\n\n".join(
-        f'Q{i+1} ({p.get("category", "General")}): {p["question"]}\nCandidate answer: {p["answer"].strip()}'
+        f'Q{i+1} ({p.get("category", "General")}): {p["question"]}\n'
+        f'Candidate answer: {p["answer"].strip()}\n'
+        f'Expected keywords: {p.get("expected_keywords") or "n/a"}\n'
+        f'Keyword coverage (measured, not self-reported): {p.get("keyword_match", "n/a")}\n'
+        f'Speech delivery signal (measured, not self-reported): {p.get("speech_signal", "n/a")}'
         for i, p in enumerate(qa_pairs)
     )
     prompt = (
         f'You are grading a mock interview transcript for a "{interview_type}" role. '
-        "Score the candidate fairly based only on what they actually said (an unanswered "
-        "question should pull the relevant skill scores down, not be ignored). "
+        "Score the candidate fairly based on what they actually said, and factor the "
+        "measured speech delivery signal (filler-word usage, speaking pace) into the "
+        "communication sub-score specifically, and the measured keyword coverage into "
+        "the technical/problem-solving sub-score specifically — both are real measured "
+        "data, not a guess. "
+        "An unanswered question should pull the relevant skill scores down, not be ignored. "
         "Respond with ONLY raw JSON, no markdown, in this exact shape:\n"
         '{"score": 0-100, "skill_communication": 0-100, "skill_technical": 0-100, '
         '"skill_confidence": 0-100, "skill_problem_solving": 0-100, '

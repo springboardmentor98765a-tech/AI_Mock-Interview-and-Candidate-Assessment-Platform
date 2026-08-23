@@ -56,8 +56,150 @@ let localAnswers = {}; // questionId -> { text, inputMode }
 
 let webcamStream = null;
 let faceApiReady = false;
+let faceExpressionsReady = false; // Milestone 3 — separate flag: expression model may fail to load even if detector loaded fine
 let faceCheckTimer = null;
 let noFaceStreak = 0;
+let liveHudTimer = null; // Module 5/6 — refreshes the real-time analytics HUD
+
+// Milestone 3 — Speech Analysis & AI Monitoring: per-question tally of
+// on-camera samples (for eye_contact_percentage) and detected emotions
+// (for dominant_emotion), reset every time a new question is shown and
+// read once when that question's answer is saved.
+let faceOnCameraSamples = 0;
+let faceTotalSamples = 0;
+let faceEmotionTally = {};
+
+// Milestone 3 — pronunciation proxy: the Web Speech API returns a
+// confidence (0-1) per final recognized phrase, reflecting how sure
+// the recognizer was about what it heard — low confidence usually
+// means unclear/mumbled speech. Averaged per question. This is a
+// real browser-provided signal, not a fabricated score — but it's a
+// rough proxy, not true phoneme-level pronunciation analysis, since
+// no browser API exposes that.
+let pronunciationConfidenceSamples = [];
+
+function resetFaceSignalsForQuestion() {
+  faceOnCameraSamples = 0;
+  faceTotalSamples = 0;
+  faceEmotionTally = {};
+  pronunciationConfidenceSamples = [];
+}
+
+function getPronunciationConfidenceForAnswer() {
+  if (pronunciationConfidenceSamples.length === 0) return null;
+  const avg = pronunciationConfidenceSamples.reduce((a, b) => a + b, 0) / pronunciationConfidenceSamples.length;
+  return Math.round(avg * 100);
+}
+
+function getFaceSignalsForAnswer() {
+  const eyeContactPercentage =
+    faceTotalSamples > 0 ? Math.round((faceOnCameraSamples / faceTotalSamples) * 100) : null;
+  let dominantEmotion = null;
+  let bestCount = 0;
+  for (const [emotion, count] of Object.entries(faceEmotionTally)) {
+    if (count > bestCount) {
+      bestCount = count;
+      dominantEmotion = emotion;
+    }
+  }
+  return { dominantEmotion, eyeContactPercentage };
+}
+
+// ---------------------------------------------------------------
+// Module 5 — Real-time Speech & Communication Analysis (client side).
+// A lightweight mirror of backend-python/app/speech_analysis.py's
+// filler-word list, used only to give the candidate live feedback as
+// they type/speak — the authoritative, scored numbers are still
+// computed server-side in submit_answer() when the answer is saved.
+// ---------------------------------------------------------------
+const LIVE_FILLER_PHRASES = [
+  'you know what i mean', 'you know', 'i mean', 'sort of', 'kind of',
+  'basically', 'actually', 'literally', 'honestly', 'so yeah',
+  'um', 'umm', 'uh', 'uhh', 'er', 'erm', 'like', 'well',
+];
+
+function analyzeLiveText(text) {
+  const trimmed = (text || '').trim();
+  const words = trimmed.match(/[A-Za-z']+/g) || [];
+  const wordCount = words.length;
+
+  let lowered = ` ${trimmed.toLowerCase()} `;
+  let fillerCount = 0;
+  for (const phrase of LIVE_FILLER_PHRASES) {
+    const pattern = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+    const matches = lowered.match(pattern);
+    if (matches) {
+      fillerCount += matches.length;
+      lowered = lowered.replace(pattern, ' ');
+    }
+  }
+  return { wordCount, fillerCount };
+}
+
+// Reads the current on-screen answer + this question's tallied face
+// signals so far and refreshes the live HUD. Safe to call frequently —
+// every branch degrades to "—" placeholders rather than throwing when
+// a panel/question isn't in the expected state (e.g. MCQ/coding
+// questions, which don't collect speech/emotion signals).
+function updateLiveAnalyticsHud() {
+  const hud = document.getElementById('liveAnalyticsHud');
+  if (!hud) return;
+
+  const q = questions[currentIndex];
+  const isOpenQuestion = q && (q.question_type || 'open') === 'open';
+  const textarea = document.getElementById('answerText');
+  const text = isOpenQuestion && textarea ? textarea.value : '';
+  const { wordCount, fillerCount } = analyzeLiveText(text);
+
+  const elapsedSeconds = questionStartedAt ? Math.max(1, Math.round((Date.now() - questionStartedAt) / 1000)) : null;
+  const liveWpm = wordCount > 0 && elapsedSeconds ? Math.round(wordCount / (elapsedSeconds / 60)) : null;
+
+  const eyeContactPercentage =
+    faceTotalSamples > 0 ? Math.round((faceOnCameraSamples / faceTotalSamples) * 100) : null;
+  let dominantEmotion = null;
+  let bestCount = 0;
+  for (const [emotion, count] of Object.entries(faceEmotionTally)) {
+    if (count > bestCount) {
+      bestCount = count;
+      dominantEmotion = emotion;
+    }
+  }
+  const avgPronunciation = getPronunciationConfidenceForAnswer();
+
+  setText('hudWordCount', wordCount || '0');
+  setText('hudFillerCount', fillerCount || '0');
+  setText('hudWpm', liveWpm !== null ? `${liveWpm} wpm` : '—');
+  setText('hudEyeContact', eyeContactPercentage !== null ? `${eyeContactPercentage}%` : '—');
+  setText('hudEmotion', dominantEmotion ? capitalize(dominantEmotion) : '—');
+  setText('hudPronunciation', avgPronunciation !== null ? `${avgPronunciation}%` : '—');
+
+  const fillerRatio = wordCount > 0 ? fillerCount / wordCount : 0;
+  setBarWidth('hudFillerBar', Math.min(100, fillerRatio * 100 * 6)); // scaled so ~16% ratio = full bar
+  setChipTone('hudFillerCount', fillerRatio > 0.08 ? 'bad' : fillerCount > 0 ? 'warn' : 'ok');
+  setChipTone('hudWpm', liveWpm === null ? 'neutral' : liveWpm < 90 || liveWpm > 180 ? 'warn' : 'ok');
+  setChipTone('hudEyeContact', eyeContactPercentage === null ? 'neutral' : eyeContactPercentage >= 70 ? 'ok' : eyeContactPercentage < 40 ? 'bad' : 'warn');
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function setBarWidth(id, percent) {
+  const el = document.getElementById(id);
+  if (el) el.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+}
+
+function setChipTone(id, tone) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('hud-tone-ok', 'hud-tone-warn', 'hud-tone-bad', 'hud-tone-neutral');
+  el.classList.add(`hud-tone-${tone}`);
+}
+
+function capitalize(word) {
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+}
 
 // ---------------------------------------------------------------
 // Recording — MediaRecorder captures the SAME webcamStream already
@@ -172,7 +314,13 @@ async function initInterviewSession() {
   try {
     const savedAnswers = await apiFetchPy(`/interviews/${interviewId}/answers`);
     (savedAnswers || []).forEach((a) => {
-      localAnswers[a.question_id] = { text: a.answer_text || '', inputMode: a.input_mode || 'typed' };
+      localAnswers[a.question_id] = {
+        text: a.answer_text || '',
+        inputMode: a.input_mode || 'typed',
+        selectedOption: a.selected_option || null,
+        codeAnswer: a.code_answer || '',
+        codeLanguage: a.code_language || 'python',
+      };
     });
   } catch (err) {
     // Non-fatal — session just starts with blank answers.
@@ -189,6 +337,117 @@ function showCompletedAlready() {
   document.getElementById('finishScoreCircle').textContent =
     interview.score !== null && interview.score !== undefined ? `${interview.score}%` : '—';
   document.getElementById('finishFeedbackText').textContent = interview.ai_feedback || '';
+  loadAndRenderScoreSheet();
+  loadAndRenderCommunicationReport();
+}
+
+// ---------------------------------------------------------------
+// MCQ + Coding marks sheet (shown on the finish/results overlay)
+// ---------------------------------------------------------------
+async function loadAndRenderScoreSheet() {
+  let sheet;
+  try {
+    sheet = await apiFetchPy(`/interviews/${interviewId}/scoresheet`);
+  } catch (err) {
+    console.warn('Could not load score sheet:', err);
+    return;
+  }
+
+  if (!sheet || !sheet.rows || !sheet.rows.length) return;
+
+  const rowsHtml = sheet.rows
+    .map((row) => {
+      let resultLabel;
+      if (row.question_type === 'mcq') {
+        resultLabel = row.is_correct
+          ? '✅ Correct'
+          : `❌ Wrong${row.selected_option ? ` (picked ${row.selected_option}` : ' (no answer'}${
+              row.correct_option ? `, correct: ${row.correct_option})` : ')'
+            }`;
+      } else {
+        resultLabel = `${row.test_cases_passed ?? 0} / ${row.test_cases_total ?? 0} test cases passed`;
+      }
+      const typeLabel = row.question_type === 'mcq' ? 'MCQ' : 'Coding';
+      return `
+        <tr style="border-bottom:1px solid rgba(0,0,0,0.08)">
+          <td style="padding:4px">${row.sequence_no}</td>
+          <td style="padding:4px">${typeLabel}</td>
+          <td style="padding:4px;max-width:260px">${escapeHtmlSession(row.question_text)}</td>
+          <td style="padding:4px">${resultLabel}</td>
+          <td style="padding:4px">${row.marks_awarded} / ${row.marks}</td>
+        </tr>`;
+    })
+    .join('');
+
+  document.getElementById('scoreSheetBody').innerHTML = rowsHtml;
+  document.getElementById('scoreSheetTotal').textContent =
+    `Total: ${sheet.marks_awarded} / ${sheet.marks_total} marks`;
+  document.getElementById('scoreSheetBox').style.display = 'block';
+}
+
+// ---------------------------------------------------------------
+// Module 5 & 6 — Communication & Confidence report (shown on the
+// finish overlay once scoring completes).
+// ---------------------------------------------------------------
+async function loadAndRenderCommunicationReport() {
+  let report;
+  try {
+    report = await apiFetchPy(`/interviews/${interviewId}/communication-report`);
+  } catch (err) {
+    console.warn('Could not load communication report:', err);
+    return;
+  }
+
+  if (!report || !report.questions_analyzed) return; // nothing to show for MCQ/coding-only or unanswered sessions
+
+  setText('crWpm', report.avg_words_per_minute !== null ? `${report.avg_words_per_minute} wpm (${report.pace_label || '—'})` : '—');
+  setText(
+    'crFiller',
+    report.total_filler_words !== null
+      ? `${report.total_filler_words} total (${report.filler_label || '—'})`
+      : '—'
+  );
+  setText('crGrammar', report.avg_grammar_issues !== null && report.avg_grammar_issues !== undefined ? report.avg_grammar_issues : '—');
+  setText('crKeyword', report.avg_keyword_match_percentage !== null ? `${report.avg_keyword_match_percentage}%` : 'no keyword data');
+  setText('crCompleteness', report.avg_response_completeness !== null ? `${report.avg_response_completeness} words/answer` : '—');
+
+  setText(
+    'crEyeContact',
+    report.avg_eye_contact_percentage !== null ? `${report.avg_eye_contact_percentage}% (${report.confidence_label || '—'})` : 'not tracked'
+  );
+  setText('crEmotion', report.dominant_emotion_overall ? capitalize(report.dominant_emotion_overall) : 'not tracked');
+  setText('crPronunciation', report.avg_pronunciation_confidence !== null ? `${report.avg_pronunciation_confidence}%` : 'typed answers only');
+  setText('crVoiceRatio', report.voice_answer_ratio !== null ? `${Math.round(report.voice_answer_ratio * 100)}%` : '0%');
+  setText('crViolations', `${report.proctoring_violations ?? 0}`);
+
+  const breakdown = document.getElementById('crEmotionBreakdown');
+  if (breakdown) {
+    const entries = Object.entries(report.emotion_breakdown || {});
+    breakdown.innerHTML = entries.length
+      ? `Emotion mix across answers: ${entries.map(([e, c]) => `${capitalize(e)} (${c})`).join(', ')}`
+      : '';
+  }
+
+  if (report.rows && report.rows.length) {
+    const rowsHtml = report.rows
+      .map(
+        (r) => `
+        <tr>
+          <td>${r.sequence_no}</td>
+          <td>${escapeHtmlSession(r.category)}</td>
+          <td>${r.word_count}</td>
+          <td>${r.filler_word_count ?? '—'}</td>
+          <td>${r.words_per_minute !== null && r.words_per_minute !== undefined ? r.words_per_minute : '—'}</td>
+          <td>${r.eye_contact_percentage !== null && r.eye_contact_percentage !== undefined ? `${r.eye_contact_percentage}%` : '—'}</td>
+          <td>${r.dominant_emotion ? capitalize(r.dominant_emotion) : '—'}</td>
+        </tr>`
+      )
+      .join('');
+    document.getElementById('crTableBody').innerHTML = rowsHtml;
+    document.getElementById('crTable').style.display = 'table';
+  }
+
+  document.getElementById('commReportBox').style.display = 'block';
 }
 
 // ---------------------------------------------------------------
@@ -272,6 +531,12 @@ async function beginProctoredSession() {
   setupFaceDetection(); // async, non-blocking
   startOverallTimer(computeSessionTimeBudget(questions));
   renderQuestion(0);
+
+  // Module 5/6 — real-time HUD: recompute live filler/pace/emotion/eye
+  // contact roughly twice a second, independent of the face-detection
+  // cadence, so typed answers get live speech-signal feedback too.
+  clearInterval(liveHudTimer);
+  liveHudTimer = setInterval(updateLiveAnalyticsHud, 700);
 }
 
 // Maps getUserMedia failures to a message that tells the candidate
@@ -298,14 +563,29 @@ function preStartErrorMessage(err) {
 function renderQuestion(index) {
   currentIndex = index;
   const q = questions[index];
+  const qType = q.question_type || 'open';
 
   document.getElementById('sessionProgress').textContent = `Question ${index + 1} / ${questions.length}`;
   document.getElementById('qCategoryBadge').textContent = q.category;
-  document.getElementById('qDifficultyBadge').textContent = q.difficulty;
+  const marksLabel = q.marks === 1 ? '1 mark' : `${q.marks} marks`;
+  document.getElementById('qDifficultyBadge').textContent =
+    qType === 'coding' || qType === 'mcq' ? `${q.difficulty} · ${marksLabel}` : q.difficulty;
   document.getElementById('questionText').textContent = q.question_text;
 
+  document.getElementById('openAnswerCard').style.display = qType === 'open' ? '' : 'none';
+  document.getElementById('mcqAnswerCard').style.display = qType === 'mcq' ? '' : 'none';
+  document.getElementById('codingAnswerCard').style.display = qType === 'coding' ? '' : 'none';
+
   const saved = localAnswers[q.id];
-  document.getElementById('answerText').value = saved ? saved.text : '';
+
+  if (qType === 'mcq') {
+    renderMcqOptions(q, saved);
+  } else if (qType === 'coding') {
+    renderCodingQuestion(q, saved);
+  } else {
+    document.getElementById('answerText').value = saved ? saved.text : '';
+  }
+
   document.getElementById('micStatus').textContent = '';
   stopVoiceInputIfActive();
 
@@ -313,6 +593,172 @@ function renderQuestion(index) {
     index === questions.length - 1 ? 'Finish Interview ✔' : 'Save & Next ▶';
 
   questionStartedAt = Date.now(); // still used for the per-answer timeTakenSeconds field
+  resetFaceSignalsForQuestion(); // Milestone 3 — fresh emotion/eye-contact tally per question
+}
+
+function renderMcqOptions(q, saved) {
+  let options = [];
+  try {
+    options = q.options ? JSON.parse(q.options) : [];
+  } catch (e) {
+    options = [];
+  }
+  const list = document.getElementById('mcqOptionsList');
+  const selected = saved ? saved.selectedOption : null;
+  list.innerHTML = options
+    .map((opt, i) => {
+      const letter = String.fromCharCode(65 + i); // A, B, C, D...
+      const checked = selected === letter ? 'checked' : '';
+      return `
+        <li style="margin-bottom:8px">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+            <input type="radio" name="mcqOption" value="${letter}" ${checked} onchange="onMcqOptionChange('${letter}')" style="margin-top:3px">
+            <span><strong>${letter}.</strong> ${escapeHtmlSession(opt)}</span>
+          </label>
+        </li>`;
+    })
+    .join('');
+}
+
+function onMcqOptionChange(letter) {
+  const q = questions[currentIndex];
+  localAnswers[q.id] = { ...(localAnswers[q.id] || {}), selectedOption: letter };
+}
+
+function renderCodingQuestion(q, saved) {
+  let starterCode = {};
+  try {
+    starterCode = q.starter_code ? JSON.parse(q.starter_code) : {};
+  } catch (e) {
+    starterCode = {};
+  }
+  let testCases = [];
+  try {
+    testCases = q.test_cases ? JSON.parse(q.test_cases) : [];
+  } catch (e) {
+    testCases = [];
+  }
+
+  const language = (saved && saved.codeLanguage) || 'python';
+  document.getElementById('codeLanguageSelect').value = language;
+  document.getElementById('codeAnswerText').value =
+    saved && saved.codeAnswer !== undefined && saved.codeAnswer !== ''
+      ? saved.codeAnswer
+      : starterCode[language] || '';
+  document.getElementById('codeAnswerText').dataset.starterCode = JSON.stringify(starterCode);
+
+  // Clear any stale "Run Code" output from a previous render of this
+  // (or another) coding question.
+  const resultsBox = document.getElementById('runCodeResultsBox');
+  if (resultsBox) {
+    resultsBox.style.display = 'none';
+    resultsBox.innerHTML = '';
+  }
+  const runStatus = document.getElementById('runCodeStatus');
+  if (runStatus) runStatus.textContent = '';
+
+  document.getElementById('codingTestCasesBox').innerHTML =
+    '<strong>Sample test cases (your code is graded against these):</strong>' +
+    testCases
+      .map(
+        (tc, i) =>
+          `<div style="margin-top:6px;padding:8px;background:rgba(0,0,0,0.04);border-radius:6px">
+            <div>Input ${i + 1}: <code>${escapeHtmlSession(tc.input)}</code></div>
+            <div>Expected Output: <code>${escapeHtmlSession(tc.output)}</code></div>
+          </div>`
+      )
+      .join('');
+}
+
+function onCodeLanguageChange() {
+  const q = questions[currentIndex];
+  const language = document.getElementById('codeLanguageSelect').value;
+  let starterCode = {};
+  try {
+    starterCode = JSON.parse(document.getElementById('codeAnswerText').dataset.starterCode || '{}');
+  } catch (e) {
+    starterCode = {};
+  }
+  const saved = localAnswers[q.id];
+  // Only swap in the language's starter code if the candidate hasn't
+  // typed anything of their own for this question yet.
+  const currentText = document.getElementById('codeAnswerText').value;
+  const hadCustomCode = saved && saved.codeAnswer && saved.codeAnswer.trim() && saved.codeAnswer !== currentText;
+  if (!currentText.trim() || (saved && saved.codeAnswer === currentText && !hadCustomCode)) {
+    document.getElementById('codeAnswerText').value = starterCode[language] || '';
+  }
+  localAnswers[q.id] = { ...(localAnswers[q.id] || {}), codeLanguage: language };
+}
+
+// ---------------------------------------------------------------
+// Coding round — "Run Code" (test execution, not the final graded
+// submission). Hits POST /{id}/questions/{qid}/run, which reuses the
+// same judge as the real grading but never persists or scores
+// anything, so the candidate can iterate freely before Save & Next.
+// ---------------------------------------------------------------
+async function runCandidateCode() {
+  const q = questions[currentIndex];
+  if (!q || q.question_type !== 'coding') return;
+
+  const btn = document.getElementById('runCodeBtn');
+  const statusEl = document.getElementById('runCodeStatus');
+  const resultsBox = document.getElementById('runCodeResultsBox');
+  const code = document.getElementById('codeAnswerText').value;
+  const language = document.getElementById('codeLanguageSelect').value;
+
+  if (!code.trim()) {
+    statusEl.textContent = 'Write some code first.';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = '⏳ Running…';
+  statusEl.textContent = '';
+  resultsBox.style.display = 'none';
+
+  try {
+    const result = await apiFetchPy(`/interviews/${interviewId}/questions/${q.id}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ codeAnswer: code, codeLanguage: language }),
+    });
+
+    const allPassed = result.passed_count === result.total_count && result.total_count > 0;
+    const summaryClass = allPassed ? 'run-code-pass' : 'run-code-fail';
+    const summaryIcon = allPassed ? '✅' : '⚠️';
+    const casesHtml = result.results
+      .map(
+        (r, i) => `
+        <div class="run-code-case">
+          <div>Test ${i + 1}: <span class="${r.passed ? 'run-code-case-pass' : 'run-code-case-fail'}">${
+            r.passed ? 'PASSED' : 'FAILED'
+          }</span></div>
+          <div>Input: <code>${escapeHtmlSession(r.input)}</code></div>
+          <div>Expected: <code>${escapeHtmlSession(r.expected)}</code></div>
+          <div>Got: <code>${escapeHtmlSession(r.actual)}</code></div>
+        </div>`
+      )
+      .join('');
+
+    resultsBox.innerHTML = `
+      <div class="run-code-summary ${summaryClass}">
+        ${summaryIcon} ${result.passed_count} / ${result.total_count} test cases passed
+      </div>
+      ${casesHtml}`;
+    resultsBox.style.display = 'block';
+    statusEl.textContent = 'This is a test run only — it does not save or score your answer. Click "Save & Next" when ready.';
+  } catch (err) {
+    statusEl.textContent = err.message || 'Could not run your code — check your connection and try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+function escapeHtmlSession(str) {
+  const div = document.createElement('div');
+  div.textContent = str === undefined || str === null ? '' : String(str);
+  return div.innerHTML;
 }
 
 // One countdown for the whole session — sized once at the start from
@@ -351,21 +797,46 @@ async function autoSubmitDueToTimeout() {
 
 async function saveCurrentAnswer() {
   const q = questions[currentIndex];
-  const text = document.getElementById('answerText').value.trim();
-  const inputMode = localAnswers[q.id]?.inputMode === 'voice' && !text ? 'typed' : localAnswers[q.id]?.usedVoice ? 'voice' : 'typed';
+  const qType = q.question_type || 'open';
   const timeTaken = Math.max(0, Math.round((Date.now() - questionStartedAt) / 1000));
 
-  localAnswers[q.id] = { text, inputMode, usedVoice: localAnswers[q.id]?.usedVoice };
+  const body = { questionId: q.id, timeTakenSeconds: timeTaken };
+
+  if (qType === 'mcq') {
+    const selectedOption = localAnswers[q.id]?.selectedOption || null;
+    localAnswers[q.id] = { ...(localAnswers[q.id] || {}), selectedOption };
+    body.selectedOption = selectedOption;
+    body.answerText = selectedOption || '';
+  } else if (qType === 'coding') {
+    const codeAnswer = document.getElementById('codeAnswerText').value;
+    const codeLanguage = document.getElementById('codeLanguageSelect').value;
+    localAnswers[q.id] = { ...(localAnswers[q.id] || {}), codeAnswer, codeLanguage };
+    body.codeAnswer = codeAnswer;
+    body.codeLanguage = codeLanguage;
+    body.answerText = '';
+  } else {
+    const text = document.getElementById('answerText').value.trim();
+    const inputMode = localAnswers[q.id]?.inputMode === 'voice' && !text ? 'typed' : localAnswers[q.id]?.usedVoice ? 'voice' : 'typed';
+    localAnswers[q.id] = { text, inputMode, usedVoice: localAnswers[q.id]?.usedVoice };
+    body.answerText = text;
+    body.inputMode = inputMode;
+
+    // Milestone 3 — pull this question's tallied face-api.js signals
+    // (dominant emotion + % of samples where a face was on-camera) and
+    // the average Web Speech API recognition confidence (a rough proxy
+    // for pronunciation clarity — not true phoneme-level scoring, but a
+    // real, non-fabricated signal the browser actually gives us).
+    const { dominantEmotion, eyeContactPercentage } = getFaceSignalsForAnswer();
+    const pronunciationConfidence = getPronunciationConfidenceForAnswer();
+    body.dominantEmotion = dominantEmotion;
+    body.eyeContactPercentage = eyeContactPercentage;
+    body.pronunciationConfidence = pronunciationConfidence;
+  }
 
   try {
     await apiFetchPy(`/interviews/${interviewId}/answers`, {
       method: 'POST',
-      body: JSON.stringify({
-        questionId: q.id,
-        answerText: text,
-        inputMode,
-        timeTakenSeconds: timeTaken,
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     console.error('Failed to save answer:', err);
@@ -395,6 +866,7 @@ async function finishInterview() {
 
   clearInterval(overallTimerInterval);
   clearInterval(faceCheckTimer);
+  clearInterval(liveHudTimer);
   stopVoiceInputIfActive();
 
   // Stop the recorder first (while the stream is still live) so its
@@ -412,6 +884,7 @@ async function finishInterview() {
   document.getElementById('finishHeading').textContent = '⏳ Scoring your interview…';
   document.getElementById('finishSubtext').textContent = 'The AI is reviewing your answers. This takes a few seconds.';
   document.getElementById('finishScoreBox').style.display = 'none';
+  document.getElementById('scoreSheetBox').style.display = 'none';
 
   try {
     const result = await apiFetchPy(`/interviews/${interviewId}/finish`, { method: 'PATCH' });
@@ -420,6 +893,9 @@ async function finishInterview() {
     document.getElementById('finishScoreBox').style.display = 'block';
     document.getElementById('finishScoreCircle').textContent = `${result.score}%`;
     document.getElementById('finishFeedbackText').textContent = result.ai_feedback || '';
+
+    await loadAndRenderScoreSheet();
+    await loadAndRenderCommunicationReport();
   } catch (err) {
     document.getElementById('finishHeading').textContent = '⚠️ Could not score interview';
     document.getElementById('finishSubtext').textContent =
@@ -506,8 +982,17 @@ function toggleVoiceInput() {
     let interimTranscript = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) finalTranscript += transcript;
-      else interimTranscript += transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+        // Milestone 3 — pronunciation proxy: confidence is only
+        // meaningful on final results, not interim guesses.
+        const confidence = event.results[i][0].confidence;
+        if (typeof confidence === 'number' && confidence > 0) {
+          pronunciationConfidenceSamples.push(confidence);
+        }
+      } else {
+        interimTranscript += transcript;
+      }
     }
     if (finalTranscript) baseTextBeforeVoice += `${finalTranscript} `;
     textarea.value = baseTextBeforeVoice + interimTranscript;
@@ -908,6 +1393,7 @@ async function pauseSession() {
   sessionPaused = true;
   clearInterval(overallTimerInterval);
   clearInterval(faceCheckTimer);
+  clearInterval(liveHudTimer);
   stopVoiceInputIfActive();
   pauseRecording();
 
@@ -952,6 +1438,8 @@ async function resumeSession() {
   startOverallTimer();
   setupFaceDetection();
   resumeRecording();
+  clearInterval(liveHudTimer);
+  liveHudTimer = setInterval(updateLiveAnalyticsHud, 700);
 
   pauseInProgress = false;
   if (btn) {
@@ -1002,6 +1490,17 @@ async function setupFaceDetection() {
     return;
   }
 
+  // Milestone 3 — emotion recognition. Best-effort and separate from
+  // the detector above: proctoring (no-face/multi-face/look-away)
+  // must keep working even if this second, larger model fails to load
+  // on a slow connection.
+  try {
+    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL);
+    faceExpressionsReady = true;
+  } catch (err) {
+    console.warn('Face expression model failed to load — emotion tracking disabled:', err);
+  }
+
   faceApiReady = true;
   setChecklistState('chkFace', 'ok', 'Active');
   label.textContent = 'Watching for face presence…';
@@ -1013,7 +1512,13 @@ async function setupFaceDetection() {
   faceCheckTimer = setInterval(async () => {
     if (!sessionActive || sessionPaused || !faceApiReady) return;
     try {
-      const detections = await faceapi.detectAllFaces(video, options);
+      // Single call — chaining .withFaceExpressions() when the model
+      // loaded, or plain detectAllFaces() otherwise — instead of two
+      // separate calls per tick (which could theoretically disagree on
+      // face count between the two frames sampled a moment apart).
+      const detections = faceExpressionsReady
+        ? await faceapi.detectAllFaces(video, options).withFaceExpressions()
+        : await faceapi.detectAllFaces(video, options);
       handleFaceDetections(detections, video);
     } catch (err) {
       // A transient detection error shouldn't crash the loop.
@@ -1026,6 +1531,15 @@ function handleFaceDetections(detections, video) {
   const dot = document.getElementById('faceStatusDot');
   const label = document.getElementById('faceStatusLabel');
 
+  // Module 6 — Emotion Detection & Eye Tracking: every detection tick
+  // (whether or not it's a violation) is one "sample" for this
+  // question's eye-contact percentage; a sample only counts as
+  // "on-camera" when exactly one face is present and roughly centered
+  // (i.e. not a proctoring violation below). Emotion is tallied the
+  // same tick, from face-api.js's expression scores, whenever the
+  // expression model loaded successfully.
+  faceTotalSamples += 1;
+
   if (detections.length === 0) {
     noFaceStreak += 1;
     if (noFaceStreak >= NO_FACE_STRIKES_BEFORE_WARN) {
@@ -1036,6 +1550,7 @@ function handleFaceDetections(detections, video) {
       dot.className = 'session-face-dot session-face-dot-warn';
       label.textContent = 'Checking for your face…';
     }
+    updateLiveAnalyticsHud();
     return;
   }
 
@@ -1045,15 +1560,40 @@ function handleFaceDetections(detections, video) {
     dot.className = 'session-face-dot session-face-dot-bad';
     label.textContent = `${detections.length} faces detected — only the candidate should be visible.`;
     logViolation('multi_face', `${detections.length} faces detected in frame.`);
+    updateLiveAnalyticsHud();
     return;
   }
 
   // Single face — rough "looking away" heuristic: is the face's
   // bounding-box center significantly off from the frame center?
-  const box = detections[0].box;
+  // NOTE: detectAllFaces() alone returns FaceDetection[] with `.box`
+  // directly, but .withFaceExpressions() nests it under `.detection.box`
+  // instead (`{ detection, expressions }`). Reading `.box` unconditionally
+  // used to throw here whenever the expression model had loaded (the
+  // normal case) — silently swallowed by the caller's try/catch — so
+  // faceOnCameraSamples never incremented and eye-contact% was always 0.
+  const det = detections[0];
+  const box = det.detection ? det.detection.box : det.box;
   const faceCenterX = box.x + box.width / 2;
   const frameCenterX = video.videoWidth / 2 || 240;
   const offsetRatio = Math.abs(faceCenterX - frameCenterX) / (video.videoWidth || 480);
+
+  // Emotion tally — read whichever expression face-api.js scored
+  // highest for this frame (e.g. "neutral", "happy", "surprised").
+  if (faceExpressionsReady && det.expressions) {
+    const expressions = det.expressions;
+    let topEmotion = null;
+    let topScore = 0;
+    for (const [emotion, score] of Object.entries(expressions)) {
+      if (score > topScore) {
+        topScore = score;
+        topEmotion = emotion;
+      }
+    }
+    if (topEmotion) {
+      faceEmotionTally[topEmotion] = (faceEmotionTally[topEmotion] || 0) + 1;
+    }
+  }
 
   if (offsetRatio > 0.28) {
     dot.className = 'session-face-dot session-face-dot-warn';
@@ -1062,5 +1602,7 @@ function handleFaceDetections(detections, video) {
   } else {
     dot.className = 'session-face-dot session-face-dot-ok';
     label.textContent = 'Face detected — you are good.';
+    faceOnCameraSamples += 1; // only a clean, centered, single-face frame counts as "on camera"
   }
+  updateLiveAnalyticsHud();
 }

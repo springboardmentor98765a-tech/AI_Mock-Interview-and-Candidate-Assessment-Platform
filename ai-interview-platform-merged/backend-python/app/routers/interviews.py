@@ -12,6 +12,7 @@ backend. Two enhancements on top:
   * GET /{id}/questions/{qid}/tts   — text-to-speech audio for a question
   * GET /{id}/tts                   — manifest of audio URLs for a whole session
 """
+import json
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -21,12 +22,14 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import ai_providers, recording_store
+from app import ai_providers, code_judge, recording_store, speech_analysis
 from app.config import BASE_DIR, MAX_RECORDING_SIZE_MB
 from app.database import get_db
 from app.models import Interview, InterviewAnswer, InterviewQuestion, InterviewRecording, User
 from app.notify import notify
 from app.question_bank import (
+    CODING_MARKS,
+    MCQ_MARKS,
     VALID_CATEGORIES,
     VALID_DIFFICULTIES,
     generate_assessment,
@@ -36,6 +39,8 @@ from app.schemas import (
     AnswerIn,
     AnswerOut,
     CandidateSummaryOut,
+    CommunicationReportOut,
+    CommunicationReportRow,
     FeedbackOut,
     GenerateInterviewRequest,
     InterviewOut,
@@ -44,7 +49,12 @@ from app.schemas import (
     QuestionOut,
     RecordingOut,
     ReviewRequest,
+    RunCodeRequest,
+    RunCodeResult,
+    RunCodeTestCaseResult,
     ScheduleInterviewRequest,
+    ScoreSheetOut,
+    ScoreSheetRow,
     StartInterviewRequest,
     StatsOut,
     TTSManifestOut,
@@ -152,6 +162,13 @@ def generate_interview(
             category=q["category"],
             difficulty=q["difficulty"],
             sequence_no=i,
+            expected_keywords=", ".join(q.get("keywords") or []) or None,
+            question_type=q.get("question_type", "open"),
+            options=json.dumps(q["options"]) if q.get("options") else None,
+            correct_option=q.get("correct_option"),
+            marks=q.get("marks", 1),
+            test_cases=json.dumps(q["test_cases"]) if q.get("test_cases") else None,
+            starter_code=json.dumps(q["starter_code"]) if q.get("starter_code") else None,
         )
         db.add(iq)
         inserted.append(iq)
@@ -385,6 +402,7 @@ def update_interview(
                 category=q["category"],
                 difficulty=q["difficulty"],
                 sequence_no=i,
+                expected_keywords=", ".join(q.get("keywords") or []) or None,
             )
             db.add(iq)
             questions_out.append(iq)
@@ -552,6 +570,45 @@ def resume_interview(
 # ENHANCEMENT 3 — live interview session: answers, proctoring
 # violations, and real (LLM-scored) session completion
 # =================================================================
+@router.post("/{interview_id}/questions/{question_id}/run", response_model=RunCodeResult)
+def run_code(
+    interview_id: int,
+    question_id: int,
+    body: RunCodeRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles("candidate")),
+):
+    """Coding round 'Run Code' — executes the candidate's program
+    against this question's test cases and returns pass/fail + actual
+    output per case, WITHOUT touching interview_answers or scoring
+    anything. Lets the candidate iterate on their code before saving
+    the final answer via POST /{interview_id}/answers (which re-runs
+    the same judge for the real, persisted grading). Owner only, and
+    only while the session is still editable."""
+    interview = _get_own_editable_interview(db, interview_id, user)
+    if interview.status == "completed":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This interview is already completed")
+
+    question = db.get(InterviewQuestion, question_id)
+    if question is None or question.interview_id != interview.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found in this interview")
+    if question.question_type != "coding":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This question is not a coding question")
+
+    language = body.codeLanguage if body.codeLanguage in ("python", "javascript") else "python"
+    test_cases = json.loads(question.test_cases) if question.test_cases else []
+    if not test_cases:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This question has no test cases to run against")
+
+    results, passed = code_judge.run_test_cases(body.codeAnswer or "", language, test_cases)
+    return RunCodeResult(
+        question_id=question.id,
+        passed_count=passed,
+        total_count=len(test_cases),
+        results=[RunCodeTestCaseResult(**r) for r in results],
+    )
+
+
 @router.post("/{interview_id}/answers", response_model=AnswerOut)
 def submit_answer(
     interview_id: int,
@@ -585,6 +642,54 @@ def submit_answer(
     answer.answer_text = body.answerText or ""
     answer.input_mode = safe_mode
     answer.time_taken_seconds = body.timeTakenSeconds
+
+    # Milestone 3 — Speech Analysis & AI Monitoring: filler-word count,
+    # words-per-minute, and grammar spot-check computed here
+    # (deterministic, no API call).
+    metrics = speech_analysis.analyze_answer(answer.answer_text, answer.time_taken_seconds)
+    answer.filler_word_count = metrics["filler_word_count"]
+    answer.words_per_minute = metrics["words_per_minute"]
+    grammar = speech_analysis.check_grammar(answer.answer_text)
+    answer.grammar_issue_count = grammar["issue_count"]
+    answer.keyword_match_percentage = speech_analysis.keyword_match_percentage(
+        answer.answer_text, question.expected_keywords
+    )
+
+    # Emotion + eye-contact are computed client-side (face-api.js);
+    # pronunciation confidence is the average Web Speech API result
+    # confidence for this answer — trust but clamp, since these ride
+    # in on a request body.
+    answer.dominant_emotion = (body.dominantEmotion or None)
+    if body.eyeContactPercentage is not None:
+        answer.eye_contact_percentage = max(0, min(100, body.eyeContactPercentage))
+    if body.pronunciationConfidence is not None:
+        answer.pronunciation_confidence = max(0, min(100, body.pronunciationConfidence))
+
+    # MCQ / Coding round — deterministic grading, independent of the
+    # holistic AI/simulated score. 1 mark for a correct MCQ pick, 0 for
+    # a wrong one; coding gets partial credit for marks * (test cases
+    # passed / total), scored by actually running the submission.
+    if question.question_type == "mcq":
+        selected = (body.selectedOption or "").strip().upper() or None
+        answer.selected_option = selected
+        answer.is_correct = selected is not None and selected == (question.correct_option or "").strip().upper()
+        answer.marks_awarded = float(question.marks) if answer.is_correct else 0.0
+    elif question.question_type == "coding":
+        code = body.codeAnswer or ""
+        language = body.codeLanguage if body.codeLanguage in ("python", "javascript") else "python"
+        answer.code_answer = code
+        answer.code_language = language
+        test_cases = json.loads(question.test_cases) if question.test_cases else []
+        if code.strip() and test_cases:
+            results, passed = code_judge.run_test_cases(code, language, test_cases)
+            answer.test_case_results = json.dumps(results)
+            answer.marks_awarded = round(float(question.marks) * passed / len(test_cases), 2)
+            answer.is_correct = passed == len(test_cases)
+        else:
+            answer.test_case_results = None
+            answer.marks_awarded = 0.0
+            answer.is_correct = False
+
     # questions_attempted counts distinct questions answered at least
     # once — not edits to an already-answered question — so moving
     # back to revise an earlier answer doesn't inflate the count.
@@ -648,14 +753,48 @@ def finish_interview(
     answers = db.query(InterviewAnswer).filter(InterviewAnswer.interview_id == interview.id).all()
     answers_by_question = {a.question_id: a for a in answers}
 
+    # MCQ/coding questions are graded deterministically (see
+    # submit_answer) — they don't feed the holistic AI transcript
+    # scoring below, only the open-ended ones do.
+    open_questions = [q for q in questions if q.question_type == "open"]
+
     qa_pairs = [
         {
             "question": q.question_text,
             "category": q.category,
             "answer": (answers_by_question.get(q.id).answer_text or "") if q.id in answers_by_question else "",
+            "expected_keywords": q.expected_keywords or "",
+            "keyword_match": (
+                f"{answers_by_question[q.id].keyword_match_percentage}% of expected keywords mentioned"
+                if q.id in answers_by_question and answers_by_question[q.id].keyword_match_percentage is not None
+                else "no keyword data"
+            ),
+            "speech_signal": (
+                speech_analysis.communication_signal_summary(
+                    answers_by_question[q.id].filler_word_count,
+                    answers_by_question[q.id].words_per_minute,
+                    len((answers_by_question[q.id].answer_text or "").split()),
+                    answers_by_question[q.id].grammar_issue_count,
+                    answers_by_question[q.id].pronunciation_confidence,
+                )
+                if q.id in answers_by_question
+                else "no answer given"
+            ),
         }
-        for q in questions
+        for q in open_questions
     ]
+
+    # Deterministic MCQ/coding marks sheet — a straight sum of points
+    # earned vs. points possible, independent of the 0-100 AI score.
+    graded_questions = [q for q in questions if q.question_type in ("mcq", "coding")]
+    marks_total = sum(float(q.marks) for q in graded_questions)
+    marks_awarded = sum(
+        float(answers_by_question[q.id].marks_awarded or 0)
+        for q in graded_questions
+        if q.id in answers_by_question
+    )
+    interview.marks_awarded = round(marks_awarded, 2)
+    interview.marks_total = round(marks_total, 2)
 
     assessment = None
     if any(p["answer"].strip() for p in qa_pairs):
@@ -665,6 +804,66 @@ def finish_interview(
             assessment = None
     if assessment is None:
         assessment = generate_assessment()
+
+    # Milestone 3 — nudge the Communication/Confidence sub-scores using
+    # the real, computed filler-word and eye-contact signals rather than
+    # trusting the AI's guess (or the random simulator) alone. Small,
+    # bounded adjustments — this refines the AI/simulator score, it
+    # doesn't replace it, since content quality still matters most.
+    answered_with_metrics = [a for a in answers if (a.answer_text or "").strip()]
+    if answered_with_metrics:
+        filler_counts = [a.filler_word_count for a in answered_with_metrics if a.filler_word_count is not None]
+        eye_contacts = [a.eye_contact_percentage for a in answered_with_metrics if a.eye_contact_percentage is not None]
+        grammar_issues = [a.grammar_issue_count for a in answered_with_metrics if a.grammar_issue_count is not None]
+        pronunciation_scores = [
+            a.pronunciation_confidence for a in answered_with_metrics if a.pronunciation_confidence is not None
+        ]
+        keyword_scores = [
+            a.keyword_match_percentage for a in answered_with_metrics if a.keyword_match_percentage is not None
+        ]
+        word_counts = [len((a.answer_text or "").split()) for a in answered_with_metrics]
+
+        comm_adjust = 0
+        if filler_counts and sum(word_counts) > 0:
+            filler_ratio = sum(filler_counts) / max(sum(word_counts), 1)
+            if filler_ratio > 0.08:
+                comm_adjust -= 8
+            elif filler_ratio < 0.02:
+                comm_adjust += 4
+        if grammar_issues:
+            avg_grammar_issues = sum(grammar_issues) / len(grammar_issues)
+            if avg_grammar_issues >= 2:
+                comm_adjust -= 4
+            elif avg_grammar_issues == 0:
+                comm_adjust += 2
+
+        conf_adjust = 0
+        if eye_contacts:
+            avg_eye_contact = sum(eye_contacts) / len(eye_contacts)
+            if avg_eye_contact >= 70:
+                conf_adjust += 5
+            elif avg_eye_contact < 40:
+                conf_adjust -= 5
+        if pronunciation_scores:
+            avg_pronunciation = sum(pronunciation_scores) / len(pronunciation_scores)
+            if avg_pronunciation >= 80:
+                conf_adjust += 4
+            elif avg_pronunciation < 55:
+                conf_adjust -= 4
+
+        # Keyword coverage reflects answer relevance/content, not
+        # delivery — nudges Technical, not Communication/Confidence.
+        tech_adjust = 0
+        if keyword_scores:
+            avg_keyword_match = sum(keyword_scores) / len(keyword_scores)
+            if avg_keyword_match >= 75:
+                tech_adjust += 6
+            elif avg_keyword_match < 30:
+                tech_adjust -= 6
+
+        assessment["skill_communication"] = max(0, min(100, assessment["skill_communication"] + comm_adjust))
+        assessment["skill_confidence"] = max(0, min(100, assessment["skill_confidence"] + conf_adjust))
+        assessment["skill_technical"] = max(0, min(100, assessment["skill_technical"] + tech_adjust))
 
     interview.status = "completed"
     interview.score = assessment["score"]
@@ -856,6 +1055,173 @@ def stream_recording_audio(
         path=str(full_path),
         media_type=recording.audio_mime_type or recording_store.audio_media_type_for(full_path),
         filename=f"interview_{interview.id}_audio{full_path.suffix}",
+    )
+
+
+# =================================================================
+# MCQ + Coding round — deterministic marks sheet
+# =================================================================
+@router.get("/{interview_id}/scoresheet", response_model=ScoreSheetOut)
+def get_scoresheet(interview_id: int, db: Session = Depends(get_db), user: CurrentUser = Depends(get_current_user)):
+    """Per-question marks breakdown for the MCQ (1 mark each) + coding
+    (10 marks, partial credit per test case) round — the deterministic
+    sheet, separate from the holistic 0-100 AI score. Owner or staff
+    only; correct_option is only revealed here (post-submission), never
+    on the question payload itself."""
+    interview = _get_owned_or_staff_interview(db, interview_id, user)
+
+    graded_questions = (
+        db.query(InterviewQuestion)
+        .filter(InterviewQuestion.interview_id == interview.id, InterviewQuestion.question_type.in_(("mcq", "coding")))
+        .order_by(InterviewQuestion.sequence_no.asc())
+        .all()
+    )
+    answers_by_question = {
+        a.question_id: a
+        for a in db.query(InterviewAnswer).filter(InterviewAnswer.interview_id == interview.id).all()
+    }
+
+    rows: list[ScoreSheetRow] = []
+    for q in graded_questions:
+        a = answers_by_question.get(q.id)
+        if q.question_type == "mcq":
+            rows.append(
+                ScoreSheetRow(
+                    question_id=q.id,
+                    sequence_no=q.sequence_no,
+                    question_type="mcq",
+                    question_text=q.question_text,
+                    marks=float(q.marks),
+                    marks_awarded=float(a.marks_awarded) if a and a.marks_awarded is not None else 0.0,
+                    is_correct=a.is_correct if a else False,
+                    selected_option=a.selected_option if a else None,
+                    correct_option=q.correct_option,
+                )
+            )
+        else:  # coding
+            test_cases = json.loads(q.test_cases) if q.test_cases else []
+            results = json.loads(a.test_case_results) if a and a.test_case_results else []
+            rows.append(
+                ScoreSheetRow(
+                    question_id=q.id,
+                    sequence_no=q.sequence_no,
+                    question_type="coding",
+                    question_text=q.question_text,
+                    marks=float(q.marks),
+                    marks_awarded=float(a.marks_awarded) if a and a.marks_awarded is not None else 0.0,
+                    test_cases_passed=sum(1 for r in results if r.get("passed")),
+                    test_cases_total=len(test_cases),
+                )
+            )
+
+    return ScoreSheetOut(
+        interview_id=interview.id,
+        marks_awarded=float(interview.marks_awarded or 0),
+        marks_total=float(interview.marks_total or 0),
+        rows=rows,
+    )
+
+
+# =================================================================
+# Module 5 & 6 — Communication & Confidence report
+# =================================================================
+@router.get("/{interview_id}/communication-report", response_model=CommunicationReportOut)
+def get_communication_report(interview_id: int, db: Session = Depends(get_db), user: CurrentUser = Depends(get_current_user)):
+    """Aggregates every open-ended answer's Module 5 (speech/grammar/
+    pace/keyword) and Module 6 (emotion/eye-contact/pronunciation)
+    signals into one report — the real, computed counterpart to the
+    project spec's Communication Score / Confidence Score parameters.
+    Owner (candidate) or staff only, same access rule as the scoresheet."""
+    interview = _get_owned_or_staff_interview(db, interview_id, user)
+
+    open_questions = (
+        db.query(InterviewQuestion)
+        .filter(InterviewQuestion.interview_id == interview.id, InterviewQuestion.question_type == "open")
+        .order_by(InterviewQuestion.sequence_no.asc())
+        .all()
+    )
+    answers_by_question = {
+        a.question_id: a
+        for a in db.query(InterviewAnswer).filter(InterviewAnswer.interview_id == interview.id).all()
+    }
+
+    rows: list[CommunicationReportRow] = []
+    answered = [(q, answers_by_question[q.id]) for q in open_questions if q.id in answers_by_question and (answers_by_question[q.id].answer_text or "").strip()]
+
+    for q, a in answered:
+        rows.append(
+            CommunicationReportRow(
+                question_id=q.id,
+                sequence_no=q.sequence_no,
+                category=q.category,
+                question_text=q.question_text,
+                word_count=len((a.answer_text or "").split()),
+                filler_word_count=a.filler_word_count,
+                words_per_minute=a.words_per_minute,
+                grammar_issue_count=a.grammar_issue_count,
+                keyword_match_percentage=a.keyword_match_percentage,
+                dominant_emotion=a.dominant_emotion,
+                eye_contact_percentage=a.eye_contact_percentage,
+                pronunciation_confidence=a.pronunciation_confidence,
+                input_mode=a.input_mode,
+            )
+        )
+
+    def _avg(values: list) -> Optional[float]:
+        vals = [v for v in values if v is not None]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    word_counts = [r.word_count for r in rows]
+    filler_counts = [r.filler_word_count for r in rows if r.filler_word_count is not None]
+    total_filler = sum(filler_counts) if filler_counts else 0
+    total_words = sum(word_counts) if word_counts else 0
+    filler_ratio = round(total_filler / total_words, 3) if total_words > 0 else None
+
+    avg_wpm = _avg([r.words_per_minute for r in rows])
+    avg_grammar = _avg([r.grammar_issue_count for r in rows])
+    avg_keyword = _avg([r.keyword_match_percentage for r in rows])
+    avg_completeness = _avg([r.word_count for r in rows])
+    avg_eye_contact = _avg([r.eye_contact_percentage for r in rows])
+    avg_pronunciation = _avg([r.pronunciation_confidence for r in rows])
+    voice_count = sum(1 for r in rows if r.input_mode == "voice")
+
+    emotion_tally: dict = {}
+    for r in rows:
+        if r.dominant_emotion:
+            emotion_tally[r.dominant_emotion] = emotion_tally.get(r.dominant_emotion, 0) + 1
+    dominant_overall = max(emotion_tally, key=emotion_tally.get) if emotion_tally else None
+
+    pace_label = None
+    if avg_wpm is not None:
+        pace_label = "slow" if avg_wpm < 90 else "fast" if avg_wpm > 180 else "good"
+
+    filler_label = None
+    if filler_ratio is not None:
+        filler_label = "heavy" if filler_ratio > 0.08 else "low" if filler_ratio < 0.02 else "moderate"
+
+    confidence_label = None
+    if avg_eye_contact is not None:
+        confidence_label = "high" if avg_eye_contact >= 70 else "low" if avg_eye_contact < 40 else "moderate"
+
+    return CommunicationReportOut(
+        interview_id=interview.id,
+        questions_analyzed=len(rows),
+        avg_words_per_minute=round(avg_wpm) if avg_wpm is not None else None,
+        total_filler_words=total_filler,
+        filler_word_ratio=filler_ratio,
+        avg_grammar_issues=avg_grammar,
+        avg_keyword_match_percentage=round(avg_keyword) if avg_keyword is not None else None,
+        avg_response_completeness=round(avg_completeness) if avg_completeness is not None else None,
+        avg_eye_contact_percentage=round(avg_eye_contact) if avg_eye_contact is not None else None,
+        avg_pronunciation_confidence=round(avg_pronunciation) if avg_pronunciation is not None else None,
+        dominant_emotion_overall=dominant_overall,
+        emotion_breakdown=emotion_tally,
+        voice_answer_ratio=round(voice_count / len(rows), 2) if rows else None,
+        proctoring_violations=interview.proctoring_violations or 0,
+        pace_label=pace_label,
+        filler_label=filler_label,
+        confidence_label=confidence_label,
+        rows=rows,
     )
 
 

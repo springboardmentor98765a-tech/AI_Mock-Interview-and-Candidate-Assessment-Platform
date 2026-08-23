@@ -82,6 +82,11 @@ class Interview(Base):
     session_id = Column(String(36), unique=True)
     duration_seconds = Column(Integer)
     questions_attempted = Column(Integer, nullable=False, default=0)
+    # Deterministic MCQ/coding marks sheet totals (see schema.sql) —
+    # a straight sum of points earned, separate from the holistic
+    # 0-100 `score` above.
+    marks_awarded = Column(Numeric(6, 2))
+    marks_total = Column(Numeric(6, 2))
 
     questions = relationship(
         "InterviewQuestion",
@@ -113,7 +118,26 @@ class InterviewQuestion(Base):
     category = Column(String(20), nullable=False)
     difficulty = Column(String(10), nullable=False, default="medium")
     sequence_no = Column(Integer, nullable=False)
+    # Milestone 3+ — Keyword Answer Analysis. 3-6 short concepts a
+    # strong answer should mention, comma-separated. Only populated
+    # when the LLM provider generated the question (see
+    # ai_providers.generate_questions_llm); NULL for questions pulled
+    # from the static fallback bank, since we can't honestly claim to
+    # know what "should" be in the answer to a canned question without
+    # the model that wrote it.
+    expected_keywords = Column(Text)
     created_at = Column(TIMESTAMP, server_default=func.now())
+    # MCQ / Coding round. question_type: 'open' (default, AI-scored) |
+    # 'mcq' | 'coding'. options/correct_option back MCQ (JSON array of
+    # strings + the correct letter — correct_option is never sent to
+    # the client). marks is what this question is worth. test_cases /
+    # starter_code back the coding round (JSON).
+    question_type = Column(String(10), nullable=False, default="open")
+    options = Column(Text)
+    correct_option = Column(String(5))
+    marks = Column(Numeric(6, 2), nullable=False, default=1)
+    test_cases = Column(Text)
+    starter_code = Column(Text)
 
 
 class InterviewAnswer(Base):
@@ -129,7 +153,33 @@ class InterviewAnswer(Base):
     answer_text = Column(Text)
     input_mode = Column(String(10), nullable=False, default="typed")  # typed | voice
     time_taken_seconds = Column(Integer)
+    # Milestone 3 — Speech Analysis & AI Monitoring. filler_word_count /
+    # words_per_minute computed server-side in speech_analysis.py from
+    # answer_text + time_taken_seconds. dominant_emotion / eye_contact_percentage
+    # computed client-side (face-api.js) per question and sent up with the
+    # answer — best-effort, stay NULL if no face was detected/model didn't load.
+    filler_word_count = Column(Integer)
+    words_per_minute = Column(Integer)
+    dominant_emotion = Column(String(20))
+    eye_contact_percentage = Column(Integer)
+    # grammar_issue_count computed server-side (speech_analysis.check_grammar,
+    # rule-based). pronunciation_confidence is the average Web Speech API
+    # recognition confidence for this answer's voice input, sent by the
+    # client — a rough clarity proxy, NULL for typed answers.
+    grammar_issue_count = Column(Integer)
+    pronunciation_confidence = Column(Integer)
+    # % of this question's expected_keywords found in the answer text
+    # (case-insensitive word match). NULL when the question has no
+    # expected_keywords (e.g. from the static fallback bank).
+    keyword_match_percentage = Column(Integer)
     created_at = Column(TIMESTAMP, server_default=func.now())
+    # MCQ / Coding round grading — see schema.sql for the full story.
+    selected_option = Column(String(5))
+    code_answer = Column(Text)
+    code_language = Column(String(10))
+    is_correct = Column(Boolean)
+    marks_awarded = Column(Numeric(6, 2))
+    test_case_results = Column(Text)
 
 
 class InterviewRecording(Base):

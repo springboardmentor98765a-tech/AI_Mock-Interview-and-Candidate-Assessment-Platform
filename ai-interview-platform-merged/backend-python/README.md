@@ -1,5 +1,63 @@
 # Module 3 — AI Interview Generation (Python / FastAPI)
 
+## Module 5 & 6 completeness pass (real-time speech + emotion/eye-tracking)
+
+A review against the project spec found Module 5 (Speech-to-Text &
+Communication Analysis) and Module 6 (Emotion Detection & Eye
+Tracking) were mostly built server-side but not fully wired end to
+end. Fixed/added:
+
+- **Bug fix:** `frontend/js/interview-session.js` tallied
+  `faceOnCameraSamples` / `faceEmotionTally` variables but never
+  incremented them — eye-contact % and dominant emotion were always
+  `null` for every interview. `handleFaceDetections()` now updates
+  these tallies on every face-api.js detection tick.
+- **Exposed missing data:** `grammar_issue_count`,
+  `pronunciation_confidence`, and `keyword_match_percentage` were
+  computed and stored in `submit_answer()` but never returned by the
+  API — added to `AnswerOut`.
+- **New endpoint** `GET /api/interviews/{id}/communication-report` —
+  aggregates every answer's Module 5/6 signals (pace, filler ratio,
+  grammar, keyword match, eye contact, pronunciation, emotion mix,
+  voice/typed ratio) into the Communication Score (30%) / Confidence
+  Score (25%) rubric from the project spec, per-question and overall.
+  See `CommunicationReportOut` in `app/schemas.py`.
+- **Live HUD** (`frontend/interview-session.html` /
+  `interview-session.js`) — real-time filler-word count, live WPM,
+  eye-contact %, dominant emotion, and voice clarity shown in the
+  webcam panel while the candidate is answering, refreshed ~1.4x/sec.
+- **Post-interview report** — a "Communication & Confidence Report"
+  panel on the finish screen, rendering the new endpoint's data as a
+  rubric-matched breakdown plus a per-question table.
+
+## Follow-up fixes (MCQ marks, coding "Run", eye-contact bug)
+
+- **Real bug found & fixed:** `handleFaceDetections()` read
+  `detections[0].box` unconditionally, but face-api.js's
+  `.withFaceExpressions()` chain nests the box under
+  `detections[0].detection.box` instead — `.box` is `undefined` on
+  those results, so `box.x` threw on every tick where the expression
+  model had loaded (the normal case). The error was swallowed by the
+  caller's try/catch, so `faceOnCameraSamples` never incremented while
+  `faceTotalSamples` kept growing — eye-contact % was stuck at 0% for
+  every session run after the previous fix. Now reads
+  `det.detection?.box ?? det.box` so it works with both detection
+  shapes. Also merged the two separate `detectAllFaces()` calls per
+  tick into one to avoid any face-count disagreement between them.
+- **MCQ marks:** `MCQ_MARKS` raised from 1 to 2 — each Aptitude MCQ
+  is now worth 2 marks (full marks if correct, 0 if wrong; grading
+  logic in `submit_answer()` already did exactly this, it just used
+  the old constant). Frontend question badge now reads the question's
+  actual `marks` value instead of a hardcoded "1 mark" string.
+- **Coding round — Run Code:** new `POST
+  /interviews/{id}/questions/{qid}/run` endpoint executes the
+  candidate's submitted program against the question's test cases
+  (reusing `code_judge.run_test_cases`) and returns pass/fail + actual
+  output per case, without persisting or scoring anything. A "▶ Run
+  Code" button in the coding answer card lets the candidate test their
+  program as many times as they like before "Save & Next" triggers the
+  real, persisted grading.
+
 This is a Python implementation of Module 3, matching the guideline
 doc's recommended stack (Python, FastAPI, PostgreSQL, JWT, Pydantic,
 SQLAlchemy). It runs **alongside** the existing Node backend rather
