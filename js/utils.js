@@ -236,9 +236,9 @@ function renderDashboardLayout(navItems, content, username, avatar) {
   return `<div class="flex h-screen overflow-hidden" style="font-family:'Inter',sans-serif;background:#06070f">
     <div class="sidebar flex flex-col border-r border-white/6" style="background:#09091a">
       <div class="p-5 border-b border-white/6">
-        <div class="flex items-center gap-2">
-          <div class="sidebar-logo">${icon('brain', 16)}</div>
-          <div><p class="logo-text-sm">SmartHire AI</p>${badge(state.role, badgeColor)}</div>
+        <div class="flex items-center gap-2.5">
+          <div class="sidebar-logo flex items-center justify-center">${icon('logo', 32)}</div>
+          <div><p class="logo-text-sm font-bold text-white tracking-tight" style="font-family:'Outfit',sans-serif;font-size:15px;line-height:1.2;">SmartHire AI</p>${badge(state.role, badgeColor)}</div>
         </div>
       </div>
       <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" id="sidebar-nav">

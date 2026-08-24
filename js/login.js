@@ -66,9 +66,9 @@ function renderLoginPage() {
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-3xl opacity-10" style="background:${EMERALD}"></div>
       </div>
       <div class="relative">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="logo-icon">${icon('brain', 18)}</div>
-          <span class="logo-text">SmartHire AI</span>
+        <div class="flex items-center gap-3 mb-2">
+          <div class="logo-icon flex items-center justify-center">${icon('logo', 36)}</div>
+          <span class="logo-text font-bold text-white text-xl tracking-tight" style="font-family:'Outfit',sans-serif">SmartHire AI</span>
         </div>
       </div>
       <div class="relative space-y-8">
@@ -93,9 +93,9 @@ function renderLoginPage() {
     </div>
     <div class="flex-1 flex items-center justify-center p-8" style="background:#09091a">
       <div class="w-full max-w-md">
-        <div class="flex items-center gap-2 mb-8 lg:hidden">
-          ${icon('brain', 20)}
-          <span class="logo-text">SmartHire AI</span>
+        <div class="flex items-center gap-2.5 mb-8 lg:hidden">
+          ${icon('logo', 32)}
+          <span class="logo-text font-bold text-white text-lg tracking-tight" style="font-family:'Outfit',sans-serif">SmartHire AI</span>
         </div>
         <div class="mb-8">
           <h2 class="text-2xl font-bold text-white mb-1" style="font-family:'Outfit',sans-serif">${state.authMode === 'login' ? 'Welcome back' : 'Create account'}</h2>
@@ -179,7 +179,7 @@ function renderPasswordRecoveryPage() {
   return `<div class="flex min-h-screen" style="background:#09091a">
     <div class="flex-1 flex items-center justify-center p-8">
       <div class="w-full max-w-md">
-        <div class="flex items-center gap-2 mb-8">${icon('brain', 20)}<span class="logo-text">SmartHire AI</span></div>
+        <div class="flex items-center gap-2.5 mb-8">${icon('logo', 32)}<span class="logo-text font-bold text-white text-lg tracking-tight" style="font-family:'Outfit',sans-serif">SmartHire AI</span></div>
         <div class="mb-8"><h2 class="text-2xl font-bold text-white mb-1" style="font-family:'Outfit',sans-serif">${title}</h2><p class="text-white/40 text-sm">${subtitle}</p></div>
         ${message}${error}${fields}
         <button id="btn-auth" class="auth-btn w-full py-3 rounded-lg text-white text-sm font-semibold mb-4">${isReset ? 'Reset Password' : 'Send Reset Link'}</button>

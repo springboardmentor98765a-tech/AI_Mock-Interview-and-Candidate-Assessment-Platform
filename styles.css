@@ -4785,4 +4785,60 @@ select:focus, input:focus, textarea:focus {
 .ra-prev-badge { flex: none; font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.55rem; border-radius: 0.5rem; white-space: nowrap; }
 .ra-preview-empty-dark { color: rgba(255,255,255,0.35); display: flex; flex-direction: column; align-items: center; }
 
+/* ── SmartHire AI Indigenous Logo Branding ── */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sidebar-logo:hover {
+  transform: translateY(-1px) scale(1.06);
+  filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+}
+.sidebar-logo svg {
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+.logo-icon:hover {
+  transform: translateY(-1px) scale(1.06);
+  filter: drop-shadow(0 0 14px rgba(6, 182, 212, 0.55));
+}
+.logo-icon svg {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+}
+
+.logo-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+.logo-text-sm {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+
 
