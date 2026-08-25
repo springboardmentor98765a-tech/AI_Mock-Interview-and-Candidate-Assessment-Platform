@@ -227,6 +227,363 @@ function chartOpts(legend, horizontal) {
   };
 }
 
+/* ── User Avatar Helper ── */
+function renderUserAvatar(size, customClass, editable) {
+  size = size || 'sm';
+  customClass = customClass || '';
+  editable = !!editable;
+
+  var user = state.user || {};
+  var name = user.name || 'User';
+  var initials = name.split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().slice(0, 2) || 'SH';
+  var roleColor = state.role === 'candidate' ? '#6366f1' : state.role === 'recruiter' ? '#06b6d4' : '#a855f7';
+  
+  var avatarUrl = user.avatar || localStorage.getItem('smarthire_user_avatar') || '';
+
+  var sizeStyles = {
+    xs: 'width:1.5rem;height:1.5rem;font-size:10px;',
+    sm: 'width:2rem;height:2rem;font-size:12px;',
+    md: 'width:2.5rem;height:2.5rem;font-size:14px;',
+    lg: 'width:3.5rem;height:3.5rem;font-size:18px;',
+    xl: 'width:5rem;height:5rem;font-size:24px;',
+    '2xl': 'width:6.5rem;height:6.5rem;font-size:32px;'
+  };
+  var sStyle = sizeStyles[size] || sizeStyles.sm;
+
+  var contentHtml = avatarUrl
+    ? `<img src="${avatarUrl}" alt="${name}" class="user-avatar-img" />`
+    : `<span class="font-extrabold text-white tracking-tight" style="font-family:'Outfit',sans-serif;">${initials}</span>`;
+
+  var bgStyle = avatarUrl ? '#141627' : ('linear-gradient(135deg, ' + roleColor + ', #3b82f6)');
+
+  return `
+    <div class="sh-user-avatar relative rounded-full flex items-center justify-center select-none overflow-hidden shrink-0 shadow-md ${customClass}" 
+         style="${sStyle}background:${bgStyle};border:2px solid rgba(255,255,255,0.15);"
+         title="${name}">
+      ${contentHtml}
+      ${editable ? `
+        <div class="sh-avatar-edit-overlay" onclick="triggerProfilePhotoUpload(event)" title="Upload new photo">
+          ${icon('camera', 16)}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+/* ── Profile Dropdown Renderer ── */
+function renderProfileDropdown() {
+  var user = state.user || {};
+  var name = user.name || 'User';
+  var email = user.email || 'user@example.com';
+  var role = state.role || 'candidate';
+  var roleBadgeColor = role === 'candidate' ? 'indigo' : role === 'recruiter' ? 'cyan' : 'purple';
+  var accountId = user.id ? (role.toUpperCase().slice(0, 3) + '-' + String(user.id).padStart(4, '0')) : 'USR-0001';
+  var hasCustomPhoto = !!(user.avatar || localStorage.getItem('smarthire_user_avatar'));
+
+  var candidateSettings = typeof getCandidateSettings === 'function' ? getCandidateSettings() : {};
+  var recruiterSettings = typeof getRecruiterSettings === 'function' ? getRecruiterSettings() : {};
+
+  var roleDetailsHtml = '';
+  if (role === 'candidate') {
+    roleDetailsHtml = `
+      <div class="p-2.5 rounded-xl bg-white/4 border border-white/6 text-xs space-y-1">
+        <div class="flex justify-between text-white/50"><span>Target Role</span><span class="font-bold text-white">${candidateSettings.targetRole || 'Full Stack Engineer'}</span></div>
+        <div class="flex justify-between text-white/50"><span>Experience</span><span class="font-semibold text-indigo-300">${candidateSettings.experienceLevel || 'Mid Level (2-5 yrs)'}</span></div>
+      </div>
+    `;
+  } else if (role === 'recruiter') {
+    roleDetailsHtml = `
+      <div class="p-2.5 rounded-xl bg-white/4 border border-white/6 text-xs space-y-1">
+        <div class="flex justify-between text-white/50"><span>Organization</span><span class="font-bold text-white">${recruiterSettings.companyName || 'Infosys'}</span></div>
+        <div class="flex justify-between text-white/50"><span>Domain</span><span class="font-semibold text-cyan-300">${recruiterSettings.industry || 'Enterprise SaaS'}</span></div>
+      </div>
+    `;
+  } else if (role === 'admin') {
+    roleDetailsHtml = `
+      <div class="p-2.5 rounded-xl bg-white/4 border border-white/6 text-xs space-y-1">
+        <div class="flex justify-between text-white/50"><span>AI Model</span><span class="font-bold text-white">DeepSeek v4 Flash</span></div>
+        <div class="flex justify-between text-white/50"><span>Platform Mode</span><span class="font-semibold text-emerald-400">Enterprise Live</span></div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="sh-profile-dropdown shadow-2xl" id="sh-profile-dropdown" onclick="event.stopPropagation()">
+      <div class="sh-profile-dropdown-header">
+        <div class="flex items-center gap-3">
+          <div class="relative cursor-pointer" onclick="triggerProfilePhotoUpload(event)" title="Click to change profile photo">
+            ${renderUserAvatar('lg', '', true)}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-white text-sm truncate">${name}</span>
+              ${badge(role, roleBadgeColor)}
+            </div>
+            <p class="text-xs text-white/40 truncate mt-0.5">${email}</p>
+            <span class="text-[10px] font-mono text-white/30 block mt-0.5">ID: ${accountId}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 space-y-2">
+        ${roleDetailsHtml}
+
+        <div class="pt-1 space-y-0.5">
+          <button type="button" class="sh-profile-dropdown-item" onclick="triggerProfilePhotoUpload(event)">
+            <span class="text-indigo-400">${icon('camera', 16)}</span>
+            <span>Upload Profile Photo</span>
+          </button>
+          ${hasCustomPhoto ? `
+            <button type="button" class="sh-profile-dropdown-item text-rose-400" onclick="handleRemoveProfilePhoto()">
+              <span class="text-rose-400">${icon('trash', 15)}</span>
+              <span>Remove Photo</span>
+            </button>
+          ` : ''}
+          <button type="button" class="sh-profile-dropdown-item" onclick="openProfileModal()">
+            <span class="text-cyan-400">${icon('user', 16)}</span>
+            <span>View Full Profile Card</span>
+          </button>
+          <button type="button" class="sh-profile-dropdown-item" onclick="navigateToSettingsTab('profile')">
+            <span class="text-emerald-400">${icon('settings', 16)}</span>
+            <span>Settings & Preferences</span>
+          </button>
+          <button type="button" class="sh-profile-dropdown-item" onclick="navigateToSettingsTab('security')">
+            <span class="text-amber-400">${icon('shieldCheck', 16)}</span>
+            <span>Security & Password</span>
+          </button>
+          <div class="my-1 border-t border-white/6"></div>
+          <button type="button" class="sh-profile-dropdown-item danger" onclick="handleLogout()">
+            <span class="text-rose-400">${icon('logOut', 16)}</span>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Full Profile Preview Modal Renderer ── */
+function renderProfileModal() {
+  var user = state.user || {};
+  var name = user.name || 'User';
+  var email = user.email || 'user@example.com';
+  var role = state.role || 'candidate';
+  var roleBadgeColor = role === 'candidate' ? 'indigo' : role === 'recruiter' ? 'cyan' : 'purple';
+  var accountId = user.id ? (role.toUpperCase().slice(0, 3) + '-' + String(user.id).padStart(4, '0')) : 'USR-0001';
+  var memberDate = user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'August 2026';
+  var hasCustomPhoto = !!(user.avatar || localStorage.getItem('smarthire_user_avatar'));
+
+  var candidateSettings = typeof getCandidateSettings === 'function' ? getCandidateSettings() : {};
+  var recruiterSettings = typeof getRecruiterSettings === 'function' ? getRecruiterSettings() : {};
+
+  return `
+    <div class="sh-profile-modal-overlay" id="profile-modal-overlay" onclick="if(event.target===this)closeProfileModal()">
+      <div class="sh-profile-modal-card">
+        
+        <!-- Header Banner Gradient -->
+        <div class="h-28 w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 relative">
+          <button type="button" class="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 text-white/70 hover:text-white hover:bg-black/60 transition-all cursor-pointer" onclick="closeProfileModal()">
+            ${icon('x', 16)}
+          </button>
+        </div>
+
+        <div class="p-6 pt-0 relative flex flex-col items-center text-center">
+          
+          <!-- Large Avatar with Camera Trigger -->
+          <div class="-mt-14 mb-3 relative cursor-pointer group" onclick="triggerProfilePhotoUpload(event)" title="Click to change profile photo">
+            ${renderUserAvatar('2xl', 'ring-4 ring-[#0d0f1e] shadow-2xl', true)}
+          </div>
+
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            ${name}
+            <span class="text-emerald-400" title="Verified Account">${icon('checkCircle2', 18)}</span>
+          </h2>
+          <div class="flex items-center gap-2 mt-1.5">
+            ${badge(role, roleBadgeColor)}
+            <span class="text-xs text-white/40 font-mono">ID: ${accountId}</span>
+          </div>
+
+          <!-- Info Matrix Grid -->
+          <div class="w-full mt-6 space-y-2.5 text-left">
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6 text-xs">
+              <span class="text-indigo-400">${icon('mail', 15)}</span>
+              <div class="flex-1 min-w-0">
+                <span class="text-white/40 block text-[10px] uppercase font-bold">Email Address</span>
+                <span class="text-white font-semibold truncate block">${email}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6 text-xs">
+              <span class="text-cyan-400">${icon('phone', 15)}</span>
+              <div class="flex-1 min-w-0">
+                <span class="text-white/40 block text-[10px] uppercase font-bold">Contact Phone</span>
+                <span class="text-white font-semibold">${role === 'candidate' ? (candidateSettings.phone || '+91 98765 43210') : (recruiterSettings.phone || '+91 91234 56789')}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6 text-xs">
+              <span class="text-purple-400">${icon('briefcase', 15)}</span>
+              <div class="flex-1 min-w-0">
+                <span class="text-white/40 block text-[10px] uppercase font-bold">${role === 'recruiter' ? 'Company & Organization' : 'Target Role / Specialization'}</span>
+                <span class="text-white font-semibold">${role === 'recruiter' ? (recruiterSettings.companyName || 'Infosys Springboard') : (candidateSettings.targetRole || 'Full Stack Engineer')}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/3 border border-white/6 text-xs">
+              <span class="text-emerald-400">${icon('calendar', 15)}</span>
+              <div class="flex-1 min-w-0">
+                <span class="text-white/40 block text-[10px] uppercase font-bold">Member Since</span>
+                <span class="text-white font-semibold">${memberDate}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="w-full flex items-center gap-2.5 mt-6 pt-4 border-t border-white/6">
+            <button type="button" class="flex-1 sh-btn-primary flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-lg" onclick="triggerProfilePhotoUpload(event)">
+              ${icon('upload', 14)}
+              <span>Upload Photo</span>
+            </button>
+            ${hasCustomPhoto ? `
+              <button type="button" class="p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all" onclick="handleRemoveProfilePhoto()" title="Remove Photo">
+                ${icon('trash', 14)}
+              </button>
+            ` : ''}
+            <button type="button" class="flex-1 sh-secondary-btn flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold" onclick="closeProfileModal();navigateToSettingsTab('profile');">
+              ${icon('settings', 14)}
+              <span>Edit Profile</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Photo Upload & Profile Nav Helpers ── */
+function triggerProfilePhotoUpload(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  var input = document.getElementById('global-photo-upload-input');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.id = 'global-photo-upload-input';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function(evt) {
+      var file = evt.target.files && evt.target.files[0];
+      if (file) {
+        handleProfilePhotoUpload(file);
+      }
+      input.value = '';
+    });
+  }
+  input.click();
+}
+
+function handleProfilePhotoUpload(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    if (typeof showToast === 'function') showToast('Please select a valid image file (JPEG, PNG, WebP).', 'error');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    if (typeof showToast === 'function') showToast('Image file too large. Maximum size is 5MB.', 'error');
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxDim = 512;
+      var w = img.width;
+      var h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+      if (state.user) {
+        state.user.avatar = optimizedDataUrl;
+      }
+      localStorage.setItem('smarthire_user_avatar', optimizedDataUrl);
+
+      if (typeof api !== 'undefined' && typeof api.updateProfile === 'function') {
+        api.updateProfile({ avatar: optimizedDataUrl }).catch(function(err) {
+          console.warn('Server avatar sync:', err);
+        });
+      }
+
+      if (typeof showToast === 'function') {
+        showToast('Profile photo updated successfully!', 'success');
+      }
+
+      if (typeof render === 'function') {
+        render();
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleRemoveProfilePhoto() {
+  if (state.user) {
+    state.user.avatar = null;
+  }
+  localStorage.removeItem('smarthire_user_avatar');
+
+  if (typeof api !== 'undefined' && typeof api.updateProfile === 'function') {
+    api.updateProfile({ avatar: '' }).catch(function(err) {
+      console.warn('Server avatar clear:', err);
+    });
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('Profile photo removed.', 'info');
+  }
+
+  if (typeof render === 'function') {
+    render();
+  }
+}
+
+function openProfileModal() {
+  state.isProfileDropdownOpen = false;
+  state.showProfileModal = true;
+  if (typeof render === 'function') render();
+}
+
+function closeProfileModal() {
+  state.showProfileModal = false;
+  if (typeof render === 'function') render();
+}
+
+function navigateToSettingsTab(tabName) {
+  state.isProfileDropdownOpen = false;
+  state.showProfileModal = false;
+  state.section = 'settings';
+  window.settingsActiveTab = tabName || 'profile';
+  if (typeof render === 'function') render();
+}
+
 /* ── Shared Layout ── */
 function renderDashboardLayout(navItems, content, username, avatar) {
   var roleColor = state.role === 'candidate' ? INDIGO : state.role === 'recruiter' ? CYAN : EMERALD;
@@ -245,9 +602,12 @@ function renderDashboardLayout(navItems, content, username, avatar) {
         ${navItems.map(function(item) { return sidebarLink(item.icon, item.label, item.key, state.section === item.key); }).join('')}
       </nav>
       <div class="p-3 border-t border-white/6">
-        <div class="flex items-center gap-2 p-2 rounded-lg mb-2" style="background:#141627">
-          <div class="user-avatar-sm" style="background:${roleColor}">${avatar}</div>
-          <div class="flex-1 min-w-0"><p class="text-white text-xs font-medium truncate">${username}</p><p class="text-white/40 text-xs truncate capitalize">${state.role}</p></div>
+        <div class="flex items-center gap-2.5 p-2 rounded-xl mb-2 cursor-pointer hover:bg-white/5 transition-all border border-white/5" id="btn-sidebar-user-profile" title="Open Profile Preview" style="background:#141627">
+          ${renderUserAvatar('sm')}
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-xs font-semibold truncate leading-tight">${username}</p>
+            <p class="text-white/40 text-[11px] truncate capitalize mt-0.5">${state.role}</p>
+          </div>
         </div>
         <button id="btn-logout" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/40 hover:text-white/70 transition-all">${icon('logOut')} Log out</button>
       </div>
@@ -264,7 +624,13 @@ function renderDashboardLayout(navItems, content, username, avatar) {
             </button>
             ${state.isNotifDropdownOpen ? renderNotificationDropdown() : ''}
           </div>
-          <div class="user-avatar-sm" style="background:${roleColor}">${avatar}</div>
+          <!-- Profile Avatar Trigger & Flyout Dropdown -->
+          <div class="relative user-profile-wrapper" id="user-profile-wrapper">
+            <button id="btn-user-profile-trigger" class="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-all border border-transparent hover:border-white/15 cursor-pointer" title="View Profile & Settings">
+              ${renderUserAvatar('sm')}
+            </button>
+            ${state.isProfileDropdownOpen ? renderProfileDropdown() : ''}
+          </div>
         </div>
       </div>
       <div class="flex-1 overflow-y-auto p-6" id="main-content">${content}</div>

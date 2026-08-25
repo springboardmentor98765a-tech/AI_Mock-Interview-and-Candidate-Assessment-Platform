@@ -153,6 +153,9 @@ def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_u
     if req.email:
         updates.append("email = ?")
         values.append(req.email)
+    if req.avatar is not None:
+        updates.append("avatar = ?")
+        values.append(req.avatar)
 
     if updates:
         updates.append("updated_at = CURRENT_TIMESTAMP")

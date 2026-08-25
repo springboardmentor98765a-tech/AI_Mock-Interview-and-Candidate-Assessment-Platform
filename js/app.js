@@ -44,7 +44,7 @@ function render() {
       history: candidateHistory,
       recordings: candidateRecordings,
       reports: candidateReports,
-      settings: function() { return placeholderSection('Settings', 'Manage your account preferences, notifications, and privacy settings.', icon('settings', 32)); },
+      settings: typeof renderCandidateSettings === 'function' ? renderCandidateSettings : function() { return placeholderSection('Settings', 'Manage your account preferences, notifications, and privacy settings.', icon('settings', 32)); },
     };
     content = (sections[state.section] || sections.overview)();
 
@@ -63,7 +63,7 @@ function render() {
       compare: recruiterCompare,
       templates: recruiterTemplates,
       sessions: recruiterSessions,
-      settings: function() { return placeholderSection('Settings', 'Configure your recruiter preferences and notification settings.', icon('settings', 32)); },
+      settings: typeof renderRecruiterSettings === 'function' ? renderRecruiterSettings : function() { return placeholderSection('Settings', 'Configure your recruiter preferences and notification settings.', icon('settings', 32)); },
     };
     content = (rSections[state.section] || rSections.overview)();
   } else if (state.page === 'admin') {
@@ -81,7 +81,7 @@ function render() {
       analytics: adminAnalytics,
       ai: adminAI,
       activity: adminActivity,
-      settings: function() { return placeholderSection('Platform Settings', 'Configure global platform behaviour, integrations, and security policies.', icon('settings', 32)); },
+      settings: typeof renderAdminSettings === 'function' ? renderAdminSettings : function() { return placeholderSection('Platform Settings', 'Configure global platform behaviour, integrations, and security policies.', icon('settings', 32)); },
     };
     content = (aSections[state.section] || aSections.overview)();
   }
@@ -94,6 +94,10 @@ function render() {
 
   if (state.showEndConfirmModal && typeof renderEndConfirmModal === 'function') {
     app.innerHTML += renderEndConfirmModal();
+  }
+
+  if (state.showProfileModal && typeof renderProfileModal === 'function') {
+    app.innerHTML += renderProfileModal();
   }
 
   bindDashboardEvents();
@@ -377,6 +381,30 @@ function bindDashboardEvents() {
       var valEl = document.getElementById('temp-val');
       if (valEl) valEl.textContent = this.value;
     });
+  }
+
+  /* ── Profile Dropdown Trigger ── */
+  var profileTrigger = document.getElementById('btn-user-profile-trigger');
+  if (profileTrigger) {
+    profileTrigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      state.isProfileDropdownOpen = !state.isProfileDropdownOpen;
+      state.isNotifDropdownOpen = false;
+      render();
+    });
+  }
+
+  var sidebarProfileBtn = document.getElementById('btn-sidebar-user-profile');
+  if (sidebarProfileBtn) {
+    sidebarProfileBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openProfileModal();
+    });
+  }
+
+  /* ── Settings Module Events ── */
+  if (typeof bindSettingsEvents === 'function') {
+    bindSettingsEvents();
   }
 
   /* ── Recruiter Dashboard Events ── */
@@ -809,6 +837,16 @@ if (!window._globalModalClickBound) {
       }
     }
 
+    // Profile Dropdown Close on Outside Click
+    if (state.isProfileDropdownOpen) {
+      var profileWrapper = e.target.closest('#user-profile-wrapper');
+      if (!profileWrapper) {
+        state.isProfileDropdownOpen = false;
+        render();
+        return;
+      }
+    }
+
     // Video Modal Close (Header cross & footer Close button)
     var videoCloseBtn = e.target.closest('#video-modal-close, #video-modal-close-btn');
     if (videoCloseBtn) {
@@ -855,6 +893,9 @@ if (!window._globalModalClickBound) {
         render();
       } else if (state.activeReportModal) {
         state.activeReportModal = null;
+        render();
+      } else if (state.showProfileModal) {
+        state.showProfileModal = false;
         render();
       } else if (state.showCreateTemplateModal) {
         state.showCreateTemplateModal = false;

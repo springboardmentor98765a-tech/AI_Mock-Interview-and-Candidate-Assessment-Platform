@@ -22,6 +22,7 @@ class GoogleLoginRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    avatar: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
