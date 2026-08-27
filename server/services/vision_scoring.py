@@ -1,22 +1,3 @@
-"""
-Module 6 - Task 8: vision-to-score integration.
-
-Runs AFTER generate_final_report and folds measured Module 6 signals into
-the Confidence Score pillar (25%) and Professionalism Score pillar (15%):
-
-  Confidence (25%)                    Professionalism (15%)
-   eye_contact_consistency [25%]       time_management         [25%]
-   facial_engagement        [20%]      response_organization   [25%]
-   response_hesitation      [15%]      professional_communication [25%]
-   speaking_confidence      [20%]      interview_etiquette     [25%]
-   attention_level          [20%]
-
-Measured signals REPLACE placeholder values where available; language-model
-derived parameters are kept untouched. Pillar totals, overall score and
-rating are recomputed with the standard weights
-(Communication 30 / Confidence 25 / Technical 30 / Professionalism 15).
-"""
-
 import json
 
 from database import get_db  # noqa: F401  (kept for parity with other services)

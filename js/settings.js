@@ -15,8 +15,8 @@ function showToast(message, type = 'success', duration = 3500) {
   const toast = document.createElement('div');
   toast.className = `sh-toast sh-toast-${type}`;
 
-  const iconName = type === 'success' ? 'checkCircle2' : (type === 'error' ? 'alertCircle' : 'sparkles');
-  const color = type === 'success' ? '#10B981' : (type === 'error' ? '#F43F5E' : '#6366F1');
+  const iconName = type === 'success' ? 'checkCircle2' : (type === 'error' ? 'alertCircle' : (type === 'warning' ? 'alertTriangle' : 'sparkles'));
+  const color = type === 'success' ? '#10B981' : (type === 'error' ? '#F43F5E' : (type === 'warning' ? '#F59E0B' : '#6366F1'));
 
   toast.innerHTML = `
     <div class="sh-toast-icon" style="color:${color}">${icon(iconName, 18)}</div>

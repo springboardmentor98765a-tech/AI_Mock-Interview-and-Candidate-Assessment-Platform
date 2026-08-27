@@ -1,31 +1,11 @@
-"""
-Module 6 - Task 4: Attention Monitoring.
-
-Combines observable vision signals (face presence, head orientation, gaze,
-face visibility, time away from camera) into four attention states:
-
-    ATTENTIVE | PARTIALLY_ATTENTIVE | DISTRACTED | NO_FACE
-
-Attention is evaluated over TIME WINDOWS, never from a single frame:
-brief glances away are normal thinking behaviour. All thresholds live in
-ATTENTION_CONFIG so they can be tuned without touching the logic.
-
-Warning rules:
-  * A counted warning fires ONCE per continuous away episode when the
-    candidate-warning threshold is crossed (no duplicate spam).
-  * An episode closes only after sustained camera re-engagement.
-  * Reaching max_warnings terminates the session (enforced by the API layer)
-    and flags the candidate for review.
-"""
-
 import threading
 import time
 
 ATTENTION_CONFIG = {
     "away_normal_after_s": 1.0,
-    "warning_threshold_s": 2.0,
-    "significant_threshold_s": 3.0,
-    "candidate_warning_s": 4.0,
+    "warning_threshold_s": 1.5,
+    "significant_threshold_s": 2.0,
+    "candidate_warning_s": 2.5,
     "max_warnings": 5,
     "no_face_grace_s": 1.0,
     "reengage_reset_s": 0.6,

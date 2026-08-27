@@ -101,6 +101,17 @@ var VisionMonitor = {
         result.attention.warningFlash = (result.attention.warnings || 0) > prevWarnings;
         state.attention = result.attention;
         patchAttentionUI(result.attention);
+        if (result.attention.warningFlash && typeof showToast === 'function') {
+          var warnNo = result.attention.warnings || 1;
+          var warnMax = result.attention.max_warnings || 5;
+          var left = warnMax - warnNo;
+          showToast(
+            'Attention Warning ' + warnNo + ' / ' + warnMax +
+            ' &mdash; please look back at the camera' +
+            (left > 0 ? ' (' + left + ' more before the interview ends)' : ' &mdash; interview will now end'),
+            'warning', 5000
+          );
+        }
       }
       patchVisionUI(result);
       if (
@@ -152,13 +163,17 @@ function visionFocusMeta(vision) {
   return { label: 'Low', color: '#f43f5e' };
 }
 
-/* Task 5: friendly emotion label for the live telemetry tile (no raw numbers) */
+/* Task 5: friendly emotion label for the live telemetry tile (no raw numbers).
+   Keys are the Emotion CNN states; legacy FER keys kept for old live sessions. */
 function emotionFriendlyLabel(dominant) {
   switch (dominant) {
+    case 'confidence': return 'Confident';
+    case 'nervousness': return 'Nervous';
+    case 'fear': return 'Fearful';
+    case 'confused': return 'Confused';
+    /* legacy */
     case 'happy': return 'Positive';
     case 'neutral': return 'Calm';
-    case 'surprise': return 'Engaged';
-    case 'sad': return 'Downbeat';
     default: return 'Tense';
   }
 }
@@ -171,7 +186,7 @@ function patchEmotionUI(emotion) {
   if (!el) return;
   if (!emotion || !emotion.dominant) {
     if (emotion === null && Date.now() - _lastEmotionAt > 12000) {
-      el.textContent = 'Calm / Confident';
+      el.textContent = 'Composed';
       _lastEmotionAt = 0;
     }
     return;
@@ -179,7 +194,7 @@ function patchEmotionUI(emotion) {
   var analyzedAt = emotion.analyzed_at || 0;
   if (analyzedAt <= _lastEmotionAt) {
     if (typeof emotion.age_s === 'number' && emotion.age_s > 12) {
-      el.textContent = 'Calm / Confident';
+      el.textContent = 'Composed';
     }
     return;
   }

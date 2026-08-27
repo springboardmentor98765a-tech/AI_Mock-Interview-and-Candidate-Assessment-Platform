@@ -108,7 +108,7 @@ const state = {
   telemetryWpm: 140,
   telemetryFillerWords: 0,
   telemetryEyeContact: 92,
-  telemetryEmotion: 'Calm / Confident',
+  telemetryEmotion: 'Composed',
   answerStartTime: null,
   notificationsData: null,
   unreadNotifCount: 0,

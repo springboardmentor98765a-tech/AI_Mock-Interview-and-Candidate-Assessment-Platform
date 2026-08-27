@@ -1,19 +1,4 @@
-"""
-Module 6 - Task 8: Interview Behavior Analysis.
-
-Whole-timeline analysis on top of Tasks 1-7. Produces:
-  * global behavior metrics (eye contact / attention / visibility /
-    head movement / attention breaks / expression distribution /
-    confidence indicator / engagement score)
-  * time-segmented narrative ("00:00 - 02:00 - Good eye contact")
-  * plain-language summary points (check marks / warnings)
-
-All values come from the already-measured session summary; nothing here
-re-analyzes frames.
-"""
-
 from services.vision_monitor import BEHAVIOR_CONFIG
-
 
 def _fmt_clock(seconds):
     seconds = int(round(seconds))

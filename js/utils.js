@@ -959,7 +959,7 @@ function downloadReportAsPDF(report) {
         return `<p style="font-size:10px;color:#4b5563;"><strong>Head orientation mix:</strong> ${entries.join(' &middot; ')}</p>`;
       })() : ''}
       ${(visionMetrics.emotion && visionMetrics.emotion.dominant_distribution) ? (() => {
-        var emoNames = { happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust' };
+        var emoNames = { nervousness: 'Nervousness', confidence: 'Confidence', fear: 'Fear', confused: 'Confused', happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', surprise: 'Surprise', disgust: 'Disgust' };
         var entries = Object.keys(visionMetrics.emotion.dominant_distribution).slice(0, 4).map(function (k) {
           return (emoNames[k] || k) + ': ' + visionMetrics.emotion.dominant_distribution[k].toFixed(0) + '%';
         });
@@ -993,7 +993,7 @@ function downloadReportAsPDF(report) {
     }).join('');
     var emoDist = m.dominant_expression_distribution || {};
     var emoText = Object.keys(emoDist).slice(0, 4).map(function (k) {
-      return (visionMetrics.emotion && { happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust' }[k] || k) + ' ' + emoDist[k].toFixed(0) + '%';
+      return (visionMetrics.emotion && { nervousness: 'Nervousness', confidence: 'Confidence', fear: 'Fear', confused: 'Confused', happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry', surprise: 'Surprise', disgust: 'Disgust' }[k] || k) + ' ' + emoDist[k].toFixed(0) + '%';
     }).join(' &middot; ');
     return `<div class="box" style="margin-bottom:18px;">
       <div class="box-title" style="color:#4f46e5;">&#9678; Interview Behavior Analysis</div>

@@ -5089,6 +5089,11 @@ select:focus, input:focus, textarea:focus {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(244, 63, 94, 0.2);
 }
 
+.sh-toast-warning {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.25);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    SMARTHIRE AI — PROFILE PREVIEW & AVATAR SYSTEM
    ═══════════════════════════════════════════════════════════════════════════ */

@@ -1,18 +1,3 @@
-"""
-Module 6 - Emotion Detection & Eye Tracking
-Task 1: Face Detection & Frame Processing foundation.
-
-Pipeline (server-side):
-    base64 frame -> OpenCV decode/preprocess -> quality metrics (brightness /
-    contrast / sharpness) -> MediaPipe Face Landmarker (468/478 landmarks,
-    multi-face) with OpenCV Haar-cascade fallback -> normalized bounding
-    regions + key facial landmarks -> rolling per-session accumulator.
-
-Handles edge cases: no face, multiple faces, poor lighting / low contrast,
-blurry frames, invalid payloads and temporary detector failures (graceful
-degradation instead of raising).
-"""
-
 import base64
 import json
 import math
@@ -24,6 +9,9 @@ from collections import deque
 
 import cv2
 import numpy as np
+
+from services import emotion_cnn
+from services import gaze_cnn
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "storage", "models")
 FACE_LANDMARKER_URL = (
@@ -65,13 +53,13 @@ BLINK_CARRYOVER_SECONDS = 1.5
 MAX_STATE_DT_SECONDS = 6.0
 MIN_MEASURED_SECONDS = 5.0
 
-# Task 5: emotion recognition (DeepFace)
+# Task 5: emotion recognition (SmartHire CNN, folded to interview-readiness states)
 EMOTION_CONFIG = {
     "analysis_interval_s": 2.0,
     "crop_max_age_s": 6.0,
 }
 EMOTION_CROP_MARGIN = 0.25
-EMOTION_CATEGORIES = ("angry", "disgust", "fear", "happy", "neutral", "sad", "surprise")
+EMOTION_CATEGORIES = emotion_cnn.TARGET_EMOTIONS
 
 # Task 6: Confidence Indicator (transparent behavioral metric, no ML model)
 CONFIDENCE_CONFIG = {
@@ -124,6 +112,9 @@ def _engagement_level(score):
         return "Moderate"
     return "Low"
 
+
+MODEL_VERSION_LABEL = emotion_cnn.MODEL_VERSION
+
 # Selected FaceMesh landmark indices (of the standard 468/478 mesh)
 KEY_LANDMARK_IDS = {
     "forehead_top": 10,
@@ -144,58 +135,15 @@ KEY_LANDMARK_IDS = {
 }
 
 _mp_lock = threading.Lock()
-_emotion_lock = threading.Lock()
-_deepface_available = None
-
-
-def _try_import_deepface():
-    global _deepface_available
-    if _deepface_available is not None:
-        return _deepface_available
-    try:
-        import sys
-        for stream in (sys.stdout, sys.stderr):
-            try:
-                if stream and hasattr(stream, "reconfigure"):
-                    stream.reconfigure(encoding="utf-8", errors="replace")
-            except Exception:  # noqa: BLE001
-                pass
-        os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-        from deepface import DeepFace  # noqa: F401
-        _deepface_available = DeepFace
-    except Exception:  # noqa: BLE001 - emotion must never break the pipeline
-        _deepface_available = False
-    return _deepface_available
 
 
 def _analyze_emotion(face_crop_rgb):
     """
-    Run DeepFace emotion analysis on a cropped face. Returns
+    Run the SmartHire CNN on a cropped face. Returns
     {"dominant": str, "probabilities": {category: percent}} or None.
     """
-    df = _try_import_deepface()
-    if not df:
-        return None
     try:
-        with _emotion_lock:
-            res = df.analyze(
-                face_crop_rgb,
-                actions=["emotion"],
-                detector_backend="skip",
-                enforce_detection=False,
-                silent=True,
-            )
-        entry = res[0] if isinstance(res, list) else res
-        probs = {}
-        for key in EMOTION_CATEGORIES:
-            val = entry.get("emotion", {}).get(key, 0.0)
-            probs[key] = round(float(val), 1)
-        dominant = entry.get("dominant_emotion")
-        if dominant not in EMOTION_CATEGORIES:
-            dominant = max(probs, key=probs.get) if any(probs.values()) else None
-        if dominant is None:
-            return None
-        return {"dominant": dominant, "probabilities": probs}
+        return emotion_cnn.predict(face_crop_rgb)
     except Exception:  # noqa: BLE001 - degrade gracefully
         return None
 
@@ -459,6 +407,15 @@ class VisionEngine:
                 except Exception:  # noqa: BLE001
                     result["_eye"] = None
 
+                # Gaze CNN assist: per-eye crops classified every frame
+                try:
+                    if gaze_cnn.is_ready():
+                        result["_gaze_cnn"] = gaze_cnn.predict_from_landmarks(
+                            frame, detection.face_landmarks[0], width, height
+                        )
+                except Exception:  # noqa: BLE001 - gaze assist never breaks analysis
+                    result["_gaze_cnn"] = None
+
             if (
                 interview_id is not None
                 and len(faces) == 1
@@ -523,17 +480,23 @@ def warm_up():
     except Exception as exc:  # noqa: BLE001
         print(f"  [vision] Detector warm-up failed: {exc}")
     try:
-        if _try_import_deepface():
-            import numpy as _np
-            tiny = _np.zeros((48, 48, 3), dtype=_np.uint8)
-            _analyze_emotion(tiny)
+        if emotion_cnn.warm_up() is not None:
             _emotion_scheduler.start()
-            print(f"  [vision] Emotion model ready (DeepFace) - cadence "
+            print(f"  [vision] Emotion CNN ready ({MODEL_VERSION_LABEL}) - "
+                  f"states: {', '.join(EMOTION_CATEGORIES)} | cadence "
                   f"{EMOTION_CONFIG['analysis_interval_s']}s")
         else:
-            print("  [vision] DeepFace unavailable - emotion analysis disabled")
+            print("  [vision] Emotion CNN unavailable - emotion analysis disabled")
     except Exception as exc:  # noqa: BLE001
         print(f"  [vision] Emotion warm-up skipped: {exc}")
+    try:
+        if gaze_cnn.warm_up() is not None:
+            print(f"  [vision] Gaze CNN ready ({gaze_cnn.MODEL_VERSION}) - "
+                  f"assist threshold {gaze_cnn.CONFIDENCE_MIN}")
+        else:
+            print("  [vision] Gaze CNN unavailable - iris geometry only")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [vision] Gaze CNN warm-up skipped: {exc}")
 
 
 def _euler_from_matrix(matrix):
@@ -556,15 +519,6 @@ def _euler_from_matrix(matrix):
 
 
 def _geometric_pose(lm_list):
-    """
-    Landmark-geometry orientation estimates with provable sign conventions.
-      yaw_ratio : nose-tip horizontal offset between cheek landmarks 234/454;
-                  positive => candidate turned toward their OWN LEFT
-                  (image right).
-      f_ratio   : forehead-to-chin vertical compression; deviations from the
-                  session baseline give a sign-certain up/down signal.
-      roll_deg  : inter-eye line angle; positive => image-right eye sits lower.
-    """
     needed = (1, 10, 152, 33, 133, 263, 362, 234, 454)
     if len(lm_list) < max(needed) + 1:
         return None
@@ -593,17 +547,6 @@ def _geometric_pose(lm_list):
 
 
 class PoseTracker:
-    """
-    Per-interview head-pose state.
-
-    Primary numeric angles come from the MediaPipe facial-transformation
-    matrix; its axis signs are auto-calibrated against the landmark-geometry
-    signals using a sliding-window majority vote. Final convention:
-
-        yaw   > 0 -> candidate facing their own LEFT
-        pitch > 0 -> candidate looking UP
-        roll  > 0 -> head tilted so the image-right eye sits lower
-    """
 
     def __init__(self):
         self.f_baseline = None
@@ -769,21 +712,6 @@ def _eye_metrics(lm_list):
 
 
 class GazeTracker:
-    """
-    Per-interview eye-contact state machine (physical states only):
-
-      toward_camera | looking_left | looking_right | looking_up |
-      looking_down  | unknown
-
-    Decision order:
-      1. no face / no landmark data                     -> unknown
-      2. eyes closed                                    -> blink carry-over of
-         the previous state for short gaps, else unknown
-      3. head yaw/pitch beyond limits                   -> looking_* direction
-      4. iris offset beyond thresholds                  -> looking_* direction
-      5. otherwise                                      -> toward_camera
-    """
-
     STATE_TOWARD_CAMERA = "toward_camera"
     STATE_LOOKING_LEFT = "looking_left"
     STATE_LOOKING_RIGHT = "looking_right"
@@ -795,12 +723,22 @@ class GazeTracker:
         self.last_state = self.STATE_UNKNOWN
         self.last_state_ts = None
 
-    def classify(self, face_present, eye, pose, now=None):
+    def classify(self, face_present, eye, pose, gaze_cnn_result=None, now=None):
         now = now if now is not None else time.time()
         if not face_present or eye is None:
             return self._finish(self.STATE_UNKNOWN, now)
 
-        if eye.get("openness", 0.3) < EAR_CLOSED_BELOW:
+        cnn_label = None
+        if (
+            isinstance(gaze_cnn_result, dict)
+            and gaze_cnn_result.get("label") in (self.STATE_TOWARD_CAMERA, self.STATE_LOOKING_LEFT,
+                                                 self.STATE_LOOKING_RIGHT, self.STATE_LOOKING_UP,
+                                                 "eyes_closed")
+            and float(gaze_cnn_result.get("confidence", 0.0)) >= gaze_cnn.CONFIDENCE_MIN
+        ):
+            cnn_label = gaze_cnn_result["label"]
+
+        if eye.get("openness", 0.3) < EAR_CLOSED_BELOW or cnn_label == "eyes_closed":
             short_gap = (
                 self.last_state_ts is not None
                 and self.last_state != self.STATE_UNKNOWN
@@ -823,6 +761,15 @@ class GazeTracker:
             state = self.STATE_LOOKING_UP
         elif pitch is not None and pitch <= -HEAD_PITCH_GAZE_LIMIT:
             state = self.STATE_LOOKING_DOWN
+        elif cnn_label is not None and cnn_label != self.STATE_TOWARD_CAMERA:
+            # CNN is confident about an away direction -> trust the learned
+            # signal over the noisier low-res iris ratios.
+            state = cnn_label
+        elif cnn_label == self.STATE_TOWARD_CAMERA and (
+            abs(h) < GAZE_H_AWAY_RATIO and v > -GAZE_V_AWAY_RATIO
+        ):
+            # CNN confident toward-camera confirms geometry within limits
+            state = self.STATE_TOWARD_CAMERA
         elif h >= GAZE_H_AWAY_RATIO:
             state = self.STATE_LOOKING_LEFT
         elif h <= -GAZE_H_AWAY_RATIO:
@@ -847,15 +794,6 @@ _gaze_trackers = {}
 
 
 class EmotionScheduler:
-    """
-    Task 5 pipeline:  Webcam -> MediaPipe -> frame sampling -> every N
-    seconds -> DeepFace -> emotion result.
-
-    analyze() only *submits* the latest face crop; a single daemon thread
-    owns the DeepFace cadence (EMOTION_CONFIG["analysis_interval_s"], 2s by
-    default) so request latency never depends on emotion inference and the
-    interview room can never update faster than the configured window.
-    """
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -951,7 +889,10 @@ def compute_eye_state(interview_id: int, result: dict):
     try:
         tracker = _get_gaze_tracker(interview_id)
         face_present = result.get("status") in ("face_detected", "multiple_faces")
-        return tracker.classify(face_present, result.get("_eye"), result.get("head_pose"))
+        return tracker.classify(
+            face_present, result.get("_eye"), result.get("head_pose"),
+            result.get("_gaze_cnn"),
+        )
     except Exception:  # noqa: BLE001
         return GazeTracker.STATE_UNKNOWN
 
@@ -986,7 +927,7 @@ class SessionAccumulator:
         self.eye_state_frames = {}
         self._last_eye_ts = None
         self.emotion_frames = 0
-        self.emotion_dominant_counts = {}
+        self.emotion_dominant_counts = {c: 0.0 for c in EMOTION_CATEGORIES}
         self.emotion_prob_sums = {}
         self.head_travel_degrees = 0.0
         self._last_ypr = None
@@ -1061,12 +1002,22 @@ class SessionAccumulator:
         emotion = result.get("emotion")
         if emotion and emotion.get("dominant"):
             self.emotion_frames += 1
+            probs = emotion.get("probabilities") or {}
             dom = emotion["dominant"]
             if self._last_emotion_dominant and dom != self._last_emotion_dominant:
                 self.emotion_switches += 1
             self._last_emotion_dominant = dom
-            self.emotion_dominant_counts[dom] = self.emotion_dominant_counts.get(dom, 0) + 1
-            for cat, val in (emotion.get("probabilities") or {}).items():
+            # Tie-aware credit: mirrored states (nervousness == fear) and any
+            # near-tie split the frame instead of collapsing into one label,
+            # so every class keeps a visible share in the report.
+            top = max((float(v) for v in probs.values()), default=0.0)
+            winners = [k for k, v in probs.items() if float(v) >= top - 0.05] or [dom]
+            share = 1.0 / len(winners)
+            for winner in winners:
+                self.emotion_dominant_counts[winner] = (
+                    self.emotion_dominant_counts.get(winner, 0.0) + share
+                )
+            for cat, val in probs.items():
                 self.emotion_prob_sums[cat] = self.emotion_prob_sums.get(cat, 0.0) + float(val)
 
         pose = result.get("head_pose")
@@ -1270,9 +1221,10 @@ class SessionAccumulator:
 def _emotion_summary_block(frames, dominant_counts, prob_sums):
     if not frames:
         return None
+    # Every class is seeded, so the report always lists all emotion states
     distribution = {
         k: round(v / frames * 100.0, 1) for k, v in sorted(
-            dominant_counts.items(), key=lambda kv: -kv[1]
+            dominant_counts.items(), key=lambda kv: (-kv[1], kv[0])
         )
     }
     return {
@@ -1280,7 +1232,7 @@ def _emotion_summary_block(frames, dominant_counts, prob_sums):
         "dominant_distribution": distribution,
         "avg_probabilities": {
             k: round(v / frames, 1) for k, v in sorted(
-                prob_sums.items(), key=lambda kv: -kv[1]
+                prob_sums.items(), key=lambda kv: (-kv[1], kv[0])
             )
         },
         "session_dominant": next(iter(distribution)) if distribution else None,
@@ -1324,17 +1276,6 @@ def _head_stability_score(timeline):
 
 
 def _confidence_indicator_block(summary):
-    """
-    Task 6: Confidence Indicator - a transparent behavioral composite.
-
-        Eye Contact + Head Stability + Face Visibility + Attention
-        + Expression Stability   (equal weights by default)
-
-    Each component is a plain 0-100 score from already-measured signals;
-    components without enough data are excluded and the remaining weights
-    are renormalized. This is an indicator of observable behavior only -
-    it never claims to measure internal confidence.
-    """
     eye = summary.get("eye") or {}
     emotion = summary.get("emotion") or {}
 
@@ -1446,11 +1387,16 @@ _accumulators = {}
 def record_frame(interview_id: int, result: dict) -> dict:
     state = compute_eye_state(interview_id, result)
     eye = result.pop("_eye", None)
+    gaze_cnn_result = result.pop("_gaze_cnn", None)
     result["eye_contact"] = {
         "state": state,
         "gaze_h": eye.get("h_ratio") if eye else None,
         "gaze_v": eye.get("v_ratio") if eye else None,
         "openness": eye.get("openness") if eye else None,
+        "gaze_cnn": (
+            {"label": gaze_cnn_result.get("label"), "confidence": gaze_cnn_result.get("confidence")}
+            if gaze_cnn_result else None
+        ),
     }
     with _accumulators_lock:
         acc = _accumulators.get(interview_id)

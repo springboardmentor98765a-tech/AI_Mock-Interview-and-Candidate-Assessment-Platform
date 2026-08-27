@@ -2558,20 +2558,25 @@ function renderVisionReportCard(vm) {
           </div>`;
 }
 
-/* ── Module 6 · Task 5: DeepFace emotion distribution rows (report only) ── */
+/* ── Module 6 · Task 5: Emotion CNN distribution rows (report only) ── */
 var EMOTION_DISPLAY_NAMES = {
+  nervousness: 'Nervousness', confidence: 'Confidence',
+  fear: 'Fear', confused: 'Confused',
+  /* legacy FER-2013 keys from sessions recorded before the CNN upgrade */
   happy: 'Happy', neutral: 'Neutral', sad: 'Sad', angry: 'Angry',
-  fear: 'Fear', surprise: 'Surprise', disgust: 'Disgust',
+  surprise: 'Surprise', disgust: 'Disgust',
 };
 
 function renderEmotionMixRows(emotion) {
   if (!emotion || !emotion.dominant_distribution) return '';
   var entries = Object.keys(emotion.dominant_distribution)
     .map(function (k) { return { key: k, name: EMOTION_DISPLAY_NAMES[k] || k, pct: emotion.dominant_distribution[k] }; })
-    .filter(function (e) { return e.pct >= 1; })
     .slice(0, 4);
   if (!entries.length) return '';
   var colorFor = function (key) {
+    if (key === 'confidence') return EMERALD;
+    if (key === 'nervousness') return AMBER;
+    if (key === 'confused') return CYAN;
     if (key === 'happy') return EMERALD;
     if (key === 'neutral') return INDIGO;
     if (key === 'surprise') return CYAN;
