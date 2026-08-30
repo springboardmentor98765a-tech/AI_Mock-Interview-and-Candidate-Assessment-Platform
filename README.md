@@ -10,3 +10,5 @@ The login page uses the Python/FastAPI service in `backend-python/`. It supports
 4. Start the React app with `npm.cmd run dev`.
 
 The Python service creates the `users` table automatically on first startup. Configure PostgreSQL credentials and a strong JWT secret before running it; do not commit real credentials.
+## to run backend
+##: uvicorn app.main:app --reload --port 8000

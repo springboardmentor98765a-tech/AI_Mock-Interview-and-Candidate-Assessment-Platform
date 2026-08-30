@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Brain, LayoutDashboard, Users, Calendar, BarChart3,
   Settings, LogOut, FileText, Mic, Upload, Bell, ChevronDown,
-  Shield, UserCheck, User, TrendingUp
+  Shield, UserCheck, User, TrendingUp, Video
 } from 'lucide-react'
+import { candidateApi, recruiterApi } from '../auth/api'
 
 const NAV_CONFIG = {
   candidate: {
@@ -52,6 +53,7 @@ export default function Sidebar({ role, onNavigate }) {
   const config = NAV_CONFIG[role] || NAV_CONFIG.candidate
   const RoleIcon = ROLE_ICONS[role] || User
   const [active, setActive] = useState(0)
+  const [modal, setModal] = useState('')
 
   return (
     <aside className="sidebar">
@@ -107,7 +109,8 @@ export default function Sidebar({ role, onNavigate }) {
               className={`sidebar-nav-item ${active === idx ? 'active' : ''}`}
               onClick={() => {
                 setActive(idx)
-                if (onNavigate) onNavigate(item.label)
+                if (role === 'recruiter' && ['Candidates', 'Reports'].includes(item.label)) setModal('leaderboard')
+                else if (onNavigate) onNavigate(item.label)
                 else navigate(item.path)
               }}
             >
@@ -129,6 +132,23 @@ export default function Sidebar({ role, onNavigate }) {
           Sign Out
         </button>
       </div>
+      {modal === 'leaderboard' && <RecruiterLeaderboard onClose={() => setModal('')} />}
+      {modal === 'history' && <CandidateHistory onClose={() => setModal('')} />}
     </aside>
   )
 }
+
+function RecruiterLeaderboard({ onClose }) {
+  const [items, setItems] = useState([]); const [error, setError] = useState('')
+  useEffect(() => { recruiterApi.interviewHistory().then(setItems).catch((err) => setError(err.message)) }, [])
+  return <Overlay title="Candidate interview leaderboard" onClose={onClose}>{error ? <p style={errorStyle}>{error}</p> : !items.length ? <p style={muted}>No completed mock interviews yet.</p> : <div style={{ display: 'grid', gap: 10 }}>{items.map((item) => <div key={item.id} style={entry}><div><strong style={{ color: '#f0f0ff' }}>{item.rank ? `#${item.rank} ` : ''}{item.candidate_name}</strong><p style={muted}>{item.role_title} · {item.domain} · {new Date(item.ended_at || item.created_at).toLocaleString()}</p><p style={{ ...muted, marginTop: 6 }}>{item.feedback?.summary || 'No AI report available.'}</p></div><div style={{ textAlign: 'right' }}><strong style={{ color: '#67e8f9', fontSize: '1.2rem' }}>{item.feedback?.overall_score ?? '—'}/100</strong>{item.has_recording && <button className="btn btn-outline btn-sm" style={{ marginTop: 9 }} onClick={() => recruiterApi.openInterviewRecording(item.id).catch((err) => setError(err.message))}><Video size={13} /> See video</button>}</div></div>)}</div>}</Overlay>
+}
+
+function CandidateHistory({ onClose }) {
+  const [items, setItems] = useState([]); const [error, setError] = useState('')
+  useEffect(() => { candidateApi.interviews().then(setItems).catch((err) => setError(err.message)) }, [])
+  return <Overlay title="My interview history" onClose={onClose}>{error ? <p style={errorStyle}>{error}</p> : !items.length ? <p style={muted}>You have not completed a mock interview yet.</p> : <div style={{ display: 'grid', gap: 10 }}>{items.map((item) => <div key={item.id} style={entry}><div><strong style={{ color: '#f0f0ff' }}>{item.role_title}</strong><p style={muted}>{item.domain} · {item.difficulty} · {new Date(item.ended_at || item.created_at).toLocaleString()}</p><p style={{ ...muted, marginTop: 6 }}>{item.feedback?.summary || 'Interview in progress or no report yet.'}</p></div><div style={{ textAlign: 'right' }}><strong style={{ color: '#67e8f9', fontSize: '1.2rem' }}>{item.feedback?.overall_score ?? '—'}/100</strong>{item.has_recording && <button className="btn btn-outline btn-sm" style={{ marginTop: 9 }} onClick={() => candidateApi.openInterviewRecording(item.id).catch((err) => setError(err.message))}><Video size={13} /> See video</button>}</div></div>)}</div>}</Overlay>
+}
+
+function Overlay({ title, onClose, children }) { return <div style={overlay}><div className="glass-strong" style={modalCard}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}><h3 style={{ color: '#f0f0ff', fontFamily: 'Outfit' }}>{title}</h3><button type="button" onClick={onClose} style={{ background: 'transparent', color: '#a0a0c0' }}><X /></button></div>{children}</div></div> }
+const overlay = { position: 'fixed', inset: 0, zIndex: 3000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(0,0,0,.72)', backdropFilter: 'blur(6px)' }; const modalCard = { width: 'min(860px, 100%)', maxHeight: '82vh', overflowY: 'auto', borderRadius: 20, padding: 24 }; const entry = { display: 'flex', justifyContent: 'space-between', gap: 16, padding: 14, borderRadius: 12, border: '1px solid rgba(255,255,255,.09)', background: 'rgba(255,255,255,.03)' }; const muted = { color: '#a0a0c0', fontSize: '.78rem', lineHeight: 1.45 }; const errorStyle = { color: '#f87171' }

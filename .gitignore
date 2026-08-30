@@ -18,6 +18,7 @@ backend-python/private_recordings/
 # Personal local project notes (do not commit)
 LOCAL_RUNBOOK.md
 GUIDE_EXPLANATION.md
+MOD_6_IMPLEMENTATION.md
 
 # Editor directories and files
 .vscode/*
@@ -29,10 +30,17 @@ GUIDE_EXPLANATION.md
 *.njsproj
 *.sln
 *.sw?
-
+# Python virtual environment
 backend-python/.venv/
+
+# Python cache
 **/__pycache__/
 *.pyc
+
+# Environment variables
 .env
+backend-python/.env
+
+# Node
 node_modules/
 dist/

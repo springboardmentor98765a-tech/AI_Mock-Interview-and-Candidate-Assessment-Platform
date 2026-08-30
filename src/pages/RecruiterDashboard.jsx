@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, MapPin, Plus, Users, X } from 'lucide-react'
+import { BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, MapPin, Plus, Users, Video, X } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Topbar from '../components/Topbar'
 import { useAuth } from '../auth/AuthContext'
@@ -60,20 +60,21 @@ export default function RecruiterDashboard() {
   const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
   const [jobs, setJobs] = useState([])
   const [applications, setApplications] = useState([])
+  const [interviewHistory, setInterviewHistory] = useState([])
   const [analytics, setAnalytics] = useState({ total_jobs: 0, open_jobs: 0, closed_jobs: 0, candidates: 0 })
   const [showPostJob, setShowPostJob] = useState(false)
   const [scheduleApplication, setScheduleApplication] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([recruiterApi.jobs(), recruiterApi.analytics(), recruiterApi.applications()]).then(([jobList, data, applicationList]) => { setJobs(jobList); setAnalytics(data); setApplications(applicationList) }).catch((err) => setError(err.message))
+    Promise.all([recruiterApi.jobs(), recruiterApi.analytics(), recruiterApi.applications(), recruiterApi.interviewHistory()]).then(([jobList, data, applicationList, history]) => { setJobs(jobList); setAnalytics(data); setApplications(applicationList); setInterviewHistory(history) }).catch((err) => setError(err.message))
   }, [])
   const addJob = (job) => { setJobs((current) => [job, ...current]); setAnalytics((current) => ({ ...current, total_jobs: current.total_jobs + 1, open_jobs: current.open_jobs + 1 })) }
   const schedule = async (interviewAt) => {
     try { const updated = await recruiterApi.scheduleInterview(scheduleApplication.id, interviewAt); setApplications((items) => items.map((item) => item.id === updated.id ? updated : item)) } catch (err) { setError(err.message); throw err }
   }
   const handleRecruiterNavigation = (label) => {
-    const targets = { Dashboard: 'recruiter-dashboard-top', Candidates: 'recruiter-applications', Schedule: 'recruiter-applications', Reports: 'recruiter-jobs', Analytics: 'recruiter-analytics' }
+    const targets = { Dashboard: 'recruiter-dashboard-top', Candidates: 'recruiter-interviews', Schedule: 'recruiter-applications', Reports: 'recruiter-interviews', Analytics: 'recruiter-analytics' }
     const cards = document.querySelectorAll('.dashboard-content > .card')
     const section = label === 'Candidates' || label === 'Schedule' ? cards[1] : label === 'Reports' ? cards[0] : document.getElementById(targets[label])
     section?.scrollIntoView({ behavior: 'smooth', block: 'start' })

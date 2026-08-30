@@ -36,6 +36,8 @@ export const recruiterApi = {
   createJob: (job) => request('/recruiter/jobs', { method: 'POST', body: JSON.stringify(job) }),
   applications: () => request('/recruiter/applications'),
   scheduleInterview: (id, interview_at) => request(`/recruiter/applications/${id}/schedule`, { method: 'POST', body: JSON.stringify({ interview_at }) }),
+  interviewHistory: () => request('/recruiter/interviews'),
+  openInterviewRecording: async (id) => { const response = await fetch(`${API_URL}/interviews/${id}/recording`, { headers: { Authorization: `Bearer ${localStorage.getItem('smarthire_token')}` } }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || 'Recording could not be opened.') }; const url = URL.createObjectURL(await response.blob()); window.open(url, '_blank', 'noopener'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) },
 }
 
 export const candidateApi = {
@@ -51,7 +53,8 @@ export const candidateApi = {
   pauseInterview: (id) => request(`/interviews/${id}/pause`, { method: 'POST' }),
   resumeInterview: (id) => request(`/interviews/${id}/resume`, { method: 'POST' }),
   endInterview: (id) => request(`/interviews/${id}/end`, { method: 'POST' }),
-  saveInterviewAnswer: (id, answer) => request(`/interviews/${id}`, { method: 'PUT', body: JSON.stringify({ answer }) }),
+  saveInterviewAnswer: (id, answer, time_spent_seconds = 0, speech_metrics = {}) => request(`/interviews/${id}`, { method: 'PUT', body: JSON.stringify({ answer, time_spent_seconds, speech_metrics }) }),
+  saveInterviewMonitoring: (id, summary) => request(`/interviews/${id}/monitoring`, { method: 'POST', body: JSON.stringify(summary) }),
   uploadInterviewRecording: (id, file) => { const formData = new FormData(); formData.append('file', file); return request(`/interviews/${id}/recording`, { method: 'POST', body: formData }) },
   openInterviewRecording: async (id) => { const response = await fetch(`${API_URL}/interviews/${id}/recording`, { headers: { Authorization: `Bearer ${localStorage.getItem('smarthire_token')}` } }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || 'Recording could not be opened.') }; const url = URL.createObjectURL(await response.blob()); window.open(url, '_blank', 'noopener'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) },
 }

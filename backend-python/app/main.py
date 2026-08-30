@@ -14,6 +14,8 @@ from authlib.integrations.starlette_client import OAuth
 from docx import Document
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+
+from .emotion_analysis import analyze_video_emotions
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -154,11 +156,32 @@ class Interview(Base):
     recording_content_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
     recording_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
+    duration_limit_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=900)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    paused_total_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    question_times: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    speech_analysis: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    monitoring_summary: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    emotion_analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     @property
     def has_recording(self) -> bool:
         # Exposes only whether a private recording exists; never exposes its storage path.
         return bool(self.recording_path)
+
+    @property
+    def questions_attempted(self) -> int:
+        # Reports progress from the saved answers, not from a browser-only counter.
+        return len(self.answers or [])
+
+    @property
+    def remaining_seconds(self) -> int:
+        # Calculates the remaining interview time while the session is active.
+        if self.status == InterviewStatus.IN_PROGRESS and self.started_at:
+            elapsed = int((datetime.now(timezone.utc) - self.started_at).total_seconds()) - self.paused_total_seconds
+            return max(0, self.duration_limit_seconds - elapsed)
+        return max(0, self.duration_limit_seconds - self.duration_seconds)
 
 
 # Stores the latest resume analysis for each candidate without storing the original file.
@@ -200,10 +223,35 @@ class InterviewGenerateRequest(BaseModel):
     domain: str = Field(pattern="^(Technical|Behavioral|Aptitude)$")
     difficulty: str = Field(pattern="^(Easy|Medium|Hard)$")
     question_count: int = Field(default=5, ge=3, le=10)
+    duration_minutes: int = Field(default=15, ge=5, le=60)
 
 
 class InterviewAnswerRequest(BaseModel):
     answer: str = Field(min_length=1, max_length=5000)
+    time_spent_seconds: int = Field(default=0, ge=0, le=3600)
+    speech_metrics: dict = Field(default_factory=dict)
+
+
+class InterviewMonitoringRequest(BaseModel):
+    monitoring_checks: int = Field(default=0, ge=0)
+
+    face_visible_checks: int = Field(default=0, ge=0)
+
+    eye_contact_checks: int = Field(default=0, ge=0)
+
+    gaze_left_checks: int = Field(default=0, ge=0)
+    gaze_right_checks: int = Field(default=0, ge=0)
+    gaze_down_checks: int = Field(default=0, ge=0)
+
+    eyes_closed_checks: int = Field(default=0, ge=0)
+
+    multiple_face_events: int = Field(default=0, ge=0)
+    off_camera_events: int = Field(default=0, ge=0)
+
+    expression_signal: str = Field(
+        default="not available",
+        max_length=60
+    )
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -291,6 +339,21 @@ class InterviewResponse(BaseModel):
     ended_at: datetime | None = None
     has_recording: bool = False
     recorded_at: datetime | None = None
+    session_id: str | None = None
+    duration_limit_seconds: int
+    duration_seconds: int
+    remaining_seconds: int
+    questions_attempted: int
+    question_times: list[dict]
+    speech_analysis: list[dict]
+    monitoring_summary: dict
+    emotion_analysis: dict | None = None
+
+
+class RecruiterInterviewResponse(InterviewResponse):
+    candidate_name: str
+    candidate_email: EmailStr
+    rank: int | None = None
 
 
 class ResumeResponse(BaseModel):
@@ -366,6 +429,14 @@ def create_tables() -> None:
         connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_content_type VARCHAR(80)"))
         connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_size INTEGER"))
         connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMPTZ"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS session_id VARCHAR(36)"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS duration_limit_seconds INTEGER NOT NULL DEFAULT 900"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS duration_seconds INTEGER NOT NULL DEFAULT 0"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_total_seconds INTEGER NOT NULL DEFAULT 0"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS question_times JSON NOT NULL DEFAULT '[]'"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS speech_analysis JSON NOT NULL DEFAULT '[]'"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS monitoring_summary JSON NOT NULL DEFAULT '{}'"))
+        connection.execute(text("ALTER TABLE interviews ADD COLUMN IF NOT EXISTS emotion_analysis JSON"))
         # Extends the PostgreSQL enum for databases created before pause/end support.
         connection.execute(text("ALTER TYPE interviewstatus ADD VALUE IF NOT EXISTS 'PAUSED'"))
         connection.execute(text("ALTER TYPE interviewstatus ADD VALUE IF NOT EXISTS 'ENDED'"))
@@ -470,6 +541,257 @@ def generate_questions(role_title: str, domain: str, difficulty: str, count: int
     return generate_template_questions(role_title, domain, difficulty, count)
 
 
+def calculate_attention_score(monitoring_summary: dict) -> dict:
+    # Rule-based calculation of visual attention score from camera-monitoring data.
+    if not monitoring_summary:
+        return {
+            "attention_score": None,
+            "attention_level": "Not available",
+            "components": {
+                "eye_contact_percentage": None,
+                "face_presence_percentage": None,
+                "gaze_focus_percentage": None,
+                "eye_open_percentage": None
+            }
+        }
+
+    monitoring_checks = int(monitoring_summary.get("monitoring_checks", 0))
+    if monitoring_checks <= 0:
+        return {
+            "attention_score": None,
+            "attention_level": "Not available",
+            "components": {
+                "eye_contact_percentage": None,
+                "face_presence_percentage": None,
+                "gaze_focus_percentage": None,
+                "eye_open_percentage": None
+            }
+        }
+
+    face_visible_checks = int(monitoring_summary.get("face_visible_checks", 0))
+    eye_contact_checks = int(monitoring_summary.get("eye_contact_checks", 0))
+    gaze_left_checks = int(monitoring_summary.get("gaze_left_checks", 0))
+    gaze_right_checks = int(monitoring_summary.get("gaze_right_checks", 0))
+    gaze_down_checks = int(monitoring_summary.get("gaze_down_checks", 0))
+    eyes_closed_checks = int(monitoring_summary.get("eyes_closed_checks", 0))
+
+    # Calculate individual percentages and clamp them to 0-100
+    eye_contact_percentage = max(0.0, min(100.0, (eye_contact_checks / monitoring_checks) * 100.0))
+    face_presence_percentage = max(0.0, min(100.0, (face_visible_checks / monitoring_checks) * 100.0))
+
+    gaze_sum = eye_contact_checks + gaze_left_checks + gaze_right_checks + gaze_down_checks
+    if gaze_sum > 0:
+        gaze_focus_percentage = max(0.0, min(100.0, (eye_contact_checks / gaze_sum) * 100.0))
+    else:
+        gaze_focus_percentage = 100.0 if face_visible_checks > 0 else 0.0
+
+    eye_open_percentage = 100.0 - ((eyes_closed_checks / monitoring_checks) * 100.0)
+    eye_open_percentage = max(0.0, min(100.0, eye_open_percentage))
+
+    # Weight Constants
+    W_EYE_CONTACT = 0.60
+    W_FACE_PRESENCE = 0.20
+    W_GAZE_FOCUS = 0.10
+    W_EYE_OPEN = 0.10
+
+    # Calculate final attention score
+    attention_score = (
+        W_EYE_CONTACT * eye_contact_percentage +
+        W_FACE_PRESENCE * face_presence_percentage +
+        W_GAZE_FOCUS * gaze_focus_percentage +
+        W_EYE_OPEN * eye_open_percentage
+    )
+
+    # Clamp score to 0-100 and round to nearest integer
+    attention_score_clamped = max(0, min(100, round(attention_score)))
+
+    # Determine level
+    # Thresholds:
+    # 80-100: High Attention
+    # 50-79: Medium Attention
+    # 0-49: Low Attention
+    if attention_score_clamped >= 80:
+        attention_level = "High"
+    elif attention_score_clamped >= 50:
+        attention_level = "Medium"
+    else:
+        attention_level = "Low"
+
+    return {
+        "attention_score": attention_score_clamped,
+        "attention_level": attention_level,
+        "components": {
+            "eye_contact_percentage": round(eye_contact_percentage),
+            "face_presence_percentage": round(face_presence_percentage),
+            "gaze_focus_percentage": round(gaze_focus_percentage),
+            "eye_open_percentage": round(eye_open_percentage)
+        }
+    }
+
+
+def calculate_engagement_score(monitoring_summary: dict) -> dict:
+    """Estimate observable engagement from already-calculated interview signals.
+
+    Facial activity is the percentage of monitoring checks with a visible face and
+    open eyes. Emotion stability is the highest probability in the existing
+    recording-level FER+ distribution; it measures distribution concentration,
+    not whether any particular emotion is good or bad.
+    """
+    components = {
+        "eye_contact_percentage": None,
+        "attention_score": None,
+        "facial_activity_percentage": None,
+        "emotion_stability_percentage": None,
+    }
+    weights = {
+        "eye_contact_percentage": 0.30,
+        "attention_score": 0.30,
+        "facial_activity_percentage": 0.20,
+        "emotion_stability_percentage": 0.20,
+    }
+    if not monitoring_summary:
+        return {"status": "not_available", "engagement_score": None, "engagement_level": "Not available", "components": components}
+
+    attention = monitoring_summary.get("attention_analysis") or {}
+    attention_components = attention.get("components") or {}
+    eye_contact = attention_components.get("eye_contact_percentage")
+    attention_score = attention.get("attention_score")
+    monitoring_checks = monitoring_summary.get("monitoring_checks", 0)
+    face_visible_checks = monitoring_summary.get("face_visible_checks", 0)
+    eyes_closed_checks = monitoring_summary.get("eyes_closed_checks", 0)
+
+    def valid_percentage(value):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0, min(100, round(value)))
+        return None
+
+    components["eye_contact_percentage"] = valid_percentage(eye_contact)
+    components["attention_score"] = valid_percentage(attention_score)
+
+    if all(isinstance(value, int) and not isinstance(value, bool) for value in (monitoring_checks, face_visible_checks, eyes_closed_checks)) and monitoring_checks > 0:
+        observable_face_checks = max(0, min(monitoring_checks, face_visible_checks - eyes_closed_checks))
+        components["facial_activity_percentage"] = round(observable_face_checks / monitoring_checks * 100)
+
+    emotion = monitoring_summary.get("emotion_analysis") or {}
+    distribution = emotion.get("emotion_distribution") if emotion.get("status") == "success" else None
+    probabilities = [value for value in (distribution or {}).values() if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0]
+    if probabilities and sum(probabilities) > 0:
+        components["emotion_stability_percentage"] = valid_percentage(max(probabilities) * 100)
+
+    available = {name: value for name, value in components.items() if value is not None}
+    # A single signal is not a meaningful engagement estimate; use normalized
+    # weights only when at least two independent observable signals exist.
+    if len(available) < 2:
+        return {"status": "not_available", "engagement_score": None, "engagement_level": "Not available", "components": components}
+
+    available_weight = sum(weights[name] for name in available)
+    engagement_score = round(sum(weights[name] * value for name, value in available.items()) / available_weight)
+    engagement_score = max(0, min(100, engagement_score))
+    engagement_level = "High" if engagement_score >= 80 else "Medium" if engagement_score >= 50 else "Low"
+    return {"status": "success", "engagement_score": engagement_score, "engagement_level": engagement_level, "components": components}
+
+
+def calculate_confidence_indicator(monitoring_summary: dict, speech_analysis: list[dict] | None = None) -> dict:
+    """Estimate confidence indicators from observable visual and speech signals.
+
+    Communication signal combines: pace proximity to 130 WPM (40%), low filler
+    density (30%), and answer completeness at 20 words per attempted answer
+    (30%). It is not a measurement of internal confidence or personality.
+    """
+    components = {
+        "eye_contact_percentage": None,
+        "attention_score": None,
+        "engagement_score": None,
+        "communication_signal": None,
+    }
+    weights = {
+        "eye_contact_percentage": 0.35,
+        "attention_score": 0.30,
+        "engagement_score": 0.20,
+        "communication_signal": 0.15,
+    }
+
+    def valid_percentage(value):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0, min(100, round(value)))
+        return None
+
+    monitoring_summary = monitoring_summary or {}
+    attention = monitoring_summary.get("attention_analysis") or {}
+    engagement = monitoring_summary.get("engagement_analysis") or {}
+    components["eye_contact_percentage"] = valid_percentage((attention.get("components") or {}).get("eye_contact_percentage"))
+    components["attention_score"] = valid_percentage(attention.get("attention_score"))
+    components["engagement_score"] = valid_percentage(engagement.get("engagement_score"))
+
+    def safe_nonnegative_int(value):
+        return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0 else 0
+
+    speech_items = [item for item in (speech_analysis or []) if isinstance(item, dict)]
+    word_total = sum(safe_nonnegative_int(item.get("word_count")) for item in speech_items)
+    filler_total = sum(safe_nonnegative_int(item.get("filler_count")) for item in speech_items)
+    speech_seconds = sum(safe_nonnegative_int(item.get("speech_seconds")) for item in speech_items)
+    attempted_answers = len(speech_items)
+    if word_total > 0 and speech_seconds > 0 and attempted_answers > 0:
+        speaking_pace = word_total / speech_seconds * 60
+        pace_signal = max(0, min(100, 100 - (abs(speaking_pace - 130) / 130 * 100)))
+        filler_density = filler_total / word_total * 100
+        filler_signal = max(0, min(100, 100 - filler_density * 10))
+        completeness_signal = max(0, min(100, word_total / (attempted_answers * 20) * 100))
+        components["communication_signal"] = round(
+            0.40 * pace_signal + 0.30 * filler_signal + 0.30 * completeness_signal
+        )
+
+    available = {name: value for name, value in components.items() if value is not None}
+    # Require two observable components; missing signals never count as perfect.
+    if len(available) < 2:
+        return {"status": "not_available", "confidence_score": None, "confidence_level": "Not available", "components": components}
+
+    available_weight = sum(weights[name] for name in available)
+    confidence_score = round(sum(weights[name] * value for name, value in available.items()) / available_weight)
+    confidence_score = max(0, min(100, confidence_score))
+    confidence_level = "High confidence indicators" if confidence_score >= 80 else "Moderate confidence indicators" if confidence_score >= 50 else "Low confidence indicators"
+    return {"status": "success", "confidence_score": confidence_score, "confidence_level": confidence_level, "components": components}
+
+
+def build_behavior_summary(monitoring_summary: dict) -> dict:
+    """Combine finalized observable analyses without recalculating any feature."""
+    summary = {
+        "eye_contact": None,
+        "attention": None,
+        "engagement": None,
+        "confidence": None,
+        "dominant_emotion": None,
+    }
+    weights = {"attention": 0.30, "engagement": 0.25, "confidence": 0.25, "eye_contact": 0.20}
+
+    def valid_percentage(value):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return max(0, min(100, round(value)))
+        return None
+
+    monitoring_summary = monitoring_summary or {}
+    attention = monitoring_summary.get("attention_analysis") or {}
+    engagement = monitoring_summary.get("engagement_analysis") or {}
+    confidence = monitoring_summary.get("confidence_analysis") or {}
+    emotion = monitoring_summary.get("emotion_analysis") or {}
+    summary["eye_contact"] = valid_percentage((attention.get("components") or {}).get("eye_contact_percentage"))
+    summary["attention"] = valid_percentage(attention.get("attention_score"))
+    summary["engagement"] = valid_percentage(engagement.get("engagement_score"))
+    summary["confidence"] = valid_percentage(confidence.get("confidence_score"))
+    if emotion.get("status") == "success" and isinstance(emotion.get("dominant_emotion"), str):
+        summary["dominant_emotion"] = emotion["dominant_emotion"]
+
+    available = {name: summary[name] for name in weights if summary[name] is not None}
+    if len(available) < 2:
+        return {"status": "not_available", "overall_behavior_indicator": None, "overall_behavior_level": "Not available", **summary}
+
+    available_weight = sum(weights[name] for name in available)
+    indicator = round(sum(weights[name] * value for name, value in available.items()) / available_weight)
+    indicator = max(0, min(100, indicator))
+    level = "Strong" if indicator >= 80 else "Moderate" if indicator >= 50 else "Needs Improvement"
+    return {"status": "success", "overall_behavior_indicator": indicator, "overall_behavior_level": level, **summary}
+
+
 def generate_feedback(interview: Interview) -> dict:
     # Uses Gemini to assess the completed answers and create a concise practice report.
     score_categories = {
@@ -482,20 +804,33 @@ def generate_feedback(interview: Interview) -> dict:
         f"Question {question['number']}: {question['text']}\nAnswer: {answer.get('answer', '')}"
         for question, answer in zip(interview.questions or [], interview.answers or [])
     )
+    speech = list(interview.speech_analysis or [])
+    filler_total = sum(int(item.get("filler_count", 0)) for item in speech)
+    word_total = sum(int(item.get("word_count", 0)) for item in speech)
+    speech_seconds = sum(int(item.get("speech_seconds", 0)) for item in speech)
+    communication_analysis = {
+        "word_count": word_total,
+        "filler_word_count": filler_total,
+        "filler_words": sorted({word for item in speech for word in item.get("filler_words", [])}),
+        "speaking_pace_wpm": round(word_total / max(speech_seconds, 1) * 60) if speech_seconds else 0,
+        "camera_monitoring": interview.monitoring_summary or {},
+    }
     prompt = (
         "Assess this practice interview fairly and constructively. Return only JSON with this exact shape: "
         f'{{"overall_score": 0-100, "category_scores": {{{category_shape}}}, '
         '"strengths": ["short point"], "improvements": ["short actionable point"], "summary": "short encouraging summary"}. '
-        f"Role: {interview.role_title}. Domain: {interview.domain}. Difficulty: {interview.difficulty}.\n\n{transcript}"
+        f"Role: {interview.role_title}. Domain: {interview.domain}. Difficulty: {interview.difficulty}. "
+        f"Speech facts: {json.dumps(communication_analysis)}. Use them only as supporting evidence, not as a personality diagnosis.\n\n{transcript}"
     )
     feedback = generate_ai_json(prompt, temperature=0.35, timeout=45)
     if isinstance(feedback, dict):
         score = feedback.get("overall_score")
         categories = feedback.get("category_scores")
         if isinstance(score, (int, float)) and 0 <= score <= 100 and isinstance(categories, dict):
+            feedback["communication_analysis"] = communication_analysis
             return feedback
     # Keeps the completed interview usable if both AI services are temporarily unavailable.
-    return {"overall_score": 0, "category_scores": {}, "strengths": [], "improvements": [], "summary": "Your answers were saved. AI feedback is temporarily unavailable; please try another practice interview later."}
+    return {"overall_score": 0, "category_scores": {}, "strengths": [], "improvements": [], "summary": "Your answers were saved. AI feedback is temporarily unavailable; please try another practice interview later.", "communication_analysis": communication_analysis}
 
 
 def extract_resume_text(file_name: str, file_bytes: bytes) -> str:
@@ -531,6 +866,12 @@ def analyze_resume(resume_text: str) -> dict:
 def to_interview(interview: Interview) -> InterviewResponse:
     # Converts a saved interview session into the API format used by the dashboard.
     return InterviewResponse.model_validate(interview)
+
+
+def finalize_session_time(interview: Interview, ended_at: datetime) -> None:
+    # Freezes active duration at end time so session reporting remains accurate after closing.
+    if interview.started_at:
+        interview.duration_seconds = max(0, int((ended_at - interview.started_at).total_seconds()) - interview.paused_total_seconds)
 
 
 def current_user(request: Request, db: Session = Depends(database)) -> User:
@@ -745,6 +1086,8 @@ def generate_interview(request: InterviewGenerateRequest, db: Session = Depends(
         domain=request.domain,
         difficulty=request.difficulty,
         questions=generate_questions(request.role_title.strip(), request.domain, request.difficulty, request.question_count),
+        session_id=str(uuid.uuid4()),
+        duration_limit_seconds=request.duration_minutes * 60,
     )
     db.add(interview); db.commit(); db.refresh(interview)
     return to_interview(interview)
@@ -805,6 +1148,9 @@ def resume_interview(interview_id: int, db: Session = Depends(database), user: U
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This interview is already finished.")
     if interview.status == InterviewStatus.IN_PROGRESS:
         return to_interview(interview)
+    if interview.paused_at:
+        interview.paused_total_seconds += max(0, int((datetime.now(timezone.utc) - interview.paused_at).total_seconds()))
+        interview.paused_at = None
     interview.status = InterviewStatus.IN_PROGRESS
     interview.started_at = interview.started_at or datetime.now(timezone.utc)
     db.commit(); db.refresh(interview)
@@ -821,6 +1167,9 @@ def end_interview(interview_id: int, db: Session = Depends(database), user: User
     interview.status = InterviewStatus.ENDED
     interview.ended_at = datetime.now(timezone.utc)
     interview.started_at = interview.started_at or interview.ended_at
+    finalize_session_time(interview, interview.ended_at)
+    if interview.answers:
+        interview.feedback = generate_feedback(interview)
     db.commit(); db.refresh(interview)
     return to_interview(interview)
 
@@ -836,14 +1185,41 @@ def answer_interview_question(interview_id: int, request: InterviewAnswerRequest
     if interview.current_question >= len(interview.questions or []):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="All interview questions have already been answered.")
     answers = list(interview.answers or [])
-    answers.append({"question_number": interview.current_question + 1, "answer": request.answer.strip(), "answered_at": datetime.now(timezone.utc).isoformat()})
+    answered_at = datetime.now(timezone.utc)
+    answers.append({"question_number": interview.current_question + 1, "answer": request.answer.strip(), "answered_at": answered_at.isoformat()})
     interview.answers = answers
+    speech = list(interview.speech_analysis or [])
+    speech.append({"question_number": interview.current_question + 1, **request.speech_metrics})
+    interview.speech_analysis = speech
+    times = list(interview.question_times or [])
+    times.append({"question_number": interview.current_question + 1, "time_spent_seconds": request.time_spent_seconds})
+    interview.question_times = times
     interview.current_question += 1
     if interview.current_question >= len(interview.questions):
         interview.status = InterviewStatus.COMPLETED
-        interview.completed_at = datetime.now(timezone.utc)
+        interview.completed_at = answered_at
         interview.ended_at = interview.completed_at
+        finalize_session_time(interview, interview.completed_at)
         interview.feedback = generate_feedback(interview)
+    db.commit(); db.refresh(interview)
+    return to_interview(interview)
+
+
+@app.post("/api/interviews/{interview_id}/monitoring", response_model=InterviewResponse)
+def save_interview_monitoring(interview_id: int, request: InterviewMonitoringRequest, db: Session = Depends(database), user: User = Depends(require_roles(Role.USER))) -> InterviewResponse:
+    # Persists transparent browser-side face visibility and camera-alignment signals for this session.
+    interview = db.get(Interview, interview_id)
+    if not interview or interview.candidate_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
+    
+    existing_monitoring = dict(interview.monitoring_summary or {})
+    new_monitoring = request.model_dump()
+
+    # Merge new browser monitoring values with the existing monitoring data, preserving other keys like emotion_analysis
+    for key, value in new_monitoring.items():
+        existing_monitoring[key] = value
+
+    interview.monitoring_summary = existing_monitoring
     db.commit(); db.refresh(interview)
     return to_interview(interview)
 
@@ -881,20 +1257,76 @@ async def upload_interview_recording(interview_id: int, file: UploadFile = File(
     interview.recording_content_type = content_type.split(";", 1)[0]
     interview.recording_size = total_bytes
     interview.recorded_at = datetime.now(timezone.utc)
+    
+    # Analyze emotions from the recording.
+    try:
+        emotion_result = analyze_video_emotions(
+            str(destination),
+            sample_every_seconds=3
+        )
+        if emotion_result.get("status") == "success":
+            interview.emotion_analysis = emotion_result
+            current_monitoring = dict(interview.monitoring_summary or {})
+            current_monitoring["emotion_analysis"] = emotion_result
+            interview.monitoring_summary = current_monitoring
+    except Exception:
+        # If emotion analysis fails, still allow the recording to be saved.
+        pass
+
+    # Calculate attention score using the updated/current monitoring summary.
+    # Preserve existing monitoring data.
+    current_monitoring = dict(interview.monitoring_summary or {})
+    attention_result = calculate_attention_score(current_monitoring)
+    current_monitoring["attention_analysis"] = attention_result
+    # Engagement is calculated after emotion and attention without modifying either result.
+    current_monitoring["engagement_analysis"] = calculate_engagement_score(current_monitoring)
+    # Confidence indicators reuse finalized attention and engagement plus saved speech facts.
+    current_monitoring["confidence_analysis"] = calculate_confidence_indicator(current_monitoring, interview.speech_analysis)
+    # Final overview only combines saved analyses; it does not recalculate them.
+    current_monitoring["behavior_summary"] = build_behavior_summary(current_monitoring)
+    interview.monitoring_summary = current_monitoring
+
+    # Regenerate feedback since we now have the video emotion analysis and attention analysis
+    try:
+        if interview.answers:
+            interview.feedback = generate_feedback(interview)
+    except Exception:
+        pass
+
     db.commit(); db.refresh(interview)
     return to_interview(interview)
 
 
 @app.get("/api/interviews/{interview_id}/recording")
 def access_interview_recording(interview_id: int, db: Session = Depends(database), user: User = Depends(current_user)) -> FileResponse:
-    # Allows only the recording owner or an Admin to stream a private interview recording.
+    # Allows the owner, an Admin, or a recruiter to stream a protected interview recording.
     interview = db.get(Interview, interview_id)
-    if not interview or not interview.recording_path or (interview.candidate_id != user.id and user.role != Role.ADMIN):
+    if not interview or not interview.recording_path or (interview.candidate_id != user.id and user.role not in {Role.ADMIN, Role.RECRUITER}):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording not found.")
     recording = RECORDINGS_DIR / interview.recording_path
     if not recording.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording file not found.")
     return FileResponse(recording, media_type=interview.recording_content_type or "video/webm", filename=f"interview-{interview.id}-recording")
+
+
+@app.get("/api/recruiter/interviews", response_model=list[RecruiterInterviewResponse])
+def recruiter_interview_history(db: Session = Depends(database), user: User = Depends(require_roles(Role.RECRUITER, Role.ADMIN))) -> list[RecruiterInterviewResponse]:
+    # Lets recruiters compare completed candidate practice interviews using saved reports and ranks.
+    interviews = db.query(Interview).filter(Interview.status.in_([InterviewStatus.COMPLETED, InterviewStatus.ENDED])).order_by(Interview.ended_at.desc()).all()
+    candidate_best_scores: dict[int, float] = {}
+    for item in interviews:
+        score = (item.feedback or {}).get("overall_score")
+        if isinstance(score, (int, float)):
+            candidate_best_scores[item.candidate_id] = max(candidate_best_scores.get(item.candidate_id, float("-inf")), score)
+    ordered_candidates = sorted(candidate_best_scores, key=lambda candidate_id: candidate_best_scores[candidate_id], reverse=True)
+    ranks = {candidate_id: index + 1 for index, candidate_id in enumerate(ordered_candidates)}
+    candidates = {item.id: item for item in db.query(User).filter(User.id.in_({interview.candidate_id for interview in interviews})).all()} if interviews else {}
+    result = []
+    for interview in interviews:
+        candidate = candidates.get(interview.candidate_id)
+        if candidate:
+            result.append(RecruiterInterviewResponse(**to_interview(interview).model_dump(), candidate_name=candidate.name, candidate_email=candidate.email, rank=ranks.get(interview.candidate_id)))
+    return sorted(result, key=lambda item: (item.rank is None, item.rank or 10**9, item.ended_at or item.created_at), reverse=False)
 
 
 @app.delete("/api/interviews/{interview_id}", status_code=status.HTTP_204_NO_CONTENT)
