@@ -8,8 +8,8 @@ Questions are delivered as text — there is no text-to-speech. The candidate's
 answer is kept as the recording the browser captured, which stays the primary
 artefact: exactly what they said, in their own voice.
 
-Module 5 then transcribes that recording and analyses it, and Module 6 scores
-it against a fixed rubric off the same transcript. The transcript is stored
+Module 5 then transcribes that recording, analyses it, and scores it against
+a fixed rubric off the same transcript. The transcript is stored
 *alongside* the audio, never instead of it, so the machine's guess at what was
 said can always be checked against the recording — and an outage in the
 speech service costs the transcript and the score, never the answer.
@@ -336,7 +336,7 @@ def _progress(db: Session, interview_id: int) -> dict:
 
 def _score_interview(db: Session, interview: Interview) -> dict:
     """
-    Module 6: stamp the interview's overall score as it completes.
+    Module 5: stamp the interview's overall score as it completes.
 
     Called from both places an interview reaches COMPLETED — running out of
     questions and an explicit `end` — so neither path can leave a finished

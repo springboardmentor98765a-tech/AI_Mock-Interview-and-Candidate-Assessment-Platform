@@ -89,7 +89,7 @@ class TestCandidateAnalytics:
 
     def test_scoring_fields_are_consistent(self, client, candidate_token):
         """
-        Module 6 exists now, so the flag says so — and a score/rating are a
+        Module 5 exists now, so the flag says so — and a score/rating are a
         pair: one is present exactly when the other is, never a number with
         no label or a label with no number.
         """
@@ -133,7 +133,7 @@ class TestRecruiterAnalytics:
 
     def test_candidate_list_carries_a_real_score_not_a_rank(self, client, recruiter_token):
         """
-        Module 6 exists, so each row carries the candidate's latest score —
+        Module 5 exists, so each row carries the candidate's latest score —
         but this is a directory (see its own docstring), so it is still not
         ranked. Ranking lives at GET /analytics/leaderboard.
         """

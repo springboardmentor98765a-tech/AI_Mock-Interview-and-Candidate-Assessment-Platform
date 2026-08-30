@@ -189,6 +189,45 @@ curl http://localhost:8000/api/users/me -H "Authorization: Bearer <token>"
   truncated.
 - `bcrypt` is pinned to `4.0.1`: passlib 1.7.4 reads `bcrypt.__about__`, which 4.1+ removed.
 
+### Module 6 — on-camera behaviour (emotion detection & eye tracking)
+
+Runs as an ML model **in the candidate's browser** (MediaPipe face landmarker),
+not on the server and not over the stored recording. A few times a second it
+reduces the camera preview to one label pair — where they were looking, what
+their expression was doing — and keeps nothing else. At the end of the session
+those samples go to `POST /api/interviews/{id}/behavior`, which aggregates them
+into `Interview.behavior_report`; the report then rides along on
+`GET /api/interviews/{id}/analysis` under a `behavior` key.
+
+- **No video is uploaded for this.** The session recording is uploaded, but as
+  a separate feature (Module 4) and for playback only — Module 6 never reads it.
+- **The server owns the arithmetic.** The browser reports what it saw; the
+  server decides what it means, so figures cannot vary between clients.
+  `app/services/behavior_analysis.py` is pure and unit-tested.
+- **Individual samples are not stored**, only the totals. A per-second log of
+  where someone's eyes were is a surveillance record and there is no use for
+  one after the percentages exist.
+- **It produces no score and feeds no ranking.** The samples are
+  client-supplied and therefore forgeable — fine for a candidate's own practice
+  feedback, not fine as something a recruiter sorts by. It is deliberately
+  absent from every analytics and leaderboard shape.
+- **Alerts are candidate-facing coaching**, never a proctoring flag shown to
+  anyone else.
+- `ANALYSE_BEHAVIOR=false` turns the whole thing off; the endpoint then 503s
+  and `behavior_report` stays null.
+
+Setup: `npm install` in `frontend/` pulls `@mediapipe/tasks-vision`, and
+`npm run dev`/`build` copies its WASM runtime into `public/models/wasm`
+automatically. The model file `public/models/face_landmarker.task` is committed;
+the WASM is gitignored because `npm install` reproduces it.
+
+Accuracy is honest-by-design: eye contact is an **uncalibrated estimate** and
+"expression" is inferred from facial movement, not a claim about how anyone
+felt. The thresholds in `frontend/src/lib/faceTracker.js` were measured against
+real footage rather than guessed — see that file's comments, and note that
+MediaPipe's blendshape neutrals are not zero (`eyeLookDown` rests near 0.29,
+because webcams sit above eye level).
+
 ## Not done yet
 
 The frontend still uses its mocked `AuthContext` and has not been pointed at this API.

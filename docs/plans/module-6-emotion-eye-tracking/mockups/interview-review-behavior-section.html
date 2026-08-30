@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mockup — Behavior & Engagement section</title>
+<style>
+  :root {
+    --bg: #0d0d12; --card: #13131a; --panel: #1a1a24; --line: #252535; --line-2: #2e2e42;
+    --tx: #e4e1e9; --tx-2: #8b8b99;
+    --blue: #00c8ff; --blue-bg: #001f2a;
+    --green: #00e87a; --green-bg: #001f12;
+    --yellow: #f5e100; --yellow-bg: #1f1d00;
+    --red: #ff4d4d; --red-bg: #1f0808;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--tx); font: 400 14px/1.5 system-ui, sans-serif; padding: 40px; }
+  .note-banner { max-width: 720px; margin: 0 auto 24px; padding: 10px 14px; border: 1px dashed var(--line-2);
+    border-radius: 6px; color: var(--tx-2); font-size: 12px; }
+  .modal-box { max-width: 720px; margin: 0 auto; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 24px; }
+  h2 { font-size: 18px; margin-bottom: 4px; }
+  h3 { font-size: 14px; margin-bottom: 8px; }
+  .muted { color: var(--tx-2); font-size: 12px; }
+  .label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--tx-2); margin-bottom: 6px; }
+  .gap-top { margin-top: 18px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 8px; border: 1px solid; border-radius: 3px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500; white-space: nowrap; }
+  .badge-ok { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .badge-warn { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
+  .badge-bad { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .badge-muted { background: var(--panel); border-color: var(--line-2); color: var(--tx-2); }
+  .meter { height: 6px; background: var(--panel); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .meter i { display: block; height: 100%; background: var(--blue); }
+  .card-existing { opacity: .45; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 26px 0 10px; }
+  .divider .line { flex: 1; height: 1px; background: var(--line); }
+  .divider span { font-family: var(--mono); font-size: 10px; color: var(--tx-2); text-transform: uppercase; }
+  .emo-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .strengths-box { padding: 10px 12px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel);
+    font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+  <div class="note-banner">
+    Mockup only — static HTML, not the real app. This shows where the new Module 6
+    "Behavior &amp; Engagement" card sits: inside the existing InterviewReview screen
+    (History → View), directly below Module 5's "Communication analysis" card and
+    above the per-question breakdown. Numbers below are illustrative.
+  </div>
+
+  <div class="modal-box">
+    <h2>TECHNICAL · backend developer</h2>
+    <p class="muted">easy · 3 questions · completed</p>
+
+    <!-- existing Module 5 card, dimmed to show it is unchanged -->
+    <div class="row gap-top card-existing">
+      <div>
+        <strong>Overall score</strong>
+        <small class="muted">Module 5 — Communication 30% · Confidence 25% · Technical relevance 30% · Professionalism 15%</small>
+      </div>
+      <span class="badge badge-ok">72.0 · Good</span>
+    </div>
+
+    <div class="divider"><span>New in Module 6</span><div class="line"></div></div>
+
+    <!-- ============ NEW: Behavior & Engagement summary card ============ -->
+    <h3>Behavior &amp; engagement</h3>
+    <p class="muted" style="margin-bottom: 10px;">
+      From the camera recording, not the transcript. A separate signal from
+      Module 5's Confidence score above — this one is about how the candidate
+      came across on camera, not what they said.
+    </p>
+
+    <div class="row">
+      <div>
+        <strong>Behavioral confidence</strong>
+        <small class="muted">Posture, expression steadiness and vocal-adjacent cues read from video</small>
+      </div>
+      <span class="badge badge-ok">Confident</span>
+    </div>
+
+    <div class="row">
+      <div>
+        <strong>Dominant emotion</strong>
+        <small class="muted">Most-seen expression across the session</small>
+      </div>
+      <div class="emo-tags">
+        <span class="badge badge-ok">neutral · 61%</span>
+        <span class="badge badge-muted">nervous · 24%</span>
+        <span class="badge badge-muted">engaged · 15%</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <strong>Eye contact</strong>
+        <small class="muted">Estimated time looking toward the camera</small>
+      </div>
+      <div style="min-width: 160px;">
+        <strong>68%</strong>
+        <div class="meter"><i style="width: 68%;"></i></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <strong>Attention</strong>
+        <small class="muted">Times the candidate looked away for more than a few seconds</small>
+      </div>
+      <span class="badge badge-warn">4 look-aways</span>
+    </div>
+
+    <div class="row">
+      <div>
+        <strong>Engagement</strong>
+        <small class="muted">Overall energy and responsiveness on camera</small>
+      </div>
+      <span class="badge badge-ok">High</span>
+    </div>
+
+    <div class="gap-top">
+      <p class="label">Behavior analysis — AI summary</p>
+      <div class="strengths-box">
+        The candidate maintained steady eye contact for most of the session and
+        showed generally confident, composed body language. Eye contact dipped
+        noticeably during question 2, coinciding with a pause before answering —
+        consistent with the candidate thinking through a harder question rather
+        than disengagement. No signs of prolonged distraction.
+      </div>
+    </div>
+
+    <p class="muted gap-top" style="font-size: 11px;">
+      Heuristic read from webcam video, not a clinical or certified behavioral
+      assessment — similar in spirit to Module 5's pronunciation notes, which are
+      also "best effort," not a lab-grade measurement.
+    </p>
+
+    <div class="divider"><span>Existing Module 5 detail (unchanged)</span><div class="line"></div></div>
+    <div class="row card-existing">
+      <div><strong>Q1 · API</strong><br><small class="muted">Transcript, grammar, filler words, pace, pronunciation, communication quality — as today</small></div>
+    </div>
+  </div>
+
+</body>
+</html>

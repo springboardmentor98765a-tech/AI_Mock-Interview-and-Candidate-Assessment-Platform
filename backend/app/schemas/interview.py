@@ -124,7 +124,7 @@ class InterviewOut(BaseModel):
     total_paused_seconds: int = 0
     # Stamped when the interview ends; null while it is still running.
     duration_seconds: Optional[int] = None
-    # Module 6: the rubric score, 0-100 — average of the answered questions'
+    # Module 5: the rubric score, 0-100 — average of the answered questions'
     # scores. Null while running, and null forever if no answer was ever
     # scored (analysis disabled, provider down, or every question skipped) —
     # a different fact from "scored zero", so it is never displayed as one.

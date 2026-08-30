@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     # the Gemini quota is spent and an interview still has to run.
     ANALYSE_ANSWERS: bool = True
 
+    # Master switch for Module 6 (on-camera behaviour). Unlike the switch
+    # above this costs no quota — the tracking is an ML model in the
+    # candidate's browser — but it is still worth being able to turn off: it
+    # spends the candidate's CPU alongside an active recording, and an
+    # operator may simply not want gaze tracking in their deployment.
+    # Off means no tracking runs and behavior_report stays null.
+    ANALYSE_BEHAVIOR: bool = True
+
     # Résumé upload (Module 2). Files are stored on disk under this directory;
     # the size cap is enforced server-side, not just in the browser.
     RESUME_UPLOAD_DIR: str = "uploads/resumes"

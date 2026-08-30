@@ -151,7 +151,7 @@ class Interview(Base):
     # those simply have no countdown.
     question_seconds = Column(Integer, nullable=True)
 
-    # Module 6: the rubric score for this interview, 0-100 — the average of
+    # Module 5: the rubric score for this interview, 0-100 — the average of
     # its answered questions' scores (app.services.scoring.aggregate_score).
     # Stamped once when the interview reaches COMPLETED, the same "stored
     # fact about a finished interview" reasoning as duration_seconds above: it
@@ -161,6 +161,19 @@ class Interview(Base):
     # skipped) — that is a different fact from "scored zero" and must not be
     # displayed as one.
     overall_score = Column(Float, nullable=True)
+
+    # Module 6: on-camera behaviour for the whole session — confidence,
+    # expression mix, eye contact, look-aways, engagement and a summary.
+    # A display-only JSON blob, the same shape as InterviewQuestion.analysis,
+    # but interview-level because it describes the session rather than one
+    # answer.
+    #
+    # Aggregated from samples the candidate's own browser measured while they
+    # answered (an ML model running locally — no video is uploaded for this)
+    # and submitted at the end. Null when the camera was off, when tracking
+    # was never submitted, or when too little of the session was tracked to
+    # say anything honest — all of which are "no data", not "scored zero".
+    behavior_report = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

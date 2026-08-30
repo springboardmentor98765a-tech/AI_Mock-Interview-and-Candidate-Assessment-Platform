@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import AnalysisReport from '../../components/AnalysisReport';
+import { createFaceTracker } from '../../lib/faceTracker';
 
 /**
  * The real voice interview (Modules 3, 4 and 5).
@@ -180,7 +181,7 @@ function AnswerAnalysis({ data }) {
         </>
       )}
 
-      {/* --- scored (Module 6) --- */}
+      {/* --- scored (Module 5) --- */}
       {score?.available ? (
         <>
           <div className="row gap-top">
@@ -376,6 +377,9 @@ export default function LiveSession() {
   const videoRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const videoChunksRef = useRef([]);
+  // Module 6's tracker. Held in a ref rather than state because nothing
+  // renders from the object itself — it pushes out through its callbacks.
+  const trackerRef = useRef(null);
   // Wall-clock start of the current recording. The measured speaking time is
   // what pace is computed from, so it is taken here rather than inferred from
   // when the question was asked — that interval also contains thinking time.
@@ -397,11 +401,14 @@ export default function LiveSession() {
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState(null);
   const [micReady, setMicReady] = useState(false);
+  // Module 6: the live nudge, and why tracking could not start if it could not.
+  const [gazeAlert, setGazeAlert] = useState(null);
+  const [trackerError, setTrackerError] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   // { state: 'uploading' | 'saved' | 'failed', detail } for the video upload.
   const [upload, setUpload] = useState(null);
-  // The full Module 5/6 report, fetched once the interview is over. Held apart
+  // The full Module 5 report, fetched once the interview is over. Held apart
   // from the live `analysis` frames so a mid-interview outage cannot leave a
   // half-filled report on the completion screen.
   const [report, setReport] = useState({ state: 'idle', data: null, error: null });
@@ -681,6 +688,22 @@ export default function LiveSession() {
       videoRecorderRef.current = { recorder, stream };
       recorder.start();
 
+      // Module 6. Deliberately after the recorder is running and never
+      // awaited: loading a 12MB WASM runtime must not delay the recording,
+      // and a tracker that fails to start costs the behaviour report only.
+      // Reused rather than recreated, so a candidate who turns the camera off
+      // and back on keeps the samples from before the gap.
+      const tracker =
+        trackerRef.current ??
+        createFaceTracker({
+          onAlert: (zone) => setGazeAlert(zone),
+          onClear: () => setGazeAlert(null),
+        });
+      trackerRef.current = tracker;
+      tracker.start(videoRef.current).catch((err) => {
+        setTrackerError(err.message);
+      });
+
       setCameraOn(true);
       return true;
     } catch (err) {
@@ -695,6 +718,11 @@ export default function LiveSession() {
   }, []);
 
   const stopCamera = useCallback(() => {
+    // Stopped before the stream goes away, so the loop is not left reading a
+    // dead video element.
+    trackerRef.current?.stop();
+    setGazeAlert(null);
+
     const held = videoRecorderRef.current;
     if (!held) return;
     if (held.recorder.state !== 'inactive') held.recorder.stop();
@@ -709,6 +737,9 @@ export default function LiveSession() {
   // path — navigation, reload, or closing the tab.
   useEffect(
     () => () => {
+      // The tracker holds a requestAnimationFrame loop, which would otherwise
+      // keep running against a torn-down component.
+      trackerRef.current?.stop();
       const held = videoRecorderRef.current;
       if (held) {
         if (held.recorder.state !== 'inactive') held.recorder.stop();
@@ -758,7 +789,51 @@ export default function LiveSession() {
     send({ type: 'pause' });
   };
 
+  /**
+   * Module 6: hand the session's tracking to the server.
+   *
+   * Best-effort and never awaited by anything that matters — a failed submit
+   * costs the behaviour report and nothing else. Called before stopCamera so
+   * the tracker is read while it is still the one that did the tracking.
+   */
+  const submitTracking = useCallback(() => {
+    const tracker = trackerRef.current;
+    if (!tracker || !interviewId) return;
+
+    const samples = tracker.samples();
+    if (samples.length === 0) return;
+
+    api
+      .submitBehavior(interviewId, {
+        samples,
+        tracked_seconds: tracker.trackedSeconds(),
+        alerts_shown: tracker.alertsShown(),
+      })
+      .catch(() => {
+        /* The interview, its answers and its recording are unaffected. */
+      });
+  }, [interviewId]);
+
+  /**
+   * Finish the interview: the candidate has dealt with every question and is
+   * done.
+   *
+   * Sends the same `end` frame as leaving early, because to the server there
+   * is one way for a session to close. The distinction is entirely about the
+   * candidate: finishing and abandoning feel nothing alike, and offering only
+   * "End session" made completing an interview look like giving up on it.
+   *
+   * The `complete` status the server replies with is what renders the report,
+   * so no navigation is needed — the results appear in place.
+   */
+  const finishInterview = () => {
+    submitTracking();
+    stopCamera();
+    send({ type: 'end' });
+  };
+
   const endSession = () => {
+    submitTracking();
     stopCamera();
     // Do NOT close the socket here. `end` is what marks the interview
     // COMPLETED server-side; closing first would race the frame and leave the
@@ -810,9 +885,47 @@ export default function LiveSession() {
     return () => clearTimeout(id);
   }, [status]);
 
+  // Module 6: an interview that ends by running out of questions never goes
+  // through endSession, so the tracking is submitted here too. Submitting
+  // twice is harmless — the endpoint replaces the report rather than
+  // appending — and missing it entirely would silently lose the report for
+  // every candidate who answers every question.
+  useEffect(() => {
+    if (status !== 'complete') return;
+    submitTracking();
+    trackerRef.current?.stop();
+  }, [status, submitTracking]);
+
   const busy = status === 'saving';
   const paused = status === 'paused';
   const overrun = remaining !== null && remaining < 0;
+
+  /**
+   * Has the question on screen been dealt with?
+   *
+   * The server serves the lowest question the candidate has not answered or
+   * skipped, so asking for "next" before dealing with the current one returns
+   * that same question — the screen redraws with identical text and looks
+   * frozen. Rather than let that happen, the control is disabled and says why.
+   *
+   * Compared by sequence_no rather than a boolean: `recorded` survives long
+   * enough for a late `analysis` frame to land, so a plain "has an answer been
+   * sent" flag would still read true once the next question arrived.
+   *
+   * A skip needs no equivalent here — the server sends the following question
+   * immediately after, so `question` has already moved on.
+   */
+  const currentQuestionResolved =
+    question != null && recorded != null && recorded.sequence_no === question.sequence_no;
+
+  /**
+   * Every question answered or skipped, so the interview can be finished.
+   *
+   * Counted from the server's own progress figures rather than anything
+   * tracked here, so it cannot drift from what was actually recorded.
+   */
+  const allQuestionsResolved =
+    progress.total > 0 && progress.answered + progress.skipped >= progress.total;
 
   return (
     <>
@@ -852,7 +965,14 @@ export default function LiveSession() {
               {status === 'paused' ? 'Resume' : 'Pause'}
             </button>
           )}
-          <button className="btn btn-danger" onClick={endSession}>
+          {/* Early exit, available throughout — deliberately kept in the header,
+              styled as destructive, and worded differently from "Finish
+              interview" so the two are never mistaken for each other. */}
+          <button
+            className="btn btn-danger"
+            onClick={endSession}
+            title="Leave now. Questions you have not reached are recorded as unanswered."
+          >
             End session
           </button>
         </div>
@@ -999,6 +1119,24 @@ export default function LiveSession() {
                 </small>
               )}
 
+              {/* Module 6 — the live nudge. */}
+              {cameraOn && gazeAlert && (
+                <p className="nudge">
+                  {gazeAlert === 'down'
+                    ? 'You have been looking down for a while — try lifting your eyes to the camera.'
+                    : gazeAlert === 'side'
+                      ? 'You have been looking away for a while — try coming back to the camera.'
+                      : 'Your face has not been visible for a while — check you are still in frame.'}
+                </p>
+              )}
+
+              {cameraOn && trackerError && (
+                <small className="muted">
+                  On-camera tracking could not start ({trackerError}). Your interview and recording
+                  are unaffected.
+                </small>
+              )}
+
               {upload?.state === 'uploading' && (
                 <p className="note">Uploading your camera recording…</p>
               )}
@@ -1024,9 +1162,24 @@ export default function LiveSession() {
 
               <p className="muted gap-top">
                 Your spoken answer is recorded, stored, transcribed, analysed for fillers, pace,
-                grammar and clarity, and scored against a fixed rubric. Confidence is part of that
-                rubric and is judged from what you said, not from your face or voice — no
-                eye-contact or emotion analysis exists, so nothing here reads your expression.
+                grammar and clarity, and scored against a fixed rubric. The Confidence part of
+                that score is judged from what you said, not from your face.
+              </p>
+              <p className="muted gap-top">
+                While the camera is on, a face model runs <strong>in this browser</strong> to
+                estimate where you are looking and what your expression is doing. It samples a
+                few times a second and keeps only those labels — no images or video are sent
+                anywhere for it, and only the totals reach the server when the interview ends.
+                You will see a nudge if you look away for a while.
+              </p>
+              <p className="muted gap-top">
+                <strong>A recruiter reviewing this interview can see your attention figures</strong>{' '}
+                — how much of the session you looked at the camera, how often you looked away,
+                and your confidence percentage — alongside your score. They are shown as
+                context, not as a score: they never affect your interview score and never affect
+                your position on the leaderboard. The named emotion readings (confident, nervous,
+                fear) stay between you and this page. All of it is an uncalibrated estimate from
+                your face, not a measurement of how you felt.
               </p>
             </section>
 
@@ -1151,11 +1304,46 @@ export default function LiveSession() {
                   </button>
                 )}
                 {!recording && (
-                  <button className="btn" onClick={askNext} disabled={busy || recording || paused}>
+                  <button
+                    className="btn"
+                    onClick={askNext}
+                    // Gated once a question is on screen: asking for the next
+                    // one before this is answered or skipped re-serves this
+                    // same question, which reads as the app being broken.
+                    // Deliberately NOT turned into a skip — that would record
+                    // "chose not to answer" against a candidate who only meant
+                    // to move on, and skipping stays an explicit choice.
+                    disabled={busy || paused || (question != null && !currentQuestionResolved)}
+                    title={
+                      question != null && !currentQuestionResolved
+                        ? 'Answer or skip this question first'
+                        : undefined
+                    }
+                  >
                     {question ? 'Next question' : 'Start'}
                   </button>
                 )}
+                {allQuestionsResolved && !recording && (
+                  <button className="btn btn-primary" onClick={finishInterview} disabled={busy}>
+                    Finish interview
+                  </button>
+                )}
               </div>
+
+              {/* Says why the control is dim, rather than leaving the
+                  candidate to work it out from a greyed-out button. */}
+              {question && !currentQuestionResolved && !recording && !paused && (
+                <small className="muted">
+                  Answer or skip this question to move on — “Next question” stays disabled until
+                  then, because the interview will not advance past an unanswered question.
+                </small>
+              )}
+              {allQuestionsResolved && !recording && (
+                <small className="muted">
+                  That was the last question. Finish to close the interview and see your report —
+                  or keep going back over answers if you would rather.
+                </small>
+              )}
             </section>
           </div>
         )}

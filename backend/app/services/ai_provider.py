@@ -111,6 +111,10 @@ def provider_status() -> dict:
         "speech_available": speech_ok,
         "speech_detail": speech_detail,
         "answer_analysis_enabled": settings.ANALYSE_ANSWERS,
+        # Module 6 needs no provider at all — it runs in the candidate's
+        # browser — so this flag is reported here purely because /health is
+        # where the UI already looks to find out which features are on.
+        "behavior_analysis_enabled": settings.ANALYSE_BEHAVIOR,
     }
 
 
@@ -134,7 +138,7 @@ def analyse_communication(*, question: str, transcript: str) -> CommunicationAss
 def score_answer(
     *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
 ) -> AnswerScore:
-    """Module 6's rubric score for one answer. Text only, so it follows AI_PROVIDER."""
+    """Module 5's rubric score for one answer. Text only, so it follows AI_PROVIDER."""
     return active_provider().score_answer(
         question=question,
         transcript=transcript,
@@ -150,6 +154,10 @@ def score_answer(
 # them by AI_PROVIDER would mean "transcription silently stops working when
 # you switch to local text generation" — a surprise best avoided by routing
 # them explicitly here.
+#
+# Module 6 (on-camera behaviour) is deliberately NOT here: it runs as an ML
+# model in the candidate's browser, so no provider is involved and no video
+# is sent anywhere for it. See app.services.behavior_analysis.
 
 
 def speech_to_text(audio: bytes, mime_type: str = "audio/webm") -> str:

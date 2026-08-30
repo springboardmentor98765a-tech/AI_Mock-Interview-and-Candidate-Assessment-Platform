@@ -1,5 +1,5 @@
 """
-Module 6 exposed over HTTP: Interview.overall_score on the interview
+Module 5 exposed over HTTP: Interview.overall_score on the interview
 endpoints, and the recruiter/admin leaderboard ranked on it.
 
 Interviews are generated for real over HTTP, then driven to COMPLETED with a

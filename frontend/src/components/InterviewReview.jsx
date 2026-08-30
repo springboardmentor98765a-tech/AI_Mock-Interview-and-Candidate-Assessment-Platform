@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import { AnswerDetail } from './AnalysisReport';
+import BehaviorReport from './BehaviorReport';
 import { RATING_TONE } from '../lib/scoring';
 
 const AXES = [
@@ -45,7 +46,7 @@ function AnswerAudio({ interviewId, sequenceNo }) {
 
 /**
  * A past interview in full: the session recording, and every question with
- * its transcript, its own recording and its Module 6 score.
+ * its transcript, its own recording and its Module 5 score.
  *
  * Two independent fetches — GET .../analysis for the per-question detail
  * (transcripts, scores) and GET .../recording for the camera video — because
@@ -113,6 +114,8 @@ export default function InterviewReview({ interview, onClose }) {
             <span className="badge badge-muted">not scored</span>
           )}
         </div>
+
+        <BehaviorReport behavior={analysis.data?.behavior} />
 
         <p className="label gap-top">Camera recording</p>
         {video.state === 'loading' && <p className="note">Loading…</p>}

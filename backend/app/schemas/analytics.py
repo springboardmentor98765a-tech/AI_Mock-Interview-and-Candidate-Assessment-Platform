@@ -2,9 +2,19 @@
 Analytics response shapes.
 
 Every field here is a count, a list, a timestamp, a status, a duration, or —
-now that Module 6 exists — a score read straight off Interview.overall_score.
-There are still no invented eye-contact, emotion or confidence-from-video
-fields: nothing here reports a figure the platform does not actually compute.
+now that Module 5 exists — a score read straight off Interview.overall_score.
+Nothing here reports a figure the platform does not actually compute.
+
+Module 6's figures stay out of the *aggregate* shapes here and out of the
+leaderboard. They are measured in the candidate's own browser and are
+therefore client-supplied, so ranking people on them would mean ranking on
+something forgeable.
+
+They do appear, filtered, on CandidateInterviewSummary — a recruiter
+reviewing one session sees attention context beside the score. That is a
+deliberate line: context while reading about a person, never a number that
+sorts people. What gets filtered out (expression, emotion, the written
+summary) and why is in behavior_analysis.recruiter_view.
 """
 
 from datetime import datetime
@@ -47,7 +57,7 @@ class AdminAnalytics(BaseModel):
 
     interviews_last_14_days: List[TimePoint]
 
-    # Module 6: mean of Interview.overall_score across every interview that
+    # Module 5: mean of Interview.overall_score across every interview that
     # has one. None rather than 0 when nothing has been scored yet — the
     # platform having zero score is a different fact from having no data.
     average_score: Optional[float] = None
@@ -70,7 +80,7 @@ class CandidateAnalytics(BaseModel):
     resume_technologies_count: int = 0
     resume_experience_years: Optional[float] = None
 
-    # Module 6. Both None until at least one interview has been scored — a
+    # Module 5. Both None until at least one interview has been scored — a
     # candidate with no scored interview has no score, not a score of zero.
     latest_score: Optional[float] = None
     latest_score_rating: Optional[str] = None
@@ -89,7 +99,7 @@ class RecruiterCandidate(BaseModel):
     has_resume: bool
     top_technologies: List[str] = []
     last_active_at: Optional[datetime] = None
-    # Module 6, from the candidate's most recently completed interview — the
+    # Module 5, from the candidate's most recently completed interview — the
     # same basis the leaderboard ranks on. None if that interview was never
     # scored, or if the candidate has no completed interview at all.
     latest_score: Optional[float] = None
@@ -106,6 +116,32 @@ class RecruiterAnalytics(BaseModel):
     average_score: Optional[float] = None
     scored_interviews: int = 0
     scoring_available: bool = True
+
+
+class CandidateInterviewSummary(BaseModel):
+    """
+    One completed interview as a recruiter sees it: the score, and attention
+    context from Module 6.
+
+    `attention` is a filtered view — see
+    behavior_analysis.recruiter_view for what is withheld and why. It is a
+    plain dict rather than a typed model because it is display-only and its
+    shape follows whatever the tracker produced; typing it here would mean two
+    places to change every time that evolves.
+
+    None when the candidate had no camera on, or tracking never arrived.
+    """
+
+    interview_id: int
+    interview_type: str
+    domain: str
+    difficulty: str
+    completed_at: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+    question_count: int
+    overall_score: Optional[float] = None
+    score_rating: Optional[str] = None
+    attention: Optional[dict] = None
 
 
 class LeaderboardEntry(BaseModel):

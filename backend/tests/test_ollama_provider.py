@@ -278,7 +278,7 @@ class TestProviderSelection:
             assert not hasattr(module, "text_to_speech")
 
     def test_every_provider_offers_score_answer(self):
-        """Module 6's score is text-only, so unlike speech it must follow AI_PROVIDER."""
+        """Module 5's score is text-only, so unlike speech it must follow AI_PROVIDER."""
         for module in (ai_provider, gemini, ollama_provider):
             assert hasattr(module, "score_answer")
 
@@ -316,7 +316,7 @@ class TestProviderSelection:
         assert isinstance(client.calls[0]["format"], dict), "must use native structured output"
 
     def test_score_answer_follows_the_provider(self, monkeypatch, use_ollama):
-        """Module 6's rubric score is text-only, so it stays local too."""
+        """Module 5's rubric score is text-only, so it stays local too."""
         client = install(monkeypatch, FakeClient(SCORE_JSON))
         result = ai_provider.score_answer(
             question="Why?",
@@ -362,4 +362,7 @@ class TestProviderSelection:
             "speech_available",
             "speech_detail",
             "answer_analysis_enabled",
+            # Module 6 rides on the same Gemini key as speech, but has its own
+            # master switch, so /health reports it separately.
+            "behavior_analysis_enabled",
         }

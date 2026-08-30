@@ -228,7 +228,7 @@ class TestAnalysisEndpoint:
                                               interview):
         """
         404 rather than 403 — a 403 would confirm the id exists. Recruiters have
-        no route to a candidate's transcripts today; that is a Module 6 decision.
+        no route to a candidate's transcripts today; that is an undecided future feature.
         """
         r = client.get(f"/interviews/{interview['id']}/analysis", headers=auth(recruiter_token))
         assert r.status_code == 404

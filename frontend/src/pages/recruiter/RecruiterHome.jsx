@@ -4,6 +4,7 @@ import Section from '../../components/Section';
 import ReportDialog from '../../components/ReportDialog';
 import { Panel, NotAvailable } from '../../components/Panel';
 import Leaderboard from '../../components/Leaderboard';
+import CandidateSessions from '../../components/CandidateSessions';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { useApi } from '../../lib/useApi';
@@ -25,6 +26,8 @@ export default function RecruiterHome() {
   const tickets = useApi(() => api.listTickets());
 
   const [reportTarget, setReportTarget] = useState(null);
+  // Module 6: one candidate's sessions, with attention context beside score.
+  const [sessionsTarget, setSessionsTarget] = useState(null);
   const [resume, setResume] = useState({ open: null, data: null, error: null, loading: false });
 
   const s = stats.data;
@@ -130,6 +133,9 @@ export default function RecruiterHome() {
                               Résumé
                             </button>
                           )}
+                          <button className="btn" onClick={() => setSessionsTarget(c)}>
+                            Sessions
+                          </button>
                           <button className="btn" onClick={() => setReportTarget(c)}>
                             Report
                           </button>
@@ -356,6 +362,13 @@ export default function RecruiterHome() {
           </Panel>
         </div>
       </Section>
+
+      {sessionsTarget && (
+        <CandidateSessions
+          candidate={sessionsTarget}
+          onClose={() => setSessionsTarget(null)}
+        />
+      )}
 
       {reportTarget && (
         <ReportDialog

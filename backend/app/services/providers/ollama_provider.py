@@ -139,7 +139,7 @@ def extract_resume(resume_text: str):
 def score_answer(
     *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
 ) -> AnswerScore:
-    """Module 6's rubric score, run locally."""
+    """Module 5's rubric score, run locally."""
     content = _chat(
         SCORE_SYSTEM_PROMPT,
         score_prompt(

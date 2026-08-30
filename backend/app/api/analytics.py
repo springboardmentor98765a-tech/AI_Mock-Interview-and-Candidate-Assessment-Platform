@@ -2,18 +2,20 @@
 Real analytics, computed from real rows.
 
 Nothing here is estimated or seeded. If a figure cannot be derived from the
-database it is not in this file. Module 6 added a real one: Interview.
+database it is not in this file. Module 5 added a real one: Interview.
 overall_score, stamped by the voice interviewer when a session completes —
 so score and leaderboard figures below are that column, read and ranked, not
-invented here. There is still no eye-contact, emotion or confidence-from-video
-figure; those need modules that do not exist.
+invented here. Module 6's eye-contact and expression figures stay out of this
+file on purpose — they are measured client-side and so are forgeable, which is
+fine for a candidate's own practice feedback and not fine as a number a
+recruiter sorts by. See app/schemas/analytics.py for the longer reasoning.
 """
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -33,6 +35,7 @@ from app.models.user import Role, User
 from app.schemas.analytics import (
     AdminAnalytics,
     CandidateAnalytics,
+    CandidateInterviewSummary,
     CountPoint,
     LeaderboardEntry,
     LiveInterview,
@@ -40,6 +43,7 @@ from app.schemas.analytics import (
     RecruiterCandidate,
     TimePoint,
 )
+from app.services import behavior_analysis
 from app.services.scoring import rating_label
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -141,7 +145,7 @@ def candidate_analytics(
         .first()
     )
 
-    # Module 6. Latest by completion, not by creation — an interview generated
+    # Module 5. Latest by completion, not by creation — an interview generated
     # but never finished has no score to show.
     scored = mine.filter(Interview.overall_score.isnot(None))
     latest_scored = scored.order_by(Interview.completed_at.desc()).first()
@@ -290,13 +294,79 @@ def recruiter_candidates(
 
 
 @router.get(
+    "/recruiter/candidates/{user_id}/interviews",
+    response_model=List[CandidateInterviewSummary],
+    dependencies=[Depends(require_roles(Role.RECRUITER, Role.ADMIN))],
+)
+def recruiter_candidate_interviews(
+    user_id: int,
+    db: Session = Depends(get_db),
+    limit: int = Query(default=25, ge=1, le=100),
+):
+    """
+    One candidate's completed interviews: the Module 5 score, and the part of
+    the Module 6 attention data that is defensible in front of a recruiter.
+
+    Context, not ranking. The leaderboard still ranks on the interview score
+    alone — the attention figures below are submitted by the candidate's own
+    browser and are therefore forgeable, which is tolerable as background when
+    someone reviews a session and would not be tolerable as something people
+    are sorted by.
+
+    What is omitted matters as much as what is here: expression, emotion and
+    the written summary are filtered out by behavior_analysis.recruiter_view,
+    because those rest on inference that does not measure reliably enough to
+    inform a decision about a person. See that function for the reasoning.
+
+    Transcripts and recordings are still not exposed — this adds attention
+    context, not access to the candidate's face or words.
+    """
+    candidate = (
+        db.query(User).filter(User.id == user_id, User.role == Role.CANDIDATE).first()
+    )
+    if candidate is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No such candidate."
+        )
+
+    interviews = (
+        db.query(Interview)
+        .filter(
+            Interview.user_id == user_id,
+            Interview.status == SessionStatus.COMPLETED,
+        )
+        .order_by(Interview.completed_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        CandidateInterviewSummary(
+            interview_id=row.id,
+            interview_type=row.interview_type.value,
+            domain=row.domain,
+            difficulty=row.difficulty.value,
+            completed_at=row.completed_at,
+            duration_seconds=row.duration_seconds,
+            question_count=row.question_count,
+            overall_score=row.overall_score,
+            score_rating=(
+                rating_label(row.overall_score) if row.overall_score is not None else None
+            ),
+            attention=behavior_analysis.recruiter_view(row.behavior_report),
+        )
+        for row in interviews
+    ]
+
+
+@router.get(
     "/leaderboard",
     response_model=List[LeaderboardEntry],
     dependencies=[Depends(require_roles(Role.RECRUITER, Role.ADMIN))],
 )
 def leaderboard(db: Session = Depends(get_db), limit: int = Query(default=100, ge=1, le=500)):
     """
-    Module 6: candidates ranked by their most recently completed interview.
+    Module 5: candidates ranked by their most recently completed interview.
 
     "Most recent", not best-ever or averaged: this is meant to read as current
     standing, so one strong recent interview outranks a stronger one from

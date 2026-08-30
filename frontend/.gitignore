@@ -30,3 +30,10 @@ dist-ssr/
 # Local Environment Variables
 .env
 .env.production
+
+# Module 6: MediaPipe's WASM runtime, copied out of node_modules by
+# scripts/copy-mediapipe-wasm.mjs before dev/build. ~35MB of binary that
+# `npm install` can reproduce exactly, so it does not belong in git.
+# The face model beside it (face_landmarker.task) IS committed: it is not in
+# any package, so losing it would mean re-downloading from Google by hand.
+public/models/wasm/

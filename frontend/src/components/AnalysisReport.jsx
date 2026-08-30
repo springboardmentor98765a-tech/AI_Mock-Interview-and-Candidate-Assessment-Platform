@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * The Module 5 + 6 report for one interview, in full.
+ * The Module 5 report for one interview, in full.
  *
  * Shown at the end of a session and again from history, so a candidate sees
  * the same thing either way and there is one place to change it.
@@ -216,7 +216,7 @@ export function AnswerDetail({ analysis, transcript }) {
             />
           )}
 
-          {/* Module 6 */}
+          {/* Module 5 score */}
           {score?.available && (
             <>
               <p className="label gap-top">Score for this answer</p>

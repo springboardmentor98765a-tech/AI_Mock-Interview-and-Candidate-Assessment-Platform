@@ -87,7 +87,7 @@ class CommunicationAssessment(BaseModel):
 
 class AnswerScore(BaseModel):
     """
-    Module 6 — the interview scoring rubric.
+    Module 5 — the interview scoring rubric.
 
     Unlike CommunicationAssessment, this IS a graded judgement: each axis is
     0-100 against the platform's fixed rubric (communication 30%, confidence

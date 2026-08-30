@@ -1,5 +1,5 @@
 """
-Module 5 — communication analysis. Module 6 — scoring — hangs off the same
+Module 5 — communication analysis and scoring. Scoring hangs off the same
 per-answer pipeline and is folded in here rather than kept in a separate
 pass, because it needs the same transcript and the same duration check.
 
@@ -13,7 +13,7 @@ Three tiers, kept visibly apart because they are not equally trustworthy:
              with no number attached — the API labels it as an opinion, and
              the UI must not present it as if it were measured.
 
-  scored     the Module 6 rubric (communication, confidence, technical
+  scored     the Module 5 rubric (communication, confidence, technical
              relevance, professionalism). Also a model's opinion, but unlike
              `assessed` it IS reduced to a number, because scoring a
              candidate was explicitly asked for. It is graded against a fixed,
@@ -60,9 +60,27 @@ DISCOURSE_MARKERS = {
 }
 
 # Multi-word fillers have to be found before the text is split into words.
-PHRASE_FILLERS = ("you know", "i mean", "sort of", "kind of", "you see")
+# "sort of"/"kind of" are NOT here — see PHRASE_DISCOURSE_MARKERS below, for
+# the same reason "like" and "so" are not hard fillers: both are ordinary
+# English ("what kind of database") far more often than they are filler.
+PHRASE_FILLERS = ("you know", "i mean", "you see")
 
-WORD_RE = re.compile(r"[a-z']+")
+# Multi-word discourse markers: reported, never counted, same reasoning as
+# the single-word DISCOURSE_MARKERS above.
+PHRASE_DISCOURSE_MARKERS = ("kind of", "sort of")
+
+# Numbers count as words: APTITUDE answers are mostly digits, and a candidate
+# reciting a calculation is not silent for the length of it.
+WORD_RE = re.compile(r"[a-z0-9']+")
+
+
+def _phrase_occurrences(phrase: str, lowered: str) -> int:
+    """
+    Whole-phrase matches only. `lowered.count(phrase)` matches inside other
+    words — "Fiji means" and "API means" both contain the literal substring
+    "i mean" — so this requires a non-word boundary on each side instead.
+    """
+    return len(re.findall(r"\b" + re.escape(phrase) + r"\b", lowered))
 
 
 def _words(text: str) -> List[str]:
@@ -84,7 +102,7 @@ def count_fillers(transcript: str) -> Dict:
     counts: Dict[str, int] = {}
 
     for phrase in PHRASE_FILLERS:
-        occurrences = lowered.count(phrase)
+        occurrences = _phrase_occurrences(phrase, lowered)
         if occurrences:
             counts[phrase] = occurrences
 
@@ -98,6 +116,11 @@ def count_fillers(transcript: str) -> Dict:
     for word in words:
         if word in DISCOURSE_MARKERS:
             markers[word] = markers.get(word, 0) + 1
+
+    for phrase in PHRASE_DISCOURSE_MARKERS:
+        occurrences = _phrase_occurrences(phrase, lowered)
+        if occurrences:
+            markers[phrase] = occurrences
 
     return {
         "total": filler_total,
@@ -140,6 +163,13 @@ def analyse_pace(transcript: str, duration_seconds: Optional[float]) -> Dict:
     show.
     """
     words = len(_words(transcript))
+
+    if words == 0:
+        return {
+            "available": False,
+            "reason": "No speech was detected in this recording, so there is no pace to measure.",
+            "word_count": 0,
+        }
 
     if not duration_seconds or duration_seconds < MIN_PACE_SECONDS:
         return {
@@ -244,6 +274,20 @@ def transcript_is_plausible(
     return True, None
 
 
+def _as_int(value, default: int = 0) -> int:
+    """
+    Tolerates a malformed stored value rather than crashing the whole report.
+
+    `analysis` is JSON read back from the database — an older writer, a hand
+    edit, or a partial migration can leave a field as the wrong type. One bad
+    row must cost that row's contribution, not the interview's entire summary.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def summarise(analyses: List[Dict]) -> Dict:
     """
     Roll per-answer analyses up to the whole interview.
@@ -266,7 +310,7 @@ def summarise(analyses: List[Dict]) -> Dict:
     combined: Dict[str, int] = {}
     for entry in usable:
         fillers = entry.get("fillers") or {}
-        filler_total += fillers.get("total", 0)
+        filler_total += _as_int(fillers.get("total", 0))
         for word, count in (fillers.get("by_word") or {}).items():
             combined[word] = combined.get(word, 0) + count
 
@@ -354,7 +398,7 @@ def analyse_answer(
     difficulty: Optional[str] = None,
 ) -> Dict:
     """
-    Everything Modules 5 and 6 know about one spoken answer.
+    Everything Module 5 knows about one spoken answer.
 
     Each AI section fails independently: a provider that is down or out of
     quota costs you that section and nothing else. The measured half never
@@ -417,7 +461,7 @@ def analyse_answer(
             "reason": "No recording was kept for this answer.",
         }
 
-    # --- scored: Module 6's rubric (text, any provider) ---
+    # --- scored: Module 5's rubric (text, any provider) ---
     if interview_type and domain and difficulty:
         try:
             graded = ai_provider.score_answer(

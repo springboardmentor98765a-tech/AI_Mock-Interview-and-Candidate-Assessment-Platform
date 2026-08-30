@@ -4,11 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "copy-wasm": "node scripts/copy-mediapipe-wasm.mjs",
+    "predev": "npm run copy-wasm",
     "dev": "vite",
+    "prebuild": "npm run copy-wasm",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.30.4"
@@ -17,6 +21,7 @@
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
+    "playwright": "^1.55.0",
     "vite": "^5.1.4"
   }
 }

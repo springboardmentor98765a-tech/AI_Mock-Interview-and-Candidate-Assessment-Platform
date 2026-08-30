@@ -1,5 +1,5 @@
 """
-Module 6 — turning per-answer AI scores into an interview result.
+Module 5 — turning per-answer AI scores into an interview result.
 
 app.services.speech_analysis produces the per-answer AnswerScore (via
 ai_provider.score_answer) and stores it inside InterviewQuestion.analysis
@@ -36,8 +36,14 @@ RATING_BANDS = (
 
 
 def weighted_overall(axes: Dict[str, int]) -> float:
-    """The rubric's weighted composite over one set of axis scores, 0-100."""
-    return round(sum(axes[key] * weight for key, weight in WEIGHTS.items()), 1)
+    """
+    The rubric's weighted composite over one set of axis scores, 0-100.
+
+    A missing axis degrades to 0 for that axis rather than raising — Pydantic
+    guarantees all four today, but this must not turn a validation change
+    elsewhere into an unhandled 500 here.
+    """
+    return round(sum(axes.get(key, 0) * weight for key, weight in WEIGHTS.items()), 1)
 
 
 def rating_label(score: float) -> str:
@@ -60,13 +66,23 @@ def aggregate_score(analyses: List[Optional[dict]]) -> Optional[float]:
     graded, so averaging in a zero would punish ending an interview early
     exactly as hard as answering every question badly. Returns None when no
     answer has a score yet, rather than a misleading 0.
+
+    Checks `score["available"]`, not just `analysis["available"]`: an answer
+    can be fully analysed (transcribed, measured) while its score specifically
+    failed (provider outage, quota). That score block can still carry a stale
+    or placeholder `overall` — trusting it without checking its own
+    `available` flag would silently score the candidate on a failed call.
     """
-    scores = [
-        (analysis.get("score") or {}).get("overall")
-        for analysis in analyses
-        if analysis and analysis.get("available")
-    ]
-    scores = [s for s in scores if s is not None]
+    scores = []
+    for analysis in analyses:
+        if not analysis or not analysis.get("available"):
+            continue
+        score = analysis.get("score") or {}
+        if not score.get("available"):
+            continue
+        overall = score.get("overall")
+        if overall is not None:
+            scores.append(overall)
 
     if not scores:
         return None

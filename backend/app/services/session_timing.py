@@ -101,6 +101,19 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """
+    SQLite returns naive datetimes even from a DateTime(timezone=True) column
+    — a well-known SQLAlchemy/SQLite quirk — while Postgres does not. Treat a
+    naive value as UTC (every datetime this app writes is UTC) so timing math
+    never has to guess which database produced it, and mixing it with
+    `_now()` never raises.
+    """
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def elapsed_seconds(interview) -> Optional[int]:
     """
     Interview time spent so far, excluding pauses.
@@ -110,17 +123,19 @@ def elapsed_seconds(interview) -> Optional[int]:
     claim that it started and no time has passed, which is a different thing
     from "it has not started".
     """
-    if interview.started_at is None:
+    started_at = _aware(interview.started_at)
+    if started_at is None:
         return None
 
-    end = interview.completed_at or _now()
-    total = (end - interview.started_at).total_seconds()
+    end = _aware(interview.completed_at) or _now()
+    total = (end - started_at).total_seconds()
 
     paused = interview.total_paused_seconds or 0
     # A pause that is still open has not been added to the running total yet,
     # so count it here — otherwise the clock would tick on while paused.
-    if interview.paused_at is not None:
-        paused += max((_now() - interview.paused_at).total_seconds(), 0)
+    paused_at = _aware(interview.paused_at)
+    if paused_at is not None:
+        paused += max((_now() - paused_at).total_seconds(), 0)
 
     return max(int(total - paused), 0)
 

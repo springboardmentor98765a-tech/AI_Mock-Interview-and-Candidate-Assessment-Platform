@@ -212,7 +212,7 @@ class TestSummary:
 
     def test_summary_score_unavailable_when_answers_carry_no_score(self):
         """
-        An analysis written before Module 6 existed has no "score" key at
+        An analysis written before Module 5's scoring existed has no "score" key at
         all — summarise must report that as unscored, not crash or invent one.
         """
         result = summarise(

@@ -4,7 +4,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, selectinload
 
@@ -30,7 +39,8 @@ from app.schemas.interview import (
     InterviewUpdate,
     StartRequest,
 )
-from app.services import question_bank, speech_analysis
+from app.schemas.behavior import BehaviorSubmission
+from app.services import behavior_analysis, question_bank, speech_analysis
 from app.services.interview_generator import build_questions
 from app.services.session_timing import (
     elapsed_seconds,
@@ -606,6 +616,11 @@ async def upload_recording(
     One recording per interview. Uploading again replaces the previous one and
     deletes its file — a candidate who re-records should not silently
     accumulate copies of their own face on disk.
+
+    This endpoint has nothing to do with Module 6: on-camera behaviour is
+    tracked live in the browser and submitted separately (POST .../behavior),
+    never derived from this file. The video is stored for the candidate to
+    watch back, and for no other purpose.
     """
     interview = _owned(db, current_user, interview_id)
 
@@ -747,6 +762,46 @@ def get_recording(
     )
 
 
+@router.post("/{interview_id}/behavior")
+def submit_behavior(
+    interview_id: int,
+    payload: BehaviorSubmission,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Module 6: store the on-camera tracking for one session.
+
+    The samples are measured in the candidate's own browser (an on-device face
+    model — no video is uploaded for this) and posted here when the interview
+    ends. This endpoint owns the arithmetic: the browser sends what it saw, the
+    server decides what it means, so the figures cannot vary between clients.
+
+    Posting again replaces the previous report, matching how re-uploading a
+    recording replaces the previous one. A candidate can only reach their own
+    interview — `_owned` 404s rather than 403s on someone else's, so this
+    cannot be used to discover which interview ids exist.
+    """
+    interview = _owned(db, current_user, interview_id)
+
+    if not settings.ANALYSE_BEHAVIOR:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="On-camera behaviour analysis is turned off on this server.",
+        )
+
+    report = behavior_analysis.aggregate(
+        [sample.model_dump() for sample in payload.samples],
+        payload.tracked_seconds,
+        payload.alerts_shown,
+    )
+
+    interview.behavior_report = report
+    db.commit()
+
+    return report
+
+
 @router.get("/{interview_id}/analysis")
 def get_interview_analysis(
     interview_id: int,
@@ -762,13 +817,18 @@ def get_interview_analysis(
     of how trustworthy the summary is.
 
     Filler counts and pace are measurements; grammar and communication notes
-    are an AI assessment with no number attached. `summary.score` (Module 6)
+    are an AI assessment with no number attached. `summary.score` (Module 5)
     IS a number — the rubric-weighted average of the answered questions'
     scores — but it is graded against a fixed, disclosed rubric, not a
     certified evaluation, and every place it is shown says so. The same figure
     is stamped onto Interview.overall_score once the interview completes; this
     endpoint recomputes it live so a still-running interview shows its score
     so far rather than nothing.
+
+    `behavior` (Module 6) is read straight off Interview.behavior_report, not
+    recomputed here — unlike the score above, it is produced once by a
+    background job after the session video uploads, not something this
+    endpoint can regenerate live. None until that job finishes.
     """
     interview = _owned(db, current_user, interview_id, with_questions=True)
 
@@ -804,6 +864,10 @@ def get_interview_analysis(
         "summary": speech_analysis.summarise(
             [q.analysis for q in interview.questions]
         ),
+        # Module 6: the whole-session behavior report, or None until the
+        # background analysis job (kicked off when the recording uploads)
+        # finishes — same "still running" meaning as a null overall_score.
+        "behavior": interview.behavior_report,
     }
 
 

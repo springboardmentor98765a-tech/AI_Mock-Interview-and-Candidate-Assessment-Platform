@@ -1,5 +1,5 @@
 """
-Adversarial tests for the Module 5/6 analysis pipeline.
+Adversarial tests for the Module 5 analysis pipeline.
 
 Every test here was written from a probe that found real behaviour, not from
 reading the code and imagining a failure. Each one that fails is documenting a

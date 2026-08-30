@@ -175,6 +175,17 @@ export const api = {
     });
   },
 
+  /**
+   * Module 6: the on-camera tracking measured in this browser during the
+   * session. Only these small samples are sent — never a frame of video.
+   */
+  submitBehavior: (interviewId, body) =>
+    request(`/interviews/${interviewId}/behavior`, {
+      method: 'POST',
+      body,
+      auth: true,
+    }),
+
   /** The stored session recording, as a blob URL. Caller must revoke it. */
   recordingUrl: async (interviewId) => {
     const response = await fetch(`${BASE}/interviews/${interviewId}/recording`, {
@@ -208,7 +219,14 @@ export const api = {
   recruiterCandidates: (params) =>
     request(`/analytics/recruiter/candidates${query(params)}`, { auth: true }),
   liveInterviews: () => request('/analytics/live', { auth: true }),
-  /** Module 6: candidates ranked by their most recently completed interview. */
+  /**
+   * One candidate's completed interviews with score and attention context.
+   * Recruiter/admin only; the attention half is filtered server-side.
+   */
+  candidateInterviews: (userId) =>
+    request(`/analytics/recruiter/candidates/${userId}/interviews`, { auth: true }),
+
+  /** Module 5: candidates ranked by their most recently completed interview. */
   leaderboard: (params) => request(`/analytics/leaderboard${query(params)}`, { auth: true }),
 
   /* ---------------- admin ---------------- */

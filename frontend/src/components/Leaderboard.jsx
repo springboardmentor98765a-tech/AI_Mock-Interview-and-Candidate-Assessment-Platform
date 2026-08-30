@@ -5,7 +5,7 @@ import { useApi } from '../lib/useApi';
 import { RATING_TONE } from '../lib/scoring';
 
 /**
- * Module 6: candidates ranked by their most recently completed interview.
+ * Module 5: candidates ranked by their most recently completed interview.
  *
  * Shared between the recruiter and admin views — GET /analytics/leaderboard
  * is gated for both roles and returns exactly the same shape, so there is one

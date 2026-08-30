@@ -671,6 +671,19 @@ h2 {
   margin-top: 14px;
 }
 
+/* Module 6's live nudge. Yellow rather than red, and worded as a suggestion:
+   it fires while someone is mid-answer, so it has to be noticeable without
+   reading as an error or derailing the sentence they are in the middle of. */
+.nudge {
+  margin-top: 10px;
+  border-left: 2px solid var(--yellow);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--yellow-bg);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--yellow);
+}
+
 .drop {
   border: 1px dashed var(--line-2);
   border-radius: var(--radius);

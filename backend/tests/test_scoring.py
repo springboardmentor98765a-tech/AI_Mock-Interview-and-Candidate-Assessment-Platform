@@ -1,5 +1,5 @@
 """
-Module 6 — pure arithmetic over already-computed per-answer scores.
+Module 5 — pure arithmetic over already-computed per-answer scores.
 
 In-process unit tests: app.services.scoring makes no AI call and touches no
 database, so there is nothing here that needs a running server.

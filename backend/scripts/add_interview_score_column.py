@@ -1,5 +1,5 @@
 """
-One-off migration: add Interview.overall_score (Module 6).
+One-off migration: add Interview.overall_score (Module 5).
 
 The app creates tables with Base.metadata.create_all, which builds missing
 tables but never alters existing ones. A database created before scoring

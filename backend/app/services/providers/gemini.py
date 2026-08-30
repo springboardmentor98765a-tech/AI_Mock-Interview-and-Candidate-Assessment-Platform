@@ -194,7 +194,7 @@ def analyse_communication(*, question: str, transcript: str) -> CommunicationAss
 def score_answer(
     *, question: str, transcript: str, interview_type: str, domain: str, difficulty: str
 ) -> AnswerScore:
-    """Module 6: grade one transcript against the fixed rubric. Text only."""
+    """Module 5: grade one transcript against the fixed rubric. Text only."""
     try:
         from google.genai import types
 

@@ -21,6 +21,7 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/.env
 
+
 # Backend
 backend/.venv/
 backend/venv/
