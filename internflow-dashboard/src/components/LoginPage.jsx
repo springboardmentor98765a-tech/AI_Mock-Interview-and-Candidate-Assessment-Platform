@@ -54,11 +54,11 @@ const LoginPage = ({ onLogin }) => {
 
       if (isLoginMode) {
         // LOGIN
-        url = 'http://localhost:5000/api/auth/login';
+        url = 'http://localhost:5001/api/auth/login';
         body = { email, password };
       } else {
         // REGISTER
-        url = 'http://localhost:5000/api/auth/register';
+        url = 'http://localhost:5001/api/auth/register';
         body = { name, email, password, role };
       }
 
@@ -82,7 +82,7 @@ const LoginPage = ({ onLogin }) => {
         // If the selected role is different from the user's current role, update it
         if (role !== user.role) {
           try {
-            const updateResponse = await fetch('http://localhost:5000/api/oauth/update-role', {
+            const updateResponse = await fetch('http://localhost:5001/api/oauth/update-role', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ const LoginPage = ({ onLogin }) => {
   // Google Login - Direct URL with role parameter
   const handleGoogleLogin = (selectedRole) => {
     console.log('🔑 Google Login clicked with role:', selectedRole);
-    window.location.href = `http://localhost:5000/api/oauth/google?role=${selectedRole}`;
+    window.location.href = `http://localhost:5001/api/oauth/google?role=${selectedRole}`;
   };
 
   // Function to get the Google button text based on mode

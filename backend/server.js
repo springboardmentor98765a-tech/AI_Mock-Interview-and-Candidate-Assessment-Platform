@@ -7,7 +7,7 @@ const interviewRoutes = require('./routes/interviews');
 
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 const recordingRoutes = require('./routes/recordings');
 
@@ -17,7 +17,7 @@ const recordingRoutes = require('./routes/recordings');
 // MIDDLEWARE
 // =============================================
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
 }));
 app.use(express.json());

@@ -68,9 +68,9 @@ const WebcamRecorder = forwardRef(({
       formData.append('recording', blob, `recording-${Date.now()}.webm`);
       formData.append('duration', duration);
 
-      console.log('📤 Sending upload request to:', `http://localhost:5000/api/recordings/upload/${interviewId}`);
+      console.log('📤 Sending upload request to:', `http://localhost:5001/api/recordings/upload/${interviewId}`);
       
-      const response = await fetch(`http://localhost:5000/api/recordings/upload/${interviewId}`, {
+      const response = await fetch(`http://localhost:5001/api/recordings/upload/${interviewId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

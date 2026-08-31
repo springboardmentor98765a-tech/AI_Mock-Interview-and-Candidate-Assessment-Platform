@@ -6,6 +6,7 @@ import LoginPage from './components/LoginPage';
 import AdminDashboard from './components/AdminDashboard';
 import RecruiterDashboard from './components/RecruiterDashboard';
 import CandidateDashboard from './components/CandidateDashboard';
+import MLTest from './components/MLTest';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('landing');
@@ -170,6 +171,8 @@ function App() {
           </div>
         </nav>
         <div className="page-container">
+
+          <MLTest />
           {renderDashboard()}
         </div>
       </>

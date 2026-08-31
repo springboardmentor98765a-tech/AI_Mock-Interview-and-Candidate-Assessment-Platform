@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { assessCommunicationQuality } from '../services/speechAnalysis';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import '../styles/CandidateDashboard.css';
 import CandidateSidebar from './CandidateSidebar';
@@ -8,6 +9,8 @@ import InterviewTab from './tabs/InterviewTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
 import HistoryTab from './tabs/HistoryTab';
 import RecordingsTab from './tabs/RecordingsTab';
+import InterviewMLAnalyzer from './InterviewMLAnalyzer';
+import MLAnalysisDashboard from './MLAnalysisDashboard';
 
 const CandidateDashboard = ({ user }) => {
   // =============================================
@@ -25,6 +28,7 @@ const CandidateDashboard = ({ user }) => {
   const [submitting, setSubmitting] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [interviewStarted, setInterviewStarted] = useState(false);
+  const [mlAnalysisData, setMlAnalysisData] = useState(null);
   
   // Resume state
   const [resumeScore, setResumeScore] = useState(88);
@@ -39,6 +43,8 @@ const CandidateDashboard = ({ user }) => {
     questionCount: 5
   });
 
+
+
   // =============================================
   // SESSION MANAGEMENT STATE
   // =============================================
@@ -48,6 +54,13 @@ const CandidateDashboard = ({ user }) => {
   const [activeSession, setActiveSession] = useState(null);
   const [sessionStatus, setSessionStatus] = useState('pending');
   const [interviewId, setInterviewId] = useState(null);
+  const [headTurnWarnings, setHeadTurnWarnings] = useState(0);
+
+  // Speech Analysis State
+const [speechAnalysis, setSpeechAnalysis] = useState(null);
+const [showAnalysis, setShowAnalysis] = useState(false);
+
+const transcriptRef = useRef('');
 
   // =============================================
   // SPEECH RECOGNITION
@@ -206,25 +219,39 @@ const CandidateDashboard = ({ user }) => {
   };
 
   const stopListening = () => {
-    console.log('⏹️ Stopping listening...');
-    if (window.currentRecognition) {
-      try {
-        window.currentRecognition.stop();
-      } catch (e) {
-        console.log('Recognition already stopped');
-      }
-      window.currentRecognition = null;
+  console.log('⏹️ Stopping listening...');
+  if (window.currentRecognition) {
+    try {
+      window.currentRecognition.stop();
+    } catch (e) {
+      console.log('Recognition already stopped');
     }
-    setIsListening(false);
+    window.currentRecognition = null;
+  }
+  setIsListening(false);
+  
+  const finalTranscript = transcriptRef.current || transcript || answers[currentQuestionIndex] || '';
+  
+  if (finalTranscript.trim()) {
+    console.log('✅ Answer captured:', finalTranscript);
     
-    // Save whatever transcript we have
-    if (transcript && transcript.trim()) {
-      const newAnswers = [...answers];
-      newAnswers[currentQuestionIndex] = transcript.trim();
-      setAnswers(newAnswers);
-      console.log('✅ Answer saved:', transcript.trim());
-    }
-  };
+    const newAnswers = [...answers];
+    newAnswers[currentQuestionIndex] = finalTranscript.trim();
+    setAnswers(newAnswers);
+    
+    // ✅ Run speech analysis
+    console.log('🔍 Running speech analysis...');
+    const duration = sessionTime || 30;
+    const analysis = assessCommunicationQuality(finalTranscript.trim(), duration);
+    setSpeechAnalysis(analysis);
+    setShowAnalysis(true);
+    console.log('📊 Speech Analysis:', analysis);
+  } else {
+    console.log('⚠️ No transcript to analyze');
+    setSpeechAnalysis(null);
+    setShowAnalysis(false);
+  }
+};
 
   // =============================================
   // START INTERVIEW SESSION
@@ -232,7 +259,7 @@ const CandidateDashboard = ({ user }) => {
   const handleStartSession = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/interviews/${id}/start`, {
+      const response = await fetch(`http://localhost:5001/api/interviews/${id}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -261,7 +288,7 @@ const CandidateDashboard = ({ user }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/interviews/${activeSession.id}/pause`, {
+      const response = await fetch(`http://localhost:5001/api/interviews/${activeSession.id}/pause`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -289,7 +316,7 @@ const CandidateDashboard = ({ user }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/interviews/${activeSession.id}/resume`, {
+      const response = await fetch(`http://localhost:5001/api/interviews/${activeSession.id}/resume`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -310,16 +337,31 @@ const CandidateDashboard = ({ user }) => {
   };
 
   // =============================================
+  // HEAD TURN WARNING HANDLER
+  // =============================================
+  const handleHeadTurnWarning = (direction, warningCount, message) => {
+    setHeadTurnWarnings(warningCount);
+
+    if (warningCount >= 3) {
+      alert(`⚠️ Interview auto-terminated: you kept turning your head ${direction}. Please keep your face centered on the camera.`);
+      handleEndSession('Repeated head turns away from camera');
+      return;
+    }
+
+    alert(message || `⚠️ Head turned ${direction}. Keep your face centered on the camera.`);
+  };
+
+  // =============================================
   // END SESSION
   // =============================================
-  const handleEndSession = async () => {
+  const handleEndSession = async (reason = null) => {
     if (!activeSession) return;
-    
-    if (!window.confirm('Are you sure you want to end this session?')) return;
-    
+
+    if (!reason && !window.confirm('Are you sure you want to end this session?')) return;
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/interviews/${activeSession.id}/end`, {
+      const response = await fetch(`http://localhost:5001/api/interviews/${activeSession.id}/end`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -332,20 +374,25 @@ const CandidateDashboard = ({ user }) => {
         setSessionStatus('ended');
         setIsPaused(false);
         setActiveSession(null);
-        
-        // Show message and keep the submit button visible
-        const answeredCount = answers.filter(a => a && a.trim() !== '').length;
-        const totalQuestions = generatedQuestions ? generatedQuestions.length : 0;
-        
-        if (answeredCount < totalQuestions) {
-          alert(`⏹️ Session ended!\n\nDuration: ${formatTime(finalTime)}\n\nYou have answered ${answeredCount}/${totalQuestions} questions.\n\nPlease review your answers and click "Submit Interview" to complete.`);
+        setHeadTurnWarnings(0);
+
+        if (reason) {
+          alert(`⏹️ Interview ended automatically because ${reason}.\n\nDuration: ${formatTime(finalTime)}`);
         } else {
-          // Auto-submit if all questions are answered
-          setTimeout(() => {
-            handleSubmitInterview();
-          }, 1000);
+          // Show message and keep the submit button visible
+          const answeredCount = answers.filter(a => a && a.trim() !== '').length;
+          const totalQuestions = generatedQuestions ? generatedQuestions.length : 0;
+
+          if (answeredCount < totalQuestions) {
+            alert(`⏹️ Session ended!\n\nDuration: ${formatTime(finalTime)}\n\nYou have answered ${answeredCount}/${totalQuestions} questions.\n\nPlease review your answers and click "Submit Interview" to complete.`);
+          } else {
+            // Auto-submit if all questions are answered
+            setTimeout(() => {
+              handleSubmitInterview();
+            }, 1000);
+          }
         }
-        
+
         console.log('⏹️ Session ended');
         fetchInterviews();
       } else {
@@ -363,7 +410,7 @@ const CandidateDashboard = ({ user }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/interviews', {
+      const response = await fetch('http://localhost:5001/api/interviews', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -383,7 +430,7 @@ const CandidateDashboard = ({ user }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/interviews/generate', {
+      const response = await fetch('http://localhost:5001/api/interviews/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -415,139 +462,138 @@ const CandidateDashboard = ({ user }) => {
   // SUBMIT INTERVIEW - FIXED VERSION
   // =============================================
   const handleSubmitInterview = async () => {
-    console.log('🔍 Submit Interview Called');
-    console.log('📊 generatedQuestions:', generatedQuestions);
-    console.log('📝 answers:', answers);
-    console.log('🎯 interviewId:', interviewId);
-    console.log('🔄 activeSession:', activeSession);
-    console.log('📌 sessionStatus:', sessionStatus);
+  console.log('🔍 Submit Interview Called');
+  console.log('📊 generatedQuestions:', generatedQuestions);
+  console.log('📝 answers:', answers);
+  console.log('🎯 interviewId:', interviewId);
+  console.log('🔄 activeSession:', activeSession);
+  console.log('📌 sessionStatus:', sessionStatus);
 
-    // Check if we have questions to submit
-    if (!generatedQuestions || generatedQuestions.length === 0) {
-      alert('No interview questions to submit.');
+  if (!generatedQuestions || generatedQuestions.length === 0) {
+    alert('No interview questions to submit.');
+    return;
+  }
+
+  const answeredCount = answers.filter(a => a && a.trim() !== '').length;
+  console.log('📊 Answered count:', answeredCount, 'Total:', generatedQuestions.length);
+  
+  if (answeredCount < generatedQuestions.length) {
+    alert(`Please answer all ${generatedQuestions.length} questions before submitting. You have answered ${answeredCount}.`);
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  if (isListening) {
+    stopListening();
+  }
+
+  setSubmitting(true);
+  
+  try {
+    const token = localStorage.getItem('token');
+    console.log('🔑 Token exists:', !!token);
+    
+    if (!token) {
+      alert('Please login again.');
+      setSubmitting(false);
       return;
     }
-
-    // Check if all questions are answered
-    const answeredCount = answers.filter(a => a && a.trim() !== '').length;
-    console.log('📊 Answered count:', answeredCount, 'Total:', generatedQuestions.length);
     
-    if (answeredCount < generatedQuestions.length) {
-      alert(`Please answer all ${generatedQuestions.length} questions before submitting. You have answered ${answeredCount}.`);
-      return;
-    }
-
-    // Stop any ongoing speech
-    window.speechSynthesis.cancel();
-    if (isListening) {
-      stopListening();
-    }
-
-    setSubmitting(true);
+    let interviewIdToSubmit = interviewId;
+    console.log('📌 Using interviewId:', interviewIdToSubmit);
     
-    try {
-      const token = localStorage.getItem('token');
-      console.log('🔑 Token exists:', !!token);
+    if (activeSession && activeSession.id) {
+      interviewIdToSubmit = activeSession.id;
+      console.log('📌 Using activeSession ID:', interviewIdToSubmit);
+    }
+    
+    if (!interviewIdToSubmit) {
+      console.log('📌 No interviewId, fetching from API...');
+      const response = await fetch('http://localhost:5001/api/interviews', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const allInterviews = await response.json();
+      console.log('📌 All interviews:', allInterviews);
       
-      if (!token) {
-        alert('Please login again.');
+      if (allInterviews && allInterviews.length > 0) {
+        interviewIdToSubmit = allInterviews[0].id;
+        console.log('📌 Found interview ID from API:', interviewIdToSubmit);
+      } else {
+        alert('No interview found to submit.');
         setSubmitting(false);
         return;
       }
+    }
+
+    console.log('📤 Submitting interview:', interviewIdToSubmit);
+    console.log('📝 Answers being sent:', answers);
+
+    // ✅ FIX: Include speech_analysis in the request
+    const submitResponse = await fetch(`http://localhost:5001/api/interviews/submit/${interviewIdToSubmit}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        answers: answers,
+        speech_analysis: speechAnalysis  // ✅ ADD THIS
+      })
+    });
+
+    console.log('📊 Submit response status:', submitResponse.status);
+    const data = await submitResponse.json();
+    console.log('📊 Submit response data:', data);
+    
+    if (submitResponse.ok) {
+      let feedbackMessage = `🎉 Interview Submitted!\n\n`;
+      feedbackMessage += `📊 Score: ${data.score}%\n\n`;
       
-      // Get the interview ID
-      let interviewIdToSubmit = interviewId;
-      console.log('📌 Using interviewId:', interviewIdToSubmit);
-      
-      // If we have an active session, use its ID
-      if (activeSession && activeSession.id) {
-        interviewIdToSubmit = activeSession.id;
-        console.log('📌 Using activeSession ID:', interviewIdToSubmit);
-      }
-      
-      // If no interview ID, fetch the latest interview
-      if (!interviewIdToSubmit) {
-        console.log('📌 No interviewId, fetching from API...');
-        const response = await fetch('http://localhost:5000/api/interviews', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const allInterviews = await response.json();
-        console.log('📌 All interviews:', allInterviews);
-        
-        if (allInterviews && allInterviews.length > 0) {
-          interviewIdToSubmit = allInterviews[0].id;
-          console.log('📌 Found interview ID from API:', interviewIdToSubmit);
+      if (data.feedback) {
+        if (typeof data.feedback === 'string') {
+          feedbackMessage += `📝 Feedback: ${data.feedback}`;
         } else {
-          alert('No interview found to submit.');
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      console.log('📤 Submitting interview:', interviewIdToSubmit);
-      console.log('📝 Answers being sent:', answers);
-
-      const submitResponse = await fetch(`http://localhost:5000/api/interviews/submit/${interviewIdToSubmit}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ answers: answers })
-      });
-
-      console.log('📊 Submit response status:', submitResponse.status);
-      const data = await submitResponse.json();
-      console.log('📊 Submit response data:', data);
-      
-      if (submitResponse.ok) {
-        let feedbackMessage = `🎉 Interview Submitted!\n\n`;
-        feedbackMessage += `📊 Score: ${data.score}%\n\n`;
-        
-        if (data.feedback) {
-          if (typeof data.feedback === 'string') {
-            feedbackMessage += `📝 Feedback: ${data.feedback}`;
-          } else {
-            feedbackMessage += `📝 Feedback:\n`;
-            if (data.feedback.technical_summary) {
-              feedbackMessage += `• ${data.feedback.technical_summary}\n`;
-            }
-            if (data.feedback.communication_summary) {
-              feedbackMessage += `• ${data.feedback.communication_summary}\n`;
-            }
-            if (data.feedback.final_verdict) {
-              feedbackMessage += `\n🎯 ${data.feedback.final_verdict}`;
-            }
+          feedbackMessage += `📝 Feedback:\n`;
+          if (data.feedback.technical_summary) {
+            feedbackMessage += `• ${data.feedback.technical_summary}\n`;
+          }
+          if (data.feedback.communication_summary) {
+            feedbackMessage += `• ${data.feedback.communication_summary}\n`;
+          }
+          if (data.feedback.final_verdict) {
+            feedbackMessage += `\n🎯 ${data.feedback.final_verdict}`;
           }
         }
-        
-        alert(feedbackMessage);
-        
-        // Reset all states
-        setGeneratedQuestions(null);
-        setAnswers([]);
-        setCurrentQuestionIndex(0);
-        setInterviewStarted(false);
-        setShowNewInterview(false);
-        resetTimer();
-        setSessionStatus('completed');
-        setActiveSession(null);
-        setInterviewId(null);
-        
-        // Refresh interviews list
-        fetchInterviews();
-      } else {
-        console.error('❌ Submit failed:', data);
-        alert(data.error || 'Failed to submit interview. Please try again.');
       }
-    } catch (error) {
-      console.error('❌ Error submitting interview:', error);
-      alert('Failed to submit interview. Error: ' + error.message);
-    } finally {
-      setSubmitting(false);
-      console.log('✅ Submit finished');
+      
+      alert(feedbackMessage);
+      
+      // Reset all states
+      setGeneratedQuestions(null);
+      setAnswers([]);
+      setCurrentQuestionIndex(0);
+      setInterviewStarted(false);
+      setShowNewInterview(false);
+      resetTimer();
+      setSessionStatus('completed');
+      setActiveSession(null);
+      setInterviewId(null);
+      setSpeechAnalysis(null);   // ✅ Reset speech analysis
+      setShowAnalysis(false);    // ✅ Reset show analysis
+      
+      fetchInterviews();
+    } else {
+      console.error('❌ Submit failed:', data);
+      alert(data.error || 'Failed to submit interview. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('❌ Error submitting interview:', error);
+    alert('Failed to submit interview. Error: ' + error.message);
+  } finally {
+    setSubmitting(false);
+    console.log('✅ Submit finished');
+  }
+};
 
   // =============================================
   // FORCE SUBMIT INTERVIEW - Submit even if incomplete
@@ -590,7 +636,7 @@ const CandidateDashboard = ({ user }) => {
       }
       
       if (!interviewIdToSubmit) {
-        const response = await fetch('http://localhost:5000/api/interviews', {
+        const response = await fetch('http://localhost:5001/api/interviews', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const allInterviews = await response.json();
@@ -608,13 +654,14 @@ const CandidateDashboard = ({ user }) => {
 
       // Add a flag to indicate partial submission
       const submitData = {
-        answers: answers,
-        is_partial: true,
-        answered_count: answeredCount,
-        total_questions: totalQuestions
+         answers: answers,
+  is_partial: true,
+  answered_count: answeredCount,
+  total_questions: totalQuestions,
+  speech_analysis: speechAnalysis
       };
 
-      const submitResponse = await fetch(`http://localhost:5000/api/interviews/submit/${interviewIdToSubmit}`, {
+      const submitResponse = await fetch(`http://localhost:5001/api/interviews/submit/${interviewIdToSubmit}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -732,7 +779,7 @@ const CandidateDashboard = ({ user }) => {
     const checkActiveSession = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/interviews/active', {
+        const response = await fetch('http://localhost:5001/api/interviews/active', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -777,25 +824,49 @@ const CandidateDashboard = ({ user }) => {
   // =============================================
   // RENDER
   // =============================================
-  return (
-    <div className="candidate-dashboard">
-      <CandidateSidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
+return (
+  <div className="candidate-dashboard">
+    <CandidateSidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
+    
+    <div className="main-content">
+      {activeTab === 'dashboard' && (
+        <DashboardTab user={user} interviews={interviews} resumeScore={resumeScore} />
+      )}
       
-      <div className="main-content">
-        {activeTab === 'dashboard' && (
-          <DashboardTab user={user} interviews={interviews} resumeScore={resumeScore} />
-        )}
-        
-        {activeTab === 'resume' && (
-          <ResumeTab 
-            resumeScore={resumeScore}
-            keywordMatch={keywordMatch}
-            formattingScore={formattingScore}
-            onResumeUpload={handleResumeUpload}
-          />
-        )}
-        
-        {activeTab === 'interview' && (
+      {activeTab === 'resume' && (
+        <ResumeTab 
+          resumeScore={resumeScore}
+          keywordMatch={keywordMatch}
+          formattingScore={formattingScore}
+          onResumeUpload={handleResumeUpload}
+        />
+      )}
+      
+      {activeTab === 'interview' && (
+        <>
+          {/* Real-time ML Interview Analyzer - appears as floating widget */}
+          {interviewStarted && (sessionStatus === 'in_progress' || sessionStatus === 'paused') && (
+            <InterviewMLAnalyzer 
+              isActive={sessionStatus === 'in_progress'}
+              onAnalysisResult={(result) => {
+                console.log(' ML Analysis Result:', result);
+                setMlAnalysisData(result);
+              }}
+              onHeadTurnWarning={handleHeadTurnWarning}
+              onAutoTerminate={(direction, count) => {
+                handleHeadTurnWarning(direction, count, `⚠️ Head turned ${direction}. Keep your face centered on the camera.`);
+              }}
+            />
+          )}
+          
+          {/* ML Analysis Dashboard */}
+          {interviewStarted && (sessionStatus === 'in_progress' || sessionStatus === 'paused') && (
+            <MLAnalysisDashboard 
+              analysis={mlAnalysisData}
+              isActive={sessionStatus === 'in_progress'}
+            />
+          )}
+          
           <InterviewTab
             showNewInterview={showNewInterview}
             setShowNewInterview={setShowNewInterview}
@@ -804,6 +875,7 @@ const CandidateDashboard = ({ user }) => {
             setInterviewStarted={setInterviewStarted}
             currentQuestionIndex={currentQuestionIndex}
             setCurrentQuestionIndex={setCurrentQuestionIndex}
+            mlAnalysisData={mlAnalysisData} 
             answers={answers}
             setAnswers={setAnswers}
             formData={formData}
@@ -829,30 +901,33 @@ const CandidateDashboard = ({ user }) => {
             activeSession={activeSession}
             sessionStatus={sessionStatus}
             interviewId={interviewId}
+            speechAnalysis={speechAnalysis}
+            showAnalysis={showAnalysis}
+            setShowAnalysis={setShowAnalysis}
           />
-        )}
-        
-        {activeTab === 'analytics' && (
-          <AnalyticsTab interviews={interviews} />
-        )}
-        
-        {activeTab === 'history' && (
-          <HistoryTab 
-            interviews={interviews} 
-            viewInterviewDetails={viewInterviewDetails}
-            selectedInterview={selectedInterview}
-            closeDetails={closeDetails}
-            getStatusBadge={getStatusBadge}
-          />
-        )}
+        </>
+      )}
+      
+      {activeTab === 'analytics' && (
+        <AnalyticsTab interviews={interviews} />
+      )}
+      
+      {activeTab === 'history' && (
+        <HistoryTab 
+          interviews={interviews} 
+          viewInterviewDetails={viewInterviewDetails}
+          selectedInterview={selectedInterview}
+          closeDetails={closeDetails}
+          getStatusBadge={getStatusBadge}
+        />
+      )}
 
-        {/* Add this */}
-{activeTab === 'recordings' && (
-  <RecordingsTab user={user} />
-)}
-      </div>
+      {activeTab === 'recordings' && (
+        <RecordingsTab user={user} />
+      )}
     </div>
-  );
+  </div>
+);
 };
 
 export default CandidateDashboard;

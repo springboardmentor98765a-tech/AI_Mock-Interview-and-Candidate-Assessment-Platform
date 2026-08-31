@@ -8,7 +8,7 @@ const RecordingsTab = ({ user }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/recordings', {
+      const response = await fetch('http://localhost:5001/api/recordings', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -64,7 +64,7 @@ const RecordingsTab = ({ user }) => {
       const token = localStorage.getItem('token');
       console.log('🔑 Playing recording with token:', !!token);
       
-      const response = await fetch(`http://localhost:5000/api/recordings/file/${recordingId}`, {
+      const response = await fetch(`http://localhost:5001/api/recordings/file/${recordingId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,7 +90,7 @@ const RecordingsTab = ({ user }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/recordings/${recordingId}`, {
+      const response = await fetch(`http://localhost:5001/api/recordings/${recordingId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

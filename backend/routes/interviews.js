@@ -342,7 +342,7 @@ router.post('/:id/end', auth, async (req, res) => {
 // =============================================
 router.post('/submit/:id', auth, async (req, res) => {
   try {
-    const { answers, is_partial = false } = req.body;
+    const { answers, is_partial = false , speech_analysis = null} = req.body;
     const interview = await Interview.findById(req.params.id);
 
     if (!interview) {
@@ -446,7 +446,8 @@ router.post('/submit/:id', auth, async (req, res) => {
       req.params.id, 
       avgScore, 
       JSON.stringify(detailedFeedback),
-      submissionType
+      submissionType,
+      speech_analysis
     );
 
     res.json({ 

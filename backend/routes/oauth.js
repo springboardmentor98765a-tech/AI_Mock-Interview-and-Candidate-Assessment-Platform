@@ -16,7 +16,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: 'http://localhost:5000/api/oauth/google/callback',
+      callbackURL: 'http://localhost:5001/api/oauth/google/callback',
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -106,12 +106,12 @@ router.get('/google/callback', (req, res, next) => {
     
     if (err) {
       console.error('❌ Authentication error:', err);
-      return res.redirect(`http://localhost:3000/login?error=${encodeURIComponent(err.message)}`);
+      return res.redirect(`http://localhost:3001/login?error=${encodeURIComponent(err.message)}`);
     }
     
     if (!user) {
       console.error('❌ No user returned');
-      return res.redirect('http://localhost:3000/login?error=no_user');
+      return res.redirect('http://localhost:3001/login?error=no_user');
     }
     
     try {
@@ -149,7 +149,7 @@ router.get('/google/callback', (req, res, next) => {
       console.log('✅ JWT generated for user with role:', finalUser.role);
       
       // Redirect to frontend
-      const frontendUrl = `http://localhost:3000/auth/google/callback?token=${token}&user=${encodeURIComponent(
+      const frontendUrl = `http://localhost:3001/?token=${token}&user=${encodeURIComponent(
         JSON.stringify({
           id: finalUser.id,
           name: finalUser.name,
@@ -175,7 +175,7 @@ router.get('/google/callback', (req, res, next) => {
         { expiresIn: process.env.JWT_EXPIRY || '7d' }
       );
       
-      const frontendUrl = `http://localhost:3000/auth/google/callback?token=${token}&user=${encodeURIComponent(
+      const frontendUrl = `http://localhost:3001/?token=${token}&user=${encodeURIComponent(
         JSON.stringify({
           id: user.id,
           name: user.name,
@@ -231,7 +231,7 @@ router.get('/test', (req, res) => {
     message: 'Google OAuth routes are working!',
     hasClientId: !!process.env.GOOGLE_CLIENT_ID,
     hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri: 'http://localhost:5000/api/oauth/google/callback',
+    redirectUri: 'http://localhost:5001/api/oauth/google/callback',
   });
 });
 

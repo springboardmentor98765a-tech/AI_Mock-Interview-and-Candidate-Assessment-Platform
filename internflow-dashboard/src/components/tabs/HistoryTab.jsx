@@ -57,6 +57,100 @@ const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, close
     return 'completed';
   };
 
+  // =============================================
+  // ✅ ADD THIS FUNCTION - RENDER SPEECH ANALYSIS
+  // =============================================
+  const renderSpeechAnalysis = (analysis) => {
+    if (!analysis) return null;
+
+    const getScoreColor = (score) => {
+      if (score >= 80) return '#22c55e';
+      if (score >= 60) return '#f59e0b';
+      return '#ef4444';
+    };
+
+    const overallScore = analysis.overallScore || analysis.overall_score || 0;
+    const summary = analysis.summary || 'No summary available';
+    const pace = analysis.pace || {};
+    const filler = analysis.filler || {};
+    const grammar = analysis.grammar || {};
+    const pronunciation = analysis.pronunciation || {};
+
+    return (
+      <div className="speech-analysis-history">
+        <div className="analysis-header-history">
+          <h4>🎯 Communication Quality Assessment</h4>
+          <span className={`score-badge ${overallScore >= 80 ? 'excellent' : overallScore >= 60 ? 'good' : 'needs-improvement'}`}>
+            {overallScore}%
+          </span>
+        </div>
+        
+        <div className="history-analysis-overview">
+          <div className="history-score-circle" style={{ borderColor: getScoreColor(overallScore) }}>
+            <span className="history-score-number">{overallScore}</span>
+            <span className="history-score-label">Overall</span>
+          </div>
+          <div className="history-score-summary">
+            <p>{summary}</p>
+          </div>
+        </div>
+
+        <div className="history-metrics-grid">
+          <div className="history-metric-item">
+            <span className="metric-label">🏃 Speech Pace</span>
+            <span className="metric-value">{pace.wpm || 0} WPM</span>
+            <span className="metric-status">{pace.pace || 'N/A'}</span>
+          </div>
+          <div className="history-metric-item">
+            <span className="metric-label">🗣️ Filler Words</span>
+            <span className="metric-value">{filler.totalFillerCount || 0}</span>
+            <span className="metric-status">{filler.fillerPercentage || 0}%</span>
+          </div>
+          <div className="history-metric-item">
+            <span className="metric-label">📝 Grammar</span>
+            <span className="metric-value">{grammar.score || 0}%</span>
+          </div>
+          <div className="history-metric-item">
+            <span className="metric-label">🔊 Pronunciation</span>
+            <span className="metric-value">{pronunciation.score || 0}%</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBehaviorAssessment = (feedback = {}) => {
+    const sections = [
+      { label: 'Confidence', value: feedback.confidence ?? feedback.overall_score ?? 'Based on session behavior' },
+      { label: 'Eye Contact', value: feedback.eye_contact ?? feedback.eyeContact ?? feedback.eye_contact_percentage ?? 'Based on session behavior' },
+      { label: 'Attention', value: feedback.attention ?? feedback.attention_level ?? 'Stable' },
+      { label: 'Engagement', value: feedback.engagement ?? feedback.engagement_level ?? 'Balanced' }
+    ];
+
+    return (
+      <div className="feedback-section">
+        <h4>🧠 Behavioral Assessment</h4>
+        <div className="feedback-scores">
+          {sections.map((item) => (
+            <div className="score-item" key={item.label}>
+              <span className="score-label">{item.label}:</span>
+              <span className="score-value">
+                {typeof item.value === 'number' ? `${item.value}%` : item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {feedback.final_verdict && (
+          <div className="feedback-item verdict">
+            <strong>Behavior Summary:</strong>
+            <p>{feedback.final_verdict}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="tab-content">
       <div className="tab-header">
@@ -235,6 +329,42 @@ const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, close
                         )}
                       </div>
 
+                      <div className="feedback-item">
+                        <strong>📊 Overall Interview Report:</strong>
+                        <div className="feedback-scores">
+                          <div className="score-item">
+                            <span className="score-label">Confidence:</span>
+                            <span className="score-value">{selectedInterview.feedback.confidence ?? selectedInterview.score ?? 0}%</span>
+                          </div>
+                          <div className="score-item">
+                            <span className="score-label">Eye Contact:</span>
+                            <span className="score-value">
+                              {selectedInterview.feedback.eye_contact ?? selectedInterview.feedback.eyeContact ?? selectedInterview.feedback.eye_contact_percentage ?? 'Based on session behavior'}
+                              {typeof selectedInterview.feedback.eye_contact_percentage === 'number' ? '%' : ''}
+                            </span>
+                          </div>
+                          <div className="score-item">
+                            <span className="score-label">Attention:</span>
+                            <span className="score-value">
+                              {selectedInterview.feedback.attention ?? selectedInterview.feedback.attention_level ?? 'Stable'}
+                              {typeof selectedInterview.feedback.attention === 'number' ? '%' : ''}
+                            </span>
+                          </div>
+                          <div className="score-item">
+                            <span className="score-label">Engagement:</span>
+                            <span className="score-value">
+                              {selectedInterview.feedback.engagement ?? selectedInterview.feedback.engagement_level ?? 'Balanced'}
+                              {typeof selectedInterview.feedback.engagement === 'number' ? '%' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        {selectedInterview.feedback.final_verdict && (
+                          <p style={{ marginTop: '10px', marginBottom: 0 }}>
+                            <strong>Summary:</strong> {selectedInterview.feedback.final_verdict}
+                          </p>
+                        )}
+                      </div>
+
                       {selectedInterview.feedback.technical_summary && (
                         <div className="feedback-item">
                           <strong>Technical Summary:</strong>
@@ -245,6 +375,12 @@ const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, close
                         <div className="feedback-item">
                           <strong>Communication Summary:</strong>
                           <p>{selectedInterview.feedback.communication_summary}</p>
+                        </div>
+                      )}
+
+                      {(selectedInterview.feedback || selectedInterview.speech_analysis) && (
+                        <div className="feedback-item">
+                          {renderBehaviorAssessment(selectedInterview.feedback || {})}
                         </div>
                       )}
 
@@ -291,6 +427,11 @@ const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, close
                   )}
                 </div>
               )}
+
+              {/* ✅ SPEECH ANALYSIS - ADD THIS SECTION */}
+              {selectedInterview.speech_analysis && renderSpeechAnalysis(selectedInterview.speech_analysis)}
+
+              {selectedInterview.feedback && renderBehaviorAssessment(selectedInterview.feedback)}
 
               {/* Questions and Answers */}
               {selectedInterview.questions && selectedInterview.questions.length > 0 && (

@@ -4,16 +4,37 @@ const AnalyticsTab = ({ interviews }) => {
   const completed = interviews.filter(i => i.status === 'completed' && i.score > 0);
   const completedCount = completed.length;
   const scores = completed.map(i => Number(i.score) || 0);
-  
+
   const avgScore = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
   const highestScore = scores.length > 0 ? Math.max(...scores) : 0;
   const lowestScore = scores.length > 0 ? Math.min(...scores) : 0;
 
+  const feedbackList = completed
+    .map((i) => (typeof i.feedback === 'object' && i.feedback ? i.feedback : null))
+    .filter(Boolean);
+
+  const avgTechnical = feedbackList.length > 0
+    ? Math.round(feedbackList.reduce((sum, item) => sum + (Number(item.technical_accuracy) || 0), 0) / feedbackList.length)
+    : 0;
+
+  const avgCommunication = feedbackList.length > 0
+    ? Math.round(feedbackList.reduce((sum, item) => sum + (Number(item.communication_clarity) || 0), 0) / feedbackList.length)
+    : 0;
+
+  const avgConfidence = feedbackList.length > 0
+    ? Math.round(feedbackList.reduce((sum, item) => sum + (Number(item.confidence) || 0), 0) / feedbackList.length)
+    : 0;
+
+  const strengths = feedbackList.flatMap((item) => item.strengths || []);
+  const recommendations = feedbackList.flatMap((item) => item.recommendations || []);
+  const topStrengths = [...new Set(strengths)].slice(0, 5);
+  const topRecommendations = [...new Set(recommendations)].slice(0, 5);
+
   const skills = [
-    { name: 'Technical Knowledge', score: avgScore > 0 ? avgScore : 85, color: '#4f46e5' },
-    { name: 'Communication Skills', score: avgScore > 0 ? Math.min(avgScore + 5, 100) : 78, color: '#22c55e' },
+    { name: 'Technical Knowledge', score: avgTechnical || (avgScore > 0 ? avgScore : 85), color: '#4f46e5' },
+    { name: 'Communication Skills', score: avgCommunication || (avgScore > 0 ? Math.min(avgScore + 5, 100) : 78), color: '#22c55e' },
     { name: 'Problem Solving', score: avgScore > 0 ? Math.min(avgScore + 3, 100) : 82, color: '#8b5cf6' },
-    { name: 'Confidence & Poise', score: avgScore > 0 ? Math.min(avgScore - 5, 100) : 70, color: '#f59e0b' },
+    { name: 'Confidence & Poise', score: avgConfidence || (avgScore > 0 ? Math.min(avgScore - 5, 100) : 70), color: '#f59e0b' },
     { name: 'Domain Expertise', score: avgScore > 0 ? Math.min(avgScore + 8, 100) : 88, color: '#ef4444' },
   ];
 
@@ -117,6 +138,52 @@ const AnalyticsTab = ({ interviews }) => {
         ) : (
           <p className="text-muted">Complete interviews to see your performance trend.</p>
         )}
+      </div>
+
+      <div className="analytics-card full-width overall-report-box">
+        <h4>📄 Overall Interview Report</h4>
+        <div className="overall-report-grid">
+          <div className="overall-report-card">
+            <span className="report-label">Average Score</span>
+            <strong>{avgScore}%</strong>
+          </div>
+          <div className="overall-report-card">
+            <span className="report-label">Technical</span>
+            <strong>{avgTechnical}%</strong>
+          </div>
+          <div className="overall-report-card">
+            <span className="report-label">Communication</span>
+            <strong>{avgCommunication}%</strong>
+          </div>
+          <div className="overall-report-card">
+            <span className="report-label">Confidence</span>
+            <strong>{avgConfidence}%</strong>
+          </div>
+        </div>
+
+        <div className="overall-report-lists">
+          <div className="report-list-block">
+            <h5>💪 Common Strengths</h5>
+            {topStrengths.length > 0 ? (
+              <ul>
+                {topStrengths.map((item, idx) => <li key={idx}>{item}</li>)}
+              </ul>
+            ) : (
+              <p>No strong pattern yet. Complete more interviews to see your strengths.</p>
+            )}
+          </div>
+
+          <div className="report-list-block">
+            <h5>🎯 Improvement Focus</h5>
+            {topRecommendations.length > 0 ? (
+              <ul>
+                {topRecommendations.map((item, idx) => <li key={idx}>{item}</li>)}
+              </ul>
+            ) : (
+              <p>No recommendations yet. Keep practicing to unlock actionable feedback.</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

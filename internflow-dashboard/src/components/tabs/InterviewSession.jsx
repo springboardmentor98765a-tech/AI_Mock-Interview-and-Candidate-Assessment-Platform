@@ -55,7 +55,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://localhost:5000/api/sessions/create',
+        'http://localhost:5001/api/sessions/create',
         {
           interviewId,
           totalQuestions: 5 // You can make this dynamic
@@ -83,7 +83,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `http://localhost:5000/api/sessions/${sessionId}/start`,
+        `http://localhost:5001/api/sessions/${sessionId}/start`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -110,7 +110,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `http://localhost:5000/api/sessions/${sessionIdRef.current}/pause`,
+        `http://localhost:5001/api/sessions/${sessionIdRef.current}/pause`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -133,7 +133,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `http://localhost:5000/api/sessions/${sessionIdRef.current}/resume`,
+        `http://localhost:5001/api/sessions/${sessionIdRef.current}/resume`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -158,7 +158,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `http://localhost:5000/api/sessions/${sessionIdRef.current}/end`,
+        `http://localhost:5001/api/sessions/${sessionIdRef.current}/end`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -183,7 +183,7 @@ const InterviewSession = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/sessions/${sessionId}/current-question`,
+        `http://localhost:5001/api/sessions/${sessionId}/current-question`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -220,7 +220,7 @@ const InterviewSession = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `http://localhost:5000/api/sessions/${sessionIdRef.current}/submit-answer`,
+        `http://localhost:5001/api/sessions/${sessionIdRef.current}/submit-answer`,
         { answer },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -249,7 +249,7 @@ const InterviewSession = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/sessions/${sessionId}/summary`,
+        `http://localhost:5001/api/sessions/${sessionId}/summary`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       

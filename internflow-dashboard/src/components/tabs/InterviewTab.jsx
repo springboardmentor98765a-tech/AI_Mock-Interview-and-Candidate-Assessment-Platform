@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import WebcamRecorder from '../WebcamRecorder';
+import SpeechAnalysisDisplay from '../SpeechAnalysisDisplay';
 
 const InterviewTab = ({ 
   showNewInterview, 
@@ -10,6 +11,7 @@ const InterviewTab = ({
   currentQuestionIndex, 
   setCurrentQuestionIndex,
   answers, 
+  mlAnalysisData, 
   setAnswers,
   formData, 
   setFormData,
@@ -33,7 +35,11 @@ const InterviewTab = ({
   onEndSession: onEndSessionOriginal,
   activeSession,
   sessionStatus,
-  interviewId: propInterviewId
+  interviewId: propInterviewId,
+  // Speech Analysis Props
+  speechAnalysis,
+  showAnalysis,
+  setShowAnalysis
 }) => {
   // State for recording
   const [recordingUrl, setRecordingUrl] = useState(null);
@@ -127,24 +133,21 @@ const InterviewTab = ({
     if (webcamRef.current) {
       console.log('🛑 Auto-stopping recording...');
       await webcamRef.current.stopRecording();
-      // Wait for upload to complete
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
   };
 
-  // Wrapper for Submit Interview - Stop recording first
+  // Wrapper for Submit Interview
   const handleSubmitWithRecording = async () => {
     console.log('📤 Submitting interview - stopping recording...');
     await stopRecordingAutomatically();
-    // Then submit
     handleSubmitInterviewOriginal();
   };
 
-  // Wrapper for End Session - Stop recording first
+  // Wrapper for End Session
   const handleEndWithRecording = async () => {
     console.log('⏹️ Ending session - stopping recording...');
     await stopRecordingAutomatically();
-    // Then end
     onEndSessionOriginal();
   };
 
@@ -152,13 +155,11 @@ const InterviewTab = ({
   // HANDLE START INTERVIEW
   // =============================================
   const handleStartInterview = async () => {
-    // Request camera permissions first
     if (webcamRef.current) {
       console.log('📷 Requesting camera permissions...');
       await webcamRef.current.requestPermissions();
     }
     
-    // Start the interview
     setInterviewStarted(true);
     if (activeSession) {
       onStartSession(activeSession.id);
@@ -437,6 +438,14 @@ const InterviewTab = ({
                     {answers[currentQuestionIndex] || (isPaused ? '⏸️ Session Paused' : 'Speak to answer...')}
                   </div>
                 </div>
+
+                {/* ✅ Speech Analysis Display */}
+                {showAnalysis && speechAnalysis && (
+                  <SpeechAnalysisDisplay 
+                    analysis={speechAnalysis} 
+                    onClose={() => setShowAnalysis(false)} 
+                  />
+                )}
 
                 {/* Session Controls */}
                 <div className="session-controls">

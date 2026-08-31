@@ -97,29 +97,29 @@ class Interview {
   // =============================================
   // UPDATE SCORE AND FEEDBACK - WITH SUBMISSION TYPE
   // =============================================
-  static async updateScoreAndFeedback(id, score, feedback, submissionType = 'full') {
-    try {
-      const numericScore = parseFloat(score) || 0;
-      
-      const result = await pool.query(
-        `UPDATE interviews 
-         SET score = $1, 
-             feedback = $2, 
-             status = 'completed', 
-             submission_type = $3,
-             end_time = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $4 
-         RETURNING *`,
-        [numericScore, feedback, submissionType, id]
-      );
-      console.log('✅ Interview updated with score:', numericScore, 'Submission type:', submissionType);
-      return result.rows[0];
-    } catch (error) {
-      console.error('❌ Error updating interview with score:', error);
-      throw error;
-    }
+  static async updateScoreAndFeedback(id, score, feedback, submissionType = 'full', speechAnalysis = null) {
+  try {
+    const numericScore = parseFloat(score) || 0;
+    
+    const result = await pool.query(
+      `UPDATE interviews 
+       SET score = $1, 
+           feedback = $2, 
+           status = 'completed', 
+           submission_type = $3,
+           speech_analysis = $4,  -- ✅ Must have this column
+           end_time = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $5 
+       RETURNING *`,
+      [numericScore, feedback, submissionType, speechAnalysis ? JSON.stringify(speechAnalysis) : null, id]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('❌ Error updating interview:', error);
+    throw error;
   }
+}
 
   // Pause interview session
   static async pauseInterview(id) {
