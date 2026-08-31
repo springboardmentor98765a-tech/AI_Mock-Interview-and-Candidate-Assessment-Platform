@@ -77,6 +77,21 @@ public class InterviewSession {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "violation_count", nullable = false)
+    private Integer violationCount = 0;
+
+    @Column(name = "max_violations", nullable = false)
+    private Integer maxViolations = 3;
+
+    @Column(name = "malpractice_terminated", nullable = false)
+    private boolean malpracticeTerminated = false;
+
+    @Column(name = "terminated_reason", columnDefinition = "TEXT")
+    private String terminatedReason;
+
+    @Column(name = "terminated_at")
+    private LocalDateTime terminatedAt;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -114,6 +129,8 @@ public class InterviewSession {
         if (this.totalPausedSeconds == null) {
             this.totalPausedSeconds = 0L;
         }
+        if (this.violationCount == null) this.violationCount = 0;
+        if (this.maxViolations == null) this.maxViolations = 3;
     }
 
     public Long getId() {
@@ -243,4 +260,15 @@ public class InterviewSession {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+    public Integer getViolationCount() { return violationCount; }
+    public void setViolationCount(Integer violationCount) { this.violationCount = violationCount; }
+    public Integer getMaxViolations() { return maxViolations; }
+    public void setMaxViolations(Integer maxViolations) { this.maxViolations = maxViolations; }
+    public boolean isMalpracticeTerminated() { return malpracticeTerminated; }
+    public void setMalpracticeTerminated(boolean malpracticeTerminated) { this.malpracticeTerminated = malpracticeTerminated; }
+    public String getTerminatedReason() { return terminatedReason; }
+    public void setTerminatedReason(String terminatedReason) { this.terminatedReason = terminatedReason; }
+    public LocalDateTime getTerminatedAt() { return terminatedAt; }
+    public void setTerminatedAt(LocalDateTime terminatedAt) { this.terminatedAt = terminatedAt; }
+
 }
