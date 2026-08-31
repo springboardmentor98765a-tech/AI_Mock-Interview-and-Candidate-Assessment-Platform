@@ -20,5 +20,6 @@ public enum SessionStatus {
     IN_PROGRESS,
     PAUSED,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    PROCTORING_TERMINATED
 }

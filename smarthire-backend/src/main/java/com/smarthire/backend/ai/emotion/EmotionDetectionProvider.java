@@ -36,6 +36,7 @@ public interface EmotionDetectionProvider {
         private Map<String, Double> scores;
         private String provider;
         private boolean simulated;
+        private int faceCount = -1;
 
         public EmotionDetectionResult() {
         }
@@ -87,6 +88,14 @@ public interface EmotionDetectionProvider {
 
         public void setSimulated(boolean simulated) {
             this.simulated = simulated;
+        }
+
+        public int getFaceCount() {
+            return faceCount;
+        }
+
+        public void setFaceCount(int faceCount) {
+            this.faceCount = faceCount;
         }
     }
 }
