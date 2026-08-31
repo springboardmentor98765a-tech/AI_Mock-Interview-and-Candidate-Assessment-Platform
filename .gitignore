@@ -1,0 +1,5 @@
+ai-services/emotion-cnn-service/raw-data/
+ai-services/emotion-cnn-service/dataset/
+ai-services/emotion-cnn-service/model/
+**/__pycache__/
+target/

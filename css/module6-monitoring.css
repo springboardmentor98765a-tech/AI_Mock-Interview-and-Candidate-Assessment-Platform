@@ -1,0 +1,15 @@
+/* Module 6 live monitoring UI — strong contrast in Light/Dark themes */
+.module6-monitoring-card{margin:24px 0;padding:22px;border:1px solid #d9e2ef;border-radius:20px;background:#ffffff;box-shadow:0 14px 36px rgba(15,23,42,.08);color:#0f172a}
+.module6-monitoring-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.module6-monitoring-header h3{margin:5px 0 6px;font-size:22px;color:#0f172a}
+.module6-monitoring-header p{margin:0;max-width:780px;color:#475569;line-height:1.5}
+.module6-status{display:inline-flex;align-items:center;justify-content:center;min-width:96px;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.08em}
+.module6-status.ok{background:#dcfce7;color:#166534}.module6-status.warning{background:#fef3c7;color:#92400e}.module6-status.error{background:#fee2e2;color:#991b1b}.module6-status.neutral{background:#e2e8f0;color:#475569}
+.module6-monitoring-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:18px}
+.module6-metric{min-height:82px;padding:14px;border:1px solid #dbe4ef;border-radius:14px;background:#f8fafc;display:flex;flex-direction:column;justify-content:space-between}
+.module6-metric span{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em}.module6-metric strong{font-size:18px;color:#0f172a;overflow-wrap:anywhere}
+.module6-validation{margin-top:16px;padding:12px 14px;border-radius:12px;background:#eff6ff;border-left:4px solid #2563eb;color:#1e3a8a;font-size:13px;font-weight:700;line-height:1.45}.module6-validation.proctoring-degraded{background:#fff7ed;border-left-color:#d97706;color:#92400e}
+@media (max-width:1100px){.module6-monitoring-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:650px){.module6-monitoring-header{flex-direction:column}.module6-monitoring-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.module6-metric strong{font-size:16px}}
+body.dark-mode .module6-monitoring-card,.dark .module6-monitoring-card{background:#0f172a;border-color:#334155;color:#e2e8f0}.dark-mode .module6-monitoring-header h3,.dark .module6-monitoring-header h3{color:#f8fafc}.dark-mode .module6-monitoring-header p,.dark .module6-monitoring-header p{color:#cbd5e1}.dark-mode .module6-metric,.dark .module6-metric{background:#111827;border-color:#334155}.dark-mode .module6-metric span,.dark .module6-metric span{color:#94a3b8}.dark-mode .module6-metric strong,.dark .module6-metric strong{color:#f8fafc}
+@media (prefers-color-scheme:dark){.module6-monitoring-card{background:#0f172a;border-color:#334155;color:#e2e8f0}.module6-monitoring-header h3{color:#f8fafc}.module6-monitoring-header p{color:#cbd5e1}.module6-metric{background:#111827;border-color:#334155}.module6-metric span{color:#94a3b8}.module6-metric strong{color:#f8fafc}}

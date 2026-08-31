@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="../css/live-interview-production.css">
   <link rel="stylesheet" href="../css/final-theme-contrast.css">
   <link rel="stylesheet" href="../css/live-interview-final-fix-2026-08-22.css">
+<link rel="stylesheet" href="../css/proctoring.css">
+  <link rel="stylesheet" href="../css/module6-monitoring.css">
 </head>
 <body class="live-room-clean">
   <header class="clean-live-topbar">
@@ -93,7 +95,7 @@
           </div>
           <div class="clean-device-status">
             <span><i class="fa-solid fa-shield-halved"></i> Monitoring</span>
-            <strong>Active</strong>
+            <strong id="liveMonitoringStatus">Checking</strong>
           </div>
         </div>
 
@@ -256,6 +258,31 @@
           <button type="button" data-sh-control="help" title="Open interview guide"><i class="fa-solid fa-circle-question"></i><span>Guide</span></button>
         </div>
       </article>
+    </section>
+
+    <section class="module6-monitoring-card" aria-label="Module 6 live AI monitoring">
+      <div class="module6-monitoring-header">
+        <div>
+          <span class="clean-eyebrow dark">MODULE 6 · LIVE AI MONITORING</span>
+          <h3>Emotion, Eye Contact &amp; Attention</h3>
+          <p>Live values come from the configured AI services. Unavailable services remain explicitly degraded.</p>
+        </div>
+        <span id="module6MonitoringStatus" class="module6-status neutral">CHECKING</span>
+      </div>
+      <div class="module6-monitoring-grid">
+        <div class="module6-metric"><span>Emotion</span><strong id="module6Emotion">—</strong></div>
+        <div class="module6-metric"><span>Emotion Confidence</span><strong id="module6EmotionConfidence">—</strong></div>
+        <div class="module6-metric"><span>Eye Contact</span><strong id="module6EyeContact">—</strong></div>
+        <div class="module6-metric"><span>Attention</span><strong id="module6Attention">—</strong></div>
+        <div class="module6-metric"><span>Engagement</span><strong id="module6Engagement">—</strong></div>
+        <div class="module6-metric"><span>Confidence</span><strong id="module6Confidence">—</strong></div>
+        <div class="module6-metric"><span>Gaze</span><strong id="module6Gaze">—</strong></div>
+        <div class="module6-metric"><span>Head Stability</span><strong id="module6HeadStability">—</strong></div>
+        <div class="module6-metric"><span>Face Count</span><strong id="module6FaceCount">—</strong></div>
+        <div class="module6-metric"><span>Provider</span><strong id="module6Provider">—</strong></div>
+        <div class="module6-metric"><span>Samples</span><strong id="module6Samples">0</strong></div>
+      </div>
+      <div id="liveAdvancedValidation" class="module6-validation" style="display:none"></div>
     </section>
 
     <section class="clean-interview-footer">
@@ -437,6 +464,8 @@ Real-time transcript analysis: grammar, filler words, speaking pace, pronunciati
 <div class="evaluation-metric"><span>Transcription Confidence</span><strong id="speechTranscriptionConfidence">0%</strong></div>
 <div class="evaluation-metric"><span>Grammar Issues</span><strong id="speechGrammarIssues">0</strong></div>
 <div class="evaluation-metric"><span>Average Response Length</span><strong id="speechAvgResponseLength">0 words</strong></div>
+<div id="shProctoringEvidence" class="evaluation-list-card" style="margin-top:14px;">
+<h4>Proctoring & Malpractice</h4><p id="shProctoringEvidenceText">No violations recorded.</p></div>
 <p id="speechCommunicationInsights" style="margin:10px 0 0; color:#334155; line-height:1.6;">Communication insights will appear once transcript is available.</p>
 </div>
 </div>
@@ -482,7 +511,7 @@ Real-time transcript analysis: grammar, filler words, speaking pace, pronunciati
 
   <script src="../js/api-client.js"></script><script src="../js/smarthire-theme.js"></script>
   <script src="../js/script.js"></script>
-  <script src="../js/live-interview-launch.js"></script><script src="../js/live-ai-monitoring.js"></script><script src="../js/smarthire-live-advanced.js"></script><script src="../js/smarthire-live-popups.js"></script><script src="../js/live-interview-exam-mode.js"></script>
+  <script src="../js/live-interview-launch.js?v=20260830f"></script><script src="../js/live-ai-monitoring.js?v=20260830f"></script><script src="../js/smarthire-live-advanced.js"></script><script src="../js/smarthire-live-popups.js"></script><script src="../js/live-interview-exam-mode.js"></script><script src="../js/proctoring.js?v=20260830f"></script>
 <script src="../js/role-guard.js"></script>
 </body>
 </html>

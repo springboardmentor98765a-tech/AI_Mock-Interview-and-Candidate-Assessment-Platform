@@ -1,0 +1,11 @@
+SMART HIRE AI - MODULE 6
+
+1. Extract this ZIP to a SHORT location such as C:\SmartHireAI or C:\SmartHireAIProject.
+2. Open the SmartHireAI folder in VS Code.
+3. Open PowerShell in that folder.
+4. Run: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+5. Run: .\START-MODULE6-LOCAL.ps1
+6. Open: http://127.0.0.1:5500
+
+This package keeps Python runtime environments outside the project at C:\SmartHireAI_Runtime to avoid Windows long-path installation failures.
+Do not store API keys in the ZIP. Set GEMINI_API_KEY in your local environment as needed.

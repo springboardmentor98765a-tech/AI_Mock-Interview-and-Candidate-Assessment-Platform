@@ -96,6 +96,7 @@ body{background:#f7f7fb}
 
         <section class="report-section report-card">
             <h3>Advanced Live Signals</h3>
+            <div id="reportLiveMonitoringStatus" class="monitoring-evidence-banner"></div><div id="reportMalpracticeStatus" class="monitoring-evidence-banner" style="margin-top:8px;"></div>
             <div class="score-grid" id="reportLiveSignals"></div>
             <div id="reportSpeechInsights" style="margin-top:12px; color:#334e68;"></div>
         </section>
@@ -229,13 +230,32 @@ body{background:#f7f7fb}
 
         document.getElementById("reportTranscript").textContent = safeText(data?.transcript, "Transcript is empty.");
 
+        const monitoringSummary = readJsonSafe(data?.monitoringProviderSummary, liveSignals?.summary || {});
+        const totalMonitoringSamples = Number(data?.monitoringSamples || monitoringSummary?.totalSamples || liveSignals?.samples || 0);
+        const realEmotionSamples = Number(data?.realEmotionSamples || monitoringSummary?.realEmotionSamples || 0);
+        const realEyeSamples = Number(data?.realEyeTrackingSamples || monitoringSummary?.realEyeTrackingSamples || 0);
+        const monitoringBanner = document.getElementById("reportLiveMonitoringStatus");
+        if (monitoringBanner) {
+            monitoringBanner.textContent = totalMonitoringSamples > 0 && realEmotionSamples > 0 && realEyeSamples > 0
+                ? `Real DeepFace + MediaPipe monitoring captured • ${totalMonitoringSamples} samples`
+                : totalMonitoringSamples > 0
+                    ? `Live monitoring captured with available providers/fallbacks • ${totalMonitoringSamples} samples`
+                    : "No live monitoring samples were captured";
+        const malpracticeBanner=document.getElementById("reportMalpracticeStatus");
+        if(malpracticeBanner){
+          malpracticeBanner.textContent = evaluation?.malpracticeTerminated
+            ? `⚠ Malpractice termination: ${evaluation?.malpracticeReason || "Interview terminated after 3 proctoring violations."} Violations: ${Number(evaluation?.proctoringViolationCount||0)}`
+            : `Proctoring status: ${Number(evaluation?.proctoringViolationCount||0)} violation(s) recorded.`;
+          malpracticeBanner.classList.toggle("danger", Boolean(evaluation?.malpracticeTerminated));
+        }
+        }
         const signalCards = [
             ["Emotion", liveSignals?.emotion?.dominantEmotion || "Not captured"],
-            ["Emotion Confidence", Number.isFinite(Number(liveSignals?.emotion?.confidence)) ? Math.round(Number(liveSignals.emotion.confidence)) + "%" : "Pending"],
-            ["Eye Contact", Number.isFinite(Number(liveSignals?.eyeContact?.eyeContactPercentage)) ? Math.round(Number(liveSignals.eyeContact.eyeContactPercentage)) + "%" : "Pending"],
+            ["Emotion Confidence", Number.isFinite(Number(liveSignals?.summary?.averageEmotionConfidence ?? liveSignals?.emotion?.confidence)) ? Math.round(Number(liveSignals?.summary?.averageEmotionConfidence ?? liveSignals.emotion.confidence)) + "%" : "Pending"],
+            ["Eye Contact", Number.isFinite(Number(liveSignals?.summary?.averageEyeContactPercentage ?? liveSignals?.eyeContact?.eyeContactPercentage)) ? Math.round(Number(liveSignals?.summary?.averageEyeContactPercentage ?? liveSignals.eyeContact.eyeContactPercentage)) + "%" : "Pending"],
             ["Looking Away", liveSignals?.eyeContact?.lookingAway ? "Yes" : "No"],
-            ["Attention", liveSignals?.eyeContact?.attentionLevel || "Pending"],
-            ["Engagement", liveSignals?.eyeContact?.engagementLevel || "Pending"]
+            ["Attention", liveSignals?.summary?.dominantAttentionLevel || liveSignals?.eyeContact?.attentionLevel || "Pending"],
+            ["Engagement", liveSignals?.summary?.dominantEngagementLevel || liveSignals?.eyeContact?.engagementLevel || "Pending"]
         ];
         document.getElementById("reportLiveSignals").innerHTML = signalCards
             .map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong style="font-size:20px;">${value}</strong></div>`)
