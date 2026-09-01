@@ -2,7 +2,6 @@ import os
 import uuid
 import datetime
 import logging
-import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -25,7 +24,8 @@ from models.interview import (
     InterviewSession,
     InterviewQuestionAttempt,
     InterviewRecording,
-    AuditLog
+    AuditLog,
+    InterviewBehaviorAnalysis
 )
 from schemas.interview import (
     InterviewGenerateRequest,
@@ -39,6 +39,7 @@ from schemas.interview import (
 from services.ai_service import GeminiService
 from services.resume_parser_service import ResumeParserService
 from services.question_bank_service import QuestionBankService
+from services.behavior_service import finalize_behavior_analysis
 
 
 logger = logging.getLogger("interview_service")
@@ -615,7 +616,78 @@ def evaluate_session_answers(session_rec: InterviewSession, interview: Interview
     return calculated_score
 
 
-def submit_interview_service(current_user: User, data: InterviewSubmitRequest, db: Session) -> dict:
+def finalize_session_pipeline(
+    db: Session,
+    session_rec: InterviewSession,
+    interview: Interview,
+    answers_payload: Optional[list] = None,
+    time_taken_seconds: float = 0.0,
+    termination_reason: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Unified, idempotent, safe interview completion pipeline (Point 11).
+    Executes identical order for normal submit, timer expiry, 5th fullscreen violation, or forced termination:
+    1. Stop frame sampling (via session status update)
+    2. Preserve answers
+    3. Safely stop recordings
+    4. Finalize speech analysis
+    5. Finalize Module 6 behavior analysis
+    6. Commit database data
+    7. Mark session completed
+    8. Return success payload
+    """
+    # 1. Update session status to COMPLETED / ENDED
+    session_rec.status = "COMPLETED"
+    session_rec.ended_at = datetime.datetime.utcnow()
+    if time_taken_seconds > 0:
+        session_rec.duration = time_taken_seconds
+
+    # 2. Preserve & evaluate answers
+    calculated_score = evaluate_session_answers(session_rec, interview, answers_payload, db)
+    session_rec.score = calculated_score
+    interview.status = "Completed"
+
+    # 3. Candidate profile average update
+    cand_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == interview.candidate_id).first()
+    if cand_profile:
+        all_completed = db.query(InterviewSession).join(Interview).filter(
+            Interview.candidate_id == interview.candidate_id,
+            Interview.status == "Completed"
+        ).all()
+        if all_completed:
+            cand_profile.interview_score = round(
+                sum(s.score for s in all_completed if s.score is not None) / len(all_completed), 1
+            )
+
+    # 4 & 5. Finalize Speech Analysis & Module 6 Behavior Analysis
+    try:
+        finalize_behavior_analysis(db, session_rec)
+    except Exception as e:
+        logger.error(f"Behavior analysis finalization error during session completion: {e}")
+
+    # 6. Commit Database Data
+    db.commit()
+
+    total_q = len(interview.questions) if (interview and interview.questions) else (len(answers_payload) if answers_payload else 1)
+    answered_q = len([a for a in (session_rec.answers_json or []) if a.get("correctness") != "Unanswered"])
+
+    return {
+        "interview_id": interview.id,
+        "session_id": session_rec.id,
+        "status": interview.status,
+        "score": session_rec.score,
+        "answered_questions": answered_q,
+        "total_questions": total_q,
+        "time_taken_seconds": session_rec.duration,
+        "termination_reason": termination_reason
+    }
+
+
+def submit_interview_service(
+    current_user: User,
+    data: InterviewSubmitRequest,
+    db: Session
+) -> Dict[str, Any]:
     """Submits interview answers, calculates score, and updates status to Completed (Idempotent)."""
     interview = db.query(Interview).filter(Interview.id == data.interview_id, Interview.is_deleted == False).first()
     if not interview:
@@ -636,13 +708,15 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
             started_at=datetime.datetime.utcnow()
         )
         db.add(session_rec)
+        db.commit()
 
-    # Idempotent check: if already completed AND answers were evaluated and no new answers provided:
+    # Idempotent check
     if session_rec.status in ["COMPLETED", "ENDED"] and session_rec.answers_json and not data.answers:
         total_q = len(interview.questions) if (interview and interview.questions) else 1
         answered_q = len([a for a in session_rec.answers_json if a.get("correctness") != "Unanswered"])
         return {
             "interview_id": interview.id,
+            "session_id": session_rec.id,
             "status": "Completed",
             "score": session_rec.score,
             "answered_questions": answered_q,
@@ -650,28 +724,13 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
             "time_taken_seconds": session_rec.duration or data.time_taken_seconds
         }
 
-    session_rec.status = "COMPLETED"
-    session_rec.ended_at = datetime.datetime.utcnow()
-    if data.time_taken_seconds > 0:
-        session_rec.duration = data.time_taken_seconds
-
-    # Calculate score from actual submitted answers or saved attempts
-    calculated_score = evaluate_session_answers(session_rec, interview, data.answers, db)
-
-    session_rec.score = calculated_score
-    interview.status = "Completed"
-
-    # Update CandidateProfile average interview score
-    cand_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == interview.candidate_id).first()
-    if cand_profile:
-        all_completed = db.query(InterviewSession).join(Interview).filter(
-            Interview.candidate_id == interview.candidate_id,
-            Interview.status == "Completed"
-        ).all()
-        if all_completed:
-            cand_profile.interview_score = round(sum(s.score for s in all_completed if s.score is not None) / len(all_completed), 1)
-
-    db.commit()
+    res = finalize_session_pipeline(
+        db=db,
+        session_rec=session_rec,
+        interview=interview,
+        answers_payload=data.answers,
+        time_taken_seconds=data.time_taken_seconds
+    )
 
     _log_audit_event(
         db=db,
@@ -680,20 +739,10 @@ def submit_interview_service(current_user: User, data: InterviewSubmitRequest, d
         action="INTERVIEW_SUBMITTED",
         resource_type="Interview",
         resource_id=interview.id,
-        metadata={"score": calculated_score, "time_taken_seconds": data.time_taken_seconds}
+        metadata={"score": res["score"], "time_taken_seconds": data.time_taken_seconds}
     )
 
-    total_q = len(interview.questions) if (interview and interview.questions) else len(data.answers)
-    answered_q = len([a for a in (session_rec.answers_json or []) if a.get("correctness") != "Unanswered"])
-
-    return {
-        "interview_id": interview.id,
-        "status": interview.status,
-        "score": session_rec.score,
-        "answered_questions": answered_q,
-        "total_questions": total_q,
-        "time_taken_seconds": session_rec.duration
-    }
+    return res
 
 
 
@@ -1073,6 +1122,12 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
     # Calculate and persist evaluated score
     session_rec.score = evaluate_session_answers(session_rec, interview, [], db)
 
+    # Finalize Module 6 behavior analysis metrics
+    try:
+        finalize_behavior_analysis(db, session_rec)
+    except Exception as e:
+        logger.warning(f"Error finalizing behavior analysis: {e}")
+
     db.commit()
     db.refresh(session_rec)
 
@@ -1115,11 +1170,15 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
         interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
 
     formatted_questions = []
-    if interview:
-        for q in sorted(interview.questions, key=lambda x: x.sequence_no):
+    if interview and interview.questions:
+        try:
+            questions_sorted = sorted(interview.questions, key=lambda x: (x.sequence_no if x.sequence_no is not None else 0))
+        except Exception:
+            questions_sorted = list(interview.questions)
+        for q in questions_sorted:
             formatted_questions.append({
                 "id": q.id,
-                "sequence_no": q.sequence_no,
+                "sequence_no": q.sequence_no or 1,
                 "question_text": q.question_text,
                 "category": q.category,
                 "difficulty": q.difficulty
@@ -1168,6 +1227,44 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
                 "created_at": sa.created_at.strftime("%Y-%m-%d %H:%M:%S") if sa.created_at else None
             })
 
+    ba = db.query(InterviewBehaviorAnalysis).filter(InterviewBehaviorAnalysis.session_id == session_rec.id).first()
+    if not ba and hasattr(session_rec, "behavior_analysis"):
+        ba = session_rec.behavior_analysis
+
+    behavior_data = None
+    if ba:
+        behavior_data = {
+            "id": ba.id,
+            "session_id": ba.session_id,
+            "interview_id": ba.interview_id,
+            "candidate_id": ba.candidate_id,
+            "confidence_score": ba.confidence_score,
+            "confident_frames_count": ba.confident_frames_count,
+            "unconfident_frames_count": ba.unconfident_frames_count,
+            "total_analyzed_frames": ba.total_analyzed_frames,
+            "facial_presentation": ba.facial_presentation,
+            "expression_consistency": ba.expression_consistency,
+            "positive_expression_frequency": ba.positive_expression_frequency,
+            "facial_engagement": ba.facial_engagement,
+            "expression_changes_count": ba.expression_changes_count,
+            "eye_contact_percentage": ba.eye_contact_percentage,
+            "attention_score": ba.attention_score,
+            "look_away_events_count": ba.look_away_events_count,
+            "look_away_duration_seconds": ba.look_away_duration_seconds,
+            "face_absence_events_count": ba.face_absence_events_count,
+            "engagement_score": ba.engagement_score,
+            "engagement_category": ba.engagement_category,
+            "mobile_detected": ba.mobile_detected,
+            "mobile_event_count": ba.mobile_event_count,
+            "mobile_events_json": ba.mobile_events_json or [],
+            "fullscreen_violations_count": ba.fullscreen_violations_count,
+            "fullscreen_warnings_count": ba.fullscreen_warnings_count,
+            "auto_terminated": ba.auto_terminated,
+            "auto_termination_reason": ba.auto_termination_reason,
+            "behavior_summary": ba.behavior_summary,
+            "created_at": ba.created_at.strftime("%Y-%m-%d %H:%M:%S") if ba.created_at else None
+        }
+
     return {
         "success": True,
         "session": {
@@ -1198,7 +1295,8 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
         "questions": formatted_questions,
         "attempts": attempts_list,
         "recordings": recordings_list,
-        "speech_analyses": speech_list
+        "speech_analyses": speech_list,
+        "behavior_analysis": behavior_data
     }
 
 
@@ -1206,15 +1304,31 @@ def get_active_session_by_interview_service(current_user: User, interview_id: in
     """Returns active/latest session for a given interview."""
     interview = db.query(Interview).filter(Interview.id == interview_id, Interview.is_deleted == False).first()
     if not interview:
+        # Fallback: check if passed parameter is actually a session_id
+        session_by_id = db.query(InterviewSession).filter(InterviewSession.id == interview_id).first()
+        if session_by_id:
+            interview = db.query(Interview).filter(Interview.id == session_by_id.interview_id, Interview.is_deleted == False).first()
+
+    if not interview:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
 
-    if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to access this interview.")
+    if current_user.role == "CANDIDATE":
+        session_rec = db.query(InterviewSession).filter(
+            InterviewSession.interview_id == interview.id,
+            InterviewSession.candidate_id == current_user.id
+        ).order_by(InterviewSession.created_at.desc()).first()
 
-    session_rec = db.query(InterviewSession).filter(
-        InterviewSession.interview_id == interview.id,
-        InterviewSession.candidate_id == interview.candidate_id
-    ).order_by(InterviewSession.created_at.desc()).first()
+        if not session_rec:
+            session_rec = db.query(InterviewSession).filter(
+                InterviewSession.interview_id == interview.id
+            ).order_by(InterviewSession.created_at.desc()).first()
+
+        if not session_rec and interview.candidate_id and interview.candidate_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to access this interview.")
+    else:
+        session_rec = db.query(InterviewSession).filter(
+            InterviewSession.interview_id == interview.id
+        ).order_by(InterviewSession.created_at.desc()).first()
 
     if not session_rec:
         return create_interview_session_service(current_user, {"interview_id": interview.id}, db)

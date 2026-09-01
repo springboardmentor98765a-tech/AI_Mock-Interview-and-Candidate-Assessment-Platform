@@ -193,3 +193,60 @@ class InterviewRecordingResponse(BaseModel):
 class InterviewSessionStatusUpdate(BaseModel):
     status: str = Field(..., description="Target status transition")
 
+
+class InterviewFrameAnalysisResponse(BaseModel):
+    face_detected: bool
+    is_facing_screen: bool
+    confidence_prediction: str
+    emotion_prediction: str
+    mobile_detected: bool
+    trigger_look_away_warning: bool = False
+    look_away_warning_message: Optional[str] = None
+    trigger_mobile_warning: bool = False
+    mobile_warning_message: Optional[str] = None
+    total_analyzed_frames: int = 0
+
+
+class InterviewBehaviorReportResponse(BaseModel):
+    id: int
+    session_id: int
+    interview_id: int
+    candidate_id: int
+    analysis_status: str = "complete"
+
+    confidence_score: Optional[float] = None
+    confident_frames_count: int = 0
+    unconfident_frames_count: int = 0
+    total_analyzed_frames: int = 0
+
+    facial_presentation: Optional[str] = None
+    expression_consistency: Optional[float] = None
+    positive_expression_frequency: Optional[str] = None
+    facial_engagement: Optional[str] = None
+    expression_changes_count: int = 0
+
+    eye_contact_percentage: Optional[float] = None
+    camera_facing_pct: Optional[float] = None
+    attention_score: Optional[float] = None
+    look_away_events_count: int = 0
+    look_away_duration_seconds: float = 0.0
+    face_absence_events_count: int = 0
+
+    engagement_score: Optional[float] = None
+    engagement_category: Optional[str] = None
+
+    mobile_detected: bool = False
+    mobile_event_count: int = 0
+    mobile_events_json: Optional[List[Any]] = None
+
+    fullscreen_violations_count: int = 0
+    fullscreen_warnings_count: int = 0
+    auto_terminated: bool = False
+    auto_termination_reason: Optional[str] = None
+
+    behavior_summary: Optional[str] = None
+    created_at: Optional[Union[datetime.datetime, str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+

@@ -1,0 +1,49 @@
+{
+  "validation_metrics": {
+    "accuracy": 0.6127,
+    "precision": 0.0791,
+    "recall": 0.2683,
+    "f1_score": 0.1222,
+    "confusion_matrix": [
+      [
+        239,
+        128
+      ],
+      [
+        30,
+        11
+      ]
+    ]
+  },
+  "preprocessing_stats": {
+    "total_csv_rows": 4081,
+    "matched_samples": 2981,
+    "missing_images": 125,
+    "invalid_rows": 975,
+    "unmatched_entries": 125,
+    "train_samples_count": 1700,
+    "val_samples_count": 408,
+    "test_samples_count": 873,
+    "class_distribution": {
+      "0_unconfident": 1899,
+      "1_confident": 1082
+    }
+  },
+  "epochs_trained": 4,
+  "independent_test_metrics": {
+    "accuracy": 0.4696,
+    "precision": 0.4054,
+    "recall": 0.2948,
+    "f1_score": 0.3414,
+    "confusion_matrix": [
+      [
+        290,
+        176
+      ],
+      [
+        287,
+        120
+      ]
+    ]
+  }
+}

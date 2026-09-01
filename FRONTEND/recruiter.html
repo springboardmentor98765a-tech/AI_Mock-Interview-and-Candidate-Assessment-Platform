@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recruiter Dashboard - SmartHire AI</title>
   <meta name="description" content="Recruiter portal for candidate analytics review, evaluation reports, comparison, interview templates, and session monitoring.">
-  <!-- Google Fonts & FontAwesome CDN -->
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Google Fonts & Local FontAwesome -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -720,6 +722,17 @@
           <button class="btn btn-secondary btn-sm" onclick="closeModal('confirmDeleteModal')">Cancel</button>
           <button class="btn btn-primary btn-sm" id="confirmDeleteBtn" style="background: #DC2626; border-color: #DC2626;">Delete Template</button>
         </div>
+      </div>
+    </div>
+  <!-- 5. Recruiter Assessment & Module 6 Behavior Report Modal -->
+  <div class="smarthire-modal-backdrop" id="recruiterBehaviorReportModal">
+    <div class="smarthire-modal" style="max-width: 850px;">
+      <div class="smarthire-modal-header" style="background: linear-gradient(135deg, #1E1B4B, #312E81); color: #FFFFFF;">
+        <h3 style="color: #FFFFFF;"><i class="fa-solid fa-square-poll-vertical"></i> SMART HIRE AI — INTERVIEW ASSESSMENT REPORT</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('recruiterBehaviorReportModal')" style="color: #FFFFFF;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body" id="recruiterBehaviorReportBody" style="padding: 1.5rem;">
+        <!-- Rendered dynamically by script.js -->
       </div>
     </div>
   </div>

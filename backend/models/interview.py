@@ -100,6 +100,7 @@ class InterviewSession(Base):
     attempts = relationship("InterviewQuestionAttempt", back_populates="session", cascade="all, delete-orphan")
     recordings = relationship("InterviewRecording", back_populates="session", cascade="all, delete-orphan")
     speech_analyses = relationship("SpeechAnalysis", back_populates="session", cascade="all, delete-orphan")
+    behavior_analysis = relationship("InterviewBehaviorAnalysis", back_populates="session", uselist=False, cascade="all, delete-orphan")
 
 class SpeechAnalysis(Base):
     __tablename__ = "speech_analyses"
@@ -160,5 +161,56 @@ class InterviewRecording(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     session = relationship("InterviewSession", back_populates="recordings")
+
+
+class InterviewBehaviorAnalysis(Base):
+    __tablename__ = "interview_behavior_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("interview_sessions.id"), nullable=False, index=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    confidence_score = Column(Float, nullable=True, default=None)
+    confident_frames_count = Column(Integer, default=0)
+    unconfident_frames_count = Column(Integer, default=0)
+    total_analyzed_frames = Column(Integer, default=0)
+    analysis_status = Column(String, default="in_progress")
+
+    facial_presentation = Column(String, default="Composed and consistent")
+    dominant_emotion = Column(String, default="neutral")
+    emotion_distribution_json = Column(JSON, nullable=True)
+    expression_consistency = Column(Float, default=0.0)
+    positive_expression_frequency = Column(String, default="Occasional")
+    facial_engagement = Column(String, default="Good")
+    expression_changes_count = Column(Integer, default=0)
+
+    eye_contact_percentage = Column(Float, default=0.0)
+    attention_score = Column(Float, default=0.0)
+    look_away_events_count = Column(Integer, default=0)
+    look_away_duration_seconds = Column(Float, default=0.0)
+    face_absence_events_count = Column(Integer, default=0)
+
+    engagement_score = Column(Float, default=0.0)
+    engagement_category = Column(String, default="Moderate")
+
+    mobile_detected = Column(Boolean, default=False)
+    mobile_event_count = Column(Integer, default=0)
+    mobile_events_json = Column(JSON, nullable=True)
+
+    fullscreen_violations_count = Column(Integer, default=0)
+    fullscreen_warnings_count = Column(Integer, default=0)
+    auto_terminated = Column(Boolean, default=False)
+    auto_termination_reason = Column(Text, nullable=True)
+
+    behavior_summary = Column(Text, nullable=True)
+    raw_timeline_json = Column(JSON, nullable=True)
+    violations_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    session = relationship("InterviewSession", back_populates="behavior_analysis")
+    interview = relationship("Interview")
+    candidate = relationship("User", foreign_keys=[candidate_id])
+
 
 

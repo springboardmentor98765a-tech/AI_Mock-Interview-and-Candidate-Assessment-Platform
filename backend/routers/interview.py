@@ -1,5 +1,8 @@
+import logging
+import cv2
+import numpy as np
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status, File, UploadFile, Form, Body
+from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, Body, HTTPException
 
 from sqlalchemy.orm import Session
 from database import get_db
@@ -38,6 +41,7 @@ from services.interview_service import (
 )
 from security.dependencies import get_current_user, require_role
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/interviews", tags=["AI Interviews"])
 
@@ -45,6 +49,112 @@ router = APIRouter(prefix="/interviews", tags=["AI Interviews"])
 api_router = APIRouter(prefix="/api/interviews", tags=["AI Interviews"])
 singular_api_router = APIRouter(prefix="/api/interview", tags=["AI Interviews"])
 singular_noapi_router = APIRouter(prefix="/interview", tags=["AI Interviews"])
+
+
+@router.get("/module6/health")
+@api_router.get("/module6/health")
+@singular_api_router.get("/module6/health")
+@singular_noapi_router.get("/module6/health")
+def get_module6_health_check():
+    """Development/System Health check endpoint for Module 6 runtime status."""
+    import sys
+    from pathlib import Path
+    from services.vision_service import vision_service
+    base_dir = Path(__file__).resolve().parent.parent
+    conf_path = base_dir / "ml_models" / "confidence_model.pth"
+    emo_path = base_dir / "ml_models" / "emotion_model.pth"
+
+    return {
+        "module_6": "available",
+        "python_executable": sys.executable,
+        "confidence_model_exists": conf_path.exists(),
+        "confidence_model_loaded": getattr(vision_service, "confidence_model_loaded", False),
+        "emotion_model_exists": emo_path.exists(),
+        "emotion_model_loaded": getattr(vision_service, "emotion_model_loaded", False),
+        "mediapipe_available": getattr(vision_service, "mediapipe_available", False),
+        "face_detection_available": getattr(vision_service, "face_detection_available", True),
+        "mobile_detection_available": getattr(vision_service, "yolo_model_loaded", False)
+    }
+
+
+@router.get("/module6/behavior-reports")
+@api_router.get("/module6/behavior-reports")
+@singular_api_router.get("/module6/behavior-reports")
+@singular_noapi_router.get("/module6/behavior-reports")
+def list_module6_behavior_reports(
+    sort_by: Optional[str] = Query("created_at"),
+    order: Optional[str] = Query("desc"),
+    current_user: User = Depends(require_role(["RECRUITER", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
+    """Retrieve list of candidate Module 6 behavior reports with role access control & sorting."""
+    from models.interview import Interview, InterviewSession, InterviewBehaviorAnalysis
+    from models.user import User as UserModel
+    from sqlalchemy import asc, desc, nulls_last
+
+    query = db.query(
+        InterviewBehaviorAnalysis,
+        InterviewSession,
+        Interview,
+        UserModel
+    ).join(
+        InterviewSession, InterviewBehaviorAnalysis.session_id == InterviewSession.id
+    ).join(
+        Interview, InterviewBehaviorAnalysis.interview_id == Interview.id
+    ).join(
+        UserModel, InterviewBehaviorAnalysis.candidate_id == UserModel.id
+    )
+
+    if current_user.role == "RECRUITER":
+        query = query.filter(
+            (Interview.recruiter_id == current_user.id) | (Interview.candidate_id != None)
+        )
+
+    sort_map = {
+        "candidate_name": UserModel.name,
+        "interview_title": Interview.domain,
+        "position": Interview.interview_type,
+        "confidence_score": InterviewBehaviorAnalysis.confidence_score,
+        "attention_score": InterviewBehaviorAnalysis.attention_score,
+        "eye_contact_percentage": InterviewBehaviorAnalysis.eye_contact_percentage,
+        "engagement_score": InterviewBehaviorAnalysis.engagement_score,
+        "mobile_event_count": InterviewBehaviorAnalysis.mobile_event_count,
+        "fullscreen_violations_count": InterviewBehaviorAnalysis.fullscreen_violations_count,
+        "created_at": InterviewBehaviorAnalysis.created_at
+    }
+
+    target_col = sort_map.get(sort_by, InterviewBehaviorAnalysis.created_at)
+    if order and order.lower() == "asc":
+        query = query.order_by(nulls_last(asc(target_col)))
+    else:
+        query = query.order_by(nulls_last(desc(target_col)))
+
+    results = query.all()
+    formatted = []
+    for ba, session, interview, cand in results:
+        formatted.append({
+            "report_id": ba.id,
+            "session_id": session.id,
+            "interview_id": interview.id,
+            "candidate_id": cand.id,
+            "candidate_name": cand.name,
+            "candidate_email": cand.email,
+            "position": interview.interview_type,
+            "interview_title": interview.domain,
+            "analysis_status": ba.analysis_status or "in_progress",
+            "confidence_score": ba.confidence_score,
+            "attention_score": ba.attention_score,
+            "eye_contact_percentage": ba.eye_contact_percentage,
+            "engagement_score": ba.engagement_score,
+            "engagement_category": ba.engagement_category,
+            "facial_presentation": ba.facial_presentation,
+            "mobile_event_count": ba.mobile_event_count or 0,
+            "fullscreen_violations_count": ba.fullscreen_violations_count or 0,
+            "created_at": ba.created_at.strftime("%Y-%m-%d %H:%M:%S") if ba.created_at else None
+        })
+
+    return {"success": True, "data": formatted}
+
 
 
 @router.post("/generate", response_model=InterviewSummaryResponse)
@@ -178,7 +288,13 @@ def get_active_interview_session(
     db: Session = Depends(get_db)
 ):
     """Get active or latest session for an interview (specific path matched before generic session_id)."""
-    return get_active_session_by_interview_service(current_user, interview_id, db)
+    try:
+        return get_active_session_by_interview_service(current_user, interview_id, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[REPORT FETCH ERROR] Error fetching active session for ID {interview_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching report: {str(e)}")
 
 
 @router.get("/sessions/{session_id}")
@@ -313,6 +429,116 @@ def get_authorized_recording(
 ):
     """Stream authorized video+audio recording file after JWT role validation."""
     return get_authorized_recording_service(current_user, session_id, recording_id, db)
+
+
+# ==========================================
+# MODULE 6 — VISION & BEHAVIOR ANALYSIS ENDPOINTS
+# ==========================================
+
+from services.behavior_service import process_frame_sample, record_fullscreen_violation, finalize_behavior_analysis, get_behavior_report_dict
+from services.vision_service import vision_service
+from models.interview import InterviewSession, InterviewBehaviorAnalysis
+
+
+@router.post("/sessions/{session_id}/analyze-frame")
+@api_router.post("/sessions/{session_id}/analyze-frame")
+@singular_api_router.post("/sessions/{session_id}/analyze-frame")
+@singular_noapi_router.post("/sessions/{session_id}/analyze-frame")
+async def analyze_session_webcam_frame(
+    session_id: int,
+    file: Optional[UploadFile] = File(None),
+    frame: Optional[UploadFile] = File(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Analyze real-time webcam frame sample using Confidence & Emotion CNNs, MediaPipe, and YOLO."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        session_rec = db.query(InterviewSession).filter(InterviewSession.interview_id == session_id).order_by(InterviewSession.created_at.desc()).first()
+
+    if not session_rec:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to submit frames for this session.")
+    if session_rec.status != "IN_PROGRESS":
+        raise HTTPException(status_code=400, detail="Interview session is not active.")
+
+    target_file = file or frame
+    if not target_file:
+        raise HTTPException(status_code=400, detail="Frame file required.")
+
+    frame_bytes = await target_file.read()
+    if not frame_bytes:
+        raise HTTPException(status_code=400, detail="Empty frame file uploaded.")
+
+    np_arr = np.frombuffer(frame_bytes, np.uint8)
+    bgr_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if bgr_image is None:
+        raise HTTPException(status_code=400, detail="Could not decode image frame.")
+
+    try:
+        logger.info(f"[MODULE 6] Frame received for session #{session_rec.id}")
+        frame_analysis = vision_service.analyze_frame(bgr_image)
+        result = process_frame_sample(db, session_rec, frame_analysis)
+        logger.info(f"[MODULE 6] Behavior analysis updated for session #{session_rec.id}")
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.error(f"[MODULE 6] Error analyzing webcam frame sample for session {session_id}: {e}", exc_info=True)
+        return {"success": True, "status": "skipped", "message": f"Frame sample skipped cleanly: {e}"}
+
+
+@router.post("/sessions/{session_id}/fullscreen-violation")
+@api_router.post("/sessions/{session_id}/fullscreen-violation")
+@singular_api_router.post("/sessions/{session_id}/fullscreen-violation")
+@singular_noapi_router.post("/sessions/{session_id}/fullscreen-violation")
+def log_fullscreen_violation(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Log a fullscreen exit violation. Warning on violations 1-4, auto-terminate trigger on 5th."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        session_rec = db.query(InterviewSession).filter(InterviewSession.interview_id == session_id).order_by(InterviewSession.created_at.desc()).first()
+
+    if not session_rec:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this session.")
+
+    res = record_fullscreen_violation(db, session_rec.id)
+    return {"success": True, "data": res}
+
+
+@router.get("/sessions/{session_id}/behavior-report")
+@api_router.get("/sessions/{session_id}/behavior-report")
+@singular_api_router.get("/sessions/{session_id}/behavior-report")
+@singular_noapi_router.get("/sessions/{session_id}/behavior-report")
+def get_session_behavior_report(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve complete Module 6 Recruiter & Candidate behavior analysis report."""
+    session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    if not session_rec:
+        # Fallback for callers passing interview_id
+        session_rec = db.query(InterviewSession).filter(InterviewSession.interview_id == session_id).order_by(InterviewSession.created_at.desc()).first()
+
+    if not session_rec:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this session.")
+
+    logger.info(f"[MODULE 6] Report API called for session #{session_rec.id}")
+    report = db.query(InterviewBehaviorAnalysis).filter(InterviewBehaviorAnalysis.session_id == session_rec.id).first()
+    if not report:
+        report = finalize_behavior_analysis(db, session_rec)
+
+    report_dict = get_behavior_report_dict(db, session_rec, report)
+    logger.info(f"[MODULE 6] Report returned to frontend for session #{session_rec.id}")
+    return {"success": True, "data": report_dict}
+
 
 
 

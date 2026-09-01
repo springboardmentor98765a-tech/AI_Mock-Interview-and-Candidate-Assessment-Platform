@@ -51,8 +51,27 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ==========================================================================
-   SECTION 1: DATABASE SCHEMA INITIALIZER & LOCAL STATE STORE
-   ========================================================================== */
+   SECTION 1: DATABASE SCHEMA INITIALIZER & LOCAL STATE STORE*/
+function formatToIST(dateInput) {
+  if (!dateInput) return 'N/A';
+  try {
+    let d = new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput);
+    
+    return d.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }) + ' IST';
+  } catch (e) {
+    return String(dateInput);
+  }
+}
 
 function initDatabaseSchema() {
   // Seed Users Table
@@ -154,7 +173,7 @@ const SmartHireAuth = {
           headers: { 'Authorization': `Bearer ${token}` }
         });
       }
-    } catch (e) {}
+    } catch (e) { }
     localStorage.removeItem('smarthire_user');
     localStorage.removeItem('smarthire_jwt_token');
     localStorage.removeItem('smarthire_jwt_expiry');
@@ -195,14 +214,14 @@ const SmartHireAuth = {
       };
       this.setSession(newUser, resData.access_token);
       return newUser;
-    }  catch (err) {
-  console.error("Candidate Registration Error:", err);
+    } catch (err) {
+      console.error("Candidate Registration Error:", err);
 
-  throw new Error(
-    err.message || "Unable to connect to the SmartHire AI server. Please ensure the backend is running."
-  );
-}
-},
+      throw new Error(
+        err.message || "Unable to connect to the SmartHire AI server. Please ensure the backend is running."
+      );
+    }
+  },
   // Recruiter Registration
   async registerRecruiter(data) {
     try {
@@ -236,7 +255,7 @@ const SmartHireAuth = {
       };
       this.setSession(newUser, resData.access_token);
       return newUser;
-       } catch (err) {
+    } catch (err) {
       console.error("Recruiter Registration Error:", err);
 
       throw new Error(
@@ -268,13 +287,13 @@ const SmartHireAuth = {
       this.setSession(userObj, data.access_token);
       return { success: true, user: userObj };
     } catch (err) {
-  console.error("Login Error:", err);
+      console.error("Login Error:", err);
 
-  return {
-    success: false,
-    message: "Unable to connect to the SmartHire AI server. Please ensure the backend is running."
-  };
-}
+      return {
+        success: false,
+        message: "Unable to connect to the SmartHire AI server. Please ensure the backend is running."
+      };
+    }
   },
 
 
@@ -701,7 +720,7 @@ function saveProfile(e) {
   const skills = document.getElementById('prof-skills') ? document.getElementById('prof-skills').value : '';
   const linkedin_url = document.getElementById('prof-linkedin') ? document.getElementById('prof-linkedin').value : '';
   const github_url = document.getElementById('prof-github') ? document.getElementById('prof-github').value : '';
-  
+
   const company_name = document.getElementById('prof-company') ? document.getElementById('prof-company').value : '';
   const designation = document.getElementById('prof-designation') ? document.getElementById('prof-designation').value : '';
   const website = document.getElementById('prof-website') ? document.getElementById('prof-website').value : '';
@@ -730,7 +749,7 @@ function renderGoogleGISButtonOnLoad() {
         });
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function handleGoogleAuth() {
@@ -807,7 +826,7 @@ function setupAuthPageTabs() {
 
   const form = loginCard.querySelector('form');
   if (form) {
-    form.onsubmit = async function(e) {
+    form.onsubmit = async function (e) {
       e.preventDefault();
       const currentTab = loginCard.getAttribute('data-active-tab') || 'login';
       const submitBtn = form.querySelector('button[type="submit"]');
@@ -1193,7 +1212,7 @@ function validateRegistrationForm() {
     validateField('reg-college', document.getElementById('reg-college') && document.getElementById('reg-college').value.trim().length > 0, 'College name is required.');
     validateField('reg-degree', document.getElementById('reg-degree') && document.getElementById('reg-degree').value.trim().length > 0, 'Degree is required.');
     validateField('reg-branch', document.getElementById('reg-branch') && document.getElementById('reg-branch').value.trim().length > 0, 'Branch is required.');
-    
+
     // Graduation Year check
     const yearVal = document.getElementById('reg-grad-year') ? parseInt(document.getElementById('reg-grad-year').value, 10) : 0;
     validateField('reg-grad-year', yearVal >= 1990 && yearVal <= 2035, 'Graduation year must be between 1990 and 2035.');
@@ -1541,8 +1560,8 @@ function filterCandidateHistoryTable() {
   }
 
   if (query) {
-    history = history.filter(h => 
-      h.target_role.toLowerCase().includes(query) || 
+    history = history.filter(h =>
+      h.target_role.toLowerCase().includes(query) ||
       h.session_type.toLowerCase().includes(query)
     );
   }
@@ -1837,7 +1856,7 @@ function filterRecruiterCandidatesTable() {
 
   let filtered = candidateProfiles.filter(p => {
     const u = users.find(user => user.id === p.user_id) || { name: 'Candidate User', email: '' };
-    
+
     if (roleFilter !== 'ALL' && !p.preferred_role.toLowerCase().includes(roleFilter.toLowerCase())) {
       return false;
     }
@@ -2041,7 +2060,7 @@ function openCandidateAnalyticsModal() {
 }
 
 // Candidate Reports Library Modal
-function openCandidateReportsLibraryModal() {
+async function openCandidateReportsLibraryModal() {
   let modalId = 'modal-reports-library';
   let modal = document.getElementById(modalId);
   if (modal) modal.parentNode.removeChild(modal);
@@ -2050,27 +2069,48 @@ function openCandidateReportsLibraryModal() {
   div.id = modalId;
   div.className = 'smarthire-modal-backdrop';
   div.innerHTML = `
-    <div class="smarthire-modal" style="max-width: 650px;">
+    <div class="smarthire-modal" style="max-width: 920px; width: 95%;">
       <div class="smarthire-modal-header">
-        <h3><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Candidate Evaluation Reports Library</h3>
+        <h3><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Candidate Module 6 Behavior Reports Library</h3>
         <button class="smarthire-modal-close" onclick="closeModal('${modalId}')"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="smarthire-modal-body">
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Select candidate to download generated evaluation summary report:</p>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.85rem; border-radius: 8px;">
-            <div>
-              <strong>Candidate 1</strong> - Senior Frontend Engineer
-              <div style="font-size: 0.75rem; color: var(--text-muted);">ATS: 88/100 • Interview: 94%</div>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-download"></i> PDF Report</button>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Authorized Recruiter & Admin visual behavior analytics and candidate interview reports.</p>
+        
+        <!-- Controls Bar: Search, Sort Metric, Order Selector -->
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; background: var(--bg-surface); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div style="flex: 1; min-width: 200px;">
+            <input type="text" id="recruiterReportSearchInput" class="form-control" placeholder="Search candidate name or role..." onkeyup="filterRecruiterReportsList()" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.85rem; border-radius: 8px;">
-            <div>
-              <strong>David Chen</strong> - Fullstack Engineer
-              <div style="font-size: 0.75rem; color: var(--text-muted);">ATS: 92/100 • Interview: 89%</div>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-download"></i> PDF Report</button>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-right: 0.35rem;">Sort By:</label>
+            <select id="recruiterReportSortBySelect" class="form-control" onchange="fetchAndRenderRecruiterReports()" style="font-size: 0.85rem; padding: 0.4rem; display: inline-block; width: auto;">
+              <option value="created_at">Completion Date</option>
+              <option value="candidate_name">Candidate Name</option>
+              <option value="interview_title">Interview Domain</option>
+              <option value="position">Position</option>
+              <option value="confidence_score">Confidence Score</option>
+              <option value="attention_score">Attention Score</option>
+              <option value="eye_contact_percentage">Eye Contact %</option>
+              <option value="engagement_score">Engagement Score</option>
+              <option value="mobile_event_count">Mobile Events</option>
+              <option value="fullscreen_violations_count">Fullscreen Exit Attempts</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-right: 0.35rem;">Order:</label>
+            <select id="recruiterReportOrderSelect" class="form-control" onchange="fetchAndRenderRecruiterReports()" style="font-size: 0.85rem; padding: 0.4rem; display: inline-block; width: auto;">
+              <option value="desc">Descending (High → Low / Newest)</option>
+              <option value="asc">Ascending (Low → High / Oldest)</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="fetchAndRenderRecruiterReports()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div id="recruiterReportsContainer">
+          <div style="text-align: center; padding: 2rem 0; color: var(--primary);">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 1.75rem;"></i>
+            <p style="margin-top: 0.5rem; font-size: 0.85rem;">Loading candidate behavior reports...</p>
           </div>
         </div>
       </div>
@@ -2078,6 +2118,87 @@ function openCandidateReportsLibraryModal() {
   `;
   document.body.appendChild(div);
   openModal(modalId);
+  await fetchAndRenderRecruiterReports();
+}
+
+async function fetchAndRenderRecruiterReports() {
+  const container = document.getElementById('recruiterReportsContainer');
+  if (!container) return;
+
+  const sortBy = document.getElementById('recruiterReportSortBySelect')?.value || 'created_at';
+  const order = document.getElementById('recruiterReportOrderSelect')?.value || 'desc';
+  const search = document.getElementById('recruiterReportSearchInput')?.value?.toLowerCase() || '';
+
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/module6/behavior-reports?sort_by=${sortBy}&order=${order}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const resData = await res.json();
+    if (!res.ok || !resData.success) {
+      container.innerHTML = `<div class="alert alert-danger">Could not load candidate reports (${resData.message || res.statusText}).</div>`;
+      return;
+    }
+
+    let reports = resData.data || [];
+    if (search) {
+      reports = reports.filter(r =>
+        (r.candidate_name && r.candidate_name.toLowerCase().includes(search)) ||
+        (r.interview_title && r.interview_title.toLowerCase().includes(search)) ||
+        (r.position && r.position.toLowerCase().includes(search))
+      );
+    }
+
+    if (reports.length === 0) {
+      container.innerHTML = `<div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">No Module 6 candidate behavior reports found.</div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 500px; overflow-y: auto; padding-right: 0.35rem;">
+        ${reports.map(r => {
+      const confDisplay = r.confidence_score !== null ? `${r.confidence_score}%` : 'N/A';
+      const attDisplay = r.attention_score !== null ? `${r.attention_score}%` : 'N/A';
+      const eyeDisplay = r.eye_contact_percentage !== null ? `${r.eye_contact_percentage}%` : 'N/A';
+      const engDisplay = r.engagement_score !== null ? `${r.engagement_score}% (${r.engagement_category || 'N/A'})` : 'N/A';
+      const statusBadge = r.analysis_status === 'complete' ? 'success' : r.analysis_status === 'insufficient_data' ? 'warning' : 'info';
+
+      return `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); gap: 1rem;">
+              <div style="flex: 2;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <strong style="font-size: 0.95rem; color: var(--text-main);">${r.candidate_name}</strong>
+                  <span class="badge-status ${statusBadge}" style="font-size: 0.7rem;">${r.analysis_status}</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem;">
+                  ${r.interview_title} (${r.position}) • Session #${r.session_id} • ${r.created_at || 'Date N/A'}
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                  <span>Confidence: <strong style="color: var(--primary);">${confDisplay}</strong></span>
+                  <span>Attention: <strong style="color: #10B981;">${attDisplay}</strong></span>
+                  <span>Eye Contact: <strong>${eyeDisplay}</strong></span>
+                  <span>Engagement: <strong style="color: #6366F1;">${engDisplay}</strong></span>
+                  ${r.mobile_event_count > 0 ? `<span style="color: #EF4444; font-weight: 700;"><i class="fa-solid fa-mobile-screen"></i> Mobile: ${r.mobile_event_count}</span>` : ''}
+                  ${r.fullscreen_violations_count > 0 ? `<span style="color: #F59E0B;"><i class="fa-solid fa-compress"></i> Exits: ${r.fullscreen_violations_count}</span>` : ''}
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-primary btn-sm" onclick="openRecruiterBehaviorReportModal(${r.session_id})">
+                  <i class="fa-solid fa-file-contract"></i> View Full Report
+                </button>
+              </div>
+            </div>
+          `;
+    }).join('')}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-danger">Error fetching behavior reports: ${err}</div>`;
+  }
+}
+
+function filterRecruiterReportsList() {
+  fetchAndRenderRecruiterReports();
 }
 
 // Recruiter Interview Template Management (CRUD - Saved into PostgreSQL state)
@@ -2360,10 +2481,10 @@ function filterAdminUsers() {
         <td>
           <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
             ${isRecruiter && !isVerified ? `<button class="btn btn-secondary btn-sm" style="color: #2563EB;" onclick="verifyRecruiterAccount(${u.id})" title="Verify Recruiter"><i class="fa-solid fa-circle-check"></i> Verify</button>` : ''}
-            ${u.is_active !== false 
-              ? `<button class="btn btn-secondary btn-sm" style="color: #D97706;" onclick="toggleUserSuspend(${u.id}, false)" title="Suspend User"><i class="fa-solid fa-user-slash"></i> Suspend</button>`
-              : `<button class="btn btn-secondary btn-sm" style="color: #059669;" onclick="toggleUserSuspend(${u.id}, true)" title="Activate User"><i class="fa-solid fa-user-check"></i> Activate</button>`
-            }
+            ${u.is_active !== false
+        ? `<button class="btn btn-secondary btn-sm" style="color: #D97706;" onclick="toggleUserSuspend(${u.id}, false)" title="Suspend User"><i class="fa-solid fa-user-slash"></i> Suspend</button>`
+        : `<button class="btn btn-secondary btn-sm" style="color: #059669;" onclick="toggleUserSuspend(${u.id}, true)" title="Activate User"><i class="fa-solid fa-user-check"></i> Activate</button>`
+      }
             <button class="btn btn-secondary btn-sm" style="color: #EF4444;" onclick="deleteUserAccount(${u.id})" title="Delete User"><i class="fa-solid fa-trash"></i> Delete</button>
           </div>
         </td>
@@ -2427,9 +2548,9 @@ function filterAdminReports() {
   }
 
   if (query) {
-    reports = reports.filter(r => 
-      r.id.toLowerCase().includes(query) || 
-      (r.reporter && r.reporter.toLowerCase().includes(query)) || 
+    reports = reports.filter(r =>
+      r.id.toLowerCase().includes(query) ||
+      (r.reporter && r.reporter.toLowerCase().includes(query)) ||
       r.category.toLowerCase().includes(query) ||
       r.description.toLowerCase().includes(query)
     );
@@ -2452,10 +2573,10 @@ function filterAdminReports() {
       <td>
         <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
           <button class="btn btn-secondary btn-sm" onclick="viewReportTicketDetails('${r.id}')" title="View Details"><i class="fa-solid fa-eye"></i> View</button>
-          ${r.status === 'PENDING' 
-            ? `<button class="btn btn-secondary btn-sm" style="color: #059669;" onclick="updateReportStatus('${r.id}', 'RESOLVED')" title="Mark Resolved"><i class="fa-solid fa-check"></i> Resolve</button>`
-            : `<button class="btn btn-secondary btn-sm" style="color: #D97706;" onclick="updateReportStatus('${r.id}', 'PENDING')" title="Mark Pending"><i class="fa-solid fa-clock"></i> Reopen</button>`
-          }
+          ${r.status === 'PENDING'
+      ? `<button class="btn btn-secondary btn-sm" style="color: #059669;" onclick="updateReportStatus('${r.id}', 'RESOLVED')" title="Mark Resolved"><i class="fa-solid fa-check"></i> Resolve</button>`
+      : `<button class="btn btn-secondary btn-sm" style="color: #D97706;" onclick="updateReportStatus('${r.id}', 'PENDING')" title="Mark Pending"><i class="fa-solid fa-clock"></i> Reopen</button>`
+    }
           <button class="btn btn-secondary btn-sm" style="color: #EF4444;" onclick="deleteReportTicket('${r.id}')" title="Delete Report"><i class="fa-solid fa-trash"></i></button>
         </div>
       </td>
@@ -2494,9 +2615,9 @@ function viewReportTicketDetails(reportId) {
         
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           ${r.status === 'PENDING'
-            ? `<button class="btn btn-primary btn-sm" onclick="updateReportStatus('${r.id}', 'RESOLVED'); closeModal('${modalId}');"><i class="fa-solid fa-check"></i> Mark Ticket Resolved</button>`
-            : `<button class="btn btn-secondary btn-sm" onclick="updateReportStatus('${r.id}', 'PENDING'); closeModal('${modalId}');"><i class="fa-solid fa-clock"></i> Mark Pending</button>`
-          }
+      ? `<button class="btn btn-primary btn-sm" onclick="updateReportStatus('${r.id}', 'RESOLVED'); closeModal('${modalId}');"><i class="fa-solid fa-check"></i> Mark Ticket Resolved</button>`
+      : `<button class="btn btn-secondary btn-sm" onclick="updateReportStatus('${r.id}', 'PENDING'); closeModal('${modalId}');"><i class="fa-solid fa-clock"></i> Mark Pending</button>`
+    }
         </div>
       </div>
     </div>
@@ -3226,29 +3347,7 @@ async function submitSimInterview() {
 }
 
 // 3. Interview History & Detailed Report
-function openInterviewDetailModal(id) {
-  const modal = document.getElementById('interviewDetailModal');
-  const body = document.getElementById('interviewDetailBody');
-
-  if (body) {
-    body.innerHTML = `
-      <div style="padding: 1rem 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h4 style="font-weight: 700;">Technical Practice Session #${id}</h4>
-          <span class="badge-resolved">COMPLETED</span>
-        </div>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Evaluation breakdown calculated via deterministic scoring model.</p>
-        <div style="background: var(--primary-light); padding: 1rem; border-radius: var(--radius-sm); margin: 1rem 0;">
-          <div style="display: flex; justify-content: space-between;">
-            <span>Overall Score: <strong>92.0%</strong></span>
-            <span>Duration: <strong>14 mins</strong></span>
-          </div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('interviewDetailModal')">Close Report</button>
-      </div>
-    `;
-  }
-}
+// (openInterviewDetailModal is implemented below with full API data fetching and Module 6 behavior analysis)
 
 // Automatically load rankings on Recruiter page
 if (window.location.pathname.includes('recruiter.html')) {
@@ -3333,7 +3432,7 @@ async function loadRecruiterRankings() {
 async function loadCandidatesForGenerator() {
   const select = document.getElementById('generator-candidate-select');
   if (!select) return;
-  
+
   const token = SmartHireAuth.getToken();
   if (!token) return;
 
@@ -3545,7 +3644,7 @@ async function generateAIInterview() {
     document.getElementById('summary-q-count').textContent = summary.num_questions;
     document.getElementById('summary-duration').textContent = `${summary.duration_mins} Minutes`;
     document.getElementById('summary-ai-provider').textContent = summary.ai_provider || 'Gemini';
-    
+
     const genSourceEl = document.getElementById('summary-gen-source');
     if (genSourceEl) {
       genSourceEl.textContent = summary.generation_source || 'AI';
@@ -3555,7 +3654,7 @@ async function generateAIInterview() {
     if (summary.generation_source === 'Question Bank' || summary.fallback_reason) {
       if (noticeCard) {
         noticeCard.style.display = 'block';
-        document.getElementById('generator-fallback-notice-text').textContent = 
+        document.getElementById('generator-fallback-notice-text').textContent =
           'AI generation is temporarily unavailable. Questions have been generated from our verified interview question bank.';
       }
     }
@@ -3604,7 +3703,7 @@ function renderRecruiterQuestionsList(questions) {
     <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.5rem;">
         <div>
-          <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Question ${q.sequence_no || idx+1} • ${q.category}</span>
+          <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Question ${q.sequence_no || idx + 1} • ${q.category}</span>
           <h4 style="font-weight: 700; color: var(--text-main); margin: 0.2rem 0;">${q.question_text}</h4>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -3666,7 +3765,7 @@ async function regenerateSingleQuestion(interviewId, questionId) {
     if (!res.ok) throw new Error(newQ.message || 'Single question regeneration failed.');
 
     showDemoToast('Question regenerated successfully!', 'success');
-    
+
     // Refresh question details view
     const detailRes = await fetch(`${SmartHireAuth.API_BASE}/interviews/${interviewId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -3680,7 +3779,7 @@ async function regenerateSingleQuestion(interviewId, questionId) {
 
 function copyGeneratedQuestionsList() {
   const items = document.querySelectorAll('#generator-questions-items h4');
-  const texts = Array.from(items).map((el, i) => `${i+1}. ${el.textContent}`).join('\n\n');
+  const texts = Array.from(items).map((el, i) => `${i + 1}. ${el.textContent}`).join('\n\n');
   if (texts) {
     navigator.clipboard.writeText(texts);
     showDemoToast('Questions list copied to clipboard!', 'success');
@@ -3898,18 +3997,54 @@ function initializeMediaRecorder() {
   return true;
 }
 
+function updateSessionUiState(session, durationMins) {
+  if (!session) return;
+  activeSessionRecord = session;
+  if (session.status) {
+    currentSessionLifecycleState = (session.status === 'IN_PROGRESS') ? 'active' : session.status.toLowerCase();
+  }
+  const catBadge = document.getElementById('simulatorCategoryBadge');
+  if (catBadge && session.status) {
+    catBadge.innerText = session.status;
+  }
+}
+
 async function startAssignedInterviewSession(interviewId, durationMins) {
   const token = SmartHireAuth.getToken();
-  if (!token) return;
+  if (!token) {
+    console.error("[INTERVIEW INIT FAILED] Missing JWT auth token.");
+    showDemoToast("Authentication token missing. Please log in again.", "error");
+    return;
+  }
+
+  console.log("[BEGIN INTERVIEW] Interview ID:", interviewId);
 
   try {
-    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${interviewId}`, {
+    const url = `${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${interviewId}`;
+    console.log("[INTERVIEW INIT] Request URL:", url);
+
+    const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
-    const data = await res.json();
-    if (!data.success && !data.session) {
-      showDemoToast(data.message || 'Failed to load interview session.', 'error');
+    const responseText = await res.text();
+    console.log("[INTERVIEW INIT] Status:", res.status);
+    console.log("[INTERVIEW INIT] Response Text:", responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error("[INTERVIEW INIT FAILED] Response is not valid JSON:", responseText);
+      showDemoToast("Failed to initialize interview session (Invalid server response).", "error");
+      return;
+    }
+
+    console.log("[INTERVIEW INIT] Parsed response:", data);
+
+    if (!res.ok || (!data.success && !data.session)) {
+      console.error("[INTERVIEW INIT FAILED]", res.status, data);
+      showDemoToast(data.message || data.detail || 'Failed to load interview session.', 'error');
       return;
     }
 
@@ -3934,7 +4069,6 @@ async function startAssignedInterviewSession(interviewId, durationMins) {
     // Show Preparation & Hardware Setup Screen first
     const setupScreen = document.getElementById('simulatorSetupScreen');
     const setupWebcamContainer = document.getElementById('setupWebcamContainer');
-    const webcamContainer = document.getElementById('setupWebcamContainer');
     if (setupWebcamContainer) {
       const vEl = document.getElementById('interviewWebcamPreview');
       if (vEl && !setupWebcamContainer.contains(vEl)) {
@@ -3951,7 +4085,7 @@ async function startAssignedInterviewSession(interviewId, durationMins) {
     // Request permissions and trigger live camera preview in setup screen
     await requestMediaPermissions();
   } catch (err) {
-    console.error('Session init error:', err);
+    console.error('[INTERVIEW INIT EXCEPTION]', err);
     showDemoToast('Failed to initialize interview session.', 'error');
   }
 }
@@ -3988,6 +4122,7 @@ async function startVerifiedInterviewSession() {
     initializeMediaRecorder();
     fullscreenExitCount = 0;
     isInterviewActive = true;
+    currentSessionLifecycleState = 'active';
     isFullscreenWarningOpen = false;
     isFinishingInterview = false;
 
@@ -3996,6 +4131,11 @@ async function startVerifiedInterviewSession() {
 
     // Start live speech recognition for candidate answer
     startLiveSpeechRecognition();
+
+    // Start Module 6 webcam frame sampling
+    console.log("[MODULE 6 FRONTEND] Frame sampling started.");
+    console.log("[MODULE 6 FRONTEND] Active session ID:", activeSessionRecord ? activeSessionRecord.id : "N/A");
+    startModule6FrameSampling();
 
     // Transition UI from Setup to Questions
     document.getElementById('simulatorSetupScreen').style.display = 'none';
@@ -4070,7 +4210,7 @@ function removeInterviewViolationListeners() {
     document.removeEventListener('visibilitychange', handleInterviewFocusOrFullscreenChange);
     window.removeEventListener('blur', handleInterviewFocusOrFullscreenChange);
     window.removeEventListener('focus', handleInterviewFocusOrFullscreenChange);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function startLiveSpeechRecognition() {
@@ -4164,7 +4304,7 @@ function startLiveSpeechRecognition() {
     speechRecognitionInstance.onend = () => {
       isSpeechRecognitionActive = false;
       if (isInterviewActive && currentSessionLifecycleState === 'active' && !isSubmissionInProgress && !isFinishingInterview) {
-        try { speechRecognitionInstance.start(); } catch (e) {}
+        try { speechRecognitionInstance.start(); } catch (e) { }
       }
     };
 
@@ -4179,7 +4319,7 @@ function stopLiveSpeechRecognition() {
     try {
       speechRecognitionInstance.onend = null;
       speechRecognitionInstance.stop();
-    } catch (e) {}
+    } catch (e) { }
     speechRecognitionInstance = null;
   }
   isSpeechRecognitionActive = false;
@@ -4297,36 +4437,51 @@ function handleInterviewFocusOrFullscreenChange() {
   }
 }
 
-function handleInterviewViolation() {
-  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || isFullscreenWarningOpen || isSubmissionInProgress || isFinishingInterview || isRequestingFullscreen) return;
+async function handleInterviewViolation() {
+  if (!isInterviewActive || currentSessionLifecycleState !== 'active' || isFullscreenWarningOpen || isSubmissionInProgress || isFinishingInterview || isRequestingFullscreen || !activeSessionRecord) return;
 
   const now = Date.now();
   if (now - lastViolationTimestamp < 800) {
-    return; // 800ms cooldown deduplication for single physical incident
+    return; // 800ms cooldown deduplication
   }
   lastViolationTimestamp = now;
 
-  fullscreenExitCount++;
   isFullscreenWarningOpen = true;
-
   stopActiveSessionTimers();
 
-  if (fullscreenExitCount === 1) {
-    const header = document.getElementById('fsWarningHeader');
-    const body = document.getElementById('fsWarningBody');
-    if (header) header.textContent = 'Warning 1 of 3';
-    if (body) body.innerHTML = '⚠️ Fullscreen Exit / Tab Switch Detected. Please return to fullscreen mode to continue your interview. Warning 1 of 3.';
-    openModal('fullscreenWarningModal');
-    showDemoToast('Warning 1/3: Fullscreen exit / tab switch detected.', 'warning');
-  } else if (fullscreenExitCount === 2) {
-    const header = document.getElementById('fsWarningHeader');
-    const body = document.getElementById('fsWarningBody');
-    if (header) header.textContent = 'Warning 2 of 3';
-    if (body) body.innerHTML = '⚠️ Second Fullscreen / Tab Switch Violation. Warning 2 of 3. One more violation will automatically end your interview.';
-    openModal('fullscreenWarningModal');
-    showDemoToast('Warning 2/3: One more violation will auto-submit interview!', 'error');
-  } else if (fullscreenExitCount >= 3) {
-    triggerAutoSubmission('THIRD_FULLSCREEN_VIOLATION');
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/fullscreen-violation`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (data.success && data.data) {
+      const vInfo = data.data;
+      fullscreenExitCount = vInfo.violation_count;
+
+      const header = document.getElementById('fsWarningHeader');
+      const body = document.getElementById('fsWarningBody');
+
+      if (vInfo.auto_terminate) {
+        if (header) header.textContent = 'Interview Ended';
+        if (body) body.innerText = vInfo.message;
+        openModal('fullscreenWarningModal');
+        showDemoToast('Maximum fullscreen exit attempts (5) reached. Finalizing interview automatically.', 'error');
+        setTimeout(() => {
+          closeModal('fullscreenWarningModal');
+          triggerAutoSubmission('MAX_FULLSCREEN_VIOLATIONS_REACHED');
+        }, 2500);
+      } else {
+        if (header) header.textContent = `Warning ${vInfo.warning_count} of 4`;
+        if (body) body.innerText = vInfo.message;
+        openModal('fullscreenWarningModal');
+        showDemoToast(`Warning ${vInfo.warning_count}/4: Fullscreen requirement violated.`, 'warning');
+      }
+    }
+  } catch (err) {
+    console.error('Error logging fullscreen violation:', err);
   }
 }
 
@@ -4365,6 +4520,7 @@ async function finishInterview(reason) {
   // 2. Stop active timers and speech recognition immediately
   stopActiveSessionTimers();
   stopLiveSpeechRecognition();
+  stopModule6FrameSampling();
 
   // 3. Capture and save current attempt & speech analysis
   await saveQuestionSpeechAnalysis();
@@ -4376,11 +4532,11 @@ async function finishInterview(reason) {
   // 5. Exit browser fullscreen if active
   try {
     if (document.fullscreenElement && document.exitFullscreen) {
-      await document.exitFullscreen().catch(() => {});
+      await document.exitFullscreen().catch(() => { });
     } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
-      await document.webkitExitFullscreen().catch(() => {});
+      await document.webkitExitFullscreen().catch(() => { });
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 6. Stop all hardware camera and microphone tracks
   stopAllMediaTracks();
@@ -5005,12 +5161,12 @@ async function submitAssignedInterviewSession() {
 
 function stopAllMediaTracks() {
   if (interviewMediaRecorder && interviewMediaRecorder.state !== 'inactive') {
-    try { interviewMediaRecorder.stop(); } catch (e) {}
+    try { interviewMediaRecorder.stop(); } catch (e) { }
   }
   if (interviewMediaStream) {
     try {
       interviewMediaStream.getTracks().forEach(track => track.stop());
-    } catch (e) {}
+    } catch (e) { }
     interviewMediaStream = null;
   }
   const vEl = document.getElementById('interviewWebcamPreview');
@@ -5057,12 +5213,28 @@ async function openInterviewDetailModal(id) {
   if (!token) return;
 
   try {
-    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${id}`, {
+    console.log('[REPORT FETCH START] Fetching report details for ID:', id);
+    let res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/interview/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
-    const data = await res.json();
+    let data = null;
+    if (res.ok) {
+      data = await res.json();
+    }
+
     if (!data || (!data.session && !data.id)) {
+      console.log('[REPORT FETCH RETRY] Trying direct session endpoint for ID:', id);
+      res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        data = await res.json();
+      }
+    }
+
+    if (!data || (!data.session && !data.id)) {
+      console.warn('[REPORT FETCH NOTICE] No report session data available for ID:', id);
       body.innerHTML = `
         <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
           <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.25rem; color: #EF4444; margin-bottom: 0.5rem;"></i>
@@ -5080,6 +5252,8 @@ async function openInterviewDetailModal(id) {
     const attempts = data.attempts || [];
     const recordings = data.recordings || [];
     const speechAnalyses = data.speech_analyses || [];
+    const displayScore = (session.score !== undefined && session.score !== null) ? Number(session.score).toFixed(1) : '0.0';
+    console.log('[REPORT FETCH SUCCESS] Interview detail report loaded successfully for ID:', id, data);
 
     if (session.status !== 'COMPLETED' && session.status !== 'ENDED') {
       body.innerHTML = `
@@ -5272,7 +5446,61 @@ async function openInterviewDetailModal(id) {
       `;
     }).join('');
 
-    const displayScore = (session.score !== undefined && session.score !== null) ? Number(session.score).toFixed(1) : '0.0';
+    const fmtScore = (v, suffix = '%') => (v !== null && v !== undefined) ? `${v}${suffix}` : 'N/A';
+
+    let behaviorHtml = '';
+    if (data.behavior_analysis) {
+      const ba = data.behavior_analysis;
+      behaviorHtml = `
+        <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h5 style="font-weight: 700; margin: 0; font-size: 0.9rem; color: var(--primary);"><i class="fa-solid fa-chart-user"></i> Module 6: Visual Behavior & Proctoring Analysis</h5>
+            <button class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 0.25rem 0.6rem;" onclick="openRecruiterBehaviorReportModal(${session.id})">
+              <i class="fa-solid fa-file-contract"></i> View Full Behavior Report
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; margin-bottom: 0.75rem;">
+            <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-xs); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">CONFIDENCE</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary);">${fmtScore(ba.confidence_score)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-xs); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">EYE CONTACT</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #10B981;">${fmtScore(ba.eye_contact_percentage)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-xs); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">ATTENTION</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #F59E0B;">${fmtScore(ba.attention_score)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-xs); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">ENGAGEMENT</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #6366F1;">${fmtScore(ba.engagement_score)}</div>
+            </div>
+          </div>
+
+          <!-- Proctoring & Violations Summary -->
+          <div style="background: var(--bg-card); padding: 0.75rem; border-radius: var(--radius-xs); margin-bottom: 0.75rem; border: 1px solid var(--border-color);">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">
+              <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Behavioral & Proctoring Audit:
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+              <div>• <strong>Mobile Device Detections:</strong> ${ba.mobile_detected ? (ba.mobile_event_count || 1) : 0}</div>
+              <div>• <strong>Eye-Contact Deviations:</strong> ${ba.look_away_events_count || 0} (${ba.look_away_duration_seconds || 0}s)</div>
+              <div>• <strong>Fullscreen Exit Violations:</strong> ${ba.fullscreen_violations_count || 0}</div>
+            </div>
+          </div>
+
+          <div style="font-size: 0.825rem; color: var(--text-main); background: var(--bg-card); padding: 0.6rem; border-radius: var(--radius-xs);">
+            <strong>Constructive Suggestions:</strong>
+            <ul style="margin: 0.35rem 0 0 1.25rem; padding: 0; color: var(--text-muted);">
+              ${(ba.eye_contact_percentage !== null && ba.eye_contact_percentage < 70) ? '<li>Try to maintain camera-facing attention more consistently throughout your answers.</li>' : '<li>Great eye-contact consistency facing the camera!</li>'}
+              ${(ba.look_away_events_count || 0) > 0 ? '<li>Avoid prolonged periods of looking away from the interview screen during questions.</li>' : '<li>Excellent screen focus with minimal look-away pauses.</li>'}
+              ${(ba.engagement_score !== null && ba.engagement_score < 75) ? '<li>Maintain consistent facial engagement and vocal composure during technical explanations.</li>' : '<li>Strong overall interview engagement recorded!</li>'}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
 
     body.innerHTML = `
       <div style="padding: 0.5rem 0;">
@@ -5308,6 +5536,8 @@ async function openInterviewDetailModal(id) {
 
         ${speechHtml}
 
+        ${behaviorHtml}
+
         ${videoHtml}
 
         <h5 style="font-weight: 700; margin: 1rem 0 0.5rem 0; font-size: 0.9rem;">Submitted Question Responses</h5>
@@ -5319,7 +5549,7 @@ async function openInterviewDetailModal(id) {
       </div>
     `;
   } catch (err) {
-    console.error('Error fetching report:', err);
+    console.error('[REPORT LOAD ERROR] Unhandled exception fetching report:', err);
     body.innerHTML = `
       <div style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
         <p>Could not load report details.</p>
@@ -5328,3 +5558,530 @@ async function openInterviewDetailModal(id) {
     `;
   }
 }
+
+
+// ==========================================
+// MODULE 6 — FRAME SAMPLING & REPORT RENDERING
+// ==========================================
+
+let module6FrameInterval = null;
+let isFrameAnalysisInProgress = false;
+
+function showLookAwayWarningModal(msg) {
+  const modalId = 'modal-look-away-warning';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.style.zIndex = '10000';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 450px; text-align: center; border-top: 4px solid #F59E0B;">
+      <div style="font-size: 2.5rem; color: #F59E0B; margin-bottom: 0.5rem;"><i class="fa-solid fa-eye-slash"></i></div>
+      <h3 style="margin-bottom: 0.5rem;">Camera-Facing Reminder</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">${msg || 'Please look towards your screen and maintain focus during the interview.'}</p>
+      <button class="btn btn-warning btn-sm" onclick="closeModal('${modalId}')">I Understand</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function showFaceNotDetectedWarningModal(msg) {
+  const modalId = 'modal-face-not-detected-warning';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.style.zIndex = '10000';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 450px; text-align: center; border-top: 4px solid #EF4444;">
+      <div style="font-size: 2.5rem; color: #EF4444; margin-bottom: 0.5rem;"><i class="fa-solid fa-user-slash"></i></div>
+      <h3 style="margin-bottom: 0.5rem;">⚠️ Face Not Detected</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">${msg || 'Please remain visible in front of the camera.'}</p>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('${modalId}')">I Understand</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function showMobileDeviceWarningModal(msg) {
+  const modalId = 'modal-mobile-device-warning';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.style.zIndex = '10000';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 460px; text-align: center; border-top: 4px solid #EF4444;">
+      <div style="font-size: 2.5rem; color: #EF4444; margin-bottom: 0.5rem;"><i class="fa-solid fa-mobile-screen-button"></i></div>
+      <h3 style="margin-bottom: 0.5rem; color: #EF4444;">⚠️ Mobile Device Warning</h3>
+      <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">Mobile devices are not supported for this exam.</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Please switch to a desktop or laptop computer to continue.</p>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('${modalId}')">Acknowledge</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function showMobilePhoneWarningModal(msg) {
+  const modalId = 'modal-mobile-warning';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.style.zIndex = '10000';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 450px; text-align: center; border-top: 4px solid #EF4444;">
+      <div style="font-size: 2.5rem; color: #EF4444; margin-bottom: 0.5rem;"><i class="fa-solid fa-mobile-screen-button"></i></div>
+      <h3 style="margin-bottom: 0.5rem;">Mobile Phone Detected</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">${msg || 'Please remove mobile phone from camera view during interview.'}</p>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('${modalId}')">Acknowledge</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function showMobileWarningModal(msg) {
+  showMobilePhoneWarningModal(msg);
+}
+
+function checkMobileDeviceAndWarn() {
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  const maxTouch = navigator.maxTouchPoints || 0;
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
+  const isMobilePlatform = /Android|iPhone|iPad|iPod/i.test(platform);
+  const isSmallScreenTouch = (window.innerWidth <= 800 && maxTouch > 1);
+
+  if (isMobileUA || isMobilePlatform || isSmallScreenTouch) {
+    showMobileDeviceWarningModal('Mobile devices are not supported for this exam.');
+    if (activeSessionRecord && activeSessionRecord.id) {
+      const token = SmartHireAuth.getToken();
+      fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/mobile-device-violation?user_agent=${encodeURIComponent(ua)}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(e => console.warn('Failed to log mobile device violation:', e));
+    }
+    return true;
+  }
+  return false;
+}
+
+function startModule6FrameSampling() {
+  stopModule6FrameSampling();
+  isFrameAnalysisInProgress = false;
+  console.log("[MODULE 6] Starting webcam behavior monitoring");
+  
+  checkMobileDeviceAndWarn();
+
+  if (activeSessionRecord) {
+    console.log("[MODULE 6] Active session ID:", activeSessionRecord.id);
+  }
+  module6FrameInterval = setInterval(async () => {
+    if (!isInterviewActive || currentSessionLifecycleState !== 'active' || !activeSessionRecord || isSubmissionInProgress || isFinishingInterview) {
+      return;
+    }
+    if (isFrameAnalysisInProgress) {
+      console.log("[MODULE 6] Skipping frame sample: previous analysis still in progress.");
+      return;
+    }
+    const videoEl = document.getElementById('interviewWebcamPreview') || document.querySelector('#questionWebcamMount video');
+    if (!videoEl || videoEl.paused || videoEl.ended || !videoEl.videoWidth) return;
+
+    try {
+      isFrameAnalysisInProgress = true;
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob || !isInterviewActive) {
+          isFrameAnalysisInProgress = false;
+          return;
+        }
+        try {
+          const formData = new FormData();
+          formData.append('file', blob, 'frame.jpg');
+
+          const token = SmartHireAuth.getToken();
+          const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/analyze-frame`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+
+          const data = await res.json();
+          if (data.success && data.data) {
+            const resData = data.data;
+
+            if (resData.trigger_look_away_warning && resData.look_away_warning_message) {
+              console.log("[MODULE 6] Camera-facing reminder triggered!");
+              showLookAwayWarningModal(resData.look_away_warning_message);
+            } else {
+              closeModal('modal-look-away-warning');
+            }
+
+            if (resData.trigger_face_not_detected_warning && resData.face_not_detected_warning_message) {
+              console.log("[MODULE 6] Face not detected warning triggered!");
+              showFaceNotDetectedWarningModal(resData.face_not_detected_warning_message);
+            } else {
+              closeModal('modal-face-not-detected-warning');
+            }
+
+            if ((resData.trigger_mobile_warning || resData.trigger_mobile_phone_warning) && (resData.mobile_warning_message || resData.mobile_phone_warning_message)) {
+              console.log("[MODULE 6] Mobile warning triggered!");
+              showMobilePhoneWarningModal(resData.mobile_phone_warning_message || resData.mobile_warning_message);
+            }
+          }
+        } catch (e) {
+          console.warn('[MODULE 6] Frame sample upload error:', e);
+        } finally {
+          isFrameAnalysisInProgress = false;
+        }
+      }, 'image/jpeg', 0.7);
+    } catch (e) {
+      console.warn('[MODULE 6] Frame capture error:', e);
+      isFrameAnalysisInProgress = false;
+    }
+  }, 2000);
+}
+
+
+function stopModule6FrameSampling() {
+  if (module6FrameInterval) {
+    clearInterval(module6FrameInterval);
+    module6FrameInterval = null;
+  }
+  isFrameAnalysisInProgress = false;
+  console.log("[MODULE 6] Webcam behavior monitoring stopped.");
+}
+
+function renderViolationsReportSection(r) {
+  const summary = r.violations_summary || { total: 0, high: 0, medium: 0, low: 0 };
+  const vList = r.violations_list || [];
+
+  let rowsHtml = '';
+  if (vList.length > 0) {
+    rowsHtml = vList.map((v, i) => {
+      let sevColor = '#10B981';
+      let sevBg = '#D1FAE5';
+      if (v.severity === 'High') {
+        sevColor = '#EF4444';
+        sevBg = '#FEE2E2';
+      } else if (v.severity === 'Medium') {
+        sevColor = '#F59E0B';
+        sevBg = '#FEF3C7';
+      }
+
+      return `
+        <tr style="border-bottom: 1px solid var(--border-color);">
+          <td style="padding: 0.5rem; font-weight: 700;">#${v.id || (i + 1)}</td>
+          <td style="padding: 0.5rem;">
+            <span style="background: ${sevBg}; color: ${sevColor}; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">
+              ${v.type || 'VIOLATION'}
+            </span>
+          </td>
+          <td style="padding: 0.5rem;">${v.description || 'Violation logged'}</td>
+          <td style="padding: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">${v.timestamp ? (v.timestamp.includes('-') ? formatToIST(v.timestamp) : v.timestamp) : 'During Session'}</td>
+          <td style="padding: 0.5rem; text-align: right; font-weight: 600;">${v.duration ? `${v.duration}s` : 'N/A'}</td>
+        </tr>
+      `;
+    }).join('');
+  } else {
+    rowsHtml = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 1.5rem; color: #10B981; font-weight: 600;">
+          <i class="fa-solid fa-circle-check" style="font-size: 1.25rem; margin-right: 0.5rem;"></i>
+          No proctoring or behavioral violations recorded during this session.
+        </td>
+      </tr>
+    `;
+  }
+
+  return `
+    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+      <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+        <span>2. Dedicated Interview Violations & Audit Log</span>
+        <span style="font-size: 0.8rem; font-weight: 600; color: ${summary.total > 0 ? '#EF4444' : '#10B981'};">
+          ${summary.total} Total Violation(s) Logged
+        </span>
+      </h4>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+        <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">TOTAL VIOLATIONS</div>
+          <div style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">${summary.total}</div>
+        </div>
+        <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">HIGH SEVERITY</div>
+          <div style="font-size: 1.2rem; font-weight: 800; color: #EF4444;">${summary.high}</div>
+        </div>
+        <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">MEDIUM SEVERITY</div>
+          <div style="font-size: 1.2rem; font-weight: 800; color: #F59E0B;">${summary.medium}</div>
+        </div>
+        <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">LOW SEVERITY</div>
+          <div style="font-size: 1.2rem; font-weight: 800; color: #10B981;">${summary.low}</div>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+          <thead>
+            <tr style="background: var(--bg-surface); text-align: left; border-bottom: 2px solid var(--border-color);">
+              <th style="padding: 0.5rem;">ID</th>
+              <th style="padding: 0.5rem;">Type</th>
+              <th style="padding: 0.5rem;">Description</th>
+              <th style="padding: 0.5rem;">Timestamp</th>
+              <th style="padding: 0.5rem; text-align: right;">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function openRecruiterBehaviorReportModal(sessionId) {
+  let modalId = 'recruiterBehaviorReportModal';
+  let modal = document.getElementById(modalId);
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'smarthire-modal-backdrop';
+    modal.style.zIndex = '10000';
+    modal.innerHTML = `
+      <div class="smarthire-modal" style="max-width: 850px; max-height: 90vh; overflow-y: auto;">
+        <div class="smarthire-modal-header" style="background: linear-gradient(135deg, #1E1B4B, #312E81); color: #FFFFFF;">
+          <h3 style="color: #FFFFFF;"><i class="fa-solid fa-square-poll-vertical"></i> SMART HIRE AI — INTERVIEW ASSESSMENT REPORT</h3>
+          <button class="smarthire-modal-close" onclick="closeModal('${modalId}')" style="color: #FFFFFF;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="smarthire-modal-body" id="recruiterBehaviorReportBody" style="padding: 1.5rem;">
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  openModal(modalId);
+  const body = document.getElementById('recruiterBehaviorReportBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="text-align: center; padding: 2rem 0; color: var(--primary);">
+      <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem;"></i>
+      <p style="margin-top: 0.75rem; font-size: 0.9rem; font-weight: 600;">Generating SMART HIRE AI Assessment Report...</p>
+    </div>
+  `;
+
+  console.log("[MODULE6] Report API called for session ID:", sessionId);
+  const token = SmartHireAuth.getToken();
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${sessionId}/behavior-report`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const resData = await res.json();
+    if (!res.ok || !resData.success || !resData.data) {
+      body.innerHTML = `<div class="alert alert-danger">Could not load report metrics (${resData.message || 'Error'}).</div>`;
+      return;
+    }
+
+    const r = resData.data;
+    console.log("[MODULE6] Report returned to frontend:", r);
+    const fmtScore = (v, suffix = '%') => (v !== null && v !== undefined) ? `${v}${suffix}` : 'N/A';
+
+    const commData = r.communication || {};
+
+    body.innerHTML = `
+      <div style="font-family: var(--font-family); font-size: 0.9rem; color: var(--text-main);">
+
+        <!-- Candidate Details Header Card -->
+        <div style="background: linear-gradient(135deg, var(--primary-light), var(--bg-card)); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="font-weight: 800; color: var(--primary); margin: 0;">${r.candidate_name || 'Candidate Details'}</h3>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                <i class="fa-solid fa-envelope"></i> ${r.candidate_email || 'N/A'} • <i class="fa-solid fa-briefcase"></i> ${r.position || 'N/A'} • Domain: <strong>${r.interview_title || 'AI Assessment'}</strong>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span class="badge-status ${r.analysis_status === 'complete' ? 'success' : 'info'}" style="font-size: 0.8rem;">
+                Status: ${r.analysis_status || 'Complete'}
+              </span>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                Session #${r.session_id} • Duration: ${formatSecondsDisplay(r.total_active_seconds || 0)} • Created: ${formatToIST(r.created_at)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Overall Visual Analysis -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            1. Overall Visual Analysis
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+            <div style="background: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Confidence Score</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--primary);">${fmtScore(r.confidence_score)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${r.confident_frames_count || 0} / ${r.total_analyzed_frames || 0} frames</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Attention Score</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #10B981;">${fmtScore(r.attention_score)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${r.look_away_events_count || 0} look-aways</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Engagement Score</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #6366F1;">${fmtScore(r.engagement_score)} (${r.engagement_category || 'N/A'})</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Eye Contact: ${fmtScore(r.eye_contact_percentage)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Dedicated Interview Violations Section -->
+        ${renderViolationsReportSection(r)}
+
+        <!-- 3. Confidence Analysis -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            3. Confidence Analysis
+          </h4>
+          <p style="margin-bottom: 0.5rem;">
+            The visual confidence model classified <strong>${fmtScore(r.confidence_score)}</strong> of valid analyzed frames as confident.
+          </p>
+          <div style="font-size: 0.825rem; color: var(--text-muted);">
+            Signal distribution: ${r.confident_frames_count || 0} confident signals vs ${r.unconfident_frames_count || 0} unconfident signals across ${r.total_analyzed_frames || 0} evaluated frames.
+          </div>
+        </div>
+
+        <!-- 4. Facial Presentation & Expression Analysis -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            4. Facial Presentation & Expression Analysis
+          </h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div><strong>Facial Presentation:</strong> ${r.facial_presentation || 'N/A'}</div>
+            <div><strong>Expression Consistency:</strong> ${fmtScore(r.expression_consistency)}</div>
+            <div><strong>Positive Expression Frequency:</strong> ${r.positive_expression_frequency || 'N/A'}</div>
+            <div><strong>Facial Engagement:</strong> ${r.facial_engagement || 'N/A'}</div>
+          </div>
+        </div>
+
+        <!-- 5. Eye Contact & Attention -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            5. Eye Contact & Attention
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+            <div><strong>Eye Contact:</strong> ${fmtScore(r.eye_contact_percentage)}</div>
+            <div><strong>Attention Score:</strong> ${fmtScore(r.attention_score)}</div>
+            <div><strong>Look-Away Events:</strong> ${r.look_away_events_count || 0} (${r.look_away_duration_seconds || 0}s total)</div>
+          </div>
+        </div>
+
+        <!-- 6. Mobile Device Monitoring -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            6. Mobile Device Monitoring
+          </h4>
+          ${r.mobile_detected ? `
+            <div style="background: #FEE2E2; color: #991B1B; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem; font-weight: 600;">
+              Mobile Device Detected: Yes (${r.mobile_event_count || 0} distinct events)
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+              A mobile device was detected during ${r.mobile_event_count || 0} distinct monitoring events. These events are provided for recruiter review.
+            </p>
+          ` : `
+            <div style="background: #D1FAE5; color: #065F46; padding: 0.75rem; border-radius: var(--radius-sm); font-weight: 600;">
+              Mobile Device Monitoring: No mobile device was detected in the analyzed camera frames.
+            </div>
+          `}
+        </div>
+
+        <!-- 7. Fullscreen Compliance -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            7. Fullscreen Compliance
+          </h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+            <div><strong>Exit Attempts:</strong> ${r.fullscreen_violations_count || 0}</div>
+            <div><strong>Warnings Issued:</strong> ${r.fullscreen_warnings_count || 0}</div>
+            <div><strong>Auto-Terminated:</strong> ${r.auto_terminated ? 'Yes' : 'No'}</div>
+          </div>
+          ${r.auto_termination_reason ? `<div style="color:#EF4444; font-size:0.825rem; margin-top:0.35rem;">Reason: ${r.auto_termination_reason}</div>` : ''}
+        </div>
+
+        <!-- 8. Speech & Communication Analysis -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            8. Speech & Communication Analysis
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; text-align: center;">
+            <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">COMMUNICATION</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">${fmtScore(commData.communication_score)}</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">SPEECH PACE</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-main);">${commData.words_per_minute || 0} WPM</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">GRAMMAR QUALITY</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: #10B981;">${fmtScore(commData.grammar_score)}</div>
+            </div>
+            <div style="background: var(--bg-surface); padding: 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">FILLER WORDS</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: #F59E0B;">${commData.filler_word_count || 0}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. Engagement Analysis -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            9. Engagement Analysis
+          </h4>
+          <p style="margin-bottom: 0.35rem;">
+            <strong>Engagement Score:</strong> ${fmtScore(r.engagement_score)} (${r.engagement_category || 'N/A'})
+          </p>
+          <p style="font-size: 0.825rem; color: var(--text-muted);">
+            The engagement score is computed via a transparent fusion model combining visual confidence predictions (30%), eye contact consistency (30%), attention score (30%), and positive expression ratio (10%).
+          </p>
+        </div>
+
+        <!-- 10. Overall Interview Behavior Summary -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+          <h4 style="font-weight: 700; color: var(--primary); margin-bottom: 0.75rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.35rem;">
+            10. Overall Interview Behavior Summary
+          </h4>
+          <p style="font-size: 0.875rem; line-height: 1.5; color: var(--text-main);">
+            ${r.behavior_summary || 'No behavior summary recorded.'}
+          </p>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error("[MODULE 6] Error loading behavior report:", err);
+    body.innerHTML = `<div class="alert alert-danger">Error loading behavior report: ${err.message || err}</div>`;
+  }
+}
+

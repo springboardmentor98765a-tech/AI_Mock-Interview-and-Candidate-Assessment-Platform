@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Candidate Dashboard - SmartHire AI</title>
   <meta name="description" content="Candidate portal for resume uploads, mock interview practice, performance analytics, and improvement tracking.">
-  <!-- Google Fonts & FontAwesome CDN -->
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Google Fonts & Local FontAwesome -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -765,14 +767,53 @@
         <div style="width: 64px; height: 64px; border-radius: 50%; background: #FEE2E2; color: #EF4444; font-size: 1.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
           <i class="fa-solid fa-expand"></i>
         </div>
-        <h4 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;" id="fsWarningHeader">Warning 1 of 3</h4>
+        <h4 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;" id="fsWarningHeader">Warning 1 of 4</h4>
         <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;" id="fsWarningBody">
-          Fullscreen Exit Detected. Warning 1 of 3. Please return to fullscreen mode to continue your interview.
+          Fullscreen Requirement: This mock interview must remain in fullscreen mode. Warning: 1 of 4 allowed warnings.
         </p>
         <button class="btn btn-primary btn-full" onclick="reenterFullscreenFromWarning()"><i class="fa-solid fa-compress"></i> Return to Fullscreen</button>
       </div>
     </div>
   </div>
+
+  <!-- Look-Away Attention Reminder Modal -->
+  <div class="smarthire-modal-backdrop" id="lookAwayWarningModal" style="z-index: 100001;">
+    <div class="smarthire-modal" style="max-width: 480px; text-align: center;">
+      <div class="smarthire-modal-header" style="justify-content: center; background: transparent;">
+        <h3 style="color: #F59E0B;" id="lookAwayWarningTitle"><i class="fa-solid fa-eye-slash"></i> Attention Reminder</h3>
+      </div>
+      <div class="smarthire-modal-body">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #FEF3C7; color: #D97706; font-size: 1.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <i class="fa-solid fa-user-clock"></i>
+        </div>
+        <h4 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Maintain Screen Focus</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;" id="lookAwayWarningBody">
+          Please keep your attention on the interview screen and avoid looking away for an extended period.
+        </p>
+        <button class="btn btn-primary btn-full" onclick="closeModal('lookAwayWarningModal')"><i class="fa-solid fa-check"></i> I Understand</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Device Detection Warning Modal -->
+  <div class="smarthire-modal-backdrop" id="mobileWarningModal" style="z-index: 100002;">
+    <div class="smarthire-modal" style="max-width: 480px; text-align: center;">
+      <div class="smarthire-modal-header" style="justify-content: center; background: transparent;">
+        <h3 style="color: #EF4444;" id="mobileWarningTitle"><i class="fa-solid fa-mobile-screen-button"></i> Mobile Device Detected</h3>
+      </div>
+      <div class="smarthire-modal-body">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #FEE2E2; color: #EF4444; font-size: 1.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+          <i class="fa-solid fa-mobile"></i>
+        </div>
+        <h4 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Remove Mobile Device</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;" id="mobileWarningBody">
+          A mobile device has been detected in the camera view. Please remove it from the interview area and continue.
+        </p>
+        <button class="btn btn-primary btn-full" onclick="closeModal('mobileWarningModal')"><i class="fa-solid fa-check"></i> Continued Interview</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- 4. Detailed History Report Modal -->
 
@@ -818,6 +859,19 @@
         <div id="candSkillBars">
           <!-- Rendered dynamically -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Recruiter Behavior Report Modal -->
+  <div class="smarthire-modal-backdrop" id="recruiterBehaviorReportModal">
+    <div class="smarthire-modal" style="max-width: 800px;">
+      <div class="smarthire-modal-header" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #FFFFFF;">
+        <h3 style="color: #FFFFFF;"><i class="fa-solid fa-brain"></i> Candidate Module 6 Behavioral & Visual Analysis Report</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('recruiterBehaviorReportModal')" style="color: #FFFFFF;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body" id="recruiterBehaviorReportBody">
+        <!-- Rendered dynamically by script.js -->
       </div>
     </div>
   </div>

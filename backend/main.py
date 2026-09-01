@@ -18,7 +18,7 @@ from database import engine, Base, SessionLocal
 from models.user import User
 from models.candidate import CandidateProfile
 from models.recruiter import RecruiterProfile
-from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog
+from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog, InterviewBehaviorAnalysis
 
 from security.password import hash_password
 
@@ -43,6 +43,18 @@ from fastapi.exceptions import HTTPException, RequestValidationError
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
+
+# Ensure newly added Module 6 columns exist in existing PostgreSQL schema
+try:
+    with engine.connect() as conn:
+        from sqlalchemy import text
+        conn.execute(text("ALTER TABLE interview_behavior_analyses ADD COLUMN IF NOT EXISTS analysis_status VARCHAR DEFAULT 'in_progress';"))
+        conn.execute(text("ALTER TABLE interview_behavior_analyses ADD COLUMN IF NOT EXISTS dominant_emotion VARCHAR DEFAULT 'neutral';"))
+        conn.execute(text("ALTER TABLE interview_behavior_analyses ADD COLUMN IF NOT EXISTS emotion_distribution_json JSON;"))
+        conn.execute(text("ALTER TABLE interview_behavior_analyses ADD COLUMN IF NOT EXISTS violations_json JSON;"))
+        conn.commit()
+except Exception as _e:
+    pass
 
 app = FastAPI(
     title="SmartHire AI Backend API",
@@ -88,7 +100,15 @@ async def general_exception_handler(request: Request, exc: Exception):
 # CORS middleware for REST API integration with Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000"
+    ],
+    allow_origin_regex=r"https?://(127\.0\.0\.1|localhost)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,6 +118,15 @@ app.add_middleware(
 upload_dir = os.path.join(os.getcwd(), "uploads")
 os.makedirs(upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+
+from fastapi.responses import FileResponse, Response
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    fav_path = os.path.join(os.path.dirname(__file__), "..", "FRONTEND", "favicon.ico")
+    if os.path.exists(fav_path):
+        return FileResponse(fav_path)
+    return Response(status_code=204)
 
 # Include API Routers
 app.include_router(auth_router)
@@ -283,6 +312,44 @@ def seed_database():
             )
             db.add(r3)
             db.commit()
+
+        # Seed sample Assigned Interviews if candidate 1 has no assigned interview
+        c1 = db.query(User).filter(User.email == "alex.morgan@dev.io").first()
+        r1 = db.query(User).filter(User.email == "sarah@nexusinc.com").first()
+        if c1:
+            existing_int = db.query(Interview).filter(Interview.candidate_id == c1.id).first()
+            if not existing_int:
+                sample_interview = Interview(
+                    recruiter_id=r1.id if r1 else 1,
+                    candidate_id=c1.id,
+                    domain="Senior Frontend Engineer",
+                    interview_type="Technical & React Architecture",
+                    difficulty="HARD",
+                    duration_mins=30,
+                    status="Assigned"
+                )
+                db.add(sample_interview)
+                db.commit()
+                db.refresh(sample_interview)
+
+                # Add sample questions to interview
+                q1 = InterviewQuestion(
+                    interview_id=sample_interview.id,
+                    sequence_no=1,
+                    question_text="Explain React 19 Fiber architecture and concurrent rendering diffing algorithm.",
+                    category="Technical",
+                    difficulty="HARD"
+                )
+                q2 = InterviewQuestion(
+                    interview_id=sample_interview.id,
+                    sequence_no=2,
+                    question_text="How do you handle state management performance and memoization in large applications?",
+                    category="Technical",
+                    difficulty="MEDIUM"
+                )
+                db.add_all([q1, q2])
+                db.commit()
+                print("✓ Database Seeded: Sample assigned interview created for Alex Morgan.")
 
     except Exception as e:
         print(f"Error during seeding: {e}")
