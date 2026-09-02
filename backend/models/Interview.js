@@ -233,6 +233,154 @@ class Interview {
       throw error;
     }
   }
+
+  // =============================================
+  // DETAILED SCORING METHODS
+  // =============================================
+
+  /**
+   * Store detailed score breakdown
+   */
+  static async updateDetailedScores(id, scoreBreakdown) {
+    try {
+      const result = await pool.query(
+        `UPDATE interviews 
+         SET communication_score = $1,
+             confidence_score = $2,
+             technical_score = $3,
+             professionalism_score = $4,
+             score_breakdown = $5,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $6 
+         RETURNING *`,
+        [
+          scoreBreakdown.communication || 0,
+          scoreBreakdown.confidence || 0,
+          scoreBreakdown.technical || 0,
+          scoreBreakdown.professionalism || 0,
+          JSON.stringify(scoreBreakdown),
+          id
+        ]
+      );
+      console.log('✅ Detailed scores updated for interview:', id);
+      return result.rows[0];
+    } catch (error) {
+      // Column might not exist yet, gracefully handle
+      if (error.message.includes('column') && error.message.includes('does not exist')) {
+        console.warn('⚠️  Score columns not yet in database. This is OK - scores will be stored in feedback JSON');
+        return null;
+      }
+      console.error('❌ Error updating detailed scores:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get interview with detailed scoring information
+   */
+  static async findByIdWithScores(id) {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM interviews WHERE id = $1`,
+        [id]
+      );
+      
+      if (result.rows[0]) {
+        const interview = result.rows[0];
+        
+        // Parse feedback if it contains scoring data
+        if (interview.feedback) {
+          try {
+            interview.feedbackData = JSON.parse(interview.feedback);
+          } catch (e) {
+            interview.feedbackData = null;
+          }
+        }
+        
+        return interview;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Error finding interview with scores:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Store AI-generated feedback and performance report
+   */
+  static async updateAIFeedback(id, feedbackData) {
+    try {
+      const result = await pool.query(
+        `UPDATE interviews 
+         SET feedback = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2 
+         RETURNING *`,
+        [JSON.stringify(feedbackData), id]
+      );
+      console.log('✅ AI feedback updated for interview:', id);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Error updating AI feedback:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get performance metrics for user
+   */
+  static async getUserPerformanceMetrics(user_id) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          COUNT(*) as total_interviews,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_interviews,
+          AVG(score) as average_score,
+          MAX(score) as highest_score,
+          MIN(score) as lowest_score,
+          COUNT(CASE WHEN score >= 90 THEN 1 END) as excellent_count,
+          COUNT(CASE WHEN score >= 75 AND score < 90 THEN 1 END) as good_count,
+          COUNT(CASE WHEN score >= 60 AND score < 75 THEN 1 END) as average_count,
+          COUNT(CASE WHEN score >= 40 AND score < 60 THEN 1 END) as needs_improvement_count,
+          COUNT(CASE WHEN score < 40 THEN 1 END) as poor_count
+         FROM interviews 
+         WHERE user_id = $1 AND status = 'completed'`,
+        [user_id]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Error getting performance metrics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get interview score history for trending
+   */
+  static async getScoreHistory(user_id, limit = 10) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          id,
+          interview_type,
+          domain,
+          score,
+          created_at,
+          status
+         FROM interviews 
+         WHERE user_id = $1 AND status = 'completed'
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [user_id, limit]
+      );
+      return result.rows.reverse(); // Return in ascending order for trending
+    } catch (error) {
+      console.error('❌ Error getting score history:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = Interview;

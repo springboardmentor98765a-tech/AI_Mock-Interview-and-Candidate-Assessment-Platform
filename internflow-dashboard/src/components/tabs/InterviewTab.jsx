@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import WebcamRecorder from '../WebcamRecorder';
+import InterviewResults from '../InterviewResults';
 import SpeechAnalysisDisplay from '../SpeechAnalysisDisplay';
+import '../../styles/InterviewTab.css';
 
 const InterviewTab = ({ 
   showNewInterview, 
@@ -45,6 +47,10 @@ const InterviewTab = ({
   const [recordingUrl, setRecordingUrl] = useState(null);
   const [recordingBlob, setRecordingBlob] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  
+  // State for scoring
+  const [showResults, setShowResults] = useState(false);
+  const [scoringInProgress, setScoringInProgress] = useState(false);
   
   // Ref for WebcamRecorder
   const webcamRef = useRef(null);
@@ -127,6 +133,37 @@ const InterviewTab = ({
   };
 
   // =============================================
+  // ✅ NEW: SCORING HANDLERS
+  // =============================================
+  const handleScoringStart = () => {
+    console.log('🎯 Starting interview scoring...');
+    setScoringInProgress(true);
+  };
+
+  const handleScoringComplete = (reportData) => {
+    console.log('✅ Interview scored successfully!');
+    console.log('Report data:', reportData);
+    setScoringInProgress(false);
+    setShowResults(true);
+    // Could also show notification here
+  };
+
+  const handleRetakeInterview = () => {
+    console.log('🔄 Retaking interview');
+    setShowResults(false);
+    setScoringInProgress(false);
+    // Reset interview state if needed
+  };
+
+  const handleNavigateFromResults = (destination) => {
+    console.log('Navigate to:', destination);
+    if (destination === 'dashboard') {
+      // Navigate to dashboard or close results
+      setShowResults(false);
+    }
+  };
+
+  // =============================================
   // AUTO-STOP RECORDING ON SUBMIT/END
   // =============================================
   const stopRecordingAutomatically = async () => {
@@ -142,6 +179,18 @@ const InterviewTab = ({
     console.log('📤 Submitting interview - stopping recording...');
     await stopRecordingAutomatically();
     handleSubmitInterviewOriginal();
+    
+    // ✅ NEW: Trigger scoring after submission
+    setTimeout(async () => {
+      console.log('🎯 Starting interview scoring...');
+      if (webcamRef.current && interviewId) {
+        try {
+          await webcamRef.current.scoreInterview();
+        } catch (error) {
+          console.error('Error scoring interview:', error);
+        }
+      }
+    }, 1000);
   };
 
   // Wrapper for End Session
@@ -329,8 +378,37 @@ const InterviewTab = ({
                 sessionActive={interviewStarted && (sessionStatus === 'in_progress' || sessionStatus === 'paused')}
                 interviewId={interviewId}
                 showPreview={false}
+                qaPairs={answers.map((answer, idx) => ({
+                  question: generatedQuestions?.[idx]?.question || `Question ${idx + 1}`,
+                  answer: answer,
+                  expected_answer: generatedQuestions?.[idx]?.ideal_answer || ''
+                }))}
+                domain={formData.domain}
+                interviewType={formData.interview_type}
+                onScoringStart={handleScoringStart}
+                onScoringComplete={handleScoringComplete}
               />
             </div>
+
+            {/* ✅ NEW: Show Results when scoring completes */}
+            {showResults && interviewId && (
+              <div className="results-section">
+                <InterviewResults
+                  interviewId={interviewId}
+                  onRetake={handleRetakeInterview}
+                  onNavigate={handleNavigateFromResults}
+                  showHistory={true}
+                />
+              </div>
+            )}
+
+            {/* Loading Spinner during Scoring */}
+            {scoringInProgress && (
+              <div className="scoring-progress">
+                <div className="spinner"></div>
+                <p>Analyzing your interview performance...</p>
+              </div>
+            )}
 
             {/* Listening Indicator */}
             {isListening && (

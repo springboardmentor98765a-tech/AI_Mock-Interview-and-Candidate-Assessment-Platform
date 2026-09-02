@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import '../styles/WebcamRecorder.css';
+import { handleInterviewCompletion } from '../integrations/interviewSubmissionHandler';
 
 const WebcamRecorder = forwardRef(({ 
   isRecording, 
@@ -8,7 +9,12 @@ const WebcamRecorder = forwardRef(({
   onVideoBlob,
   sessionActive,
   interviewId,
-  showPreview = false
+  showPreview = false,
+  qaPairs = [],
+  domain = 'ai_ml',
+  interviewType = 'tr',
+  onScoringComplete = null,
+  onScoringStart = null
 }, ref) => {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [error, setError] = useState(null);
@@ -19,6 +25,9 @@ const WebcamRecorder = forwardRef(({
   const [isPaused, setIsPaused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isScoring, setIsScoring] = useState(false);
+  const [scoringError, setScoringError] = useState(null);
+  const [reportData, setReportData] = useState(null);
   
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -33,7 +42,10 @@ const WebcamRecorder = forwardRef(({
     stopRecording,
     pauseRecording,
     resumeRecording,
-    getPermissionStatus: () => permissionGranted
+    getPermissionStatus: () => permissionGranted,
+    scoreInterview,
+    getReportData: () => reportData,
+    getScoringState: () => ({ isScoring, scoringError })
   }));
 
   // Upload recording to server
@@ -96,6 +108,52 @@ const WebcamRecorder = forwardRef(({
       return null;
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // ✅ NEW: Handle interview scoring
+  const scoreInterview = async () => {
+    if (!interviewId || !qaPairs || qaPairs.length === 0) {
+      console.warn('⚠️ Cannot score interview: missing ID or Q&A pairs');
+      setScoringError('Unable to score interview: missing data');
+      return null;
+    }
+
+    try {
+      setIsScoring(true);
+      setScoringError(null);
+      onScoringStart && onScoringStart();
+
+      console.log('🎯 Starting interview scoring...');
+      console.log('  Interview ID:', interviewId);
+      console.log('  Domain:', domain);
+      console.log('  Type:', interviewType);
+      console.log('  Q&A Pairs:', qaPairs.length);
+
+      const result = await handleInterviewCompletion(
+        interviewId,
+        qaPairs,
+        domain,
+        interviewType,
+        null // Optional behavioral data
+      );
+
+      if (result.success) {
+        console.log('✅ Interview scored successfully!');
+        setReportData(result.reportData);
+        onScoringComplete && onScoringComplete(result.reportData);
+        return result;
+      } else {
+        console.error('❌ Scoring failed:', result.error);
+        setScoringError(result.error || 'Failed to score interview');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Scoring error:', error);
+      setScoringError(error.message || 'An error occurred while scoring');
+      return null;
+    } finally {
+      setIsScoring(false);
     }
   };
 

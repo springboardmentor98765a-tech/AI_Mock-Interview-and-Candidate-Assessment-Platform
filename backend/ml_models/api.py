@@ -3,12 +3,16 @@ from flask_cors import CORS
 import joblib
 import numpy as np
 import os
+from scoring_engine import ScoringEngine, evaluate_interview_session
 
 app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'models')
+
+# Initialize scoring engine
+scoring_engine = ScoringEngine()
 
 FEATURE_NAMES = [
     'eye_shoulder_y_ratio',
@@ -141,6 +145,217 @@ def predict_confidence():
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok', 'message': 'ML API is running'})
+
+
+# =============================================
+# SCORING ENDPOINTS
+# =============================================
+
+@app.route('/api/score/comprehensive', methods=['POST'])
+def score_comprehensive():
+    """
+    Comprehensive evaluation of a single Q&A pair
+    
+    Request body:
+    {
+        "question": "What is machine learning?",
+        "answer": "Machine learning is...",
+        "domain": "ai_ml",
+        "behavioral_data": {...},
+        "expected_keywords": [...]
+    }
+    """
+    try:
+        data = request.json or {}
+        question = data.get('question', '')
+        answer = data.get('answer', '')
+        domain = data.get('domain', 'general')
+        behavioral_data = data.get('behavioral_data', None)
+        expected_keywords = data.get('expected_keywords', None)
+        
+        if not question or not answer:
+            return jsonify({'error': 'question and answer are required'}), 400
+        
+        result = scoring_engine.evaluate_comprehensive(
+            question=question,
+            answer=answer,
+            domain=domain,
+            behavioral_data=behavioral_data,
+            expected_keywords=expected_keywords
+        )
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/communication', methods=['POST'])
+def score_communication():
+    """
+    Score communication dimensions
+    
+    Request body:
+    {
+        "answer": "The candidate's response...",
+        "audio_data": {...}  # optional
+    }
+    """
+    try:
+        data = request.json or {}
+        answer = data.get('answer', '')
+        audio_data = data.get('audio_data', None)
+        
+        if not answer:
+            return jsonify({'error': 'answer is required'}), 400
+        
+        result = scoring_engine.calculate_communication_score(answer, audio_data)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/confidence', methods=['POST'])
+def score_confidence():
+    """
+    Score confidence dimensions (requires behavioral data from video)
+    
+    Request body:
+    {
+        "answer": "The candidate's response...",
+        "behavioral_data": {
+            "eyeContactPercentage": 75,
+            "engagement": 80,
+            "attention": 85
+        }
+    }
+    """
+    try:
+        data = request.json or {}
+        answer = data.get('answer', '')
+        behavioral_data = data.get('behavioral_data', None)
+        
+        if not answer:
+            return jsonify({'error': 'answer is required'}), 400
+        
+        result = scoring_engine.calculate_confidence_score(answer, behavioral_data)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/technical', methods=['POST'])
+def score_technical():
+    """
+    Score technical relevance dimensions
+    
+    Request body:
+    {
+        "question": "What is a neural network?",
+        "answer": "A neural network is...",
+        "domain": "ai_ml",
+        "expected_keywords": ["neurons", "layers", "training"]
+    }
+    """
+    try:
+        data = request.json or {}
+        question = data.get('question', '')
+        answer = data.get('answer', '')
+        domain = data.get('domain', 'general')
+        expected_keywords = data.get('expected_keywords', None)
+        
+        if not question or not answer:
+            return jsonify({'error': 'question and answer are required'}), 400
+        
+        result = scoring_engine.calculate_technical_relevance_score(
+            question, answer, domain, expected_keywords
+        )
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/professionalism', methods=['POST'])
+def score_professionalism():
+    """
+    Score professionalism dimensions
+    
+    Request body:
+    {
+        "answer": "The candidate's response..."
+    }
+    """
+    try:
+        data = request.json or {}
+        answer = data.get('answer', '')
+        
+        if not answer:
+            return jsonify({'error': 'answer is required'}), 400
+        
+        result = scoring_engine.calculate_professionalism_score(answer)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/overall', methods=['POST'])
+def score_overall():
+    """
+    Calculate overall score from individual dimension scores
+    
+    Request body:
+    {
+        "communication_score": 85,
+        "confidence_score": 80,
+        "technical_score": 75,
+        "professionalism_score": 90
+    }
+    """
+    try:
+        data = request.json or {}
+        comm = data.get('communication_score', 0)
+        conf = data.get('confidence_score', 0)
+        tech = data.get('technical_score', 0)
+        prof = data.get('professionalism_score', 0)
+        
+        result = scoring_engine.calculate_overall_score(comm, conf, tech, prof)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/score/session', methods=['POST'])
+def score_session():
+    """
+    Evaluate entire interview session with multiple Q&A pairs
+    
+    Request body:
+    {
+        "qa_pairs": [
+            {
+                "question": "What is AI?",
+                "answer": "AI is...",
+                "expected_keywords": [...]
+            },
+            ...
+        ],
+        "domain": "ai_ml",
+        "behavioral_data": [...] # optional, per Q&A
+    }
+    """
+    try:
+        data = request.json or {}
+        
+        result = evaluate_interview_session(data)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

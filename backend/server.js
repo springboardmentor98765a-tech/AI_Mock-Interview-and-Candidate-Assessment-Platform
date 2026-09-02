@@ -4,6 +4,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const oauthRoutes = require('./routes/oauth');
 const interviewRoutes = require('./routes/interviews');
+const scoringRoutes = require('./routes/scoring');
 
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/interviews', interviewRoutes);
+app.use('/api/scoring', scoringRoutes);
 
 
 // Add this after other route declarations
