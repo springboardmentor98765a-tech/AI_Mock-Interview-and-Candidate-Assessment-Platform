@@ -1,65 +1,118 @@
-# ── Environment & Secrets ──
+# Environment and secrets
 .env
-.env.local
-.env.production
-server/.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
 *.pem
 *.key
+*.cert
+*.p12
 
-# ── Python ──
+# Python and runtimes
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
-*.egg-info/
-dist/
+*.pyd
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
 *.egg
+
+# Virtual environments
 .venv/
 venv/
+ENV/
 env/
+env.bak/
+venv.bak/
 
-# ── Database ──
-server/data/
+# Databases and persistence
 *.db
+*.db-journal
+*.db-wal
+*.sqlite
 *.sqlite3
+backend/data/*.db
+backend/data/*.sqlite3
+!backend/data/.gitkeep
 
-# ── Node.js ──
+# Storage and recordings
+backend/storage/recordings/*
+!backend/storage/recordings/.gitkeep
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+*.webm
+*.mp4
+*.avi
+*.wav
+*.mp3
+
+# Model checkpoints
+*.ckpt
+*.h5
+*.pth
+*.pt
+backend/storage/models/checkpoints/
+
+# Testing and coverage
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+
+# Dependencies and tooling
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm/
 
-# ── IDE / Editor ──
-.vscode/
+# Docker
+.docker/
+docker-compose.override.yml
+
+# IDE and operating systems
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ── OS ──
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+Thumbs.db
+desktop.ini
 
-# ── Logs ──
+# Logs and scratch files
 *.log
 logs/
-
-# ── Coverage ──
-htmlcov/
-.coverage
-.pytest_cache/
-
-# ── Storage & Uploads ──
-server/storage/
-
-# ── Temporary Test Scripts ──
-server/test_*.py
-test_*.py
-
+scratch/
+.gemini/

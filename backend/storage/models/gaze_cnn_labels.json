@@ -1,0 +1,16 @@
+{
+  "classes": [
+    "toward_camera",
+    "looking_left",
+    "looking_right",
+    "looking_up",
+    "eyes_closed"
+  ],
+  "input": [
+    160,
+    160,
+    3
+  ],
+  "preprocess": "mobilenet_v2",
+  "seed": 42
+}
