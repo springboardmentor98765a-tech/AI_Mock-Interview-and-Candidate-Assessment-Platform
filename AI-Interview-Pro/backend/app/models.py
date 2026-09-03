@@ -157,6 +157,12 @@ class Interview(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    assessment = relationship(
+        "InterviewAssessment",
+        back_populates="interview",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     @property
     def total_questions(self) -> int:
@@ -199,8 +205,12 @@ class InterviewQuestion(Base):
     communication_score = Column(Float, nullable=True)
     confidence_score = Column(Float, nullable=True)
     grammar_score = Column(Float, nullable=True)
+    professionalism_score = Column(Float, nullable=True)
     overall_score = Column(Float, nullable=True)
     word_count = Column(Integer, nullable=True)
+    scoring_method = Column(String(30), nullable=True)
+    scoring_version = Column(String(30), nullable=True)
+    question_feedback = Column(Text, nullable=True)
 
     # ------------- Module 5 - Speech-to-Text & Communication Analysis -------------
     # Real metrics captured client-side (browser Speech Recognition API) while
@@ -213,6 +223,38 @@ class InterviewQuestion(Base):
     speech_duration_seconds = Column(Integer, nullable=True)
 
     interview = relationship("Interview", back_populates="questions")
+
+
+# ---------------------------------------------------------------------------
+# Module 7 - AI Feedback & Scoring
+# ---------------------------------------------------------------------------
+class InterviewAssessment(Base):
+    __tablename__ = "interview_assessments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    interview_id = Column(
+        UUID(as_uuid=True), ForeignKey("interviews.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+    communication_score = Column(Float, nullable=False)
+    confidence_score = Column(Float, nullable=False)
+    technical_score = Column(Float, nullable=False)
+    professionalism_score = Column(Float, nullable=False)
+    overall_score = Column(Float, nullable=False)
+    performance_rating = Column(String(40), nullable=False)
+
+    # Evidence-backed structured output. Keeping the sections as JSON makes
+    # the feedback contract extensible without fabricating empty columns.
+    feedback = Column(JSON, nullable=False)
+    sub_scores = Column(JSON, nullable=False)
+    missing_data = Column(JSON, nullable=False, default=list)
+    scoring_method = Column(String(30), nullable=False)
+    feedback_method = Column(String(30), nullable=False)
+    scoring_version = Column(String(30), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    interview = relationship("Interview", back_populates="assessment")
 
 
 # ---------------------------------------------------------------------------
@@ -287,6 +329,20 @@ class InterviewSession(Base):
     emotion_counts = Column(JSON, nullable=True)  # {"neutral": 12, "happy": 4, ...}
     visual_confidence_sum = Column(Float, nullable=False, default=0.0)
     engagement_sum = Column(Float, nullable=False, default=0.0)
+
+    # ------------- Module 6 - CNN + RNN Interview Behavior Analysis -------------
+    # Latest reading from the temporal RNN stage (app/ml/), run over a
+    # rolling window of the same per-tick CNN features the aggregates
+    # above are built from - see POST /sessions/{id}/engagement-ticks.
+    # Counts below are proctoring flags confirmed server-side (a run of
+    # consecutive bad ticks, not a single noisy frame) - shown to
+    # recruiters alongside the violation count, never auto-submitting.
+    latest_engagement_score = Column(Float, nullable=True)
+    latest_disengagement_risk = Column(Float, nullable=True)
+    latest_integrity_risk = Column(Float, nullable=True)
+    eye_contact_warning_count = Column(Integer, nullable=False, default=0)
+    no_face_warning_count = Column(Integer, nullable=False, default=0)
+    multiple_faces_warning_count = Column(Integer, nullable=False, default=0)
 
     candidate = relationship("User")
     interview = relationship("Interview", back_populates="session")

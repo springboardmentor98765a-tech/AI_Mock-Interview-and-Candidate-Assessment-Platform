@@ -33,6 +33,7 @@ from app.database import get_db
 from app.models import (
     Interview,
     InterviewQuestion,
+    InterviewAssessment,
     InterviewTypeEnum,
     DifficultyEnum,
     InterviewStatusEnum,
@@ -50,10 +51,16 @@ from app.schemas import (
     AnswerSubmitRequest,
     MessageResponse,
     AnalyticsOut,
+    InterviewAssessmentOut,
 )
 from app.auth import get_current_user
 from app.ai_question_generator import generate_questions
-from app.scoring import analyze_answer, apply_speech_metrics, apply_visual_confidence
+from app.scoring import (
+    analyze_answer,
+    apply_speech_metrics,
+    apply_visual_confidence,
+    build_interview_assessment,
+)
 from app.resume_parser import compute_resume_score
 from app.routes.session_routes import get_or_create_session, _end_session_internal
 
@@ -104,7 +111,11 @@ def _get_owned_interview(interview_id: str, current_user: User, db: Session) -> 
 
     interview = (
         db.query(Interview)
-        .options(joinedload(Interview.questions), joinedload(Interview.session))
+        .options(
+            joinedload(Interview.questions),
+            joinedload(Interview.session),
+            joinedload(Interview.assessment),
+        )
         .filter(Interview.id == interview_uuid)
         .first()
     )
@@ -116,6 +127,19 @@ def _get_owned_interview(interview_id: str, current_user: User, db: Session) -> 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This interview belongs to another user.")
 
     return interview
+
+
+def _save_module7_assessment(interview: Interview, db: Session):
+    data = build_interview_assessment(interview)
+    if not data:
+        return None
+
+    assessment = interview.assessment or InterviewAssessment(interview_id=interview.id)
+    for key, value in data.items():
+        setattr(assessment, key, value)
+    interview.overall_score = data["overall_score"]
+    db.add(assessment)
+    return assessment
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +249,11 @@ def interview_history(
 def compute_analytics_for_user(user: User, db: Session) -> AnalyticsOut:
     completed = (
         db.query(Interview)
-        .options(joinedload(Interview.questions), joinedload(Interview.session))
+        .options(
+            joinedload(Interview.questions),
+            joinedload(Interview.session),
+            joinedload(Interview.assessment),
+        )
         .filter(
             Interview.user_id == user.id,
             Interview.status == InterviewStatusEnum.completed,
@@ -266,6 +294,9 @@ def compute_analytics_for_user(user: User, db: Session) -> AnalyticsOut:
     technical_avg = _avg([q.technical_score for q in answered_questions])
     confidence_avg = _avg([q.confidence_score for q in answered_questions])
     grammar_avg = _avg([q.grammar_score for q in answered_questions])
+    professionalism_avg = _avg([
+        i.assessment.professionalism_score for i in completed if i.assessment
+    ])
     last_score = scored_interviews[-1].overall_score if scored_interviews else None
 
     durations = [
@@ -316,6 +347,7 @@ def compute_analytics_for_user(user: User, db: Session) -> AnalyticsOut:
         technical_avg=technical_avg,
         confidence_avg=confidence_avg,
         grammar_avg=grammar_avg,
+        professionalism_avg=professionalism_avg,
         last_score=last_score,
         average_duration_minutes=average_duration_minutes,
         skill_growth_percent=skill_growth_percent,
@@ -418,6 +450,30 @@ def get_interview_session(
     )
 
 
+@router.get("/{interview_id}/assessment", response_model=InterviewAssessmentOut)
+def get_interview_assessment(
+    interview_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the candidate's stored, evidence-based Module 7 assessment."""
+    interview = _get_owned_interview(interview_id, current_user, db)
+    if interview.status != InterviewStatusEnum.completed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The assessment is available after the interview is completed.",
+        )
+    assessment = interview.assessment or _save_module7_assessment(interview, db)
+    if assessment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No answered questions are available to assess.",
+        )
+    db.commit()
+    db.refresh(assessment)
+    return InterviewAssessmentOut.model_validate(assessment)
+
+
 # ---------------------------------------------------------------------------
 # GET /interviews/{interview_id}
 # ---------------------------------------------------------------------------
@@ -503,11 +559,19 @@ def submit_answer(
         if current_user.resume_skills
         else None
     )
+    answered_at = datetime.utcnow()
+    time_spent_seconds = None
+    if question.question_shown_at:
+        time_spent_seconds = max(
+            0, int((answered_at - question.question_shown_at).total_seconds())
+        )
+
     scores = analyze_answer(
         question_text=question.question_text,
         answer_text=payload.answer_text,
         domain=interview.domain,
         resume_skills=resume_skills,
+        time_spent_seconds=time_spent_seconds,
     )
 
     # Module 5 - Speech-to-Text & Communication Analysis: blend in real
@@ -528,13 +592,17 @@ def submit_answer(
         scores = apply_visual_confidence(scores, interview.session.avg_visual_confidence)
 
     question.answer_text = payload.answer_text
-    question.answered_at = datetime.utcnow()
+    question.answered_at = answered_at
     question.technical_score = scores["technical_score"]
     question.communication_score = scores["communication_score"]
     question.confidence_score = scores["confidence_score"]
     question.grammar_score = scores["grammar_score"]
+    question.professionalism_score = scores["professionalism_score"]
     question.overall_score = scores["overall_score"]
     question.word_count = scores["word_count"]
+    question.scoring_method = scores["scoring_method"]
+    question.scoring_version = scores["scoring_version"]
+    question.question_feedback = scores["question_feedback"]
 
     question.filler_word_count = payload.filler_word_count
     question.speaking_pace_wpm = payload.speaking_pace_wpm
@@ -542,10 +610,7 @@ def submit_answer(
     question.speech_duration_seconds = payload.speech_duration_seconds
 
     # Module 4 - Timer-Based Workflow: time spent on this question.
-    if question.question_shown_at:
-        question.time_spent_seconds = max(
-            0, int((question.answered_at - question.question_shown_at).total_seconds())
-        )
+    question.time_spent_seconds = time_spent_seconds
 
     # If every question now has an answer, mark the interview completed
     # and compute its real overall score from the answered questions.
@@ -554,13 +619,9 @@ def submit_answer(
     if all(q.answer_text for q in interview.questions):
         interview.status = InterviewStatusEnum.completed
         interview.completed_at = datetime.utcnow()
-        answered = [q for q in interview.questions if q.overall_score is not None]
-        if answered:
-            interview.overall_score = round(
-                sum(q.overall_score for q in answered) / len(answered), 1
-            )
         if interview.session:
             _end_session_internal(interview.session, db)
+        _save_module7_assessment(interview, db)
 
     db.commit()
     db.refresh(question)
@@ -588,14 +649,10 @@ def timeout_interview(
     interview.completed_at = datetime.utcnow()
     interview.time_expired = True
 
-    answered = [q for q in interview.questions if q.overall_score is not None]
-    if answered:
-        interview.overall_score = round(
-            sum(q.overall_score for q in answered) / len(answered), 1
-        )
-
     if interview.session:
         _end_session_internal(interview.session, db)
+
+    _save_module7_assessment(interview, db)
 
     db.commit()
     db.refresh(interview)

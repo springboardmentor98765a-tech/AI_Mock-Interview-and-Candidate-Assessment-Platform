@@ -188,8 +188,12 @@ class InterviewQuestionOut(BaseModel):
     communication_score: Optional[float] = None
     confidence_score: Optional[float] = None
     grammar_score: Optional[float] = None
+    professionalism_score: Optional[float] = None
     overall_score: Optional[float] = None
     word_count: Optional[int] = None
+    scoring_method: Optional[str] = None
+    scoring_version: Optional[str] = None
+    question_feedback: Optional[str] = None
 
     # Module 4 - Timer-Based Workflow: time spent per question
     question_shown_at: Optional[datetime] = None
@@ -200,6 +204,25 @@ class InterviewQuestionOut(BaseModel):
     speaking_pace_wpm: Optional[float] = None
     pronunciation_score: Optional[float] = None
     speech_duration_seconds: Optional[int] = None
+
+
+class InterviewAssessmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    communication_score: float
+    confidence_score: float
+    technical_score: float
+    professionalism_score: float
+    overall_score: float
+    performance_rating: str
+    feedback: dict
+    sub_scores: dict
+    missing_data: list[str] = []
+    scoring_method: str
+    feedback_method: str
+    scoring_version: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class InterviewOut(BaseModel):
@@ -228,6 +251,7 @@ class InterviewOut(BaseModel):
 
 class InterviewDetailOut(InterviewOut):
     questions: list[InterviewQuestionOut] = []
+    assessment: Optional[InterviewAssessmentOut] = None
 
 
 class AnswerSubmitRequest(BaseModel):
@@ -331,6 +355,58 @@ class EmotionSampleBatchRequest(BaseModel):
         return v
 
 
+# ---------------------------------------------------------------------------
+# Module 6 - CNN + RNN Interview Behavior Analysis
+#
+# The CNN stage (face-api.js, entirely client-side against the
+# candidate's own webcam) turns each detection tick into this small
+# numeric feature vector - see frontend/interview-session.js and
+# backend/app/ml/features.py (single source of truth for field order/
+# meaning). Only these numbers ever cross the network - never an image
+# or video frame.
+# ---------------------------------------------------------------------------
+class EngagementTick(BaseModel):
+    face_detected: bool = False
+    eye_contact: bool = False
+    eye_openness: float = 0.0        # normalized Eye-Aspect-Ratio, 0..1
+    gaze_offset: float = 0.0         # 0 = looking at camera, 1 = far off-axis
+    expression_valence: float = 0.0  # 0..1, from face-api expression probabilities
+    multiple_faces: bool = False
+
+    @field_validator("eye_openness", "gaze_offset", "expression_valence")
+    @classmethod
+    def clamp_unit_interval(cls, v: float) -> float:
+        return max(0.0, min(1.0, v))
+
+
+class EngagementTickBatchRequest(BaseModel):
+    ticks: list[EngagementTick]
+
+    @field_validator("ticks")
+    @classmethod
+    def at_least_one_tick(cls, v: list[EngagementTick]) -> list[EngagementTick]:
+        if not v:
+            raise ValueError("ticks must contain at least one item")
+        if len(v) > 50:
+            raise ValueError("too many ticks in a single batch")
+        return v
+
+
+class EngagementFlagsOut(BaseModel):
+    eye_contact_missing: bool = False
+    no_face_detected: bool = False
+    multiple_faces_detected: bool = False
+
+
+class EngagementTickResponseOut(BaseModel):
+    engagement_score: Optional[float] = None      # 0-100, higher = more engaged
+    disengagement_risk: Optional[float] = None     # 0-100, higher = sustained inattention
+    integrity_risk: Optional[float] = None          # 0-100, higher = proctoring concern
+    model: str = "rule_based"                        # "rnn" once enough ticks are buffered
+    flags: EngagementFlagsOut = EngagementFlagsOut()
+    consecutive_no_eye_contact_ticks: int = 0
+
+
 class InterviewRecordingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -392,6 +468,16 @@ class SessionOut(BaseModel):
     # derived from the stats above (see InterviewSession.behavior_summary).
     behavior_summary: Optional[str] = None
 
+    # Module 6 - CNN + RNN Interview Behavior Analysis: latest temporal
+    # reading + server-confirmed proctoring flag counts (see
+    # POST /sessions/{id}/engagement-ticks).
+    latest_engagement_score: Optional[float] = None
+    latest_disengagement_risk: Optional[float] = None
+    latest_integrity_risk: Optional[float] = None
+    eye_contact_warning_count: int = 0
+    no_face_warning_count: int = 0
+    multiple_faces_warning_count: int = 0
+
     recordings: list[InterviewRecordingOut] = []
 
 
@@ -435,6 +521,7 @@ class AnalyticsOut(BaseModel):
     technical_avg: Optional[float] = None
     confidence_avg: Optional[float] = None
     grammar_avg: Optional[float] = None
+    professionalism_avg: Optional[float] = None
 
     last_score: Optional[float] = None
     average_duration_minutes: Optional[float] = None

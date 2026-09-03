@@ -834,6 +834,7 @@ async function viewInterviewDetail(interviewId) {
   const scoreEl = document.getElementById("historyDetailScore");
   const recordingsEl = document.getElementById("historyDetailRecordings");
   const qaEl = document.getElementById("historyDetailQA");
+  const assessmentEl = document.getElementById("historyDetailAssessment");
 
   try {
     const response = await authFetch("/interviews/" + interviewId);
@@ -841,15 +842,23 @@ async function viewInterviewDetail(interviewId) {
     if (!response.ok) return;
 
     const interview = await response.json();
+    let assessment = interview.assessment || null;
+    if (!assessment) {
+      const assessmentResponse = await authFetch("/interviews/" + interviewId + "/assessment");
+      if (assessmentResponse.ok) assessment = await assessmentResponse.json();
+    }
 
     titleEl.textContent =
       interview.interview_type + " interview - " + interview.domain + " (" + interview.difficulty + ")";
 
     if (scoreEl) {
-      scoreEl.textContent = interview.overall_score != null
-        ? "🏆 Overall score: " + Math.round(interview.overall_score) + "%"
+      const displayScore = assessment ? assessment.overall_score : interview.overall_score;
+      scoreEl.textContent = displayScore != null
+        ? "Overall score: " + Math.round(displayScore) + "%" + (assessment ? " · " + assessment.performance_rating : "")
         : "";
     }
+
+    renderModule7Assessment(assessmentEl, assessment);
 
     if (recordingsEl) {
       recordingsEl.innerHTML = "<p class=\"hint\">Loading your session recording...</p>";
@@ -881,8 +890,15 @@ async function viewInterviewDetail(interviewId) {
           "(Technical " + Math.round(q.technical_score) + "%, " +
           "Communication " + Math.round(q.communication_score) + "%, " +
           "Confidence " + Math.round(q.confidence_score) + "%, " +
-          "Grammar " + Math.round(q.grammar_score) + "%)";
+          "Professionalism " + Math.round(q.professionalism_score != null ? q.professionalism_score : q.communication_score) + "%)";
         item.appendChild(scoreLine);
+      }
+
+      if (q.question_feedback) {
+        const feedbackLine = document.createElement("p");
+        feedbackLine.className = "qa-feedback";
+        feedbackLine.textContent = q.question_feedback;
+        item.appendChild(feedbackLine);
       }
 
       // Module 5 - Speech-to-Text & Communication Analysis: only shown
@@ -918,6 +934,81 @@ async function viewInterviewDetail(interviewId) {
 
   } catch (err) {
     console.error("Could not load interview detail:", err);
+  }
+}
+
+function renderModule7Assessment(container, assessment) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!assessment) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "A detailed assessment is not available for this interview.";
+    container.appendChild(empty);
+    return;
+  }
+
+  const scoreGrid = document.createElement("div");
+  scoreGrid.className = "assessment-score-grid";
+  [
+    ["Communication", assessment.communication_score, "30%"],
+    ["Confidence", assessment.confidence_score, "25%"],
+    ["Technical relevance", assessment.technical_score, "30%"],
+    ["Professionalism", assessment.professionalism_score, "15%"],
+  ].forEach(([label, value, weight]) => {
+    const card = document.createElement("div");
+    card.className = "assessment-score-card";
+    const heading = document.createElement("span");
+    heading.textContent = label + " · " + weight;
+    const score = document.createElement("strong");
+    score.textContent = Math.round(value) + "%";
+    const track = document.createElement("div");
+    track.className = "assessment-mini-track";
+    const fill = document.createElement("span");
+    fill.style.width = Math.max(0, Math.min(100, value)) + "%";
+    track.appendChild(fill);
+    card.append(heading, score, track);
+    scoreGrid.appendChild(card);
+  });
+  container.appendChild(scoreGrid);
+
+  const feedback = assessment.feedback || {};
+  if (feedback.overall_summary) {
+    const summary = document.createElement("p");
+    summary.className = "assessment-summary";
+    summary.textContent = feedback.overall_summary;
+    container.appendChild(summary);
+  }
+
+  const feedbackGrid = document.createElement("div");
+  feedbackGrid.className = "assessment-feedback-grid";
+  [
+    ["Strengths", feedback.strengths],
+    ["Areas to improve", feedback.weaknesses],
+    ["Next steps", feedback.improvement_suggestions],
+    ["Practice recommendations", feedback.practice_recommendations],
+    ["Learning resources", feedback.learning_resources],
+  ].forEach(([title, items]) => {
+    if (!Array.isArray(items) || !items.length) return;
+    const section = document.createElement("section");
+    const heading = document.createElement("h4");
+    heading.textContent = title;
+    const list = document.createElement("ul");
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      list.appendChild(li);
+    });
+    section.append(heading, list);
+    feedbackGrid.appendChild(section);
+  });
+  container.appendChild(feedbackGrid);
+
+  if (Array.isArray(assessment.missing_data) && assessment.missing_data.length) {
+    const missing = document.createElement("p");
+    missing.className = "assessment-data-note";
+    missing.textContent = "Some optional inputs were unavailable: " + assessment.missing_data.join(", ").replaceAll("_", " ") + ". Scores were normalized from available evidence.";
+    container.appendChild(missing);
   }
 }
 
@@ -1130,7 +1221,7 @@ async function loadAnalytics() {
     setProgress("communicationProgressBar", "communicationScoreText", a.communication_avg);
     setProgress("technicalProgressBar", "technicalScoreText", a.technical_avg);
     setProgress("confidenceProgressBar", "confidenceScoreText", a.confidence_avg);
-    setProgress("grammarProgressBar", "grammarScoreText", a.grammar_avg);
+    setProgress("professionalismProgressBar", "professionalismScoreText", a.professionalism_avg);
 
     const analyticsEmptyHint = document.getElementById("analyticsEmptyHint");
     if (analyticsEmptyHint) {

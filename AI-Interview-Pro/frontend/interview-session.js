@@ -56,36 +56,50 @@ const deviceState = {
   stream: null,
   cameraGranted: false,
   micGranted: false,
+  permissionRequested: false,
   recorder: null,
   recordedChunks: [],
   recordingMimeType: null,
 };
 
 function updateDeviceStatusUI() {
-  const cameraDot = document.getElementById("cameraStatusDot");
-  const cameraText = document.getElementById("cameraStatusText");
-  const micDot = document.getElementById("micStatusDot");
-  const micText = document.getElementById("micStatusTextCheck");
   const enableBtn = document.getElementById("enableDevicesBtn");
   const placeholder = document.getElementById("devicePreviewPlaceholder");
-
-  if (cameraDot) cameraDot.className = "status-dot " + (deviceState.cameraGranted ? "status-on" : "status-off");
-  if (cameraText) cameraText.textContent = deviceState.cameraGranted ? "Enabled" : "Not enabled";
-  if (micDot) micDot.className = "status-dot " + (deviceState.micGranted ? "status-on" : "status-off");
-  if (micText) micText.textContent = deviceState.micGranted ? "Enabled" : "Not enabled";
+  const liveTag = document.getElementById("livePreviewTag");
 
   if (enableBtn) {
     const ready = deviceState.cameraGranted || deviceState.micGranted;
     enableBtn.classList.toggle("devices-ready", ready);
-    enableBtn.textContent = ready ? "✅ Devices Ready (click to re-check)" : "🎥 Enable Camera & Microphone";
+    enableBtn.textContent = ready ? "Devices ready - check again" : "Enable camera & microphone";
   }
 
   if (placeholder) placeholder.style.display = deviceState.cameraGranted ? "none" : "";
+  if (liveTag) liveTag.style.display = deviceState.cameraGranted ? "" : "none";
+
+  const missingStatus = deviceState.permissionRequested ? "failed" : "pending";
+  setCheckStatus("camera", deviceState.cameraGranted ? "passed" : missingStatus,
+    deviceState.cameraGranted ? "Camera is working" :
+      (deviceState.permissionRequested ? "Camera unavailable - allow it in browser settings or continue without video" : "Enable access to check your camera"));
+  setCheckStatus("microphone", deviceState.micGranted ? "passed" : missingStatus,
+    deviceState.micGranted ? "Microphone is working" :
+      (deviceState.permissionRequested ? "Microphone unavailable - allow it in browser settings or type your answers" : "Enable access to check your microphone"));
+
+  if (deviceState.cameraGranted) {
+    startPreflightFaceLoop();
+  } else {
+    stopPreflightFaceLoop();
+    setCheckStatus("faceVerification", "pending", "Waiting for camera...");
+    setCheckStatus("lighting", "pending", "Waiting for camera...");
+  }
+
+  updateSecuritySummary();
+  updateBeginButtonState();
 }
 
 async function enableDevices() {
   const errorEl = document.getElementById("deviceCheckError");
   if (errorEl) errorEl.textContent = "";
+  deviceState.permissionRequested = true;
 
   if (deviceState.stream) {
     deviceState.stream.getTracks().forEach((t) => t.stop());
@@ -104,14 +118,14 @@ async function enableDevices() {
       deviceState.stream = audioOnlyStream;
       deviceState.cameraGranted = false;
       deviceState.micGranted = audioOnlyStream.getAudioTracks().length > 0;
-      if (errorEl) errorEl.textContent = "Camera access wasn't granted - continuing with microphone only.";
+      if (errorEl) errorEl.textContent = "Camera access is unavailable. Your microphone is ready, and you may continue without video.";
     } catch (err2) {
       deviceState.stream = null;
       deviceState.cameraGranted = false;
       deviceState.micGranted = false;
       if (errorEl) {
         errorEl.textContent =
-          "Camera/microphone access was denied or unavailable. You can still take the interview - just type or use the Speak Your Answer button.";
+          "Camera and microphone access is unavailable. Allow access in your browser settings, or continue and type your answers.";
       }
     }
   }
@@ -128,6 +142,297 @@ const enableDevicesBtnEl = document.getElementById("enableDevicesBtn");
 if (enableDevicesBtnEl) {
   enableDevicesBtnEl.addEventListener("click", enableDevices);
 }
+
+/* ==========================================================
+   PRE-INTERVIEW SECURITY CHECK
+   (Module 4 device access + Module 6 CNN stage used here for a
+   one-time face/lighting/multi-person verification pass, plus
+   browser/full-screen/network diagnostics - modeled after the
+   pre-checks used by large-scale proctored online exams.)
+========================================================== */
+
+const CHECK_KEYS = ["faceVerification", "camera", "microphone", "speaker", "lighting", "browser", "fullscreen", "network"];
+const BLOCKING_CHECKS = ["browser", "fullscreen", "network"];
+const CHECK_LABELS = {
+  pending: "Checking…",
+  passed: "Ready",
+  warning: "Needs attention",
+  failed: "Unavailable",
+};
+
+function setCheckStatus(key, status, subtext) {
+  const pill = document.getElementById("check-" + key + "-pill");
+  const subtextEl = document.getElementById("check-" + key + "-subtext");
+  const row = document.querySelector('[data-check="' + key + '"]');
+  if (pill) {
+    pill.className = "check-pill check-pill-" + status;
+    pill.textContent = CHECK_LABELS[status] || CHECK_LABELS.pending;
+    pill.dataset.status = status;
+  }
+  if (row) row.dataset.status = status;
+  if (subtextEl && subtext) subtextEl.textContent = subtext;
+  updateReadinessProgress();
+  updateSecuritySummary();
+  updateBeginButtonState();
+}
+
+function getCheckStatus(key) {
+  const pill = document.getElementById("check-" + key + "-pill");
+  return pill && pill.dataset.status ? pill.dataset.status : "pending";
+}
+
+function updateReadinessProgress() {
+  const readyCount = CHECK_KEYS.filter((key) => getCheckStatus(key) === "passed").length;
+  const completeCount = CHECK_KEYS.filter((key) => getCheckStatus(key) !== "pending").length;
+  const countEl = document.getElementById("readinessProgressCount");
+  const textEl = document.getElementById("readinessProgressText");
+  const barEl = document.getElementById("readinessProgressBar");
+  const fillEl = document.getElementById("readinessProgressFill");
+
+  if (countEl) countEl.textContent = readyCount + " of " + CHECK_KEYS.length + " ready";
+  if (textEl) textEl.textContent = completeCount < CHECK_KEYS.length ? "Checking your setup…" : "Setup check complete";
+  if (barEl) barEl.setAttribute("aria-valuenow", String(readyCount));
+  if (fillEl) fillEl.style.width = (readyCount / CHECK_KEYS.length * 100) + "%";
+}
+
+function checkBrowserCompatibility() {
+  const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const hasMediaRecorder = !!window.MediaRecorder;
+  const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const isChromeLike = /Chrome|Edg\//.test(navigator.userAgent) && !/OPR\//.test(navigator.userAgent);
+
+  if (hasGetUserMedia && hasMediaRecorder && hasSpeechRecognition && isChromeLike) {
+    setCheckStatus("browser", "passed", "Chrome/Edge detected - all interview features supported");
+  } else if (hasGetUserMedia && hasMediaRecorder) {
+    setCheckStatus("browser", "warning", "Supported, but voice-to-text works best in Chrome or Edge");
+  } else {
+    setCheckStatus("browser", "failed", "This browser is missing features this interview needs - please switch to Chrome");
+  }
+}
+
+function checkFullscreenReadiness() {
+  const supported = !!(document.documentElement.requestFullscreen);
+  if (supported) {
+    setCheckStatus("fullscreen", "passed", "Full-screen mode is supported - close other windows before you begin");
+  } else {
+    setCheckStatus("fullscreen", "failed", "Full-screen mode isn't supported in this browser");
+  }
+}
+
+async function checkNetwork() {
+  setCheckStatus("network", "pending", "Checking...");
+  if (!navigator.onLine) {
+    setCheckStatus("network", "failed", "No internet connection detected");
+    return;
+  }
+  try {
+    const started = performance.now();
+    const response = await fetch(API_BASE_URL + "/health", { cache: "no-store" });
+    const elapsedMs = Math.round(performance.now() - started);
+    if (response.ok) {
+      setCheckStatus("network", elapsedMs < 800 ? "passed" : "warning",
+        elapsedMs < 800 ? ("Connected - " + elapsedMs + "ms") : ("Connected but slow - " + elapsedMs + "ms"));
+    } else {
+      setCheckStatus("network", "warning", "Server reachable but responded unexpectedly");
+    }
+  } catch (err) {
+    setCheckStatus("network", "failed", "Could not reach the interview server");
+  }
+}
+
+function setupSpeakerTest() {
+  const btn = document.getElementById("testSpeakerBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 440;
+      gain.gain.value = 0.15;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      setTimeout(() => {
+        oscillator.stop();
+        ctx.close();
+      }, 600);
+      setCheckStatus("speaker", "passed", "Test tone played - replay it if needed");
+      btn.textContent = "Replay";
+    } catch (err) {
+      setCheckStatus("speaker", "warning", "Couldn't play a test tone in this browser - check your volume manually");
+    }
+  });
+}
+
+/* ---- one-time face verification + lighting check, using the same
+   face-api.js CNN models as the live Module 6 tracking (loaded lazily
+   here so the pre-flight check doesn't wait on it unnecessarily). ---- */
+
+let preflightFaceIntervalId = null;
+
+function computeFrameBrightness(videoEl) {
+  const w = 64, h = 48;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(videoEl, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let sum = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+  }
+  return sum / (data.length / 4) / 255; // 0..1
+}
+
+async function preflightCheckTick() {
+  const videoEl = document.getElementById("devicePreviewVideo");
+  const overlayEl = document.getElementById("devicePreviewOverlay");
+  if (!videoEl || videoEl.readyState < 2) return;
+
+  const brightness = computeFrameBrightness(videoEl);
+  if (brightness < 0.18) {
+    setCheckStatus("lighting", "warning", "Room looks too dark - try facing a light source");
+  } else if (brightness > 0.92) {
+    setCheckStatus("lighting", "warning", "Very bright / overexposed - try reducing backlight");
+  } else {
+    setCheckStatus("lighting", "passed", "Lighting looks good");
+  }
+
+  if (typeof faceapi === "undefined" || !emotionState.modelsLoaded) {
+    setCheckStatus("faceVerification", "pending", "Loading face verification model...");
+    return;
+  }
+
+  try {
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+    const results = await faceapi.detectAllFaces(videoEl, options).withFaceLandmarks(true);
+
+    if (overlayEl) {
+      overlayEl.width = videoEl.clientWidth;
+      overlayEl.height = videoEl.clientHeight;
+      const ctx = overlayEl.getContext("2d");
+      ctx.clearRect(0, 0, overlayEl.width, overlayEl.height);
+      if (videoEl.videoWidth) {
+        const scaleX = overlayEl.width / videoEl.videoWidth;
+        const scaleY = overlayEl.height / videoEl.videoHeight;
+        results.forEach((r) => {
+          ctx.strokeStyle = results.length === 1 ? "#22c55e" : "#f59e0b";
+          ctx.lineWidth = 2;
+          const box = r.detection.box;
+          ctx.strokeRect(box.x * scaleX, box.y * scaleY, box.width * scaleX, box.height * scaleY);
+        });
+      }
+    }
+
+    if (results.length === 0) {
+      setCheckStatus("faceVerification", "warning", "No face detected - please center yourself in frame");
+    } else if (results.length > 1) {
+      setCheckStatus("faceVerification", "failed", results.length + " faces detected - only the candidate should be visible");
+    } else {
+      const box = results[0].detection.box;
+      const centerX = (box.x + box.width / 2) / videoEl.videoWidth;
+      const centered = centerX > 0.28 && centerX < 0.72;
+      if (centered) {
+        setCheckStatus("faceVerification", "passed", "Face verified - centered and clearly visible");
+      } else {
+        setCheckStatus("faceVerification", "warning", "Face not clearly centered - please position yourself in the middle of the frame");
+      }
+    }
+  } catch (err) {
+    console.warn("Preflight face check failed:", err);
+  }
+}
+
+async function startPreflightFaceLoop() {
+  if (preflightFaceIntervalId) return;
+  setCheckStatus("faceVerification", "pending", "Loading face verification model...");
+  setCheckStatus("lighting", "pending", "Analyzing...");
+  if (!emotionState.modelsLoaded) {
+    await loadFaceApiModels();
+  }
+  preflightFaceIntervalId = setInterval(() => {
+    preflightCheckTick();
+    updateSecuritySummary();
+    updateBeginButtonState();
+  }, 1200);
+  preflightCheckTick();
+}
+
+function stopPreflightFaceLoop() {
+  if (preflightFaceIntervalId) {
+    clearInterval(preflightFaceIntervalId);
+    preflightFaceIntervalId = null;
+  }
+}
+
+function updateSecuritySummary() {
+  const summaryEl = document.getElementById("securityCheckSummary");
+  if (!summaryEl) return;
+
+  const statuses = CHECK_KEYS.map(getCheckStatus);
+  const blockingFailures = BLOCKING_CHECKS.filter((key) => getCheckStatus(key) === "failed");
+  const hasFailed = statuses.includes("failed");
+  const hasWarning = statuses.includes("warning");
+  const hasPending = statuses.includes("pending");
+  const consentEl = document.getElementById("consentCheckbox");
+  const consented = consentEl ? consentEl.checked : false;
+
+  summaryEl.className = "security-check-summary";
+  if (!consented) {
+    summaryEl.textContent = "Review the setup and provide consent to start the interview.";
+  } else if (blockingFailures.length) {
+    summaryEl.textContent = "Resolve the unavailable browser, full-screen, or network check before starting.";
+    summaryEl.classList.add("summary-blocked");
+  } else if (hasFailed || hasWarning) {
+    summaryEl.textContent = "Some optional checks need attention. You may still start the interview.";
+    summaryEl.classList.add("summary-warning");
+  } else if (hasPending) {
+    summaryEl.textContent = "Checks are still running. You may start once the required checks are ready.";
+  } else {
+    summaryEl.textContent = "Your setup is ready. You can start the interview.";
+    summaryEl.classList.add("summary-ok");
+  }
+}
+
+function updateBeginButtonState() {
+  const beginBtn = document.getElementById("beginInterviewBtn");
+  const consentEl = document.getElementById("consentCheckbox");
+  if (!beginBtn) return;
+  const consented = consentEl ? consentEl.checked : false;
+  const hasBlockingFailure = BLOCKING_CHECKS.some((key) => getCheckStatus(key) === "failed");
+  const hasBlockingPending = BLOCKING_CHECKS.some((key) => getCheckStatus(key) === "pending");
+  beginBtn.disabled = !consented || hasBlockingFailure || hasBlockingPending;
+}
+
+function runSecurityChecks() {
+  checkBrowserCompatibility();
+  checkFullscreenReadiness();
+  checkNetwork();
+  updateDeviceStatusUI(); // re-derives camera/mic/face/lighting rows from current deviceState
+  updateSecuritySummary();
+}
+
+const runChecksAgainBtnEl = document.getElementById("runChecksAgainBtn");
+if (runChecksAgainBtnEl) {
+  runChecksAgainBtnEl.addEventListener("click", () => {
+    runSecurityChecks();
+    if (deviceState.cameraGranted) preflightCheckTick();
+  });
+}
+
+const consentCheckboxEl = document.getElementById("consentCheckbox");
+if (consentCheckboxEl) {
+  consentCheckboxEl.addEventListener("change", () => {
+    updateSecuritySummary();
+    updateBeginButtonState();
+  });
+}
+
+setupSpeakerTest();
+runSecurityChecks();
 
 function releaseDevices() {
   if (deviceState.stream) {
@@ -257,24 +562,33 @@ async function reportDeviceStatus(sessionId) {
 
 const FACE_API_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 
-const EXPRESSION_WEIGHTS = {
-  happy: 1.0,
-  neutral: 0.8,
-  surprised: 0.55,
-  sad: -0.5,
-  angry: -0.35,
-  fearful: -0.6,
-  disgusted: -0.45,
-};
+// Module 6 - CNN + RNN: consecutive-tick thresholds before the instant,
+// client-side warning banners appear. Mirrors backend/app/ml/features.py
+// (kept in sync manually - see that file's docstring for why).
+const EYE_CONTACT_WARNING_TICKS = 3;
+const NO_FACE_WARNING_TICKS = 2;
+const MULTI_FACE_WARNING_TICKS = 2;
 
-const EMOTION_EMOJI = {
-  neutral: "😐",
-  happy: "🙂",
-  sad: "😔",
-  angry: "😠",
-  fearful: "😨",
-  disgusted: "🤢",
-  surprised: "😮",
+// Rather than surfacing raw expression labels (happy/sad/angry/etc) to
+// the candidate, only signals tied to FEAR, CONFUSION, and NERVOUSNESS
+// are used - collapsed into a single 0-100 "confidence" percentage.
+// Everything else face-api.js reports (happy, neutral, sad, angry,
+// disgusted) is read from the model but deliberately ignored here.
+//
+//   fear         -> expressions.fearful, used directly
+//   confusion    -> face-api has no "confused" class; expressions.surprised
+//                   (raised brows / widened eyes) is used as the closest
+//                   available proxy - documented here rather than silently
+//                   relabeled
+//   nervousness  -> not a facial expression at all in this model, so it's
+//                   estimated behaviorally instead: how much the
+//                   candidate's gaze has been jumping around over the
+//                   last few ticks (see gazeJitter in detectEmotionTick),
+//                   blended with the fear score
+const CONFIDENCE_WEIGHTS = {
+  fear: 0.45,
+  confusion: 0.30,
+  nervousness: 0.25,
 };
 
 function emptyEmotionBatch() {
@@ -282,7 +596,6 @@ function emptyEmotionBatch() {
     samplesCount: 0,
     faceDetectedCount: 0,
     eyeContactCount: 0,
-    emotionCounts: {},
     confidenceSum: 0,
     engagementSum: 0,
   };
@@ -294,6 +607,20 @@ const emotionState = {
   detectIntervalId: null,
   batchPostIntervalId: null,
   batch: emptyEmotionBatch(),
+  // Module 6 - CNN + RNN: raw per-tick feature vectors waiting to be
+  // posted to the backend RNN stage, plus client-side counters used
+  // for the *instant* on-screen warning banners (the RNN's own view,
+  // returned from the server, is the slower/smoothed signal used for
+  // the recruiter-facing proctoring flag badge).
+  pendingTicks: [],
+  consecutiveNoEyeContact: 0,
+  consecutiveNoFace: 0,
+  consecutiveMultiFace: 0,
+  proctoringFlagTotal: 0,
+  // Last few gaze-offset readings, used to estimate nervousness from
+  // how much the gaze is jumping around rather than from any facial
+  // expression label.
+  recentGazeOffsets: [],
 };
 
 async function loadFaceApiModels() {
@@ -319,19 +646,47 @@ function avgX(points) {
   return points.reduce((sum, p) => sum + p.x, 0) / points.length;
 }
 
+function dist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Eye Aspect Ratio (EAR): a standard, cheap way to tell open vs. closed/
+// squinted eyes from 68-point landmarks, used both for the eye-openness
+// feature fed to the backend RNN and as one signal in the eye-contact
+// heuristic below. https://vision.fau.edu/~fkokkinos/EAR - the 68-point
+// eye has 6 points; face-api's *Tiny* landmark net gives fewer points
+// per eye, so this falls back gracefully if some points are missing.
+function eyeAspectRatio(eyePoints) {
+  if (!eyePoints || eyePoints.length < 4) return 0.3; // assume "open" if unavailable
+  const p = eyePoints;
+  const horizontal = dist(p[0], p[Math.min(3, p.length - 1)]);
+  if (!horizontal) return 0.3;
+  let verticalSum = 0;
+  let verticalCount = 0;
+  for (let i = 1; i < p.length - 1; i++) {
+    verticalSum += dist(p[i], p[p.length - 1 - i]);
+    verticalCount++;
+  }
+  const vertical = verticalCount ? verticalSum / verticalCount : horizontal * 0.3;
+  return vertical / horizontal;
+}
+
 // Approximate "is the candidate looking at the camera" heuristic: the
 // nose sits roughly centered between the two eyes, relative to eye
-// spacing. This is a lightweight, browser-only approximation - not
+// spacing, AND the eyes are open enough to plausibly be looking at
+// anything. This is a lightweight, browser-only approximation - not
 // precise gaze tracking - but it's enough to reward facing the camera
-// vs. looking away for extended periods.
+// vs. looking away/eyes-closed for extended periods.
 function estimateEyeContact(result) {
   const landmarks = result.landmarks;
-  if (!landmarks) return false;
+  if (!landmarks) return { eyeContact: false, gazeOffset: 1, eyeOpenness: 0 };
 
   const nose = landmarks.getNose();
   const leftEye = landmarks.getLeftEye();
   const rightEye = landmarks.getRightEye();
-  if (!nose.length || !leftEye.length || !rightEye.length) return false;
+  if (!nose.length || !leftEye.length || !rightEye.length) {
+    return { eyeContact: false, gazeOffset: 1, eyeOpenness: 0 };
+  }
 
   const noseX = nose[Math.floor(nose.length / 2)].x;
   const leftEyeX = avgX(leftEye);
@@ -339,18 +694,50 @@ function estimateEyeContact(result) {
   const eyeMidX = (leftEyeX + rightEyeX) / 2;
   const eyeSpan = Math.abs(rightEyeX - leftEyeX) || 1;
 
-  const horizontalOffsetRatio = Math.abs(noseX - eyeMidX) / eyeSpan;
-  return horizontalOffsetRatio < 0.35;
+  const gazeOffset = Math.max(0, Math.min(1, Math.abs(noseX - eyeMidX) / eyeSpan / 0.6));
+
+  const earLeft = eyeAspectRatio(leftEye);
+  const earRight = eyeAspectRatio(rightEye);
+  // Typical open-eye EAR is roughly 0.25-0.35 for face-api's landmark
+  // sets; normalize onto a 0..1 "openness" scale for the RNN feature.
+  const eyeOpenness = Math.max(0, Math.min(1, ((earLeft + earRight) / 2) / 0.35));
+
+  const eyeContact = gazeOffset < 0.6 && eyeOpenness > 0.25;
+  return { eyeContact, gazeOffset, eyeOpenness };
 }
 
-function computeVisualConfidence(expressions) {
-  let score = 0;
-  Object.keys(expressions).forEach((key) => {
-    const weight = EXPRESSION_WEIGHTS[key] != null ? EXPRESSION_WEIGHTS[key] : 0;
-    score += expressions[key] * weight;
-  });
-  // Raw weighted score ranges roughly -0.6..1.0 -> map onto 0..100.
-  return Math.max(0, Math.min(100, Math.round(((score + 0.6) / 1.6) * 100)));
+function stdDev(values) {
+  if (!values.length) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+// Tracks how much the gaze has been moving around over the last few
+// ticks and returns a 0..1 "jitter" score - the behavioral stand-in for
+// nervousness (fidgety, unsettled gaze), independent of any facial
+// expression label.
+function updateGazeJitter(gazeOffset) {
+  const history = emotionState.recentGazeOffsets;
+  history.push(gazeOffset);
+  if (history.length > 5) history.shift();
+  // gazeOffset is 0..1, so its stddev across 5 samples tops out well
+  // under 0.5 in practice - scale up so a genuinely jumpy gaze reads
+  // close to 1.
+  return Math.max(0, Math.min(1, stdDev(history) * 2.2));
+}
+
+function computeConfidence(expressions, gazeJitter) {
+  const fear = expressions.fearful || 0;
+  const confusion = expressions.surprised || 0; // closest available proxy - see comment above
+  const nervousness = Math.max(0, Math.min(1, 0.6 * fear + 0.4 * gazeJitter));
+
+  const stressIndex =
+    CONFIDENCE_WEIGHTS.fear * fear +
+    CONFIDENCE_WEIGHTS.confusion * confusion +
+    CONFIDENCE_WEIGHTS.nervousness * nervousness;
+
+  return Math.max(0, Math.min(100, Math.round((1 - stressIndex) * 100)));
 }
 
 function computeEngagement(eyeContact, visualConfidence) {
@@ -358,26 +745,27 @@ function computeEngagement(eyeContact, visualConfidence) {
   return Math.round(0.6 * eyeComponent + 0.4 * visualConfidence);
 }
 
-function recordEmotionSample({ faceDetected, eyeContact, emotion, visualConfidence, engagement }) {
+function recordEmotionSample({ faceDetected, eyeContact, visualConfidence, engagement }) {
   const batch = emotionState.batch;
   batch.samplesCount += 1;
   if (faceDetected) {
     batch.faceDetectedCount += 1;
     if (eyeContact) batch.eyeContactCount += 1;
-    if (emotion) batch.emotionCounts[emotion] = (batch.emotionCounts[emotion] || 0) + 1;
     if (typeof visualConfidence === "number") batch.confidenceSum += visualConfidence;
     if (typeof engagement === "number") batch.engagementSum += engagement;
   }
 }
 
-function updateEmotionBadge(emotion) {
+function updateConfidenceBadge(faceDetected, visualConfidence) {
   const badge = document.getElementById("emotionBadge");
   if (!badge) return;
-  if (!emotion) {
+  if (!faceDetected) {
     hide(badge);
     return;
   }
-  badge.textContent = (EMOTION_EMOJI[emotion] || "🙂") + " " + emotion;
+  const pct = Math.round(visualConfidence || 0);
+  const icon = pct >= 65 ? "🙂" : pct >= 40 ? "😐" : "😟";
+  badge.textContent = icon + " Confidence: " + pct + "%";
   show(badge);
 }
 
@@ -421,6 +809,39 @@ function drawFaceOverlay(canvasEl, videoEl, result, eyeContact) {
   ctx.strokeRect(box.x * scaleX, box.y * scaleY, box.width * scaleX, box.height * scaleY);
 }
 
+function updateWarningBanners() {
+  const eyeBanner = document.getElementById("eyeContactWarningBanner");
+  const faceBanner = document.getElementById("faceWarningBanner");
+
+  if (eyeBanner) {
+    const show_ = emotionState.consecutiveNoFace < NO_FACE_WARNING_TICKS &&
+      emotionState.consecutiveNoEyeContact >= EYE_CONTACT_WARNING_TICKS;
+    eyeBanner.style.display = show_ ? "" : "none";
+  }
+
+  if (faceBanner) {
+    if (emotionState.consecutiveMultiFace >= MULTI_FACE_WARNING_TICKS) {
+      faceBanner.textContent = "🚫 Multiple people detected - only the candidate should be visible";
+      faceBanner.style.display = "";
+    } else if (emotionState.consecutiveNoFace >= NO_FACE_WARNING_TICKS) {
+      faceBanner.textContent = "⚠️ Face not detected - please stay in frame";
+      faceBanner.style.display = "";
+    } else {
+      faceBanner.style.display = "none";
+    }
+  }
+}
+
+function bumpProctoringFlagBadge(amount) {
+  if (amount <= 0) return;
+  emotionState.proctoringFlagTotal += amount;
+  const badge = document.getElementById("proctoringFlagBadge");
+  if (badge) {
+    badge.textContent = "🛡 Proctoring Flags: " + emotionState.proctoringFlagTotal;
+    show(badge);
+  }
+}
+
 async function detectEmotionTick() {
   if (!emotionState.modelsLoaded || emotionState.detecting) return;
 
@@ -431,38 +852,63 @@ async function detectEmotionTick() {
   emotionState.detecting = true;
   try {
     const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
-    const result = await faceapi
-      .detectSingleFace(videoEl, options)
+    // detectAllFaces (not detectSingleFace) so a second/third person
+    // entering frame can be flagged, not just silently ignored.
+    const results = await faceapi
+      .detectAllFaces(videoEl, options)
       .withFaceLandmarks(true)
       .withFaceExpressions();
 
-    if (!result) {
+    const multipleFaces = results.length > 1;
+    emotionState.consecutiveMultiFace = multipleFaces ? emotionState.consecutiveMultiFace + 1 : 0;
+
+    if (results.length === 0) {
+      emotionState.consecutiveNoFace += 1;
+      emotionState.consecutiveNoEyeContact += 1;
+      emotionState.recentGazeOffsets = []; // no face -> stale gaze history isn't meaningful
       recordEmotionSample({ faceDetected: false });
-      updateEmotionBadge(null);
-      if (canvasEl) {
-        const ctx = canvasEl.getContext("2d");
-        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-      }
+      updateConfidenceBadge(false);
+      emotionState.pendingTicks.push({
+        face_detected: false, eye_contact: false, eye_openness: 0,
+        gaze_offset: 1, expression_valence: 0, multiple_faces: false,
+      });
+      if (canvasEl) canvasEl.getContext("2d").clearRect(0, 0, canvasEl.width, canvasEl.height);
+      updateWarningBanners();
       return;
     }
 
+    emotionState.consecutiveNoFace = 0;
+    // Use the largest detected face (closest to camera) as "the candidate".
+    const result = results.reduce((a, b) => (a.detection.box.area > b.detection.box.area ? a : b));
+
     const expressions = result.expressions;
-    const dominant = Object.keys(expressions).reduce((a, b) => (expressions[a] > expressions[b] ? a : b));
-    const eyeContact = estimateEyeContact(result);
-    const visualConfidence = computeVisualConfidence(expressions);
+    const { eyeContact, gazeOffset, eyeOpenness } = estimateEyeContact(result);
+    const gazeJitter = updateGazeJitter(gazeOffset);
+    const visualConfidence = computeConfidence(expressions, gazeJitter);
     const engagement = computeEngagement(eyeContact, visualConfidence);
+
+    emotionState.consecutiveNoEyeContact = eyeContact ? 0 : emotionState.consecutiveNoEyeContact + 1;
 
     recordEmotionSample({
       faceDetected: true,
       eyeContact,
-      emotion: dominant,
       visualConfidence,
       engagement,
     });
 
+    emotionState.pendingTicks.push({
+      face_detected: true,
+      eye_contact: eyeContact,
+      eye_openness: eyeOpenness,
+      gaze_offset: gazeOffset,
+      expression_valence: visualConfidence / 100,
+      multiple_faces: multipleFaces,
+    });
+
     drawFaceOverlay(canvasEl, videoEl, result, eyeContact);
-    updateEmotionBadge(dominant);
+    updateConfidenceBadge(true, visualConfidence);
     updateLiveInsightMeters(eyeContact, visualConfidence, engagement);
+    updateWarningBanners();
   } catch (err) {
     console.warn("Emotion detection tick failed:", err);
   } finally {
@@ -478,7 +924,6 @@ async function postEmotionBatch() {
     samples_count: batch.samplesCount,
     face_detected_count: batch.faceDetectedCount,
     eye_contact_count: batch.eyeContactCount,
-    emotion_counts: batch.emotionCounts,
     avg_visual_confidence: batch.faceDetectedCount ? batch.confidenceSum / batch.faceDetectedCount : null,
     avg_engagement: batch.faceDetectedCount ? batch.engagementSum / batch.faceDetectedCount : null,
   };
@@ -494,6 +939,34 @@ async function postEmotionBatch() {
     });
   } catch (err) {
     console.warn("Could not post emotion sample batch:", err);
+  }
+}
+
+// Module 6 - CNN + RNN: ships the small raw per-tick feature vectors
+// (never images) collected since the last call to the backend RNN
+// stage (app/ml/engagement_engine.py), and applies its response - a
+// server-confirmed (consecutive-tick-gated) set of proctoring flags,
+// used for the recruiter-facing badge count.
+async function postEngagementTicks() {
+  if (!state.sessionId || emotionState.pendingTicks.length === 0) return;
+
+  const ticks = emotionState.pendingTicks;
+  emotionState.pendingTicks = [];
+
+  try {
+    const response = await authFetch("/sessions/" + state.sessionId + "/engagement-ticks", {
+      method: "POST",
+      body: JSON.stringify({ ticks }),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const flags = data.flags || {};
+    const flagCount = (flags.eye_contact_missing ? 1 : 0) +
+      (flags.no_face_detected ? 1 : 0) +
+      (flags.multiple_faces_detected ? 1 : 0);
+    bumpProctoringFlagBadge(flagCount);
+  } catch (err) {
+    console.warn("Could not post engagement ticks:", err);
   }
 }
 
@@ -518,6 +991,7 @@ async function startEmotionTracking() {
   stopEmotionDetectionLoop();
   emotionState.detectIntervalId = setInterval(detectEmotionTick, 1500);
   emotionState.batchPostIntervalId = setInterval(postEmotionBatch, 10000);
+  emotionState.engagementPostIntervalId = setInterval(postEngagementTicks, 7500);
 }
 
 function stopEmotionDetectionLoop() {
@@ -529,6 +1003,10 @@ function stopEmotionDetectionLoop() {
 
 function stopEmotionTracking() {
   stopEmotionDetectionLoop();
+  if (emotionState.engagementPostIntervalId) {
+    clearInterval(emotionState.engagementPostIntervalId);
+    emotionState.engagementPostIntervalId = null;
+  }
   if (emotionState.batchPostIntervalId) {
     clearInterval(emotionState.batchPostIntervalId);
     emotionState.batchPostIntervalId = null;
@@ -614,14 +1092,13 @@ async function loadPreflightInfo() {
     const interview = await response.json();
     const isResume = interview.status === "in_progress";
 
-    document.getElementById("preflightTitle").textContent = isResume
-      ? "Resume your interview"
-      : "Ready to begin your interview?";
+    document.getElementById("preflightTitle").textContent = "Let’s get you ready";
     document.getElementById("preflightSubtitle").textContent =
-      interview.interview_type + " interview on \"" + interview.domain + "\" (" + interview.difficulty + ")";
+      "Complete the quick setup below before " + (isResume ? "resuming" : "starting") + " your " +
+      interview.difficulty + " " + interview.interview_type + " interview on " + interview.domain + ".";
 
     const beginBtn = document.getElementById("beginInterviewBtn");
-    if (beginBtn) beginBtn.textContent = isResume ? "▶ Resume Interview (Full Screen)" : "🚀 Begin Interview (Full Screen)";
+    if (beginBtn) beginBtn.textContent = isResume ? "Resume Interview" : "Start Interview";
   } catch (err) {
     console.warn("Could not load interview info:", err);
   }
@@ -632,6 +1109,13 @@ async function beginOrResumeInterview() {
   const errorEl = document.getElementById("preflightError");
   if (errorEl) errorEl.textContent = "";
 
+  const consentEl = document.getElementById("consentCheckbox");
+  if (consentEl && !consentEl.checked) {
+    if (errorEl) errorEl.textContent = "Please confirm the privacy consent checkbox before beginning.";
+    return;
+  }
+
+  stopPreflightFaceLoop();
   if (beginBtn) beginBtn.disabled = true;
 
   // Full screen must be requested synchronously-ish from this click gesture.
@@ -649,7 +1133,7 @@ async function beginOrResumeInterview() {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       if (errorEl) errorEl.textContent = data.detail || "Could not start the interview.";
-      if (beginBtn) beginBtn.disabled = false;
+      updateBeginButtonState();
       return;
     }
 
@@ -672,7 +1156,7 @@ async function beginOrResumeInterview() {
     await loadSession(interviewId);
   } catch (err) {
     if (errorEl) errorEl.textContent = "Something went wrong starting the interview.";
-    if (beginBtn) beginBtn.disabled = false;
+    updateBeginButtonState();
   }
 }
 

@@ -27,6 +27,7 @@
         <div class="brand">🤖 AI Interview Pro</div>
 
         <div class="interview-session-controls" id="liveControls" style="display:none;">
+          <span id="proctoringFlagBadge" class="proctoring-flag-badge" style="display:none;">🛡 Proctoring Flags: 0</span>
           <span id="violationBadge" class="violation-badge" style="display:none;">Violations: 0/3</span>
           <span id="sessionTimer" class="session-timer" style="display:none;">⏱ --:--</span>
           <button id="pauseResumeBtn" type="button" class="pause-resume-btn" style="display:none;">⏸ Pause</button>
@@ -38,47 +39,104 @@
 
         <!-- ================= PRE-FLIGHT (device check + begin) ================= -->
         <div class="preflight-panel" id="preflightPanel">
-          <h2 id="preflightTitle">Preparing your interview...</h2>
-          <p class="hint" id="preflightSubtitle"></p>
-
-          <ul class="preflight-rules">
-            <li>🖥️ This interview runs in <strong>full screen</strong>. Please don't exit it once you begin.</li>
-            <li>⚠️ You get up to <strong>3</strong> full-screen exits. A 4th will auto-submit your interview.</li>
-            <li>⏸ You can pause at any time - the timer freezes until you resume.</li>
-            <li>🚪 You can end the session early with the "End Session" button - whatever you've answered will be scored.</li>
-          </ul>
-
-          <!-- ============ DEVICE CHECK (Module 4 - Webcam / Microphone access) ============ -->
-          <div class="device-check-panel" id="deviceCheckPanel">
-            <h4>📷 Camera &amp; Microphone Check</h4>
-            <p class="hint">Enable your camera and mic so this session can be recorded for later review (optional - you can still take the interview without it).</p>
-
-            <div class="device-check-row">
-              <div class="device-preview-box">
-                <video id="devicePreviewVideo" autoplay muted playsinline></video>
-                <span class="device-preview-placeholder" id="devicePreviewPlaceholder">No preview yet</span>
-              </div>
-
-              <div class="device-check-status">
-                <div class="device-status-line">
-                  <span class="status-dot" id="cameraStatusDot"></span>
-                  Camera: <strong id="cameraStatusText">Not enabled</strong>
-                </div>
-                <div class="device-status-line">
-                  <span class="status-dot" id="micStatusDot"></span>
-                  Microphone: <strong id="micStatusTextCheck">Not enabled</strong>
-                </div>
-
-                <button id="enableDevicesBtn" type="button">🎥 Enable Camera &amp; Microphone</button>
-                <p id="deviceCheckError" class="form-error"></p>
-              </div>
-            </div>
+          <div class="preflight-intro">
+            <span class="preflight-step">Interview setup</span>
+            <h2 id="preflightTitle">Let’s get you ready</h2>
+            <p class="hint" id="preflightSubtitle">Complete the quick setup below before starting your interview.</p>
           </div>
 
-          <p id="preflightError" class="form-error"></p>
+          <div class="device-check-panel security-check-panel" id="deviceCheckPanel">
+            <div class="security-check-header">
+              <div>
+                <h3>Readiness check</h3>
+                <p class="hint">We’ll confirm your devices and interview environment.</p>
+              </div>
+              <button id="runChecksAgainBtn" type="button" class="run-checks-btn">Run checks again</button>
+            </div>
 
-          <button id="beginInterviewBtn" type="button">🚀 Begin Interview (Full Screen)</button>
-          <a href="candidate.html" class="preflight-cancel-link">Cancel and go back to dashboard</a>
+            <div class="readiness-progress" aria-live="polite">
+              <div class="readiness-progress-copy">
+                <span id="readinessProgressText">Checking your setup…</span>
+                <strong id="readinessProgressCount">0 of 8 ready</strong>
+              </div>
+              <div class="readiness-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" id="readinessProgressBar">
+                <span id="readinessProgressFill"></span>
+              </div>
+            </div>
+
+            <div class="security-check-body">
+              <div class="security-check-preview">
+                <div class="device-preview-box">
+                  <video id="devicePreviewVideo" autoplay muted playsinline></video>
+                  <canvas id="devicePreviewOverlay" class="device-preview-overlay"></canvas>
+                  <div class="face-position-guide" aria-hidden="true"></div>
+                  <span class="device-preview-placeholder" id="devicePreviewPlaceholder">Camera preview will appear here</span>
+                  <span class="live-preview-tag" id="livePreviewTag" style="display:none;">Live preview</span>
+                </div>
+
+                <button id="enableDevicesBtn" type="button">Enable camera &amp; microphone</button>
+                <p id="deviceCheckError" class="form-error" role="alert" aria-live="assertive"></p>
+              </div>
+
+              <div class="security-check-list" id="securityCheckList">
+                <section class="check-group" aria-labelledby="devicesGroupTitle">
+                  <h4 id="devicesGroupTitle">Devices</h4>
+                  <ul>
+                    <li class="security-check-row" data-check="camera"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Camera</strong><span class="check-subtext" id="check-camera-subtext">Enable access to continue</span></div><span class="check-pill check-pill-pending" id="check-camera-pill" aria-live="polite">Checking…</span></li>
+                    <li class="security-check-row" data-check="microphone"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Microphone</strong><span class="check-subtext" id="check-microphone-subtext">Enable access to continue</span></div><span class="check-pill check-pill-pending" id="check-microphone-pill" aria-live="polite">Checking…</span></li>
+                    <li class="security-check-row" data-check="speaker"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Speaker</strong><span class="check-subtext" id="check-speaker-subtext">Play a short test tone</span></div><button type="button" class="test-speaker-btn" id="testSpeakerBtn">Test</button><span class="check-pill check-pill-pending" id="check-speaker-pill" aria-live="polite">Checking…</span></li>
+                  </ul>
+                </section>
+
+                <section class="check-group" aria-labelledby="environmentGroupTitle">
+                  <h4 id="environmentGroupTitle">Environment</h4>
+                  <ul>
+                    <li class="security-check-row" data-check="faceVerification"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Face visibility</strong><span class="check-subtext" id="check-faceVerification-subtext">Waiting for camera access</span></div><span class="check-pill check-pill-pending" id="check-faceVerification-pill" aria-live="polite">Checking…</span></li>
+                    <li class="security-check-row" data-check="lighting"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Lighting</strong><span class="check-subtext" id="check-lighting-subtext">Waiting for camera access</span></div><span class="check-pill check-pill-pending" id="check-lighting-pill" aria-live="polite">Checking…</span></li>
+                    <li class="security-check-row" data-check="network"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Network</strong><span class="check-subtext" id="check-network-subtext">Checking connection</span></div><span class="check-pill check-pill-pending" id="check-network-pill" aria-live="polite">Checking…</span></li>
+                  </ul>
+                </section>
+
+                <section class="check-group" aria-labelledby="systemGroupTitle">
+                  <h4 id="systemGroupTitle">System</h4>
+                  <ul>
+                    <li class="security-check-row" data-check="browser"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Browser</strong><span class="check-subtext" id="check-browser-subtext">Checking compatibility</span></div><span class="check-pill check-pill-pending" id="check-browser-pill" aria-live="polite">Checking…</span></li>
+                    <li class="security-check-row" data-check="fullscreen"><span class="check-icon" aria-hidden="true"></span><div class="check-text"><strong>Full-screen</strong><span class="check-subtext" id="check-fullscreen-subtext">Checking support</span></div><span class="check-pill check-pill-pending" id="check-fullscreen-pill" aria-live="polite">Checking…</span></li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+
+            <div class="preflight-lower-grid">
+              <section class="before-you-begin" aria-labelledby="beforeBeginTitle">
+                <h4 id="beforeBeginTitle">Before you begin</h4>
+                <ul>
+                  <li>Stay in full-screen mode.</li>
+                  <li>Keep your face visible.</li>
+                  <li>Use a quiet, well-lit environment.</li>
+                  <li>You can pause or end the interview when needed.</li>
+                </ul>
+              </section>
+
+              <div class="privacy-notice-box">
+                <details>
+                  <summary>Privacy and AI assessment</summary>
+                  <p>Video and audio may be recorded. AI uses your answers and interview signals to provide assessment feedback. Camera-based analysis runs in your browser; only summary measurements are submitted.</p>
+                </details>
+                <label class="consent-checkbox-label">
+                  <input type="checkbox" id="consentCheckbox" />
+                  <span>I consent to interview recording and AI-based assessment.</span>
+                </label>
+              </div>
+            </div>
+
+            <p class="security-check-summary" id="securityCheckSummary" role="status" aria-live="polite"></p>
+          </div>
+
+          <p id="preflightError" class="form-error" role="alert" aria-live="assertive"></p>
+
+          <button id="beginInterviewBtn" type="button">Start Interview</button>
+          <a href="candidate.html" class="preflight-cancel-link">Back to Dashboard</a>
         </div>
 
         <!-- ================= AI INTERVIEW LIVE SESSION ================= -->
@@ -96,6 +154,8 @@
             <canvas id="emotionOverlayCanvas" class="emotion-overlay-canvas"></canvas>
             <span class="rec-indicator" id="recIndicator" style="display:none;">🔴 REC</span>
             <span class="emotion-badge" id="emotionBadge" style="display:none;"></span>
+            <div class="eye-contact-warning-banner" id="eyeContactWarningBanner" style="display:none;">⚠️ Eye contact missing - please look at the camera</div>
+            <div class="face-warning-banner" id="faceWarningBanner" style="display:none;"></div>
           </div>
 
           <!-- Module 6 - Emotion Detection & Eye Tracking: live meters -->

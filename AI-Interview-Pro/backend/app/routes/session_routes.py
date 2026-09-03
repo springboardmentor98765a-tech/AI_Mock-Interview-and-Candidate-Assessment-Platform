@@ -25,6 +25,12 @@ don't get tangled up with question-answering/scoring.
                                            client-side (face-api.js) emotion/eye-contact
                                            samples and folds it into the session's running
                                            aggregates (no image/video data involved)
+    POST   /sessions/{id}/engagement-ticks  Module 6 - CNN + RNN Interview Behavior Analysis:
+                                             accepts a small batch of raw per-tick CNN feature
+                                             vectors, runs them through the backend RNN (app/ml/)
+                                             over a rolling window, and returns live scores +
+                                             proctoring flags (eye contact missing / no face /
+                                             multiple faces)
 """
 
 import os
@@ -40,6 +46,7 @@ from app.models import (
     Interview,
     InterviewSession,
     InterviewRecording,
+    InterviewAssessment,
     SessionStatusEnum,
     RecordingTypeEnum,
     InterviewStatusEnum,
@@ -55,9 +62,13 @@ from app.schemas import (
     ViolationReportOut,
     MessageResponse,
     EmotionSampleBatchRequest,
+    EngagementTickBatchRequest,
+    EngagementTickResponseOut,
 )
 from app.auth import get_current_user
 from app.storage import storage
+from app.ml import engagement_engine
+from app.scoring import build_interview_assessment
 
 router = APIRouter(prefix="/sessions", tags=["Interview Sessions (Module 4)"])
 
@@ -278,7 +289,7 @@ def resume_session(
     return SessionOut.model_validate(session)
 
 
-def _complete_interview(interview: Interview) -> None:
+def _complete_interview(interview: Interview, db: Session) -> None:
     """
     Shared by manual "End Session", timeout (interview_routes), and
     full-screen violation auto-submit: marks the interview completed and
@@ -290,9 +301,13 @@ def _complete_interview(interview: Interview) -> None:
     interview.status = InterviewStatusEnum.completed
     interview.completed_at = datetime.utcnow()
 
-    answered = [q for q in interview.questions if q.overall_score is not None]
-    if answered:
-        interview.overall_score = round(sum(q.overall_score for q in answered) / len(answered), 1)
+    assessment_data = build_interview_assessment(interview)
+    if assessment_data:
+        assessment = interview.assessment or InterviewAssessment(interview_id=interview.id)
+        for key, value in assessment_data.items():
+            setattr(assessment, key, value)
+        interview.overall_score = assessment_data["overall_score"]
+        db.add(assessment)
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +321,7 @@ def end_session(
 ):
     session = _get_owned_session(session_id, current_user, db)
     _end_session_internal(session, db)
-    _complete_interview(session.interview)
+    _complete_interview(session.interview, db)
 
     db.commit()
     db.refresh(session)
@@ -331,6 +346,10 @@ def _end_session_internal(session: InterviewSession, db: Session) -> None:
     if session.start_time:
         total_elapsed = (now - session.start_time).total_seconds()
         session.duration_seconds = max(0, int(total_elapsed) - session.total_paused_seconds)
+
+    # Module 6 - drop this session's in-memory RNN rolling window now
+    # that no more ticks are coming, so long-lived processes don't leak.
+    engagement_engine.clear_session(str(session.id))
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +400,7 @@ def report_violation(
 
     if session.fullscreen_violations > MAX_FULLSCREEN_VIOLATIONS:
         _end_session_internal(session, db)
-        _complete_interview(session.interview)
+        _complete_interview(session.interview, db)
         auto_submitted = True
 
     db.commit()
@@ -533,3 +552,56 @@ def submit_emotion_samples(
     db.commit()
     db.refresh(session)
     return SessionOut.model_validate(session)
+
+
+# ---------------------------------------------------------------------------
+# POST /sessions/{session_id}/engagement-ticks
+# Module 6 - CNN + RNN Interview Behavior Analysis.
+#
+# The CNN stage (face-api.js) runs per-frame in the browser, same as
+# emotion-samples above. This endpoint additionally receives the raw,
+# ordered per-tick feature vectors (still just small numbers - never an
+# image) for a short recent stretch, feeds them into the backend RNN
+# stage (app/ml/engagement_engine.py) which looks at how those vectors
+# evolve over a rolling ~30s window, and returns a live temporal
+# engagement/risk read plus server-confirmed proctoring flags. Those
+# flag counts are persisted so recruiters can see them in review - they
+# are informational only and never auto-submit the interview (unlike
+# full-screen violations, which do).
+# ---------------------------------------------------------------------------
+@router.post("/{session_id}/engagement-ticks", response_model=EngagementTickResponseOut)
+def submit_engagement_ticks(
+    session_id: str,
+    payload: EngagementTickBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _get_owned_session(session_id, current_user, db)
+
+    result = engagement_engine.process_ticks(
+        session_id,
+        [tick.model_dump() for tick in payload.ticks],
+    )
+
+    session.latest_engagement_score = result.get("engagement_score")
+    session.latest_disengagement_risk = result.get("disengagement_risk")
+    session.latest_integrity_risk = result.get("integrity_risk")
+
+    flags = result.get("flags", {})
+    if flags.get("eye_contact_missing"):
+        session.eye_contact_warning_count += 1
+    if flags.get("no_face_detected"):
+        session.no_face_warning_count += 1
+    if flags.get("multiple_faces_detected"):
+        session.multiple_faces_warning_count += 1
+
+    db.commit()
+
+    return EngagementTickResponseOut(
+        engagement_score=result.get("engagement_score"),
+        disengagement_risk=result.get("disengagement_risk"),
+        integrity_risk=result.get("integrity_risk"),
+        model=result.get("model", "rule_based"),
+        flags=flags,
+        consecutive_no_eye_contact_ticks=result.get("consecutive_no_eye_contact_ticks", 0),
+    )

@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 
 from app.config import settings
 from app.database import Base, engine
@@ -24,6 +25,16 @@ from app.routes import auth_routes, user_routes, interview_routes, resume_routes
 # (The provided sql/create_db.sql script does the same thing manually,
 #  in case the team prefers to run migrations by hand.)
 Base.metadata.create_all(bind=engine)
+
+# Keep existing PostgreSQL installations runnable without requiring users to
+# rebuild their database. New tables are handled by create_all; these additive
+# columns need a small idempotent compatibility migration.
+if engine.dialect.name == "postgresql":
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS professionalism_score REAL"))
+        connection.execute(text("ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS scoring_method VARCHAR(30)"))
+        connection.execute(text("ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS scoring_version VARCHAR(30)"))
+        connection.execute(text("ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS question_feedback TEXT"))
 
 # Module 4 - Interview Session Management: local folder that stores
 # uploaded webcam/microphone session recordings.
