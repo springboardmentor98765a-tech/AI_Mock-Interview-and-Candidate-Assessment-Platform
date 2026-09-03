@@ -100,12 +100,6 @@ SmartHire AI/
 │   ├── .env                                # Local secrets & LLM API keys
 │   └── .env.example                        # Template environment configuration
 │
-├── tests/                                  # Automated Pytest suite
-│   ├── conftest.py                         # Test fixtures & FastAPI TestClient setup
-│   ├── test_health.py                      # API health & static serving verification
-│   ├── test_auth.py                        # Password hashing & JWT token security tests
-│   └── test_scoring.py                     # Multi-modal scoring & rubric unit tests
-│
 ├── Dockerfile                              # Multi-stage containerization build file
 ├── docker-compose.yml                      # Container orchestration & persistent volume mapping
 ├── .dockerignore                           # Docker build exclusion rules
@@ -217,17 +211,17 @@ docker compose down
 
 ## 🧪 Testing & Quality Assurance
 
-SmartHire AI includes an automated Pytest test suite validating health endpoints, JWT security, password hashing, and scoring rubric calculations:
+SmartHire AI includes a local automated Pytest test suite (gitignored to keep the remote production repository clean and lightweight) validating health endpoints, JWT security, password hashing, and scoring rubric calculations:
 
 ```bash
-# Run test suite
+# Run local test suite
 pytest tests/ -v
 
 # Or via npm
 npm test
 ```
 
-### Test Coverage Highlights:
+### Test Suite Highlights:
 - **`test_health.py`**: Validates `/api/health`, HTML/CSS/JS asset delivery, and ensures `.env` is inaccessible over HTTP.
 - **`test_auth.py`**: Tests bcrypt one-way password hashing, validation, and JWT encoding/decoding.
 - **`test_scoring.py`**: Tests weighted pillar scoring and rubric tier classification.
