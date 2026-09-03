@@ -18,7 +18,7 @@ from database import engine, Base, SessionLocal
 from models.user import User
 from models.candidate import CandidateProfile
 from models.recruiter import RecruiterProfile
-from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog, InterviewBehaviorAnalysis
+from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog, InterviewBehaviorAnalysis, CandidatePerformanceReport
 
 from security.password import hash_password
 

@@ -101,6 +101,42 @@ class InterviewSession(Base):
     recordings = relationship("InterviewRecording", back_populates="session", cascade="all, delete-orphan")
     speech_analyses = relationship("SpeechAnalysis", back_populates="session", cascade="all, delete-orphan")
     behavior_analysis = relationship("InterviewBehaviorAnalysis", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    performance_report = relationship("CandidatePerformanceReport", back_populates="session", uselist=False, cascade="all, delete-orphan")
+
+class CandidatePerformanceReport(Base):
+    __tablename__ = "candidate_performance_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("interview_sessions.id"), nullable=False, unique=True, index=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    overall_score = Column(Float, nullable=True)
+    performance_rating = Column(String, nullable=True)
+
+    communication_score = Column(Float, nullable=True)
+    confidence_score = Column(Float, nullable=True)
+    technical_relevance_score = Column(Float, nullable=True)
+    professionalism_score = Column(Float, nullable=True)
+
+    communication_analysis_json = Column(JSON, nullable=True)
+    confidence_analysis_json = Column(JSON, nullable=True)
+    technical_analysis_json = Column(JSON, nullable=True)
+    professionalism_analysis_json = Column(JSON, nullable=True)
+
+    strengths = Column(JSON, nullable=True)
+    weaknesses = Column(JSON, nullable=True)
+    improvement_suggestions = Column(JSON, nullable=True)
+    practice_recommendations = Column(JSON, nullable=True)
+    learning_resources = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    session = relationship("InterviewSession", back_populates="performance_report")
+    interview = relationship("Interview")
+    candidate = relationship("User", foreign_keys=[candidate_id])
+
 
 class SpeechAnalysis(Base):
     __tablename__ = "speech_analyses"

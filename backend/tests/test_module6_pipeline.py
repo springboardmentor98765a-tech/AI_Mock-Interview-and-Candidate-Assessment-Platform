@@ -1,5 +1,8 @@
 import os
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import uuid
 import pytest
 import datetime
@@ -108,8 +111,8 @@ def test_look_away_timing_and_cooldown(create_fresh_session):
     session_id = session_rec.id
 
     # Brief look-away (<3s) does NOT trigger warning
-    frame_facing = {"face_detected": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": False}
-    frame_away = {"face_detected": True, "is_facing_screen": False, "confidence_prediction": "Unconfident", "emotion_prediction": "neutral", "mobile_detected": False}
+    frame_facing = {"frame_valid": True, "analysis_status": "OK", "face_detected": True, "gaze_available": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": False}
+    frame_away = {"frame_valid": True, "analysis_status": "OK", "face_detected": True, "gaze_available": True, "is_facing_screen": False, "confidence_prediction": "Unconfident", "emotion_prediction": "neutral", "mobile_detected": False}
 
     res_brief = process_frame_sample(db, session_rec, frame_away)
     assert res_brief["trigger_look_away_warning"] is False
@@ -126,12 +129,27 @@ def test_look_away_timing_and_cooldown(create_fresh_session):
     assert res_spam_check["trigger_look_away_warning"] is False
 
 
+def test_low_light_frame_handling(create_fresh_session):
+    db, user, interview, session_rec, analysis_rec = create_fresh_session
+
+    dark_image = np.zeros((240, 320, 3), dtype=np.uint8)
+    res = vision_service.analyze_frame(dark_image)
+
+    assert res["frame_valid"] is False
+    assert res["analysis_status"] == "LOW_LIGHT"
+    assert res["face_detected"] is False
+
+    # Verify low light frame does NOT trigger face absence violation
+    b_res = process_frame_sample(db, session_rec, res)
+    assert b_res["trigger_face_not_detected_warning"] is False
+
+
 def test_mobile_single_vs_multi_frame_state_management(create_fresh_session):
     db, user, interview, session_rec, analysis_rec = create_fresh_session
     session_id = session_rec.id
 
-    frame_single_mobile = {"face_detected": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": True, "mobile_confidence": 0.88}
-    frame_clear = {"face_detected": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": False, "mobile_confidence": 0.0}
+    frame_single_mobile = {"frame_valid": True, "analysis_status": "OK", "face_detected": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": True, "mobile_confidence": 0.88}
+    frame_clear = {"frame_valid": True, "analysis_status": "OK", "face_detected": True, "is_facing_screen": True, "confidence_prediction": "Confident", "emotion_prediction": "neutral", "mobile_detected": False, "mobile_confidence": 0.0}
 
     # 1. Single isolated detection does NOT trigger confirmed event
     res1 = process_frame_sample(db, session_rec, frame_single_mobile)
@@ -141,22 +159,26 @@ def test_mobile_single_vs_multi_frame_state_management(create_fresh_session):
     process_frame_sample(db, session_rec, frame_clear)
     process_frame_sample(db, session_rec, frame_clear)
 
-    # 2. 2-out-of-3 detection triggers ONE event and one warning
+    # 2. 2-out-of-3 detection hit sets active start timer
     process_frame_sample(db, session_rec, frame_single_mobile)
     res_m2 = process_frame_sample(db, session_rec, frame_single_mobile)
     assert res_m2["multi_frame_mobile_confirmed"] is True
 
-    # Verify state timestamps & peak confidence stored
+    # 3. Simulate sustained duration >= 1.5 seconds
     state = get_or_create_session_state(session_id)
-    assert state["active_mobile_event"] is not None
-    assert state["active_mobile_event"]["peak_confidence"] == 0.88
+    state["active_mobile_start"] = datetime.datetime.utcnow() - datetime.timedelta(seconds=1.6)
+
+    res_m3 = process_frame_sample(db, session_rec, frame_single_mobile)
+    assert res_m3["trigger_mobile_warning"] is True
+    assert len(state["confirmed_mobile_events"]) == 1
+    assert state["confirmed_mobile_events"][0]["peak_confidence"] == 0.88
 
 
 def test_fullscreen_violations_and_fifth_violation_safe_finalization(create_fresh_session):
     db, user, interview, session_rec, analysis_rec = create_fresh_session
     session_id = session_rec.id
 
-    # Violations 1 to 4
+    # Violations 1 to 4 issue warnings and do NOT auto-terminate
     for v in range(1, 5):
         res = record_fullscreen_violation(db, session_id)
         assert res["violation_count"] == v
@@ -200,3 +222,120 @@ def test_report_generation_with_partial_data(create_fresh_session):
     assert report.session_id == session_rec.id
     assert report.analysis_status in ["complete", "insufficient_data"]
     assert report.fullscreen_violations_count == 0
+
+
+def test_gaze_unavailable_eligibility(create_fresh_session):
+    """Tests that frames with gaze_available=False do NOT count towards eye contact or trigger violations."""
+    db, user, interview, session_rec, analysis_rec = create_fresh_session
+    session_id = session_rec.id
+
+    frame_no_gaze = {
+        "frame_valid": True,
+        "analysis_status": "OK",
+        "face_detected": True,
+        "gaze_available": False,
+        "is_facing_screen": False,
+        "confidence_prediction": "Confident"
+    }
+
+    res = process_frame_sample(db, session_rec, frame_no_gaze)
+    assert res["trigger_look_away_warning"] is False
+
+    state = get_or_create_session_state(session_id)
+    assert len(state["look_away_events"]) == 0
+    assert analysis_rec.eye_contact_percentage is None
+
+
+def test_restart_resilience_and_report(create_fresh_session):
+    """Tests that server restart reconstructs persistent violations from database state."""
+    db, user, interview, session_rec, analysis_rec = create_fresh_session
+    session_id = session_rec.id
+
+    # 1. Add sustained face absence with timeline entries
+    state = get_or_create_session_state(session_id)
+    t_start = (datetime.datetime.utcnow() - datetime.timedelta(seconds=4.0)).isoformat()
+    t_now = datetime.datetime.utcnow().isoformat()
+    
+    state["timeline"].append({"timestamp": t_start, "frame_valid": True, "analysis_status": "NO_FACE", "face_detected": False, "is_facing_screen": False})
+    state["timeline"].append({"timestamp": t_now, "frame_valid": True, "analysis_status": "NO_FACE", "face_detected": False, "is_facing_screen": False})
+    state["active_absence_start"] = datetime.datetime.utcnow() - datetime.timedelta(seconds=4.0)
+
+    frame_no_face = {
+        "frame_valid": True,
+        "analysis_status": "NO_FACE",
+        "face_detected": False
+    }
+
+    process_frame_sample(db, session_rec, frame_no_face)
+    assert len(state["face_absence_events"]) >= 1
+
+    # 2. Simulate Backend Server Restart (clear in-memory state dictionary)
+    from services.behavior_service import SESSION_BEHAVIOR_STATES
+    SESSION_BEHAVIOR_STATES.pop(session_id, None)
+
+    # 3. Fetch state after restart
+    new_state = get_or_create_session_state(session_id, db=db, session_rec=session_rec)
+    assert len(new_state["face_absence_events"]) >= 1
+
+    # 4. Generate behavior report after restart
+    from services.behavior_service import get_behavior_report_dict
+    report_data = get_behavior_report_dict(db, session_rec, analysis_rec)
+    assert report_data["violations_summary"]["total"] >= 1
+    assert report_data["violations_summary"]["face_not_detected"] >= 1
+
+
+def test_confidence_inference_failure_safe_handling(create_fresh_session):
+    """Tests that when confidence model returns None, analyze_frame and process_frame_sample do not crash."""
+    from services.vision_service import vision_service
+    import numpy as np
+
+    dummy_bgr = np.full((480, 640, 3), 128, dtype=np.uint8)
+    # Simulate confidence model failure
+    orig_loaded = vision_service.confidence_model_loaded
+    vision_service.confidence_model_loaded = False
+
+    try:
+        analysis = vision_service.analyze_frame(dummy_bgr)
+        assert analysis["confidence_prediction"] in ["unavailable", "No Face"]
+        assert analysis["confidence_probability"] is None
+        assert analysis["confidence_score"] is None
+        assert analysis["analysis_status"] in ["NO_FACE", "OK"]
+    finally:
+        vision_service.confidence_model_loaded = orig_loaded
+
+
+def test_sub_3s_deviations_no_violations(create_fresh_session):
+    """Tests that face absence < 3s and look away < 3s do not trigger violations."""
+    db, user, interview, session_rec, analysis_rec = create_fresh_session
+    session_id = session_rec.id
+
+    state = get_or_create_session_state(session_id)
+    now = datetime.datetime.utcnow()
+    
+    # 2.5s face absence
+    state["active_absence_start"] = now - datetime.timedelta(seconds=2.5)
+    frame_face_returns = {
+        "frame_valid": True,
+        "analysis_status": "OK",
+        "face_detected": True,
+        "gaze_available": True,
+        "is_facing_screen": True
+    }
+
+    process_frame_sample(db, session_rec, frame_face_returns)
+    assert len(state["face_absence_events"]) == 0
+
+    # 2.5s look away
+    state["active_look_away_start"] = now - datetime.timedelta(seconds=2.5)
+    frame_facing_returns = {
+        "frame_valid": True,
+        "analysis_status": "OK",
+        "face_detected": True,
+        "gaze_available": True,
+        "is_facing_screen": True
+    }
+
+    process_frame_sample(db, session_rec, frame_facing_returns)
+    assert len(state["look_away_events"]) == 0
+
+

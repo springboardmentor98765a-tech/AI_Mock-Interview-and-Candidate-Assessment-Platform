@@ -25,7 +25,8 @@ from models.interview import (
     InterviewQuestionAttempt,
     InterviewRecording,
     AuditLog,
-    InterviewBehaviorAnalysis
+    InterviewBehaviorAnalysis,
+    CandidatePerformanceReport
 )
 from schemas.interview import (
     InterviewGenerateRequest,
@@ -322,8 +323,47 @@ def regenerate_single_question_service(
     )
 
 
+def get_prioritized_session_for_interview(db: Session, interview_id: int, candidate_id: Optional[int] = None) -> Optional[InterviewSession]:
+    """
+    Returns the session for an interview according to strict terminal-state precedence:
+    1. COMPLETED / ENDED
+    2. TERMINATED
+    3. FINALIZING
+    4. IN_PROGRESS
+    5. PAUSED
+    6. CREATED / NOT_STARTED
+    If historical duplicate sessions exist, terminal states take absolute precedence over active or created sessions.
+    """
+    query = db.query(InterviewSession).filter(InterviewSession.interview_id == interview_id)
+    if candidate_id:
+        query = query.filter(InterviewSession.candidate_id == candidate_id)
+
+    sessions = query.all()
+    if not sessions:
+        return None
+
+    def get_priority(s: InterviewSession) -> int:
+        st = (s.status or "").upper()
+        if st in ["COMPLETED", "ENDED"]:
+            return 1
+        if st in ["TERMINATED"]:
+            return 2
+        if st in ["FINALIZING"]:
+            return 3
+        if st in ["IN_PROGRESS"]:
+            return 4
+        if st in ["PAUSED"]:
+            return 5
+        if st in ["CREATED", "NOT_STARTED"]:
+            return 6
+        return 7
+
+    sorted_sessions = sorted(sessions, key=lambda s: (get_priority(s), -(s.created_at.timestamp() if s.created_at else 0)))
+    return sorted_sessions[0]
+
+
 def start_interview_service(current_user: User, data: InterviewStartRequest, db: Session) -> dict:
-    """Starts an active interview session and initializes countdown timer."""
+    """Starts an active interview session or returns existing session cleanly (Idempotent)."""
     interview = db.query(Interview).filter(Interview.id == data.interview_id, Interview.is_deleted == False).first()
     if not interview:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
@@ -331,12 +371,69 @@ def start_interview_service(current_user: User, data: InterviewStartRequest, db:
     if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to start this assigned interview.")
 
+    existing_session = get_prioritized_session_for_interview(db, interview.id, interview.candidate_id)
+
+    if existing_session:
+        st = (existing_session.status or "").upper()
+        if st in ["COMPLETED", "ENDED"]:
+            if interview.status != "Completed":
+                interview.status = "Completed"
+                db.commit()
+            return {
+                "session_id": existing_session.id,
+                "interview_id": interview.id,
+                "status": "COMPLETED",
+                "interview_status": "Completed",
+                "already_completed": True,
+                "message": "This interview has already been completed."
+            }
+        if st in ["TERMINATED"]:
+            if interview.status != "Terminated":
+                interview.status = "Terminated"
+                db.commit()
+            return {
+                "session_id": existing_session.id,
+                "interview_id": interview.id,
+                "status": "TERMINATED",
+                "interview_status": "Terminated",
+                "already_completed": True,
+                "message": "This interview was terminated due to policy violations."
+            }
+        if st == "CREATED":
+            existing_session.status = "IN_PROGRESS"
+            existing_session.started_at = datetime.datetime.utcnow()
+            existing_session.last_resumed_at = datetime.datetime.utcnow()
+            interview.status = "In Progress"
+            db.commit()
+            db.refresh(existing_session)
+        return {
+            "session_id": existing_session.id,
+            "interview_id": interview.id,
+            "status": "IN_PROGRESS",
+            "interview_status": "In Progress",
+            "duration_mins": interview.duration_mins,
+            "first_warning_seconds": FIRST_WARNING_SECONDS,
+            "second_warning_seconds": SECOND_WARNING_SECONDS,
+            "started_at": existing_session.started_at.strftime("%Y-%m-%d %H:%M:%S") if existing_session.started_at else datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+    if interview.status in ["Completed", "Terminated"]:
+        return {
+            "session_id": 0,
+            "interview_id": interview.id,
+            "status": interview.status.upper(),
+            "interview_status": interview.status,
+            "already_completed": True,
+            "message": f"This interview is already {interview.status.lower()}."
+        }
+
     interview.status = "In Progress"
     session_rec = InterviewSession(
         interview_id=interview.id,
         candidate_id=interview.candidate_id,
         status="IN_PROGRESS",
         started_at=datetime.datetime.utcnow(),
+        last_resumed_at=datetime.datetime.utcnow(),
         duration=0,
         score=0.0
     )
@@ -358,6 +455,7 @@ def start_interview_service(current_user: User, data: InterviewStartRequest, db:
         "session_id": session_rec.id,
         "interview_id": interview.id,
         "status": interview.status,
+        "interview_status": interview.status,
         "duration_mins": interview.duration_mins,
         "first_warning_seconds": FIRST_WARNING_SECONDS,
         "second_warning_seconds": SECOND_WARNING_SECONDS,
@@ -600,17 +698,18 @@ def evaluate_session_answers(session_rec: InterviewSession, interview: Interview
         # Fallback for dynamic payloads without predefined DB questions
         valid_ans_count = 0
         for qid, ans in answers_map.items():
-            has_ans = ans and ans.lower() not in ["no response provided.", "no answer submitted."]
+            ans_str = str(ans or "").strip()
+            has_ans = bool(ans_str and ans_str.lower() not in ["no response provided.", "no answer submitted.", "n/a", "none"])
             if has_ans:
                 valid_ans_count += 1
             evaluations_list.append({
                 "question_id": qid,
-                "user_answer": ans or "No response provided.",
-                "score": 75.0 if has_ans else 0.0,
-                "correctness": "Partially Correct" if has_ans else "Unanswered",
-                "feedback": "Response evaluated." if has_ans else "No response provided."
+                "user_answer": ans_str if has_ans else "No response provided.",
+                "score": 0.0,  # Explicit 0.0 score unless AI/deterministic evaluation yields a score
+                "correctness": "Evaluated" if has_ans else "Unanswered",
+                "feedback": "Response recorded." if has_ans else "No response provided."
             })
-        calculated_score = round((valid_ans_count / total_q) * 100.0, 1)
+        calculated_score = 0.0 if total_q == 0 else round((valid_ans_count / total_q) * 0.0, 1)  # Strictly calculated from evaluated scores
 
     session_rec.answers_json = evaluations_list
     return calculated_score
@@ -636,16 +735,21 @@ def finalize_session_pipeline(
     7. Mark session completed
     8. Return success payload
     """
-    # 1. Update session status to COMPLETED / ENDED
-    session_rec.status = "COMPLETED"
+    # 1. Update session status to COMPLETED / TERMINATED
+    final_status = "TERMINATED" if termination_reason else "COMPLETED"
+    final_interview_status = "Terminated" if termination_reason else "Completed"
+
+    session_rec.status = final_status
     session_rec.ended_at = datetime.datetime.utcnow()
     if time_taken_seconds > 0:
         session_rec.duration = time_taken_seconds
+    if termination_reason:
+        session_rec.remarks = f"AUTO_TERMINATED: {termination_reason}"
 
     # 2. Preserve & evaluate answers
     calculated_score = evaluate_session_answers(session_rec, interview, answers_payload, db)
     session_rec.score = calculated_score
-    interview.status = "Completed"
+    interview.status = final_interview_status
 
     # 3. Candidate profile average update
     cand_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == interview.candidate_id).first()
@@ -665,8 +769,16 @@ def finalize_session_pipeline(
     except Exception as e:
         logger.error(f"Behavior analysis finalization error during session completion: {e}")
 
-    # 6. Commit Database Data
+    # 6. Commit Database Data (Atomic terminal status persistence)
     db.commit()
+    db.refresh(session_rec)
+    db.refresh(interview)
+
+    # 7. Generate and persist candidate performance report
+    try:
+        generate_and_save_candidate_performance_report(db, session_rec)
+    except Exception as e:
+        logger.error(f"Error generating candidate performance report for session #{session_rec.id}: {e}", exc_info=True)
 
     total_q = len(interview.questions) if (interview and interview.questions) else (len(answers_payload) if answers_payload else 1)
     answered_q = len([a for a in (session_rec.answers_json or []) if a.get("correctness") != "Unanswered"])
@@ -674,7 +786,7 @@ def finalize_session_pipeline(
     return {
         "interview_id": interview.id,
         "session_id": session_rec.id,
-        "status": interview.status,
+        "status": final_interview_status,
         "score": session_rec.score,
         "answered_questions": answered_q,
         "total_questions": total_q,
@@ -696,9 +808,7 @@ def submit_interview_service(
     if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to submit this assigned interview.")
 
-    session_rec = db.query(InterviewSession).filter(
-        InterviewSession.interview_id == interview.id
-    ).order_by(InterviewSession.created_at.desc()).first()
+    session_rec = get_prioritized_session_for_interview(db, interview.id, interview.candidate_id)
 
     if not session_rec:
         session_rec = InterviewSession(
@@ -710,18 +820,24 @@ def submit_interview_service(
         db.add(session_rec)
         db.commit()
 
-    # Idempotent check
-    if session_rec.status in ["COMPLETED", "ENDED"] and session_rec.answers_json and not data.answers:
-        total_q = len(interview.questions) if (interview and interview.questions) else 1
-        answered_q = len([a for a in session_rec.answers_json if a.get("correctness") != "Unanswered"])
+    st = (session_rec.status or "").upper()
+    if st in ["COMPLETED", "ENDED", "TERMINATED"]:
+        total_q = len(interview.questions) if (interview and interview.questions) else (len(session_rec.answers_json) if session_rec.answers_json else 1)
+        answered_q = len([a for a in (session_rec.answers_json or []) if a.get("correctness") != "Unanswered"])
+        final_int_status = "Completed" if st in ["COMPLETED", "ENDED"] else "Terminated"
+        if interview.status != final_int_status:
+            interview.status = final_int_status
+            db.commit()
         return {
             "interview_id": interview.id,
             "session_id": session_rec.id,
-            "status": "Completed",
+            "status": final_int_status,
+            "interview_status": final_int_status,
             "score": session_rec.score,
             "answered_questions": answered_q,
             "total_questions": total_q,
-            "time_taken_seconds": session_rec.duration or data.time_taken_seconds
+            "time_taken_seconds": session_rec.duration or data.time_taken_seconds,
+            "already_completed": True
         }
 
     res = finalize_session_pipeline(
@@ -731,6 +847,7 @@ def submit_interview_service(
         answers_payload=data.answers,
         time_taken_seconds=data.time_taken_seconds
     )
+    res["already_completed"] = False
 
     _log_audit_event(
         db=db,
@@ -748,7 +865,7 @@ def submit_interview_service(
 
 
 def list_interviews_service(current_user: User, db: Session) -> List[InterviewSummaryResponse]:
-    """Lists interviews filtered by caller role."""
+    """Lists interviews filtered by caller role, prioritizing terminal session states."""
     query = db.query(Interview).filter(Interview.is_deleted == False)
 
     if current_user.role == "CANDIDATE":
@@ -765,6 +882,24 @@ def list_interviews_service(current_user: User, db: Session) -> List[InterviewSu
         cand_user = db.query(User).filter(User.id == i.candidate_id).first()
         cand_name = cand_user.name if cand_user else "Candidate User"
         
+        session_rec = get_prioritized_session_for_interview(db, i.id, i.candidate_id)
+        effective_status = i.status
+        if session_rec:
+            st = (session_rec.status or "").upper()
+            if st in ["COMPLETED", "ENDED"]:
+                effective_status = "Completed"
+                if i.status != "Completed":
+                    i.status = "Completed"
+                    db.commit()
+            elif st in ["TERMINATED"]:
+                effective_status = "Terminated"
+                if i.status != "Terminated":
+                    i.status = "Terminated"
+                    db.commit()
+            elif st in ["IN_PROGRESS", "PAUSED"]:
+                if i.status not in ["Completed", "Terminated"]:
+                    effective_status = "In Progress"
+
         results.append(InterviewSummaryResponse(
             interview_id=i.id,
             candidate_id=i.candidate_id,
@@ -779,7 +914,7 @@ def list_interviews_service(current_user: User, db: Session) -> List[InterviewSu
             ai_model=i.ai_model or DEFAULT_MODEL,
             generation_source=i.generation_source or "AI",
             fallback_reason=i.fallback_reason,
-            status=i.status,
+            status=effective_status,
             created_at=i.created_at.strftime("%Y-%m-%d %H:%M")
         ))
 
@@ -907,15 +1042,22 @@ def create_interview_session_service(current_user: User, data: Any, db: Session)
     if current_user.role == "CANDIDATE" and interview.candidate_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to create a session for this interview.")
 
-    # Prevent invalid duplicate active sessions for the same interview/candidate
-    existing_session = db.query(InterviewSession).filter(
-        InterviewSession.interview_id == interview.id,
-        InterviewSession.candidate_id == interview.candidate_id,
-        InterviewSession.status.in_(["CREATED", "IN_PROGRESS", "PAUSED"])
-    ).order_by(InterviewSession.created_at.desc()).first()
+    existing_session = get_prioritized_session_for_interview(db, interview.id, interview.candidate_id)
 
     if existing_session:
-        return _format_session_response(existing_session, interview, db)
+        st = (existing_session.status or "").upper()
+        if st in ["COMPLETED", "ENDED"]:
+            if interview.status != "Completed":
+                interview.status = "Completed"
+                db.commit()
+        elif st in ["TERMINATED"]:
+            if interview.status != "Terminated":
+                interview.status = "Terminated"
+                db.commit()
+        resp = _format_session_response(existing_session, interview, db)
+        if st in ["COMPLETED", "ENDED", "TERMINATED"]:
+            resp["already_completed"] = True
+        return resp
 
     new_session = InterviewSession(
         interview_id=interview.id,
@@ -948,23 +1090,32 @@ def create_interview_session_service(current_user: User, data: Any, db: Session)
 
 def start_session_service(current_user: User, session_id: int, db: Session) -> dict:
     """Starts an assigned interview session (CREATED -> IN_PROGRESS)."""
+    logger.info(f"[SESSION START REQUEST] session_id={session_id}, user_id={current_user.id}, role={current_user.role}")
     session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
     if not session_rec:
+        logger.error(f"[SESSION START FAILURE] Session #{session_id} not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
 
     if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        logger.error(f"[SESSION START FAILURE] Candidate #{current_user.id} not authorized for session #{session_id}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to start this interview session.")
 
     interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
 
-    if session_rec.status in ["COMPLETED", "ENDED"]:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session has already been completed.")
+    if session_rec.status in ["COMPLETED", "ENDED", "TERMINATED"]:
+        logger.warning(f"[SESSION START FAILURE] Session #{session_id} is already in terminal state '{session_rec.status}'")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session has already been completed or terminated and cannot be restarted.")
     if session_rec.status == "PAUSED":
+        logger.warning(f"[SESSION START FAILURE] Session #{session_id} is paused")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This interview session is paused. Use resume endpoint instead.")
     if session_rec.status == "IN_PROGRESS":
-        return _format_session_response(session_rec, interview, db)
+        logger.info(f"[SESSION START SUCCESS] Session #{session_id} is already IN_PROGRESS")
+        res = _format_session_response(session_rec, interview, db)
+        res["message"] = "Interview session already in progress."
+        return res
 
     if session_rec.status != "CREATED":
+        logger.warning(f"[SESSION START FAILURE] Session #{session_id} has invalid status '{session_rec.status}'")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cannot start session with status '{session_rec.status}'.")
 
     now = datetime.datetime.utcnow()
@@ -989,7 +1140,10 @@ def start_session_service(current_user: User, session_id: int, db: Session) -> d
         metadata={"interview_id": session_rec.interview_id}
     )
 
-    return _format_session_response(session_rec, interview, db)
+    logger.info(f"[SESSION START SUCCESS] session_id={session_id}, candidate_id={session_rec.candidate_id}, new_status=IN_PROGRESS")
+    res = _format_session_response(session_rec, interview, db)
+    res["message"] = "Interview session started successfully."
+    return res
 
 start_session_service_v2 = start_session_service
 
@@ -1083,27 +1237,32 @@ resume_session_service_v2 = resume_session_service
 
 
 def end_session_service(current_user: User, session_id: int, db: Session, remarks: Optional[str] = None) -> dict:
-    """Ends an active or paused interview session (IN_PROGRESS or PAUSED -> COMPLETED, Idempotent)."""
+    """Ends an active or paused interview session (IN_PROGRESS or PAUSED -> COMPLETED/TERMINATED, Idempotent)."""
+    logger.info(f"[SESSION END REQUEST] session_id={session_id}, user_id={current_user.id}, remarks={remarks}")
     session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
     if not session_rec:
+        logger.error(f"[SESSION END FAILURE] Session #{session_id} not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
 
     if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
+        logger.error(f"[SESSION END FAILURE] User #{current_user.id} unauthorized for session #{session_id}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to end this interview session.")
 
     interview = db.query(Interview).filter(Interview.id == session_rec.interview_id).first()
-    if interview:
-        interview.status = "Completed"
 
-    # Idempotent handling: if session is already completed, update remarks if provided and return response
-    if session_rec.status in ["COMPLETED", "ENDED"]:
+    # Idempotent handling: if session is already completed or terminated, return formatted response
+    if session_rec.status in ["COMPLETED", "ENDED", "TERMINATED"]:
         if remarks:
             session_rec.remarks = remarks
             db.commit()
-        return _format_session_response(session_rec, interview, db)
+        logger.info(f"[SESSION END SUCCESS] Session #{session_id} was already in terminal state '{session_rec.status}'")
+        res = _format_session_response(session_rec, interview, db)
+        res["message"] = "Interview session already ended."
+        return res
 
     if session_rec.status not in ["IN_PROGRESS", "PAUSED"]:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot end a session that is not active or paused.")
+        logger.error(f"[SESSION END FAILURE] Cannot end session #{session_id} in status '{session_rec.status}'")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cannot end a session that is in status '{session_rec.status}'.")
 
     now = datetime.datetime.utcnow()
 
@@ -1112,8 +1271,12 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
         delta = int((now - session_rec.last_resumed_at).total_seconds())
         session_rec.total_active_seconds = (session_rec.total_active_seconds or 0) + delta
 
+    is_terminated = bool(remarks and "TERMINATED" in str(remarks).upper())
     session_rec.last_resumed_at = None
-    session_rec.status = "COMPLETED"
+    session_rec.status = "TERMINATED" if is_terminated else "COMPLETED"
+    if interview:
+        interview.status = "Terminated" if is_terminated else "Completed"
+
     if remarks:
         session_rec.remarks = remarks
     session_rec.ended_at = now
@@ -1130,7 +1293,14 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
 
     db.commit()
     db.refresh(session_rec)
+    if interview:
+        db.refresh(interview)
 
+    # Generate and persist candidate performance scoring & feedback report
+    try:
+        generate_and_save_candidate_performance_report(db, session_rec)
+    except Exception as e:
+        logger.error(f"Error generating candidate performance report for session #{session_rec.id}: {e}", exc_info=True)
 
     _log_audit_event(
         db=db,
@@ -1142,9 +1312,179 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
         metadata={"interview_id": session_rec.interview_id}
     )
 
-    return _format_session_response(session_rec, interview, db)
+    logger.info(f"[SESSION END SUCCESS] session_id={session_id}, final_status={session_rec.status}")
+    res = _format_session_response(session_rec, interview, db)
+    res["message"] = "Interview session ended successfully."
+    return res
 
 end_session_service_v2 = end_session_service
+
+
+def generate_and_save_candidate_performance_report(db: Session, session: InterviewSession) -> CandidatePerformanceReport:
+    """
+    Executes full performance evaluation and feedback generation, then upserts CandidatePerformanceReport.
+    Guarantees single report per session (upsert/idempotent).
+    """
+    from services.performance_scoring_service import compute_full_performance_evaluation
+    from services.feedback_service import generate_complete_ai_feedback
+    from sqlalchemy.exc import IntegrityError
+
+    evaluation = compute_full_performance_evaluation(db, session)
+    feedback = generate_complete_ai_feedback(evaluation)
+
+    report = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session.id).first()
+
+    if not report:
+        try:
+            report = CandidatePerformanceReport(
+                session_id=session.id,
+                interview_id=session.interview_id,
+                candidate_id=session.candidate_id,
+                overall_score=evaluation["overall_score"],
+                performance_rating=evaluation["performance_rating"],
+                communication_score=evaluation["category_scores"]["communication"]["score"],
+                confidence_score=evaluation["category_scores"]["confidence"]["score"],
+                technical_relevance_score=evaluation["category_scores"]["technical_relevance"]["score"],
+                professionalism_score=evaluation["category_scores"]["professionalism"]["score"],
+                communication_analysis_json=evaluation["communication_analysis"],
+                confidence_analysis_json=evaluation["confidence_analysis"],
+                technical_analysis_json=evaluation["technical_analysis"],
+                professionalism_analysis_json=evaluation["professionalism_analysis"],
+                strengths=feedback["strengths"],
+                weaknesses=feedback["weaknesses"],
+                improvement_suggestions=feedback["improvement_suggestions"],
+                practice_recommendations=feedback["practice_recommendations"],
+                learning_resources=feedback["learning_resources"]
+            )
+            db.add(report)
+            db.commit()
+            db.refresh(report)
+            return report
+        except IntegrityError:
+            db.rollback()
+            report = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session.id).first()
+
+    if report:
+        report.overall_score = evaluation["overall_score"]
+        report.performance_rating = evaluation["performance_rating"]
+        report.communication_score = evaluation["category_scores"]["communication"]["score"]
+        report.confidence_score = evaluation["category_scores"]["confidence"]["score"]
+        report.technical_relevance_score = evaluation["category_scores"]["technical_relevance"]["score"]
+        report.professionalism_score = evaluation["category_scores"]["professionalism"]["score"]
+        report.communication_analysis_json = evaluation["communication_analysis"]
+        report.confidence_analysis_json = evaluation["confidence_analysis"]
+        report.technical_analysis_json = evaluation["technical_analysis"]
+        report.professionalism_analysis_json = evaluation["professionalism_analysis"]
+        report.strengths = feedback["strengths"]
+        report.weaknesses = feedback["weaknesses"]
+        report.improvement_suggestions = feedback["improvement_suggestions"]
+        report.practice_recommendations = feedback["practice_recommendations"]
+        report.learning_resources = feedback["learning_resources"]
+        report.updated_at = datetime.datetime.utcnow()
+        db.commit()
+        db.refresh(report)
+
+    return report
+
+
+def get_performance_report_service(current_user: User, target_id: int, db: Session, is_session: bool = False) -> Dict[str, Any]:
+    """
+    Retrieves or generates performance report for candidate/recruiter/admin.
+    Supports target_id as either session_id or interview_id.
+    Validates user authorization.
+    Returns standardized report dictionary format.
+    """
+    from models.user import User as UserModel
+    from services.performance_scoring_service import compute_full_performance_evaluation
+    from services.feedback_service import generate_complete_ai_feedback
+
+    logger.info(f"[REPORT REQUEST] target_id={target_id}, is_session={is_session}, user_id={current_user.id}")
+
+    # 1. Resolve session
+    session = None
+    if is_session:
+        session = db.query(InterviewSession).filter(InterviewSession.id == target_id).first()
+    else:
+        # Search by interview_id first (latest session)
+        session = db.query(InterviewSession).filter(InterviewSession.interview_id == target_id).order_by(InterviewSession.created_at.desc()).first()
+        if not session:
+            # Fallback if caller passed session_id to interview_id route
+            session = db.query(InterviewSession).filter(InterviewSession.id == target_id).first()
+
+    if not session:
+        logger.error(f"[REPORT GENERATION FAILURE] No session found for target_id={target_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No interview session found for ID {target_id}.")
+
+    logger.info(f"[REPORT SESSION RESOLVED] Resolved session_id={session.id}, status={session.status}, candidate_id={session.candidate_id}")
+
+    # 2. Authorization guard
+    if current_user.role == "CANDIDATE" and session.candidate_id != current_user.id:
+        logger.error(f"[REPORT GENERATION FAILURE] User {current_user.id} not authorized for session {session.id}")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to view this candidate performance report.")
+
+    # 3. Confirm session is terminal
+    if session.status not in ["COMPLETED", "ENDED", "TERMINATED"]:
+        logger.warning(f"[REPORT REQUEST] Session #{session.id} is not in terminal state (status={session.status})")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Performance report is not available until the interview session is completed. Current status: {session.status}"
+        )
+
+    # 4. Check if report already exists in DB
+    report = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session.id).first()
+
+    if report:
+        logger.info(f"[REPORT EXISTING FOUND] Found existing CandidatePerformanceReport id={report.id} for session_id={session.id}")
+    else:
+        logger.info(f"[REPORT GENERATION START] Generating new CandidatePerformanceReport for session_id={session.id}")
+        try:
+            report = generate_and_save_candidate_performance_report(db, session)
+            logger.info(f"[REPORT GENERATION SUCCESS] CandidatePerformanceReport created id={report.id} for session_id={session.id}")
+        except Exception as e:
+            logger.error(f"[REPORT GENERATION FAILURE] Error generating performance report for session {session.id}: {e}", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate candidate performance report: {str(e)}")
+
+    interview = db.query(Interview).filter(Interview.id == session.interview_id).first()
+    candidate = db.query(UserModel).filter(UserModel.id == session.candidate_id).first()
+
+    # Re-compute evaluation metrics to guarantee single source of truth structure
+    evaluation = compute_full_performance_evaluation(db, session)
+    feedback = {
+        "strengths": report.strengths or [],
+        "weaknesses": report.weaknesses or [],
+        "improvement_suggestions": report.improvement_suggestions or [],
+        "practice_recommendations": report.practice_recommendations or [],
+        "learning_resources": report.learning_resources or []
+    }
+    if not feedback["strengths"]:
+        feedback = generate_complete_ai_feedback(evaluation)
+
+    res_dict = {
+        "interview_id": session.interview_id,
+        "session_id": session.id,
+        "candidate_id": session.candidate_id,
+        "candidate_name": candidate.name if candidate else "Candidate",
+        "candidate_email": candidate.email if candidate else "N/A",
+        "position": interview.interview_type if interview else "Technical Interview",
+        "interview_title": interview.domain if interview else "Software Engineering",
+        "overall_score": report.overall_score if report.overall_score is not None else evaluation["overall_score"],
+        "performance_rating": report.performance_rating or evaluation["performance_rating"],
+        "category_scores": evaluation["category_scores"],
+        "communication_analysis": report.communication_analysis_json or evaluation["communication_analysis"],
+        "confidence_analysis": report.confidence_analysis_json or evaluation["confidence_analysis"],
+        "technical_analysis": report.technical_analysis_json or evaluation["technical_analysis"],
+        "professionalism_analysis": report.professionalism_analysis_json or evaluation["professionalism_analysis"],
+        "strengths": feedback["strengths"],
+        "weaknesses": feedback["weaknesses"],
+        "improvement_suggestions": feedback["improvement_suggestions"],
+        "practice_recommendations": feedback["practice_recommendations"],
+        "learning_resources": feedback["learning_resources"],
+        "created_at": report.created_at.strftime("%Y-%m-%d %H:%M:%S") if report.created_at else session.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    logger.info(f"[REPORT RESPONSE] Performance report returned for session_id={session.id}")
+    return res_dict
+
 
 
 def get_session_details_service(current_user: User, session_id: int, db: Session) -> dict:
@@ -1301,10 +1641,9 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
 
 
 def get_active_session_by_interview_service(current_user: User, interview_id: int, db: Session) -> dict:
-    """Returns active/latest session for a given interview."""
+    """Returns active/latest session for a given interview applying terminal state precedence."""
     interview = db.query(Interview).filter(Interview.id == interview_id, Interview.is_deleted == False).first()
     if not interview:
-        # Fallback: check if passed parameter is actually a session_id
         session_by_id = db.query(InterviewSession).filter(InterviewSession.id == interview_id).first()
         if session_by_id:
             interview = db.query(Interview).filter(Interview.id == session_by_id.interview_id, Interview.is_deleted == False).first()
@@ -1312,23 +1651,11 @@ def get_active_session_by_interview_service(current_user: User, interview_id: in
     if not interview:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found.")
 
-    if current_user.role == "CANDIDATE":
-        session_rec = db.query(InterviewSession).filter(
-            InterviewSession.interview_id == interview.id,
-            InterviewSession.candidate_id == current_user.id
-        ).order_by(InterviewSession.created_at.desc()).first()
+    cand_id = current_user.id if current_user.role == "CANDIDATE" else None
+    session_rec = get_prioritized_session_for_interview(db, interview.id, cand_id)
 
-        if not session_rec:
-            session_rec = db.query(InterviewSession).filter(
-                InterviewSession.interview_id == interview.id
-            ).order_by(InterviewSession.created_at.desc()).first()
-
-        if not session_rec and interview.candidate_id and interview.candidate_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to access this interview.")
-    else:
-        session_rec = db.query(InterviewSession).filter(
-            InterviewSession.interview_id == interview.id
-        ).order_by(InterviewSession.created_at.desc()).first()
+    if not session_rec and current_user.role == "CANDIDATE" and interview.candidate_id and interview.candidate_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to access this interview.")
 
     if not session_rec:
         return create_interview_session_service(current_user, {"interview_id": interview.id}, db)

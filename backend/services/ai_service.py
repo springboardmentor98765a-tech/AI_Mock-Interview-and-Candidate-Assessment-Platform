@@ -383,8 +383,11 @@ class GeminiService(AIService):
         if not ans_clean or ans_clean.lower() in ["no response provided.", "no answer submitted.", "n/a", "none"]:
             return {
                 "score": 0.0,
+                "available": False,
+                "status": "no_answers",
                 "correctness": "Unanswered",
-                "feedback": "No response was provided for this question."
+                "feedback": "No response was provided for this question.",
+                "reason": "No response was provided for this question."
             }
 
         points_str = ", ".join(evaluation_points) if evaluation_points else "General technical accuracy and clarity"
@@ -401,14 +404,17 @@ EVALUATION POINTS: {points_str}
 CANDIDATE ANSWER: {ans_clean}
 
 CRITICAL EVALUATION RULES:
-1. Determine if the answer is:
+1. Do not invent, estimate, assume, or fabricate scores when candidate data is missing or invalid.
+2. If no transcript, answer, or technical evidence exists, score must be 0.0 with correctness 'Unanswered'.
+3. Do not generate positive claims that are not supported by actual candidate answer evidence.
+4. Determine if the answer is:
    - "Correct" (Score 85.0 - 100.0): Accurately addresses the core concepts and matches evaluation criteria well.
    - "Partially Correct" (Score 50.0 - 75.0): Addresses part of the question or criteria, but missing key details or depth.
    - "Incorrect" (Score 20.0 - 40.0): Inaccurate concepts or incorrect claims regarding the topic.
    - "Irrelevant" (Score 0.0 - 15.0): Completely off-topic or nonsensical response unrelated to the question.
-   - "Unanswered" (Score 0.0): Blank or missing answer.
-2. Provide a brief 1-2 sentence constructive feedback explanation.
-3. Respond ONLY with a valid JSON object matching this structure:
+   - "Unanswered" (Score 0.0): Blank, missing, or whitespace-only answer.
+5. Provide a brief 1-2 sentence constructive feedback explanation.
+6. Respond ONLY with a valid JSON object matching this structure:
 {{
   "score": 85.0,
   "correctness": "Correct",
@@ -418,16 +424,28 @@ CRITICAL EVALUATION RULES:
         try:
             raw_response = self._call_gemini_api(prompt.strip())
             data = json.loads(raw_response.strip())
-            score = float(data.get("score", 50.0))
+            score_val = data.get("score")
+            score = float(score_val) if score_val is not None else 0.0
             score = max(0.0, min(100.0, score))
-            correctness = str(data.get("correctness", "Partially Correct"))
+            correctness = str(data.get("correctness", "Partially Correct" if score > 0 else "Unanswered"))
             feedback = str(data.get("feedback", "Response evaluated by AI Engine."))
             return {
                 "score": round(score, 1),
+                "available": True,
+                "status": "evaluated" if score > 0 else "no_answers",
                 "correctness": correctness,
-                "feedback": feedback
+                "feedback": feedback,
+                "reason": None
             }
         except Exception as exc:
-            logger.warning(f"Gemini API answer evaluation notice ({exc}). Invoking fallback evaluator.")
-            raise exc
+            logger.warning(f"Gemini API answer evaluation notice ({exc}). Returning evaluation_failed result.")
+            return {
+                "score": 0.0,
+                "available": False,
+                "status": "evaluation_failed",
+                "correctness": "Unanswered",
+                "feedback": "AI evaluation could not be completed.",
+                "reason": "AI evaluation could not be completed."
+            }
+
 

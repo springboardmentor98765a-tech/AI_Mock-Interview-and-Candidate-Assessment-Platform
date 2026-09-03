@@ -1,5 +1,8 @@
 import logging
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, Body, HTTPException
@@ -538,6 +541,41 @@ def get_session_behavior_report(
     report_dict = get_behavior_report_dict(db, session_rec, report)
     logger.info(f"[MODULE 6] Report returned to frontend for session #{session_rec.id}")
     return {"success": True, "data": report_dict}
+
+
+# ==========================================
+# PERFORMANCE EVALUATION & AI FEEDBACK REPORT ENDPOINTS
+# ==========================================
+
+from services.interview_service import get_performance_report_service
+
+@router.get("/sessions/{session_id}/performance-report")
+@api_router.get("/sessions/{session_id}/performance-report")
+@singular_api_router.get("/sessions/{session_id}/performance-report")
+@singular_noapi_router.get("/sessions/{session_id}/performance-report")
+def get_session_performance_report(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve complete candidate performance evaluation report by session ID."""
+    report_dict = get_performance_report_service(current_user, session_id, db, is_session=True)
+    return {"success": True, "data": report_dict}
+
+
+@router.get("/{interview_id}/performance-report")
+@api_router.get("/{interview_id}/performance-report")
+@singular_api_router.get("/{interview_id}/performance-report")
+@singular_noapi_router.get("/{interview_id}/performance-report")
+def get_interview_performance_report(
+    interview_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve complete candidate performance evaluation report by interview ID."""
+    report_dict = get_performance_report_service(current_user, interview_id, db, is_session=False)
+    return {"success": True, "data": report_dict}
+
 
 
 

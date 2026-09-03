@@ -1,6 +1,9 @@
 import os
 import sys
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import torch
 import numpy as np
 from pathlib import Path
