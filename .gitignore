@@ -71,6 +71,7 @@ backend/storage/uploads/*
 backend/storage/models/checkpoints/
 
 # Testing and coverage
+tests/
 .pytest_cache/
 .tox/
 .nox/
