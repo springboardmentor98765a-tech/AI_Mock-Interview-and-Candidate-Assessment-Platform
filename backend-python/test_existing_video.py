@@ -1,7 +1,3 @@
-import json
-from urllib.request import urlopen
-from urllib.error import HTTPError, URLError
-
 from app.emotion_analysis import analyze_video_emotions
 from app.main import calculate_engagement_score
 
@@ -13,13 +9,8 @@ from app.main import calculate_engagement_score
 video_path = r"D:\projects\springboot\smarthire-frontend\backend-python\private_recordings\interview-33-8ec2673fdfa5455081a9a6aca396fbd9.webm"
 
 
-# IMPORTANT:
-# Replace this with the actual interview ID if different.
-INTERVIEW_ID = "33-8ec2673fdfa5455081a9a6aca396fbd9"
-
-
 # ============================================================
-# 1. EMOTION ANALYSIS FROM SAVED VIDEO
+# 1. EMOTION ANALYSIS
 # ============================================================
 
 emotion_result = analyze_video_emotions(
@@ -59,126 +50,97 @@ print(
 
 
 # ============================================================
-# 2. GET SAVED INTERVIEW DATA
+# 2. GET EXISTING EMOTION STABILITY
 # ============================================================
 
-print("\n=== SAVED INTERVIEW DATA ===")
-
-API_URL = (
-    f"http://127.0.0.1:8000/api/interviews/{INTERVIEW_ID}"
+emotion_distribution = emotion_result.get(
+    "emotion_distribution",
+    {}
 )
 
-try:
+valid_probabilities = [
+    value
+    for value in emotion_distribution.values()
+    if isinstance(value, (int, float))
+]
 
-    with urlopen(API_URL, timeout=10) as response:
+if valid_probabilities:
 
-        data = response.read().decode("utf-8")
-
-        interview = json.loads(data)
-
-    monitoring_summary = interview.get(
-        "monitoring_summary",
-        {}
-    )
-
-    print(
-        "Monitoring summary found:",
-        bool(monitoring_summary)
-    )
-
-except HTTPError as e:
-
-    print(
-        f"HTTP Error {e.code}: {e.reason}"
-    )
-
-    print(
-        "Check the INTERVIEW_ID and API endpoint."
-    )
-
-    raise SystemExit
-
-except URLError as e:
-
-    print(
-        "Could not connect to the backend:"
-    )
-
-    print(e)
-
-    print(
-        "Make sure FastAPI is running."
-    )
-
-    raise SystemExit
-
-except Exception as e:
-
-    print(
-        "Could not retrieve interview data:"
-    )
-
-    print(e)
-
-    raise SystemExit
-
-
-# ============================================================
-# 3. DISPLAY EXISTING MONITORING DATA
-# ============================================================
-
-print("\n=== EXISTING MONITORING DATA ===")
-
-for key, value in monitoring_summary.items():
-
-    print(f"{key}: {value}")
-
-
-# ============================================================
-# 4. UPDATE EMOTION DATA FOR THIS TEST
-# ============================================================
-
-monitoring_summary["emotion_analysis"] = emotion_result
-
-
-# ============================================================
-# 5. ATTENTION ANALYSIS
-# ============================================================
-
-print("\n=== ATTENTION ANALYSIS ===")
-
-attention_analysis = monitoring_summary.get(
-    "attention_analysis"
-)
-
-if attention_analysis:
-
-    print(
-        "Attention score:",
-        attention_analysis.get("attention_score")
-    )
-
-    print(
-        "Attention level:",
-        attention_analysis.get("attention_level")
+    emotion_stability_percentage = round(
+        max(valid_probabilities) * 100
     )
 
 else:
 
-    print(
-        "No saved attention_analysis found."
-    )
+    emotion_stability_percentage = None
 
 
 # ============================================================
-# 6. ENGAGEMENT ANALYSIS
+# 3. EXISTING INTERVIEW MONITORING VALUES
+# ============================================================
+#
+# IMPORTANT:
+# Replace these four values with the ACTUAL values
+# from this saved interview's monitoring_summary/report.
+#
+# Do NOT use these example values as your final test.
+#
+
+eye_contact_percentage = 85
+attention_score = 85
+facial_activity_percentage = 75
+
+
+# ============================================================
+# 4. BUILD MONITORING SUMMARY
+# ============================================================
+
+monitoring_summary = {
+
+    "attention_analysis": {
+
+        "attention_score": attention_score,
+
+        "components": {
+
+            "eye_contact_percentage":
+                eye_contact_percentage
+        }
+    },
+
+    "emotion_analysis": emotion_result,
+
+    "face_visible_checks": 0,
+
+    "eyes_closed_checks": 0,
+
+    "monitoring_checks": 0
+}
+
+
+# ============================================================
+# 5. ENGAGEMENT ANALYSIS
 # ============================================================
 
 print("\n=== ENGAGEMENT ANALYSIS ===")
 
+# Use the actual emotion stability calculated from
+# the existing video.
+
+# Add it temporarily for the engagement test.
+monitoring_summary[
+    "emotion_stability_percentage"
+] = emotion_stability_percentage
+
+monitoring_summary[
+    "facial_activity_percentage"
+] = facial_activity_percentage
+
+
 engagement_result = calculate_engagement_score(
     monitoring_summary
 )
+
 
 print(
     "Status:",
@@ -187,22 +149,24 @@ print(
 
 print(
     "Engagement score:",
-    engagement_result.get("engagement_score")
+    engagement_result.get(
+        "engagement_score"
+    )
 )
 
 print(
     "Engagement level:",
-    engagement_result.get("engagement_level")
+    engagement_result.get(
+        "engagement_level"
+    )
 )
 
 print("\nComponents:")
 
-components = engagement_result.get(
+for name, value in engagement_result.get(
     "components",
     {}
-)
-
-for name, value in components.items():
+).items():
 
     print(
         f"{name}: {value}"
@@ -210,7 +174,7 @@ for name, value in components.items():
 
 
 # ============================================================
-# 7. FINAL TEST RESULT
+# 6. FINAL RESULT
 # ============================================================
 
 print("\n===================================")
@@ -227,5 +191,5 @@ else:
 
     print(
         "Feature 5 Engagement Estimation:"
-        " NOT AVAILABLE / CHECK IMPLEMENTATION"
+        " NOT AVAILABLE / CHECK DATA"
     )

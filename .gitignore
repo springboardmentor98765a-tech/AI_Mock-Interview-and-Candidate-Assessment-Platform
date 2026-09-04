@@ -30,17 +30,10 @@ MOD_6_IMPLEMENTATION.md
 *.njsproj
 *.sln
 *.sw?
-# Python virtual environment
-backend-python/.venv/
-
-# Python cache
-**/__pycache__/
-*.pyc
-
-# Environment variables
 .env
 backend-python/.env
-
-# Node
+backend-python/.venv/
+**/__pycache__/
+*.pyc
 node_modules/
 dist/

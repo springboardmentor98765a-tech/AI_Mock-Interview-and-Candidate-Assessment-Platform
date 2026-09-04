@@ -184,6 +184,11 @@ function Report({ session, onClose }) {
   const scores = feedback.category_scores || {}
   const speech = feedback.communication_analysis || {}
   const monitor = session.monitoring_summary || speech.camera_monitoring || {}
+  const interviewScoring = monitor.interview_scoring || feedback.interview_scoring || {}
+  const hasFinalScoring = Object.keys(interviewScoring).length > 0
+  const finalScoreCards = hasFinalScoring
+    ? [['Communication', interviewScoring.communication_score, '30%'], ['Confidence', interviewScoring.confidence_score, '25%'], ['Technical relevance', interviewScoring.technical_relevance_score, '30%'], ['Professionalism', interviewScoring.professionalism_score, '15%']]
+    : Object.entries(scores).map(([name, value]) => [name.replaceAll('_', ' '), value, ''])
   const checks = monitor.monitoring_checks || 0
   const percentage = (value) => checks ? Math.round((value || 0) / checks * 100) : null
   const eyeContact = percentage(monitor.eye_contact_checks)
@@ -213,11 +218,11 @@ function Report({ session, onClose }) {
   ]
 
   return <div style={reportLayout}>
-    <header style={reportHeader}><div><p style={reportEyebrow}>AI interview performance report</p><h3 style={reportTitle}>Your interview insights</h3><p style={muted}>{feedback.summary || `${session.questions_attempted} answers assessed by AI`}</p></div><div style={overallScore}><span>Overall score</span><strong style={overallScoreValue}>{feedback.overall_score ?? '—'}<small>/100</small></strong><em>{session.questions_attempted} answer{session.questions_attempted === 1 ? '' : 's'} assessed</em></div></header>
+    <header style={reportHeader}><div><p style={reportEyebrow}>AI interview performance</p><h3 style={reportTitle}>Your interview insights</h3><p style={muted}>{feedback.summary || `${session.questions_attempted} answers assessed by AI`}</p></div><div style={overallScore}><span>Overall score</span><strong style={overallScoreValue}>{interviewScoring.overall_score ?? feedback.overall_score ?? '—'}<small>/100</small></strong><em>{interviewScoring.performance_rating || `${session.questions_attempted} answer${session.questions_attempted === 1 ? '' : 's'} assessed`}</em></div></header>
 
     {behavior && <ReportCard title="Interview behavior overview">{behavior.status === 'success' ? <><div style={behaviorTop}><div><span style={reportEyebrow}>Overall interview behavior indicator</span><strong style={attentionScore}>{behavior.overall_behavior_indicator}%</strong><p style={{ ...muted, margin: 0 }}>{behavior.overall_behavior_level}</p></div><div style={behaviorMetrics}>{[['Eye contact', behavior.eye_contact], ['Attention', behavior.attention], ['Engagement', behavior.engagement], ['Confidence', behavior.confidence]].map(([label, value]) => <MetricLine key={label} label={label} value={value === null ? 'Not available' : `${value}%`} />)}<MetricLine label="Dominant detected expression" value={behavior.dominant_emotion ? behavior.dominant_emotion.charAt(0).toUpperCase() + behavior.dominant_emotion.slice(1) : 'Not available'} /></div></div></> : <p style={muted}>Interview behavior overview is not available because there were not enough observable signals.</p>}<p style={disclaimer}>These indicators summarize observable interview behavior and facial signals. They are not measurements of internal mental state, personality, or psychological traits.</p></ReportCard>}
 
-    <section><h4 style={sectionTitle}>Performance scores</h4><div style={reportGrid}>{Object.entries(scores).map(([name, value]) => <MetricCard key={name} label={name.replaceAll('_', ' ')} value={`${value}/100`} accent="#818cf8" />)}</div></section>
+    <section><h4 style={sectionTitle}>Final interview scores</h4><div style={reportGrid}>{finalScoreCards.map(([name, value, weight]) => <MetricCard key={name} label={`${name}${weight ? ` (${weight})` : ''}`} value={value === null || value === undefined ? 'Not available' : `${value}/100`} accent="#818cf8" />)}</div>{hasFinalScoring && interviewScoring.unavailable_categories?.length > 0 && <p style={{ ...muted, marginTop: 10 }}>Not available: {interviewScoring.unavailable_categories.map((name) => name.replaceAll('_', ' ')).join(', ')}.</p>}</section>
 
     <div style={reportGrid}>
       <ReportCard title="Interview recording"><RecordingPreview interviewId={session.id} available={session.has_recording} /></ReportCard>
@@ -234,7 +239,9 @@ function Report({ session, onClose }) {
 
     <ReportCard title="Emotion analysis">{emotion?.status === 'success' ? <><div style={dominantEmotion}><span>Dominant emotion</span><strong>{emotion.dominant_emotion}</strong></div><div style={{ display: 'grid', gap: 8, marginTop: 14 }}>{Object.entries(emotion.emotion_distribution || {}).map(([label, value]) => <ProgressRow key={label} label={label} value={Math.round(value * 100)} />)}</div></> : <p style={muted}>Emotion analysis is unavailable because no face was detected in the saved recording.</p>}</ReportCard>
 
-    <div style={reportGrid}><ReportCard title="Strengths"><FeedbackList items={feedback.strengths} empty="No strengths were generated." tone="#86efac" /></ReportCard><ReportCard title="Improve next"><FeedbackList items={feedback.improvements} empty="No improvement suggestions were generated." tone="#fbbf24" /></ReportCard></div>
+    <div style={reportGrid}><ReportCard title="Strengths"><FeedbackList items={feedback.strengths} empty="No strengths were generated." tone="#86efac" /></ReportCard><ReportCard title="Weaknesses"><FeedbackList items={feedback.weaknesses} empty="No weaknesses were generated." tone="#fca5a5" /></ReportCard></div>
+    <div style={reportGrid}><ReportCard title="Improvement suggestions"><FeedbackList items={feedback.improvements} empty="No improvement suggestions were generated." tone="#fbbf24" /></ReportCard><ReportCard title="Practice recommendations"><FeedbackList items={feedback.practice_recommendations} empty="No practice recommendations were generated." tone="#93c5fd" /></ReportCard></div>
+    <ReportCard title="Learning resources"><FeedbackList items={feedback.learning_resources} empty="No learning resources were generated." tone="#c4b5fd" /></ReportCard>
     <p style={disclaimer}>Eye contact and expression are local visual signals, not emotion, honesty, or personality judgements.</p>
     <button className="btn btn-primary" style={full} onClick={onClose}>Close report</button>
   </div>

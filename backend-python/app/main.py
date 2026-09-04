@@ -792,14 +792,71 @@ def build_behavior_summary(monitoring_summary: dict) -> dict:
     return {"status": "success", "overall_behavior_indicator": indicator, "overall_behavior_level": level, **summary}
 
 
+def get_performance_rating(score: int | float | None) -> str:
+    if not isinstance(score, (int, float)) or isinstance(score, bool):
+        return "Not available"
+    if score >= 90: return "Excellent"
+    if score >= 75: return "Good"
+    if score >= 60: return "Average"
+    if score >= 40: return "Needs Improvement"
+    return "Poor"
+
+
+def _score_value(value) -> int | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 100:
+        return round(value)
+    return None
+
+
+def build_interview_scoring(llm_scoring: dict | None, monitoring_summary: dict, answers: list[dict]) -> dict:
+    """Builds the final four-category score from saved signals and one feedback response."""
+    llm_scoring = llm_scoring if isinstance(llm_scoring, dict) else {}
+    confidence = _score_value(((monitoring_summary.get("confidence_analysis") or {}).get("confidence_score")))
+    communication = _score_value((llm_scoring.get("communication_analysis") or {}).get("score"))
+    professionalism = _score_value((llm_scoring.get("professionalism_analysis") or {}).get("score"))
+    assessments = [item for item in (llm_scoring.get("question_assessments") or []) if isinstance(item, dict) and _score_value(item.get("score")) is not None]
+    technical_scores = [_score_value(item.get("score")) for item in assessments]
+    technical = round(sum(technical_scores) / len(technical_scores)) if technical_scores else None
+    technical_components = {}
+    for key in ("technical_accuracy", "keyword_relevance", "problem_solving", "domain_knowledge", "answer_completeness"):
+        values = [_score_value((item.get("components") or {}).get(key)) for item in assessments]
+        values = [value for value in values if value is not None]
+        technical_components[key] = round(sum(values) / len(values)) if values else None
+
+    communication_details = llm_scoring.get("communication_analysis") if isinstance(llm_scoring.get("communication_analysis"), dict) else {}
+    professionalism_details = llm_scoring.get("professionalism_analysis") if isinstance(llm_scoring.get("professionalism_analysis"), dict) else {}
+    categories = {"communication_score": communication, "confidence_score": confidence, "technical_relevance_score": technical, "professionalism_score": professionalism}
+    weights = {"communication_score": .30, "confidence_score": .25, "technical_relevance_score": .30, "professionalism_score": .15}
+    available = {name: value for name, value in categories.items() if value is not None}
+    overall = None
+    if len(available) >= 2:
+        total_weight = sum(weights[name] for name in available)
+        overall = round(sum(weights[name] * value for name, value in available.items()) / total_weight)
+    return {
+        "communication_score": communication,
+        "confidence_score": confidence,
+        "technical_relevance_score": technical,
+        "professionalism_score": professionalism,
+        "overall_score": overall,
+        "performance_rating": get_performance_rating(overall),
+        "communication_analysis": {"score": communication, "components": communication_details.get("components", {})},
+        "technical_relevance_analysis": {"score": technical, "components": technical_components, "questions_assessed": len(technical_scores)},
+        "professionalism_analysis": {"score": professionalism, "components": professionalism_details.get("components", {})},
+        "unavailable_categories": [name for name, value in categories.items() if value is None],
+    }
+
+
+def save_generated_feedback(interview: Interview) -> None:
+    """Saves feedback and its final scoring snapshot together with monitoring data."""
+    feedback = generate_feedback(interview)
+    interview.feedback = feedback
+    monitoring_summary = dict(interview.monitoring_summary or {})
+    monitoring_summary["interview_scoring"] = feedback.get("interview_scoring", {})
+    interview.monitoring_summary = monitoring_summary
+
+
 def generate_feedback(interview: Interview) -> dict:
     # Uses Gemini to assess the completed answers and create a concise practice report.
-    score_categories = {
-        "Technical": ["technical", "communication", "problem_solving"],
-        "Behavioral": ["communication", "teamwork", "leadership"],
-        "Aptitude": ["quantitative_reasoning", "logical_reasoning", "problem_solving"],
-    }[interview.domain]
-    category_shape = ", ".join(f'"{category}": 0-100' for category in score_categories)
     transcript = "\n".join(
         f"Question {question['number']}: {question['text']}\nAnswer: {answer.get('answer', '')}"
         for question, answer in zip(interview.questions or [], interview.answers or [])
@@ -816,21 +873,29 @@ def generate_feedback(interview: Interview) -> dict:
         "camera_monitoring": interview.monitoring_summary or {},
     }
     prompt = (
-        "Assess this practice interview fairly and constructively. Return only JSON with this exact shape: "
-        f'{{"overall_score": 0-100, "category_scores": {{{category_shape}}}, '
-        '"strengths": ["short point"], "improvements": ["short actionable point"], "summary": "short encouraging summary"}. '
+        "Assess this practice interview fairly and constructively. Return ONLY JSON. Assess actual answers, not personality. "
+        "Required shape: {\"communication_analysis\":{\"score\":0-100,\"components\":{\"speech_clarity\":0-100,\"grammar_quality\":0-100,\"filler_word_frequency\":0-100,\"speaking_pace\":0-100,\"response_completeness\":0-100}}, "
+        "\"question_assessments\":[{\"question_number\":1,\"score\":0-100,\"components\":{\"technical_accuracy\":0-100,\"keyword_relevance\":0-100,\"problem_solving\":0-100,\"domain_knowledge\":0-100,\"answer_completeness\":0-100}}], "
+        "\"professionalism_analysis\":{\"score\":0-100,\"components\":{\"time_management\":0-100,\"response_organization\":0-100,\"professional_communication\":0-100,\"interview_etiquette\":0-100}}, "
+        "\"strengths\":[\"specific point\"],\"weaknesses\":[\"specific point\"],\"improvements\":[\"actionable suggestion\"],\"practice_recommendations\":[\"specific practice area\"],\"learning_resources\":[\"real learning topic or resource name without URL\"],\"summary\":\"short grounded summary\"}. "
         f"Role: {interview.role_title}. Domain: {interview.domain}. Difficulty: {interview.difficulty}. "
-        f"Speech facts: {json.dumps(communication_analysis)}. Use them only as supporting evidence, not as a personality diagnosis.\n\n{transcript}"
+        f"Speech facts: {json.dumps(communication_analysis)}. Observable monitoring facts: {json.dumps(interview.monitoring_summary or {})}. "
+        f"Interview transcript:\n{transcript}"
     )
     feedback = generate_ai_json(prompt, temperature=0.35, timeout=45)
     if isinstance(feedback, dict):
-        score = feedback.get("overall_score")
-        categories = feedback.get("category_scores")
-        if isinstance(score, (int, float)) and 0 <= score <= 100 and isinstance(categories, dict):
-            feedback["communication_analysis"] = communication_analysis
-            return feedback
+        scoring = build_interview_scoring(feedback, interview.monitoring_summary or {}, interview.answers or [])
+        feedback["interview_scoring"] = scoring
+        feedback["overall_score"] = scoring["overall_score"]
+        feedback["category_scores"] = {key: value for key, value in scoring.items() if key.endswith("_score") and key != "overall_score"}
+        feedback["communication_analysis"] = {**communication_analysis, **scoring["communication_analysis"]}
+        for key in ("strengths", "weaknesses", "improvements", "practice_recommendations", "learning_resources"):
+            if not isinstance(feedback.get(key), list): feedback[key] = []
+        if not isinstance(feedback.get("summary"), str): feedback["summary"] = "Your answers have been saved."
+        return feedback
     # Keeps the completed interview usable if both AI services are temporarily unavailable.
-    return {"overall_score": 0, "category_scores": {}, "strengths": [], "improvements": [], "summary": "Your answers were saved. AI feedback is temporarily unavailable; please try another practice interview later.", "communication_analysis": communication_analysis}
+    scoring = build_interview_scoring(None, interview.monitoring_summary or {}, interview.answers or [])
+    return {"overall_score": scoring["overall_score"], "category_scores": {}, "interview_scoring": scoring, "strengths": [], "weaknesses": [], "improvements": [], "practice_recommendations": [], "learning_resources": [], "summary": "Your answers were saved. AI feedback is temporarily unavailable; please try another practice interview later.", "communication_analysis": communication_analysis}
 
 
 def extract_resume_text(file_name: str, file_bytes: bytes) -> str:
@@ -1169,7 +1234,7 @@ def end_interview(interview_id: int, db: Session = Depends(database), user: User
     interview.started_at = interview.started_at or interview.ended_at
     finalize_session_time(interview, interview.ended_at)
     if interview.answers:
-        interview.feedback = generate_feedback(interview)
+        save_generated_feedback(interview)
     db.commit(); db.refresh(interview)
     return to_interview(interview)
 
@@ -1200,7 +1265,7 @@ def answer_interview_question(interview_id: int, request: InterviewAnswerRequest
         interview.completed_at = answered_at
         interview.ended_at = interview.completed_at
         finalize_session_time(interview, interview.completed_at)
-        interview.feedback = generate_feedback(interview)
+        save_generated_feedback(interview)
     db.commit(); db.refresh(interview)
     return to_interview(interview)
 
@@ -1289,7 +1354,7 @@ async def upload_interview_recording(interview_id: int, file: UploadFile = File(
     # Regenerate feedback since we now have the video emotion analysis and attention analysis
     try:
         if interview.answers:
-            interview.feedback = generate_feedback(interview)
+            save_generated_feedback(interview)
     except Exception:
         pass
 
