@@ -1,4 +1,5 @@
 import React from 'react';
+import PerformanceReport from '../PerformanceReport';
 
 const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, closeDetails, getStatusBadge }) => {
   const getTypeLabel = (type) => {
@@ -288,8 +289,19 @@ const HistoryTab = ({ interviews, viewInterviewDetails, selectedInterview, close
                 </div>
               </div>
               
-              {/* AI Feedback */}
-              {selectedInterview.feedback && (
+              {/* NEW Comprehensive AI Scoring Report (Communication/Confidence/Technical/Professionalism) */}
+              {selectedInterview.feedback &&
+                typeof selectedInterview.feedback === 'object' &&
+                selectedInterview.feedback.performanceBreakdown && (
+                  <div className="feedback-section scoring-report-section">
+                    <PerformanceReport reportData={selectedInterview.feedback} />
+                  </div>
+                )}
+
+              {/* Legacy AI Feedback (only shown for interviews scored before the new scoring system) */}
+              {selectedInterview.feedback && !(
+                typeof selectedInterview.feedback === 'object' && selectedInterview.feedback.performanceBreakdown
+              ) && (
                 <div className="feedback-section">
                   <h4>📝 AI Feedback</h4>
                   {typeof selectedInterview.feedback === 'string' ? (

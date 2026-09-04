@@ -1,10 +1,25 @@
+// ScoreHistory.jsx - FIXED VERSION
+
 import React, { useEffect, useState } from 'react';
 import './ScoreHistory.css';
 
-/**
- * ScoreHistory Component
- * Displays score trends over multiple interview attempts
- */
+// ✅ Move helper functions OUTSIDE the component (not on prototype)
+const getScoreCategory = (score) => {
+  if (score >= 90) return 'Excellent';
+  if (score >= 75) return 'Good';
+  if (score >= 60) return 'Average';
+  if (score >= 40) return 'Needs Improvement';
+  return 'Poor';
+};
+
+const getRatingClass = (score) => {
+  if (score >= 90) return 'excellent';
+  if (score >= 75) return 'good';
+  if (score >= 60) return 'average';
+  if (score >= 40) return 'improvement';
+  return 'poor';
+};
+
 const ScoreHistory = ({ scores = [] }) => {
   const [chartData, setChartData] = useState(null);
 
@@ -18,7 +33,6 @@ const ScoreHistory = ({ scores = [] }) => {
     const sorted = [...scores].sort(
       (a, b) => new Date(a.created_at) - new Date(b.created_at)
     );
-
     setChartData(sorted);
   };
 
@@ -61,9 +75,6 @@ const ScoreHistory = ({ scores = [] }) => {
     if (!chartData || chartData.length === 0) {
       return <p className="no-data">No score history available</p>;
     }
-
-    const maxScore = 100;
-    const minScore = 0;
 
     return (
       <div className="chart-container">
@@ -187,8 +198,8 @@ const ScoreHistory = ({ scores = [] }) => {
                   </span>
                 </td>
                 <td>
-                  <span className={`rating-badge rating-${this.getRatingClass(item.score)}`}>
-                    {this.getScoreCategory(item.score)}
+                  <span className={`rating-badge rating-${getRatingClass(item.score)}`}>
+                    {getScoreCategory(item.score)}
                   </span>
                 </td>
                 <td>{item.status || 'Completed'}</td>
@@ -199,23 +210,6 @@ const ScoreHistory = ({ scores = [] }) => {
       </div>
     </div>
   );
-};
-
-// Helper methods (need to be defined outside the component)
-ScoreHistory.prototype.getScoreCategory = function(score) {
-  if (score >= 90) return 'Excellent';
-  if (score >= 75) return 'Good';
-  if (score >= 60) return 'Average';
-  if (score >= 40) return 'Needs Improvement';
-  return 'Poor';
-};
-
-ScoreHistory.prototype.getRatingClass = function(score) {
-  if (score >= 90) return 'excellent';
-  if (score >= 75) return 'good';
-  if (score >= 60) return 'average';
-  if (score >= 40) return 'improvement';
-  return 'poor';
 };
 
 export default ScoreHistory;

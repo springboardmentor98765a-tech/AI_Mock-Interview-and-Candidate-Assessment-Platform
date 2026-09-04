@@ -5,6 +5,15 @@
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
+// Helper: build headers with auth token from localStorage
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+};
+
 export const scoringAPI = {
   /**
    * Score a single question-answer pair
@@ -19,10 +28,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/qa`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           answer,
           question,
@@ -56,10 +62,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/session`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           interview_id: interviewId,
           qa_pairs: qaPairs,
@@ -90,8 +93,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/dimension/communication`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ answer, expected_answer: expectedAnswer })
       });
 
@@ -113,8 +115,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/dimension/confidence`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ answer, behavioral_data: behavioralData })
       });
 
@@ -137,8 +138,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/dimension/technical`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ answer, domain, keywords })
       });
 
@@ -160,8 +160,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/dimension/professionalism`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ answer, response_length: responseLength })
       });
 
@@ -182,8 +181,7 @@ export const scoringAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/feedback/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: getAuthHeaders(),
         body: JSON.stringify(evaluation)
       });
 
@@ -203,7 +201,7 @@ export const scoringAPI = {
   getInterviewScores: async (interviewId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/${interviewId}`, {
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -222,7 +220,7 @@ export const scoringAPI = {
   getPerformanceReport: async (interviewId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/${interviewId}/report`, {
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -240,7 +238,7 @@ export const scoringAPI = {
   getInterviewHistory: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/`, {
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -258,7 +256,7 @@ export const scoringAPI = {
   getDashboardSummary: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/dashboard/summary`, {
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -276,7 +274,8 @@ export const scoringAPI = {
   healthCheck: async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/scoring/`, {
-        method: 'GET'
+        method: 'GET',
+        headers: getAuthHeaders()
       });
       return response.ok;
     } catch (error) {

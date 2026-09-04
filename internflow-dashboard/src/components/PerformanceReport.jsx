@@ -101,7 +101,7 @@ const PerformanceReport = ({ reportData = {} }) => {
           <div className="overall-info">
             <h2 className="overall-rating">{performanceRating}</h2>
             <p className="overall-description">
-              {this.getPerformanceDescription(performanceRating)}
+              {getPerformanceDescription(performanceRating)}
             </p>
           </div>
         </div>

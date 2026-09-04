@@ -451,7 +451,7 @@ router.get('/dashboard/summary', auth, async (req, res) => {
         highestScore: Math.max(...scores),
         lowestScore: Math.min(...scores),
         performanceRating: performanceRating,
-        progressTrend: this._calculateProgressTrend(scoredInterviews)
+        progressTrend: _calculateProgressTrend(scoredInterviews)
       }
     });
   } catch (error) {

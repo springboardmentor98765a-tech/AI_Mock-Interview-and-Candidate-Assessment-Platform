@@ -6,8 +6,8 @@
  * Add this logic to your interview completion handler
  */
 
-import { scoringAPI } from './services/scoringAPI';
-import { transformReportData } from './utils/scoringUtils';
+import { scoringAPI } from '../services/scoringAPI';
+import { transformReportData } from '../utils/scoringUtils';
 
 /**
  * Handle interview completion and trigger scoring
@@ -194,7 +194,6 @@ function WebcamRecorder() {
 
   return (
     <div>
-      {/* Existing recorder UI */}
       <button onClick={handleSubmitInterview} disabled={loading}>
         {loading ? 'Analyzing...' : 'Submit Interview'}
       </button>
@@ -253,7 +252,4 @@ function InterviewFlow() {
 
 // ============= END HOOK EXAMPLE =============
 
-export {
-  handleInterviewCompletion,
-  handleAnswerSubmission
-};
+// Both functions above are already exported individually via 'export const'
