@@ -12,6 +12,10 @@ public class InterviewHistoryDetailResponse {
     private EvaluationSummary evaluation;
     private List<AnswerItem> answers = new ArrayList<>();
     private List<String> feedback = new ArrayList<>();
+    private int proctoringViolationCount;
+    private boolean malpracticeTerminated;
+    private String malpracticeReason;
+    private String proctoringViolationsJson;
 
     public Long getInterviewId() {
         return interviewId;
@@ -59,6 +63,38 @@ public class InterviewHistoryDetailResponse {
 
     public void setFeedback(List<String> feedback) {
         this.feedback = feedback;
+    }
+
+    public int getProctoringViolationCount() {
+        return proctoringViolationCount;
+    }
+
+    public void setProctoringViolationCount(int proctoringViolationCount) {
+        this.proctoringViolationCount = proctoringViolationCount;
+    }
+
+    public boolean isMalpracticeTerminated() {
+        return malpracticeTerminated;
+    }
+
+    public void setMalpracticeTerminated(boolean malpracticeTerminated) {
+        this.malpracticeTerminated = malpracticeTerminated;
+    }
+
+    public String getMalpracticeReason() {
+        return malpracticeReason;
+    }
+
+    public void setMalpracticeReason(String malpracticeReason) {
+        this.malpracticeReason = malpracticeReason;
+    }
+
+    public String getProctoringViolationsJson() {
+        return proctoringViolationsJson;
+    }
+
+    public void setProctoringViolationsJson(String proctoringViolationsJson) {
+        this.proctoringViolationsJson = proctoringViolationsJson;
     }
 
     public static class AnswerItem {

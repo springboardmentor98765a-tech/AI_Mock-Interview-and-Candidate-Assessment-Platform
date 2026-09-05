@@ -45,7 +45,7 @@ public class CustomCnnEmotionProvider implements EmotionDetectionProvider {
             if (scoreNode.isObject()) {
                 scoreNode.fields().forEachRemaining(e -> scores.put(e.getKey(), e.getValue().asDouble(0)));
             }
-            // emotion_cnn custom CNN backend integration; the custom model only uses the exact assignment classes.
+            // The custom model only uses the exact assignment classes.
             for (String label : new String[]{"Nervous", "Scared", "Confused"}) scores.putIfAbsent(label, 0.0);
             EmotionDetectionResult result = new EmotionDetectionResult(
                     dominant, confidence, scores, "custom-cnn", false);
@@ -59,4 +59,3 @@ public class CustomCnnEmotionProvider implements EmotionDetectionProvider {
     @Override public String getProviderName() { return "custom-cnn"; }
     @Override public boolean isSimulated() { return false; }
 }
-

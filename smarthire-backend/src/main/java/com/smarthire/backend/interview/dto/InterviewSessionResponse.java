@@ -22,6 +22,11 @@ public class InterviewSessionResponse {
     private LocalDateTime endedAt;
     private Long durationSeconds;
     private LocalDateTime createdAt;
+    private Integer violationCount;
+    private Integer maxViolations;
+    private boolean malpracticeTerminated;
+    private String terminatedReason;
+    private LocalDateTime terminatedAt;
 
     public Long getId() {
         return id;
@@ -150,4 +155,15 @@ public class InterviewSessionResponse {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+    public Integer getViolationCount() { return violationCount; }
+    public void setViolationCount(Integer violationCount) { this.violationCount = violationCount; }
+    public Integer getMaxViolations() { return maxViolations; }
+    public void setMaxViolations(Integer maxViolations) { this.maxViolations = maxViolations; }
+    public boolean isMalpracticeTerminated() { return malpracticeTerminated; }
+    public void setMalpracticeTerminated(boolean malpracticeTerminated) { this.malpracticeTerminated = malpracticeTerminated; }
+    public String getTerminatedReason() { return terminatedReason; }
+    public void setTerminatedReason(String terminatedReason) { this.terminatedReason = terminatedReason; }
+    public LocalDateTime getTerminatedAt() { return terminatedAt; }
+    public void setTerminatedAt(LocalDateTime terminatedAt) { this.terminatedAt = terminatedAt; }
+
 }

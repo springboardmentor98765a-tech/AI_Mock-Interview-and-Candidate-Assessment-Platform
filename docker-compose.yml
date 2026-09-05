@@ -40,6 +40,10 @@ services:
       AI_DEEPFACE_ENABLED: ${AI_DEEPFACE_ENABLED:-true}
       AI_MEDIAPIPE_URL: ${AI_MEDIAPIPE_URL:-http://mediapipe:8093}
       AI_MEDIAPIPE_ENABLED: ${AI_MEDIAPIPE_ENABLED:-true}
+      AI_OBJECT_DETECTION_URL: ${AI_OBJECT_DETECTION_URL:-http://object-detection:8094}
+      AI_OBJECT_DETECTION_ENABLED: ${AI_OBJECT_DETECTION_ENABLED:-true}
+      AI_EMOTION_CNN_URL: ${AI_EMOTION_CNN_URL:-http://emotion-cnn:8095}
+      AI_EMOTION_CNN_ENABLED: ${AI_EMOTION_CNN_ENABLED:-true}
       APP_JWT_SECRET: ${APP_JWT_SECRET:-smarthire-secret-key-smarthire-secret-key-123456}
       APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
     ports:
@@ -68,6 +72,28 @@ services:
     restart: unless-stopped
     ports:
       - "8093:8093"
+
+  object-detection:
+
+    build: ./ai-services/object-detection-service
+    container_name: smarthire-object-detection
+    restart: unless-stopped
+    ports:
+      - "8094:8094"
+
+  emotion-cnn:
+
+    build: ./ai-services/emotion-cnn-service
+    container_name: smarthire-emotion-cnn
+    restart: unless-stopped
+    environment:
+      EMOTION_CNN_MODEL: /app/model/emotion_cnn.keras
+    volumes:
+      - ./ai-services/emotion-cnn-service/model:/app/model
+      - ./ai-services/emotion-cnn-service/dataset:/app/dataset
+      - ./ai-services/emotion-cnn-service/raw-data:/app/raw-data
+    ports:
+      - "8095:8095"
 
   frontend:
     build:

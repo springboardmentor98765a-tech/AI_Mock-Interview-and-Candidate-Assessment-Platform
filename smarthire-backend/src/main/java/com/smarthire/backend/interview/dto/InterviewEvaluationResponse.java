@@ -10,6 +10,7 @@ public class InterviewEvaluationResponse {
     private int confidenceScore;
     private int technicalScore;
     private int professionalismScore;
+    private int professionalCommunicationScore;
     private int grammarScore;
     private int speechClarityScore;
     private int speakingPaceScore;
@@ -21,6 +22,8 @@ public class InterviewEvaluationResponse {
     private int eyeContactPercentage;
     private int facialEngagementScore;
     private int responseHesitationScore;
+    private int speakingConfidenceScore;
+    private int attentionScore;
     private int keywordMatchingScore;
     private int domainRelevanceScore;
     private int technicalAccuracyScore;
@@ -41,6 +44,10 @@ public class InterviewEvaluationResponse {
     private int objectiveCorrectAnswers;
     private int objectiveAttemptedAccuracy;
     private String rating;
+    private int proctoringViolationCount;
+    private boolean malpracticeTerminated;
+    private String malpracticeReason;
+    private String proctoringViolationsJson;
 
     public InterviewEvaluationResponse() {
     }
@@ -88,6 +95,9 @@ public class InterviewEvaluationResponse {
     public int getProfessionalismScore() {
         return professionalismScore;
     }
+
+    public int getProfessionalCommunicationScore() { return professionalCommunicationScore; }
+    public void setProfessionalCommunicationScore(int score) { this.professionalCommunicationScore = score; }
 
     public void setProfessionalismScore(int professionalismScore) {
         this.professionalismScore = professionalismScore;
@@ -159,6 +169,11 @@ public class InterviewEvaluationResponse {
     public int getResponseHesitationScore() {
         return responseHesitationScore;
     }
+
+    public int getSpeakingConfidenceScore() { return speakingConfidenceScore; }
+    public void setSpeakingConfidenceScore(int speakingConfidenceScore) { this.speakingConfidenceScore = speakingConfidenceScore; }
+    public int getAttentionScore() { return attentionScore; }
+    public void setAttentionScore(int attentionScore) { this.attentionScore = attentionScore; }
 
     public void setResponseHesitationScore(int responseHesitationScore) {
         this.responseHesitationScore = responseHesitationScore;
@@ -315,4 +330,9 @@ public class InterviewEvaluationResponse {
     public void setRating(String rating) {
         this.rating = rating;
     }
+    public int getProctoringViolationCount(){return proctoringViolationCount;} public void setProctoringViolationCount(int v){proctoringViolationCount=v;}
+    public boolean getMalpracticeTerminated(){return malpracticeTerminated;} public void setMalpracticeTerminated(boolean v){malpracticeTerminated=v;}
+    public String getMalpracticeReason(){return malpracticeReason;} public void setMalpracticeReason(String v){malpracticeReason=v;}
+    public String getProctoringViolationsJson(){return proctoringViolationsJson;} public void setProctoringViolationsJson(String v){proctoringViolationsJson=v;}
+
 }

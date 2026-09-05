@@ -80,3 +80,8 @@ CREATE INDEX IF NOT EXISTS idx_proctor_candidate
 
 CREATE INDEX IF NOT EXISTS idx_proctor_time
     ON proctoring_violations (detected_at);
+
+-- Module 7 scoring persistence
+ALTER TABLE IF EXISTS interview_evaluations ADD COLUMN IF NOT EXISTS speaking_confidence_score INTEGER;
+ALTER TABLE IF EXISTS interview_evaluations ADD COLUMN IF NOT EXISTS attention_score INTEGER;
+ALTER TABLE IF EXISTS interview_evaluations ADD COLUMN IF NOT EXISTS professional_communication_score INTEGER;

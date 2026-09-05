@@ -14,13 +14,17 @@ public class InterviewReportResponse {
     private String experienceLevel;
     private String transcript;
     private String sessionSummary;
-    private InterviewHistoryDetailResponse.EvaluationSummary evaluation;
+    private InterviewEvaluationResponse evaluation;
     private List<InterviewHistoryDetailResponse.AnswerItem> answers = new ArrayList<>();
     private List<InterviewSessionStepDto> timeline = new ArrayList<>();
     private RecordingMetadata recording = new RecordingMetadata();
     private EmailPreview emailPreview = new EmailPreview();
     private String liveSignalsJson;
     private String speechInsightsJson;
+    private Integer monitoringSamples;
+    private Integer realEmotionSamples;
+    private Integer realEyeTrackingSamples;
+    private String monitoringProviderSummary;
 
     public Long getInterviewId() {
         return interviewId;
@@ -94,11 +98,11 @@ public class InterviewReportResponse {
         this.sessionSummary = sessionSummary;
     }
 
-    public InterviewHistoryDetailResponse.EvaluationSummary getEvaluation() {
+    public InterviewEvaluationResponse getEvaluation() {
         return evaluation;
     }
 
-    public void setEvaluation(InterviewHistoryDetailResponse.EvaluationSummary evaluation) {
+    public void setEvaluation(InterviewEvaluationResponse evaluation) {
         this.evaluation = evaluation;
     }
 
@@ -245,4 +249,13 @@ public class InterviewReportResponse {
             this.attachments = attachments;
         }
     }
+    public Integer getMonitoringSamples() { return monitoringSamples; }
+    public void setMonitoringSamples(Integer monitoringSamples) { this.monitoringSamples = monitoringSamples; }
+    public Integer getRealEmotionSamples() { return realEmotionSamples; }
+    public void setRealEmotionSamples(Integer realEmotionSamples) { this.realEmotionSamples = realEmotionSamples; }
+    public Integer getRealEyeTrackingSamples() { return realEyeTrackingSamples; }
+    public void setRealEyeTrackingSamples(Integer realEyeTrackingSamples) { this.realEyeTrackingSamples = realEyeTrackingSamples; }
+    public String getMonitoringProviderSummary() { return monitoringProviderSummary; }
+    public void setMonitoringProviderSummary(String monitoringProviderSummary) { this.monitoringProviderSummary = monitoringProviderSummary; }
+
 }

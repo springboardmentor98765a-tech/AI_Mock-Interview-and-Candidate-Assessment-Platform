@@ -4,8 +4,10 @@ import java.util.List;
 
 public class InterviewEvaluationRequest {
 
+    private Long sessionId;
     private Long interviewId;
     private String jobRole;
+    private String domain;
     private String interviewType;
     private String difficulty;
     private List<String> questions;
@@ -19,6 +21,7 @@ public class InterviewEvaluationRequest {
     private Integer eyeContactPercentage;
     private Integer facialEngagementScore;
     private Integer responseHesitationScore;
+    private Integer speakingConfidenceScore;
     private String sessionSummary;
     private String videoRecordingName;
     private String audioRecordingName;
@@ -28,11 +31,27 @@ public class InterviewEvaluationRequest {
     private Integer timerSecondsRemaining;
     private List<InterviewSessionStepDto> sessionTimeline;
     private Integer pronunciationScore;
+    private Integer headStabilityScore;
+    private Integer attentionScore;
+    private Integer engagementScore;
+    private Integer emotionConfidenceScore;
+    private String detectedEmotion;
+    private String gazeDirection;
+    private Boolean monitoringComplete;
+    private Integer monitoringSampleCount;
     private Integer transcriptionConfidence;
     private Integer grammarIssueCount;
     private String grammarIssueSummary;
     private String liveSignalsJson;
     private String speechInsightsJson;
+    private Integer monitoringSamples;
+    private Integer realEmotionSamples;
+    private Integer realEyeTrackingSamples;
+    private String monitoringProviderSummary;
+    private Integer proctoringViolationCount;
+    private Boolean malpracticeTerminated;
+    private String malpracticeReason;
+    private String proctoringViolationsJson;
 
     public InterviewEvaluationRequest() {
     }
@@ -65,6 +84,17 @@ public class InterviewEvaluationRequest {
 
     public void setJobRole(String jobRole) {
         this.jobRole = jobRole;
+    }
+
+    public String getDomain() {
+        if (domain != null && !domain.isBlank()) {
+            return domain;
+        }
+        return jobRole;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
     }
 
     public String getInterviewType() {
@@ -167,6 +197,9 @@ public class InterviewEvaluationRequest {
         return responseHesitationScore;
     }
 
+    public Integer getSpeakingConfidenceScore() { return speakingConfidenceScore; }
+    public void setSpeakingConfidenceScore(Integer speakingConfidenceScore) { this.speakingConfidenceScore = speakingConfidenceScore; }
+
     public void setResponseHesitationScore(Integer responseHesitationScore) {
         this.responseHesitationScore = responseHesitationScore;
     }
@@ -259,4 +292,37 @@ public class InterviewEvaluationRequest {
     public void setSpeechInsightsJson(String speechInsightsJson) {
         this.speechInsightsJson = speechInsightsJson;
     }
+    public Integer getMonitoringSamples() { return monitoringSamples; }
+    public void setMonitoringSamples(Integer monitoringSamples) { this.monitoringSamples = monitoringSamples; }
+    public Integer getRealEmotionSamples() { return realEmotionSamples; }
+    public void setRealEmotionSamples(Integer realEmotionSamples) { this.realEmotionSamples = realEmotionSamples; }
+    public Integer getRealEyeTrackingSamples() { return realEyeTrackingSamples; }
+    public void setRealEyeTrackingSamples(Integer realEyeTrackingSamples) { this.realEyeTrackingSamples = realEyeTrackingSamples; }
+    public String getMonitoringProviderSummary() { return monitoringProviderSummary; }
+    public void setMonitoringProviderSummary(String monitoringProviderSummary) { this.monitoringProviderSummary = monitoringProviderSummary; }
+
+    public Integer getProctoringViolationCount(){return proctoringViolationCount;} public void setProctoringViolationCount(Integer v){proctoringViolationCount=v;}
+    public Boolean getMalpracticeTerminated(){return malpracticeTerminated;} public void setMalpracticeTerminated(Boolean v){malpracticeTerminated=v;}
+    public String getMalpracticeReason(){return malpracticeReason;} public void setMalpracticeReason(String v){malpracticeReason=v;}
+    public String getProctoringViolationsJson(){return proctoringViolationsJson;} public void setProctoringViolationsJson(String v){proctoringViolationsJson=v;}
+
+    public Long getSessionId(){return sessionId;} public void setSessionId(Long v){sessionId=v;}
+
+    public Integer getHeadStabilityScore() { return headStabilityScore; }
+    public void setHeadStabilityScore(Integer value) { this.headStabilityScore = value; }
+    public Integer getAttentionScore() { return attentionScore; }
+    public void setAttentionScore(Integer value) { this.attentionScore = value; }
+    public Integer getEngagementScore() { return engagementScore; }
+    public void setEngagementScore(Integer value) { this.engagementScore = value; }
+    public Integer getEmotionConfidenceScore() { return emotionConfidenceScore; }
+    public void setEmotionConfidenceScore(Integer value) { this.emotionConfidenceScore = value; }
+    public String getDetectedEmotion() { return detectedEmotion; }
+    public void setDetectedEmotion(String value) { this.detectedEmotion = value; }
+    public String getGazeDirection() { return gazeDirection; }
+    public void setGazeDirection(String value) { this.gazeDirection = value; }
+    public Boolean getMonitoringComplete() { return monitoringComplete; }
+    public void setMonitoringComplete(Boolean value) { this.monitoringComplete = value; }
+    public Integer getMonitoringSampleCount() { return monitoringSampleCount; }
+    public void setMonitoringSampleCount(Integer value) { this.monitoringSampleCount = value; }
+
 }

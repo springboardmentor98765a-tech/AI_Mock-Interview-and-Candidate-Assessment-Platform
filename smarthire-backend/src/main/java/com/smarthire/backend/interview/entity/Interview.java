@@ -75,6 +75,18 @@ public class Interview {
     @Column(name = "speech_insights_json", columnDefinition = "TEXT")
     private String speechInsightsJson;
 
+    @Column(name = "monitoring_samples")
+    private Integer monitoringSamples;
+
+    @Column(name = "real_emotion_samples")
+    private Integer realEmotionSamples;
+
+    @Column(name = "real_eye_tracking_samples")
+    private Integer realEyeTrackingSamples;
+
+    @Column(name = "monitoring_provider_summary", columnDefinition = "TEXT")
+    private String monitoringProviderSummary;
+
     @Column(name = "career_roadmap_json", columnDefinition = "TEXT")
     private String careerRoadmapJson;
 
@@ -306,4 +318,13 @@ public class Interview {
     public void setProfileCompletionJson(String profileCompletionJson) {
         this.profileCompletionJson = profileCompletionJson;
     }
+    public Integer getMonitoringSamples() { return monitoringSamples; }
+    public void setMonitoringSamples(Integer monitoringSamples) { this.monitoringSamples = monitoringSamples; }
+    public Integer getRealEmotionSamples() { return realEmotionSamples; }
+    public void setRealEmotionSamples(Integer realEmotionSamples) { this.realEmotionSamples = realEmotionSamples; }
+    public Integer getRealEyeTrackingSamples() { return realEyeTrackingSamples; }
+    public void setRealEyeTrackingSamples(Integer realEyeTrackingSamples) { this.realEyeTrackingSamples = realEyeTrackingSamples; }
+    public String getMonitoringProviderSummary() { return monitoringProviderSummary; }
+    public void setMonitoringProviderSummary(String monitoringProviderSummary) { this.monitoringProviderSummary = monitoringProviderSummary; }
+
 }

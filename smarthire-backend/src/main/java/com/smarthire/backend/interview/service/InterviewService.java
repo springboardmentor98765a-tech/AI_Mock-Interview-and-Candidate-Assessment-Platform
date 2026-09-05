@@ -53,6 +53,8 @@ import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -226,6 +228,10 @@ public class InterviewService {
             evaluationSummary.setObjectiveAttemptedAccuracy(objectiveMetrics[3]);
             response.setEvaluation(evaluationSummary);
                 response.setFeedback(parseFeedback(evaluation.getFeedback()));
+        response.setProctoringViolationCount(evaluation.getProctoringViolationCount());
+        response.setMalpracticeTerminated(evaluation.isMalpracticeTerminated());
+        response.setMalpracticeReason(evaluation.getMalpracticeReason());
+        response.setProctoringViolationsJson(evaluation.getProctoringViolationsJson());
             });
 
         return response;
@@ -388,7 +394,12 @@ public class InterviewService {
         // answer is still valid communication evidence even when the interview
         // contains objective questions.
         evaluationResponse = applyLiveCommunicationMetrics(request, evaluationResponse);
+        enrichActionableModule7Feedback(request, evaluationResponse);
 
+        evaluationResponse.setProctoringViolationCount(request.getProctoringViolationCount()==null?0:request.getProctoringViolationCount());
+        evaluationResponse.setMalpracticeTerminated(Boolean.TRUE.equals(request.getMalpracticeTerminated()));
+        evaluationResponse.setMalpracticeReason(request.getMalpracticeReason());
+        evaluationResponse.setProctoringViolationsJson(request.getProctoringViolationsJson());
         saveInterviewSessionMetadata(request);
         saveInterviewAnswers(request);
         saveInterviewEvaluation(request.getInterviewId(), evaluationResponse);
@@ -446,19 +457,48 @@ public class InterviewService {
         if (request.getLiveSignalsJson() != null && !request.getLiveSignalsJson().isBlank()) {
             try {
                 var signalNode = objectMapper.readTree(request.getLiveSignalsJson());
-                eye = clampScore(signalNode.path("eyeContact").path("eyeContactPercentage").asInt(eye));
-                engagement = clampScore(signalNode.path("emotion").path("confidence").asInt(engagement));
+                eye = clampScore(signalNode.path("summary").path("averageEyeContactPercentage").asInt(signalNode.path("eyeContact").path("eyeContactPercentage").asInt(eye)));
+                engagement = clampScore(signalNode.path("summary").path("averageEmotionConfidence").asInt(signalNode.path("emotion").path("confidence").asInt(engagement)));
             } catch (Exception ignored) { }
         }
         response.setEyeContactPercentage(eye);
         response.setFacialEngagementScore(engagement);
-        if (eye > 0 || engagement > 0 || response.getResponseHesitationScore() > 0 || storedSpeechPronunciation > 0) {
-            int hesitation = response.getResponseHesitationScore() > 0 ? response.getResponseHesitationScore() : 60;
-            response.setConfidenceScore(clampScore(Math.round(eye * 0.40f + engagement * 0.30f + hesitation * 0.15f + storedSpeechPronunciation * 0.15f)));
+        int hesitation = response.getResponseHesitationScore() > 0 ? response.getResponseHesitationScore() : 60;
+        int attention = response.getAttentionScore();
+        int speakingConfidence = response.getSpeakingConfidenceScore();
+        if (request.getLiveSignalsJson() != null && !request.getLiveSignalsJson().isBlank()) {
+            try {
+                var signalNode = objectMapper.readTree(request.getLiveSignalsJson());
+                attention = clampScore(signalNode.path("summary").path("averageAttentionScore").asInt(attention));
+                if (attention <= 0) {
+                    String level = signalNode.path("summary").path("dominantAttentionLevel").asText("");
+                    attention = attentionScoreFromLevel(level);
+                }
+            } catch (Exception ignored) { }
+        }
+        if (request.getAttentionScore() != null && request.getAttentionScore() > 0) {
+            attention = clampScore(request.getAttentionScore());
+        }
+        if (request.getSpeakingConfidenceScore() != null && request.getSpeakingConfidenceScore() > 0) {
+            speakingConfidence = clampScore(request.getSpeakingConfidenceScore());
+        }
+        if (speakingConfidence <= 0) {
+            speakingConfidence = clampScore(Math.round((Math.max(0, clarity) * 0.45f) + (Math.max(0, pace) * 0.25f) + (Math.max(0, hesitation) * 0.30f)));
+        }
+        response.setAttentionScore(attention);
+        response.setSpeakingConfidenceScore(speakingConfidence);
+        if (eye > 0 || engagement > 0 || hesitation > 0 || speakingConfidence > 0 || attention > 0) {
+            response.setConfidenceScore(clampScore(Math.round(
+                    eye * 0.20f + engagement * 0.20f + hesitation * 0.20f + speakingConfidence * 0.20f + attention * 0.20f)));
         }
 
         // Final rubric is always authoritative: Communication 30%, Confidence 25%,
         // Technical Relevance 30%, Professionalism 15%.
+        int professionalCommunication = response.getProfessionalCommunicationScore() > 0
+                ? response.getProfessionalCommunicationScore()
+                : clampScore(Math.round((response.getAnswerOrganizationScore() + response.getInterviewEtiquetteScore()) / 2f));
+        response.setProfessionalCommunicationScore(professionalCommunication);
+        response.setProfessionalismScore(clampScore(Math.round((response.getTimeManagementScore() + response.getAnswerOrganizationScore() + professionalCommunication + response.getInterviewEtiquetteScore()) / 4f)));
         response.setOverallScore(clampScore(Math.round(
                 response.getCommunicationScore() * 0.30f
                         + response.getConfidenceScore() * 0.25f
@@ -468,6 +508,207 @@ public class InterviewService {
             response.setRating(ratingForScore(response.getOverallScore()));
         }
         return response;
+    }
+
+
+    /**
+     * Adds deterministic, score-grounded feedback to the model-generated feedback.
+     * The goal is to make every weakness actionable: what is low, why it matters,
+     * what to do next, what to practise, and which resource to use.
+     */
+    private void enrichActionableModule7Feedback(InterviewEvaluationRequest request, InterviewEvaluationResponse response) {
+        if (response == null) return;
+        String role = normalizeValue(request.getJobRole(), "the target role");
+        String domain = normalizeValue(request.getDomain(), role);
+
+        Set<String> strengths = new LinkedHashSet<>(safeList(response.getStrengths()));
+        Set<String> weaknesses = new LinkedHashSet<>(safeList(response.getWeaknesses()));
+        Set<String> improvements = new LinkedHashSet<>(safeList(response.getImprovementSuggestions()));
+        Set<String> practice = new LinkedHashSet<>(safeList(response.getPracticeRecommendations()));
+        Set<String> resources = new LinkedHashSet<>(safeList(response.getLearningResources()));
+
+        addScoreEvidence("Speech clarity", response.getSpeechClarityScore(), 75,
+                "Your speech clarity is strong at %d/100. Maintain clear pronunciation and finish each sentence before moving to the next point.",
+                "Speech clarity is %d/100. Some responses may sound unclear or rushed, so focus on articulation and complete sentence delivery.",
+                "Record 5 one-minute answers and replay them at 1x speed. Mark words that become unclear and repeat the same answer with slower articulation.",
+                "NPR Training — voice and speaking practice: https://training.npr.org/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Grammar quality", response.getGrammarScore(), 75,
+                "Grammar quality is %d/100, showing generally clear sentence construction.",
+                "Grammar quality is %d/100. Repeated grammar issues reduce clarity and professional polish.",
+                "Before each answer, use simple subject-verb-object sentences and spend 10 minutes reviewing the grammar mistakes from your transcript.",
+                "British Council — English grammar: https://learnenglish.britishcouncil.org/grammar", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Filler-word control", response.getFillerWordScore(), 75,
+                "Filler-word control is %d/100, indicating relatively clean verbal delivery.",
+                "Filler-word control is %d/100. Frequent fillers can make otherwise good answers sound hesitant.",
+                "Replace 'um', 'uh', 'like', and repeated starters with a 1–2 second silent pause before answering.",
+                "Toastmasters — speaking practice: https://www.toastmasters.org/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Speaking pace", response.getSpeakingPaceScore(), 75,
+                "Speaking pace is %d/100 and is generally suitable for an interview setting.",
+                "Speaking pace is %d/100. Adjust your delivery toward a steady conversational pace and pause after key ideas.",
+                "Practise 3 answers with a target of roughly 120–160 words per minute, then compare your pace with the previous attempt.",
+                "Toastmasters — effective speaking resources: https://www.toastmasters.org/resources", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Response completeness", response.getResponseCompletenessScore(), 75,
+                "Response completeness is %d/100, so your answers generally contain enough supporting detail.",
+                "Response completeness is %d/100. Several answers likely need a clearer explanation, example, or conclusion.",
+                "Use a three-part answer structure: direct answer → evidence/example → closing takeaway. Avoid stopping after the first sentence.",
+                "Big Interview — interview answer structure: https://biginterview.com/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Eye-contact consistency", response.getEyeContactPercentage(), 75,
+                "Eye-contact consistency is %d/100, supporting a confident on-camera presence.",
+                "Eye-contact consistency is %d/100. Look toward the camera when delivering your main point instead of repeatedly looking away.",
+                "Do 5 two-minute camera drills. Keep your eyes near the webcam while answering and review the recording after each drill.",
+                "Microsoft Support — video meeting camera tips: https://support.microsoft.com/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Facial engagement", response.getFacialEngagementScore(), 75,
+                "Facial engagement is %d/100, showing useful visual engagement during the interview.",
+                "Facial engagement is %d/100. Aim for a natural, attentive expression that matches the tone of your answer.",
+                "Record answers to 5 common questions and practise a relaxed neutral expression with a small natural smile where appropriate.",
+                "Coursera — communication and presentation skills: https://www.coursera.org/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Response hesitation", response.getResponseHesitationScore(), 75,
+                "Response hesitation is %d/100, indicating relatively steady answer delivery.",
+                "Response hesitation is %d/100. Long pauses or uncertain starts can reduce perceived confidence.",
+                "Use the 3-second rule: think silently for up to three seconds, then begin with a direct sentence instead of filler words.",
+                "Big Interview — mock interview practice: https://biginterview.com/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Speaking confidence", response.getSpeakingConfidenceScore(), 75,
+                "Speaking confidence is %d/100, supporting a composed verbal delivery.",
+                "Speaking confidence is %d/100. Strengthen your opening sentence, reduce hesitation, and finish statements decisively.",
+                "Practise a 30-second self-introduction and 5 role-specific answers every day while maintaining steady pace and eye contact.",
+                "Google Career Certificates — career communication resources: https://grow.google/certificates/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Attention level", response.getAttentionScore(), 75,
+                "Attention level is %d/100, indicating consistent interview focus.",
+                "Attention level is %d/100. Reduce visual distractions and keep your focus on the interviewer/camera throughout the answer.",
+                "Run one 10-minute distraction-free mock interview with notifications disabled and review moments where attention dropped.",
+                "Microsoft Learn — focused remote-work guidance: https://learn.microsoft.com/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Technical accuracy", response.getTechnicalAccuracyScore(), 75,
+                "Technical accuracy is %d/100 for %s, showing sound technical reasoning.",
+                "Technical accuracy is %d/100 for %s. Review core concepts and explain why your proposed solution works, not only what it does.",
+                "For 5 %s questions, write the key concept, explain the mechanism in simple terms, and state one trade-off or limitation.",
+                "GeeksforGeeks — technical interview preparation: https://www.geeksforgeeks.org/", strengths, weaknesses, improvements, practice, resources, role, domain);
+
+        addScoreEvidence("Keyword relevance", response.getKeywordMatchingScore(), 75,
+                "Keyword relevance is %d/100, showing that your answers generally address the question's expected concepts.",
+                "Keyword relevance is %d/100. Use the exact concepts and terminology expected for %s interviews when they are genuinely relevant.",
+                "For each %s question, identify 3–5 essential concepts before answering and deliberately cover them without keyword stuffing.",
+                "LeetCode — interview question practice: https://leetcode.com/problemset/", strengths, weaknesses, improvements, practice, resources, role);
+
+        addScoreEvidence("Problem-solving ability", response.getProblemSolvingScore(), 75,
+                "Problem-solving ability is %d/100, indicating structured reasoning in your answers.",
+                "Problem-solving ability is %d/100. Show your reasoning step by step before giving the final solution.",
+                "Practise one problem daily using: clarify → assumptions → approach → complexity → solution → validation.",
+                "LeetCode — problems and solutions practice: https://leetcode.com/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Domain knowledge", response.getDomainRelevanceScore(), 75,
+                "Domain knowledge is %d/100 for %s, showing useful relevance to the target area.",
+                "Domain knowledge is %d/100 for %s. Revise the fundamental concepts and current terminology most likely to appear in this interview.",
+                "Create a one-page %s revision sheet with 20 core concepts, one practical example for each, and one likely interview question.",
+                "MIT OpenCourseWare — free technical courses: https://ocw.mit.edu/", strengths, weaknesses, improvements, practice, resources, domain);
+
+        addScoreEvidence("Technical answer completeness", response.getAnswerCompletenessScore(), 75,
+                "Technical answer completeness is %d/100, so your solutions usually include enough explanation.",
+                "Technical answer completeness is %d/100. Add assumptions, implementation details, examples, and a concise conclusion to technical answers.",
+                "Use the pattern: requirement → approach → example → edge case → complexity/trade-off → conclusion for every second technical question.",
+                "Amazon interview preparation — technical and behavioral guidance: https://www.amazon.jobs/content/en/how-we-hire/interviewing", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Time management", response.getTimeManagementScore(), 75,
+                "Time management is %d/100, indicating answers are generally paced within the interview flow.",
+                "Time management is %d/100. Keep answers focused so you have enough time for the key reasoning and conclusion.",
+                "Set a 90-second timer for short answers and a 2-minute timer for technical explanations. Practise finishing with a one-sentence takeaway.",
+                "Indeed Career Guide — interview preparation: https://www.indeed.com/career-advice/interviewing", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Response organization", response.getAnswerOrganizationScore(), 75,
+                "Response organization is %d/100, indicating reasonably structured answers.",
+                "Response organization is %d/100. Start with the answer, then support it with two or three logical points instead of thinking aloud.",
+                "Use the PREP format for opinion questions: Point → Reason → Example → Point. Use STAR for behavioural questions.",
+                "Harvard Business Review — interview communication guidance: https://hbr.org/topic/interviewing", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Professional communication", response.getProfessionalCommunicationScore(), 75,
+                "Professional communication is %d/100, showing an appropriate interview tone.",
+                "Professional communication is %d/100. Use concise, respectful wording and avoid overly casual or vague phrases.",
+                "Rewrite 5 casual interview answers into professional versions and read them aloud until the wording sounds natural.",
+                "LinkedIn Learning — professional communication: https://www.linkedin.com/learning/", strengths, weaknesses, improvements, practice, resources);
+
+        addScoreEvidence("Interview etiquette", response.getInterviewEtiquetteScore(), 75,
+                "Interview etiquette is %d/100, showing good professional behaviour signals.",
+                "Interview etiquette is %d/100. Improve greetings, listening, turn-taking, and closing statements to create a stronger professional impression.",
+                "Practise a complete mock-interview routine: greeting → listen → answer → ask one relevant question → thank the interviewer.",
+                "Coursera — professional development courses: https://www.coursera.org/browse/personal-development", strengths, weaknesses, improvements, practice, resources);
+
+        if (response.getOverallScore() >= 90) {
+            strengths.add("Performance rating: Excellent. Overall score is " + response.getOverallScore() + "/100, meeting the 90+ excellence band.");
+        } else if (response.getOverallScore() >= 75) {
+            strengths.add("Performance rating: Good. Overall score is " + response.getOverallScore() + "/100; targeted polishing of the lowest-scoring areas can move you toward Excellent.");
+        } else if (response.getOverallScore() >= 60) {
+            weaknesses.add("Performance rating: Average. Overall score is " + response.getOverallScore() + "/100; focus first on the lowest two Module 7 parameters before the next mock interview.");
+        } else if (response.getOverallScore() >= 40) {
+            weaknesses.add("Performance rating: Needs Improvement. Overall score is " + response.getOverallScore() + "/100; a focused practice cycle is needed before the next attempt.");
+        } else {
+            weaknesses.add("Performance rating: Poor. Overall score is " + response.getOverallScore() + "/100; rebuild fundamentals and use guided practice before repeating the full interview.");
+        }
+
+        improvements.add("Priority rule: practise the two lowest-scoring Module 7 parameters first; do not spend equal time on strong areas.");
+        practice.add("Next mock interview target: improve the two lowest-scoring parameters by at least 10 points and compare the new report with this baseline.");
+        resources.add("SmartHire practice strategy: use the Learning Resources above only for your lowest-scoring skills, then retake a targeted mock interview.");
+
+        response.setStrengths(new ArrayList<>(limitFeedback(strengths, 8)));
+        response.setWeaknesses(new ArrayList<>(limitFeedback(weaknesses, 8)));
+        response.setImprovementSuggestions(new ArrayList<>(limitFeedback(improvements, 8)));
+        response.setPracticeRecommendations(new ArrayList<>(limitFeedback(practice, 8)));
+        response.setLearningResources(new ArrayList<>(limitFeedback(resources, 10)));
+    }
+
+    private void addScoreEvidence(String label, int score, int threshold, String strongFmt, String weakFmt, String action, String resource,
+                                   Set<String> strengths, Set<String> weaknesses, Set<String> improvements, Set<String> practice, Set<String> resources, Object... args) {
+        int safe = clampScore(score);
+        String strong = strongFmt.replace("%d", String.valueOf(safe));
+        String weak = weakFmt.replace("%d", String.valueOf(safe));
+        if (weakFmt.contains("%s") || strongFmt.contains("%s") || action.contains("%s")) {
+            // Parameter-specific overloads use formatted strings below through String.format.
+            try {
+                strong = String.format(strongFmt, prepend(safe, args));
+                weak = String.format(weakFmt, prepend(safe, args));
+                action = String.format(action, args);
+            } catch (Exception ignored) { }
+        }
+        if (safe >= threshold) {
+            strengths.add(strong);
+        } else {
+            weaknesses.add(weak);
+            improvements.add("" + label + ": " + action);
+            practice.add("" + label + " practice: " + action);
+            resources.add(label + " resource: " + resource);
+        }
+    }
+
+    private Object[] prepend(int value, Object[] args) {
+        Object[] out = new Object[args.length + 1];
+        out[0] = value;
+        System.arraycopy(args, 0, out, 1, args.length);
+        return out;
+    }
+
+    private List<String> safeList(List<String> values) {
+        return values == null ? List.of() : values.stream().filter(v -> v != null && !v.isBlank()).map(String::trim).collect(Collectors.toList());
+    }
+
+    private Set<String> limitFeedback(Set<String> values, int limit) {
+        return values.stream().filter(v -> v != null && !v.isBlank()).limit(limit).collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private int attentionScoreFromLevel(String level) {
+        return switch (String.valueOf(level).toLowerCase(Locale.ROOT)) {
+            case "high" -> 100;
+            case "medium" -> 65;
+            case "low" -> 30;
+            default -> 0;
+        };
     }
 
     private int paceScoreFromWpm(int wpm) {
@@ -659,6 +900,9 @@ public class InterviewService {
         response.setConfidenceScore(scaleScore(response.getConfidenceScore(), ratio));
         response.setTechnicalScore(scaleScore(response.getTechnicalScore(), ratio));
         response.setProfessionalismScore(scaleScore(response.getProfessionalismScore(), ratio));
+        response.setProfessionalCommunicationScore(scaleScore(response.getProfessionalCommunicationScore(), ratio));
+        response.setSpeakingConfidenceScore(scaleScore(response.getSpeakingConfidenceScore(), ratio));
+        response.setAttentionScore(scaleScore(response.getAttentionScore(), ratio));
         response.setGrammarScore(scaleScore(response.getGrammarScore(), ratio));
         response.setSpeechClarityScore(scaleScore(response.getSpeechClarityScore(), ratio));
         response.setSpeakingPaceScore(scaleScore(response.getSpeakingPaceScore(), ratio));
@@ -770,6 +1014,10 @@ public class InterviewService {
         response.setTimeline(parseTimeline(interview.getSessionTimeline()));
         response.setLiveSignalsJson(normalizeValue(interview.getLiveSignalsJson(), "{}"));
         response.setSpeechInsightsJson(normalizeValue(interview.getSpeechInsightsJson(), "{}"));
+        response.setMonitoringSamples(interview.getMonitoringSamples());
+        response.setRealEmotionSamples(interview.getRealEmotionSamples());
+        response.setRealEyeTrackingSamples(interview.getRealEyeTrackingSamples());
+        response.setMonitoringProviderSummary(normalizeValue(interview.getMonitoringProviderSummary(), "{}"));
 
         interviewAnswerRepository.findByInterviewIdOrderByIdAsc(interviewId)
             .stream()
@@ -782,18 +1030,7 @@ public class InterviewService {
             .forEach(response.getAnswers()::add);
 
         interviewEvaluationRepository.findByInterviewId(interviewId).ifPresent(evaluation -> {
-            InterviewHistoryDetailResponse.EvaluationSummary evaluationSummary = new InterviewHistoryDetailResponse.EvaluationSummary(
-                evaluation.getOverallScore(),
-                evaluation.getTechnicalScore(),
-                safeNumber(evaluation.getCommunicationScore()),
-                safeNumber(evaluation.getConfidenceScore()),
-                evaluation.getProblemSolvingScore(),
-                safeNumber(evaluation.getProfessionalismScore()),
-                normalizeValue(evaluation.getRating(), "Not available"),
-                normalizeValue(evaluation.getRecommendation(), "Not available"),
-                evaluation.getEvaluationDate()
-            );
-            response.setEvaluation(evaluationSummary);
+            response.setEvaluation(toEvaluationResponse(evaluation));
         });
 
         response.getRecording().setVideoRecordingName(interview.getVideoRecordingName());
@@ -1021,6 +1258,7 @@ public class InterviewService {
         evaluation.setCommunicationScore(evaluationResponse.getCommunicationScore());
         evaluation.setConfidenceScore(evaluationResponse.getConfidenceScore());
         evaluation.setProfessionalismScore(evaluationResponse.getProfessionalismScore());
+        evaluation.setProfessionalCommunicationScore(evaluationResponse.getProfessionalCommunicationScore());
         evaluation.setGrammarScore(evaluationResponse.getGrammarScore());
         evaluation.setSpeechClarityScore(evaluationResponse.getSpeechClarityScore());
         evaluation.setSpeakingPaceScore(evaluationResponse.getSpeakingPaceScore());
@@ -1032,6 +1270,8 @@ public class InterviewService {
         evaluation.setEyeContactPercentage(evaluationResponse.getEyeContactPercentage());
         evaluation.setFacialEngagementScore(evaluationResponse.getFacialEngagementScore());
         evaluation.setResponseHesitationScore(evaluationResponse.getResponseHesitationScore());
+        evaluation.setSpeakingConfidenceScore(evaluationResponse.getSpeakingConfidenceScore());
+        evaluation.setAttentionScore(evaluationResponse.getAttentionScore());
         evaluation.setKeywordMatchingScore(evaluationResponse.getKeywordMatchingScore());
         evaluation.setDomainRelevanceScore(evaluationResponse.getDomainRelevanceScore());
         evaluation.setTechnicalAccuracyScore(evaluationResponse.getTechnicalAccuracyScore());
@@ -1048,6 +1288,10 @@ public class InterviewService {
         evaluation.setLearningResources(joinFeedback(evaluationResponse.getLearningResources()));
         evaluation.setRecommendation(normalizeValue(evaluationResponse.getRecommendation(), "Not available"));
         evaluation.setFeedback(joinFeedback(evaluationResponse.getFeedback()));
+        evaluation.setProctoringViolationCount(evaluationResponse.getProctoringViolationCount());
+        evaluation.setMalpracticeTerminated(Boolean.TRUE.equals(evaluationResponse.getMalpracticeTerminated()));
+        evaluation.setMalpracticeReason(evaluationResponse.getMalpracticeReason());
+        evaluation.setProctoringViolationsJson(evaluationResponse.getProctoringViolationsJson());
 
         interviewEvaluationRepository.save(evaluation);
     }
@@ -1066,6 +1310,10 @@ public class InterviewService {
         interview.setTimerSecondsRemaining(request.getTimerSecondsRemaining());
         interview.setLiveSignalsJson(mergeJsonPayload(request.getLiveSignalsJson(), interview.getLiveSignalsJson()));
         interview.setSpeechInsightsJson(mergeJsonPayload(request.getSpeechInsightsJson(), interview.getSpeechInsightsJson()));
+        interview.setMonitoringSamples(request.getMonitoringSamples());
+        interview.setRealEmotionSamples(request.getRealEmotionSamples());
+        interview.setRealEyeTrackingSamples(request.getRealEyeTrackingSamples());
+        interview.setMonitoringProviderSummary(request.getMonitoringProviderSummary());
         interview.setTranscriptUpdatedAt(LocalDateTime.now());
         interview.setSessionTimeline(serializeTimeline(request.getSessionTimeline()));
         interviewRepository.save(interview);
@@ -1083,6 +1331,10 @@ public class InterviewService {
         interview.setRecoveryState(normalizeValue(request.getRecoveryState(), interview.getRecoveryState()));
         interview.setLiveSignalsJson(mergeJsonPayload(request.getLiveSignalsJson(), interview.getLiveSignalsJson()));
         interview.setSpeechInsightsJson(mergeJsonPayload(request.getSpeechInsightsJson(), interview.getSpeechInsightsJson()));
+        interview.setMonitoringSamples(request.getMonitoringSamples());
+        interview.setRealEmotionSamples(request.getRealEmotionSamples());
+        interview.setRealEyeTrackingSamples(request.getRealEyeTrackingSamples());
+        interview.setMonitoringProviderSummary(request.getMonitoringProviderSummary());
         interview.setSessionTimeline(serializeTimeline(request.getTimeline()));
         interview.setTranscriptUpdatedAt(LocalDateTime.now());
     }
@@ -1094,6 +1346,7 @@ public class InterviewService {
         response.setCommunicationScore(safeNumber(evaluation.getCommunicationScore()));
         response.setConfidenceScore(safeNumber(evaluation.getConfidenceScore()));
         response.setProfessionalismScore(safeNumber(evaluation.getProfessionalismScore()));
+        response.setProfessionalCommunicationScore(safeNumber(evaluation.getProfessionalCommunicationScore()));
         response.setGrammarScore(safeNumber(evaluation.getGrammarScore()));
         response.setSpeechClarityScore(safeNumber(evaluation.getSpeechClarityScore()));
         response.setSpeakingPaceScore(safeNumber(evaluation.getSpeakingPaceScore()));
@@ -1105,6 +1358,8 @@ public class InterviewService {
         response.setEyeContactPercentage(safeNumber(evaluation.getEyeContactPercentage()));
         response.setFacialEngagementScore(safeNumber(evaluation.getFacialEngagementScore()));
         response.setResponseHesitationScore(safeNumber(evaluation.getResponseHesitationScore()));
+        response.setSpeakingConfidenceScore(safeNumber(evaluation.getSpeakingConfidenceScore()));
+        response.setAttentionScore(safeNumber(evaluation.getAttentionScore()));
         response.setKeywordMatchingScore(safeNumber(evaluation.getKeywordMatchingScore()));
         response.setDomainRelevanceScore(safeNumber(evaluation.getDomainRelevanceScore()));
         response.setTechnicalAccuracyScore(safeNumber(evaluation.getTechnicalAccuracyScore()));
@@ -1120,6 +1375,10 @@ public class InterviewService {
         response.setPracticeRecommendations(parseFeedback(evaluation.getPracticeRecommendations()));
         response.setLearningResources(parseFeedback(evaluation.getLearningResources()));
         response.setFeedback(parseFeedback(evaluation.getFeedback()));
+        response.setProctoringViolationCount(evaluation.getProctoringViolationCount());
+        response.setMalpracticeTerminated(evaluation.isMalpracticeTerminated());
+        response.setMalpracticeReason(evaluation.getMalpracticeReason());
+        response.setProctoringViolationsJson(evaluation.getProctoringViolationsJson());
         response.setRecommendation(normalizeValue(evaluation.getRecommendation(), "Not available"));
         return response;
     }

@@ -20,6 +20,10 @@ public class InterviewSessionSnapshotRequest {
     private String recoveryState;
     private String liveSignalsJson;
     private String speechInsightsJson;
+    private Integer monitoringSamples;
+    private Integer realEmotionSamples;
+    private Integer realEyeTrackingSamples;
+    private String monitoringProviderSummary;
     private List<String> answers = new ArrayList<>();
     private List<InterviewSessionStepDto> timeline = new ArrayList<>();
 
@@ -158,4 +162,13 @@ public class InterviewSessionSnapshotRequest {
     public void setTimeline(List<InterviewSessionStepDto> timeline) {
         this.timeline = timeline;
     }
+    public Integer getMonitoringSamples() { return monitoringSamples; }
+    public void setMonitoringSamples(Integer monitoringSamples) { this.monitoringSamples = monitoringSamples; }
+    public Integer getRealEmotionSamples() { return realEmotionSamples; }
+    public void setRealEmotionSamples(Integer realEmotionSamples) { this.realEmotionSamples = realEmotionSamples; }
+    public Integer getRealEyeTrackingSamples() { return realEyeTrackingSamples; }
+    public void setRealEyeTrackingSamples(Integer realEyeTrackingSamples) { this.realEyeTrackingSamples = realEyeTrackingSamples; }
+    public String getMonitoringProviderSummary() { return monitoringProviderSummary; }
+    public void setMonitoringProviderSummary(String monitoringProviderSummary) { this.monitoringProviderSummary = monitoringProviderSummary; }
+
 }

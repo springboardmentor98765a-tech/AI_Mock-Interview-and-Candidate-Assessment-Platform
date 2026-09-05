@@ -1583,9 +1583,7 @@ if(recordingTextEl){
 }
 const topStatusEl=document.getElementById("interviewTopStatus");
 if(topStatusEl){
-    const total=interviewSessionState.questions.length || 0;
-    const current=total ? interviewSessionState.currentIndex + 1 : 1;
-    topStatusEl.textContent=`Question ${current} / ${total || 1}`;
+    syncQuestionHeaderState();
 }
 
 if(recordingStartBtn){
@@ -2109,8 +2107,17 @@ const syncCurrentQuestionTiming=async (completedOverride=null)=>{
     const answer=String(interviewSessionState.answers[index] || "").trim();
     const completed=completedOverride===null ? Boolean(answer) : Boolean(completedOverride);
     const endedAt=new Date().toISOString();
+    const timingUrl=`${API_BASE}/api/interview-sessions/${interviewSessionState.sessionId}/question-timing`;
 
-    const response=await fetch(`${API_BASE}/api/interview-sessions/${interviewSessionState.sessionId}/question-timing`,{
+    console.debug("[SmartHire][Interview] saving answer", {
+      sessionId: interviewSessionState.sessionId,
+      currentIndex: index,
+      currentQuestionId: item.id || item.question || "unknown",
+      completed,
+      durationSeconds
+    });
+
+    const response=await fetch(timingUrl,{
     method:"POST",
     headers:{
     ...getAuthHeaders(),
@@ -2136,6 +2143,7 @@ const syncCurrentQuestionTiming=async (completedOverride=null)=>{
     }catch(error){}
 
     if(!response.ok){
+    logFetchFailure("question timing", timingUrl, response, payload?.message || "question timing failed");
     throw new Error(payload?.message || `Failed to save timing for question ${index+1} (HTTP ${response.status})`);
     }
 
@@ -2170,6 +2178,29 @@ return;
 
 timelineEl.innerHTML=timeline.map((item,index)=>"<div style=\"display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #edf2fb;\"><div><strong>Question "+(index+1)+"</strong><div style=\"color:#475569; margin-top:4px;\">"+((typeof item.question==="string" && item.question.trim()) ? item.question.trim() : "Interview question")+"</div><div style=\"font-size:12px; color:#64748b; margin-top:4px;\">Status: "+item.status+"</div></div><div style=\"text-align:right; color:#1f4f8a; min-width:80px;\">"+item.timeTakenSeconds+"s</div></div>").join("");
 
+};
+
+const logInterviewEvent=(message, payload)=>{
+  const value = payload === undefined ? "" : payload;
+  console.debug(`[SmartHire][Interview] ${message}`, value);
+};
+
+const logFetchFailure=(label, url, response, bodyText)=>{
+  const status = response && typeof response.status !== "undefined" ? response.status : "unknown";
+  const payloadText = typeof bodyText === "string" && bodyText.trim() ? bodyText : "no response body";
+  console.error(`[SmartHire][Interview] ${label} failed`, {
+    url,
+    status,
+    responseBody: payloadText
+  });
+};
+
+const syncQuestionHeaderState=()=>{
+  const topStatusEl=document.getElementById("interviewTopStatus");
+  if(!topStatusEl) return;
+  const total=Array.isArray(interviewSessionState.questions) ? interviewSessionState.questions.length : 0;
+  const current=total ? Math.min(interviewSessionState.currentIndex, total - 1) + 1 : 1;
+  topStatusEl.textContent=`Question ${current} / ${total || 1}`;
 };
 
 const buildLiveSessionSummary=()=>{
@@ -2349,24 +2380,47 @@ const wireInterviewSessionControls=(questionsEl,errorEl)=>{
     return;
     }
 
-    if(interviewSessionState.currentIndex>=interviewSessionState.questions.length-1){
-    showToast("✅ You are at the last question");
-    return;
+    const totalQuestions = interviewSessionState.questions.length;
+    const currentIndex = Number(interviewSessionState.currentIndex || 0);
+    if(nextBtn.dataset.busy === "1" || currentIndex >= totalQuestions - 1){
+      if(currentIndex >= totalQuestions - 1){
+        showToast("✅ You are at the last question");
+      }
+      return;
     }
 
+    nextBtn.dataset.busy = "1";
+    nextBtn.disabled = true;
+
+    const beforeIndex = currentIndex;
     saveCurrentInterviewAnswer();
+    const currentQuestionId = interviewSessionState.questions?.[beforeIndex]?.id || interviewSessionState.questions?.[beforeIndex]?.question || "unknown";
+
+    logInterviewEvent("NEXT clicked", {
+      currentIndex: beforeIndex,
+      currentQuestionId,
+      questionCount: totalQuestions
+    });
 
     try{
-    await syncCurrentQuestionTiming(Boolean(String(interviewSessionState.answers[interviewSessionState.currentIndex] || "").trim()));
-    await syncCurrentAnswerToBackend();
-    await callSessionAction("next-question");
+      const currentAnswer = String(interviewSessionState.answers[beforeIndex] || "").trim();
+      logInterviewEvent("saving answer", { currentIndex: beforeIndex, answerLength: currentAnswer.length, currentQuestionId });
+      await syncCurrentQuestionTiming(Boolean(currentAnswer));
+      await syncCurrentAnswerToBackend();
+      await callSessionAction("next-question");
 
-    interviewSessionState.currentIndex+=1;
-    interviewSessionState.questionStartedAt=Date.now();
-    renderInterviewSession(questionsEl,errorEl);
+      interviewSessionState.currentIndex = Math.min(beforeIndex + 1, totalQuestions - 1);
+      interviewSessionState.questionStartedAt = Date.now();
+      interviewSessionState.lastRenderedQuestionIndex = null;
+      logInterviewEvent("advancing question", { fromIndex: beforeIndex, toIndex: interviewSessionState.currentIndex, currentQuestionId: interviewSessionState.questions?.[interviewSessionState.currentIndex]?.id || interviewSessionState.questions?.[interviewSessionState.currentIndex]?.question || "unknown" });
+      renderInterviewSession(questionsEl,errorEl);
     }catch(error){
-    showToast("❌ "+(error.message || "Unable to move to the next question."));
-    setLiveInterviewError("Unable to move to the next question: "+(error.message || "Server error."));
+      console.error("[SmartHire][Interview] NEXT question failed", error);
+      showToast("❌ "+(error.message || "Unable to move to the next question."));
+      setLiveInterviewError("Unable to move to the next question: "+(error.message || "Server error."));
+    } finally {
+      delete nextBtn.dataset.busy;
+      nextBtn.disabled = interviewSessionState.paused || interviewSessionState.currentIndex >= interviewSessionState.questions.length - 1;
     }
     };
     }
@@ -2402,10 +2456,20 @@ const wireInterviewSessionControls=(questionsEl,errorEl)=>{
 
     if(endBtn){
     endBtn.onclick=async ()=>{
+      if(endBtn.dataset.busy === "1"){
+        return;
+      }
+      endBtn.dataset.busy = "1";
       endBtn.disabled = true;
+      logInterviewEvent("END clicked", {
+        currentIndex: interviewSessionState.currentIndex,
+        sessionId: interviewSessionState.sessionId,
+        interviewId: interviewSessionState.interviewId
+      });
       try{
         await endInterviewSession(questionsEl,errorEl);
       }finally{
+        delete endBtn.dataset.busy;
         refreshInterviewPauseControls();
       }
     };
@@ -4278,11 +4342,19 @@ cameraActive:Boolean(liveInterviewState.cameraOn),
 
 microphoneActive:Boolean(liveInterviewState.micOn),
 
-eyeContactPercentage:clampScore((liveSignalPayload?.eyeContact?.eyeContactPercentage) ?? (liveInterviewState.cameraOn ? 55 : 0)),
+eyeContactPercentage:clampScore((liveSignalPayload?.summary?.averageEyeContactPercentage) ?? (liveSignalPayload?.eyeContact?.eyeContactPercentage) ?? (liveInterviewState.cameraOn ? 55 : 0)),
 
-facialEngagementScore:clampScore((liveSignalPayload?.emotion?.confidence) ?? (liveInterviewState.cameraOn ? 55 : 0)),
+facialEngagementScore:clampScore((liveSignalPayload?.summary?.averageEmotionConfidence) ?? (liveSignalPayload?.emotion?.confidence) ?? (liveInterviewState.cameraOn ? 55 : 0)),
 
-responseHesitationScore:clampScore(100 - Math.min(35, countFillerWords(liveTranscript)*8) - (liveTranscript.length < 80 ? 10 : 0))
+responseHesitationScore:clampScore(100 - Math.min(35, countFillerWords(liveTranscript)*8) - (liveTranscript.length < 80 ? 10 : 0)),
+headStabilityScore:clampScore(liveSignalPayload?.summary?.averageHeadStabilityScore),
+attentionScore:(()=>{ const a=String(liveSignalPayload?.summary?.dominantAttentionLevel||""); return a==="High"?100:a==="Medium"?65:a==="Low"?30:0; })(),
+engagementScore:clampScore(liveSignalPayload?.summary?.averageEngagementScore),
+emotionConfidenceScore:clampScore(liveSignalPayload?.summary?.averageEmotionConfidence),
+detectedEmotion:liveSignalPayload?.summary?.dominantEmotion || "Unavailable",
+gazeDirection:liveSignalPayload?.summary?.dominantGazeDirection || "Unavailable",
+monitoringComplete:Boolean(liveSignalPayload?.summary?.monitoringComplete),
+monitoringSampleCount:Number(liveSignalPayload?.summary?.totalSamples || 0)
 
 };
 
@@ -4305,6 +4377,12 @@ payload.timerSecondsRemaining=timerSecondsRemaining;
 payload.liveSignalsJson=localStorage.getItem("smarthire.liveSignals") || "{}";
 
 payload.speechInsightsJson=localStorage.getItem("smarthire.speechInsights") || "{}";
+const proctoringState=window.__smartHireProctoring || {};
+const completedSessionId=Number(window.__smartHireCompletedSessionId || interviewSessionState.sessionId || 0);
+payload.proctoringViolationCount=Number(proctoringState.count||0);
+payload.malpracticeTerminated=Boolean(proctoringState.autoTerminated||proctoringState.terminated);
+payload.malpracticeReason=payload.malpracticeTerminated ? "Interview terminated after 3 proctoring violations." : null;
+try { const st=await fetch(`${API_BASE}/api/interview-sessions/${completedSessionId}/proctoring`,{headers:getAuthHeaders()}); if(st.ok){ const pd=await st.json(); payload.proctoringViolationCount=Number(pd.violationCount||payload.proctoringViolationCount); payload.malpracticeTerminated=Boolean(pd.malpracticeTerminated||payload.malpracticeTerminated); payload.malpracticeReason=pd.terminatedReason||payload.malpracticeReason; payload.proctoringViolationsJson=JSON.stringify(pd.violations||[]); } } catch(_) {}
 
 Object.assign(payload,telemetry);
 payload.pronunciationScore=Number(speechInsightPayload.pronunciationScore)||0;
@@ -4312,7 +4390,8 @@ payload.transcriptionConfidence=Number(speechInsightPayload.transcriptionConfide
 payload.grammarIssueCount=Array.isArray(speechInsightPayload.grammarIssues)?speechInsightPayload.grammarIssues.length:0;
 payload.grammarIssueSummary=Array.isArray(speechInsightPayload.grammarIssues)?speechInsightPayload.grammarIssues.join(" | "):"";
 
-const response=await fetch(`${API_BASE}/api/interviews/evaluate`,{
+const evaluateUrl=`${API_BASE}/api/interviews/evaluate`;
+const response=await fetch(evaluateUrl,{
 
 method:"POST",
 
@@ -4323,8 +4402,12 @@ body:JSON.stringify(payload)
 });
 
 if(!response.ok){
-
-throw new Error("Failed to evaluate interview (HTTP "+response.status+")");
+    let responseBody = "";
+    try {
+      responseBody = await response.text();
+    } catch (_) {}
+    logFetchFailure("evaluation request", evaluateUrl, response, responseBody);
+    throw new Error("Failed to evaluate interview (HTTP "+response.status+")");
 
 }
 
@@ -4534,9 +4617,13 @@ return;
 
 }
 
-const index=interviewSessionState.currentIndex;
+const index=Math.min(Number(interviewSessionState.currentIndex || 0), Math.max(0, total - 1));
+interviewSessionState.currentIndex=index;
 
 const current=interviewSessionState.questions[index];
+if(!current){
+  return;
+}
 
 if(interviewSessionState.lastRenderedQuestionIndex!==index){
 
@@ -4552,7 +4639,8 @@ if(questionsEl) questionsEl.style.display="none";
 
 if(errorEl) errorEl.style.display="none";
 
-numberEl.textContent="Question "+(index+1)+"/"+total;
+numberEl.textContent="Question "+(index+1)+" / "+total;
+syncQuestionHeaderState();
 
 categoryEl.textContent=current.category || "General";
 
@@ -4650,18 +4738,32 @@ const endInterviewSession=async (questionsEl,errorEl,options={})=>{
     }
 
     saveCurrentInterviewAnswer();
+    const autoTerminated = Boolean(window.__smartHireProctoring?.autoTerminated);
+    const sessionId = interviewSessionState.sessionId;
+    const interviewId = interviewSessionState.interviewId;
+    const jobRole = interviewSessionState.jobRole;
+    const interviewType = interviewSessionState.interviewType;
+    const difficulty = interviewSessionState.difficulty;
+    const questions = [...interviewSessionState.questions];
+    const answers = interviewSessionState.questions.map((_,index)=>{
+      const raw = interviewSessionState.answers[index];
+      if(typeof raw === "string" && raw.trim()) {
+        return raw.trim();
+      }
+      return "No answer provided.";
+    });
 
     try{
-    await syncCurrentQuestionTiming(Boolean(String(interviewSessionState.answers[interviewSessionState.currentIndex] || "").trim()));
-    // Persist the final answer while the session is still IN_PROGRESS.
-    // When the session is paused, the answer box is disabled, so there is nothing new to save.
-    if(!interviewSessionState.paused){
-        await syncCurrentAnswerToBackend();
+    if(!autoTerminated){
+      await syncCurrentQuestionTiming(Boolean(String(interviewSessionState.answers[interviewSessionState.currentIndex] || "").trim()));
+      if(!interviewSessionState.paused){
+          await syncCurrentAnswerToBackend();
+      }
     }
 
-    // Backend is authoritative for the terminal state. End the session first;
-    // recordings can still be uploaded against a COMPLETED session.
-    await callSessionAction("end");
+    if (!(window.__smartHireProctoring?.autoTerminated)) {
+        await callSessionAction("end");
+    }
     }catch(error){
     showToast("❌ "+(error.message || "Unable to end the interview."));
     setLiveInterviewError("Unable to end the interview: "+(error.message || "Server error."));
@@ -4686,46 +4788,19 @@ const endInterviewSession=async (questionsEl,errorEl,options={})=>{
     updateLiveSessionTimeline();
 
     const evaluationPayload={
-
-    interviewId:interviewSessionState.interviewId,
-    jobRole:interviewSessionState.jobRole,
-    interviewType:interviewSessionState.interviewType,
-    difficulty:interviewSessionState.difficulty,
-
-    questions:interviewSessionState.questions.map((item)=>item?.question || ""),
-
-    answers:interviewSessionState.questions.map((_,index)=>{
-    const raw=interviewSessionState.answers[index];
-    if(typeof raw==="string" && raw.trim()){
-    return raw.trim();
-    }
-    return "No answer provided.";
-    })
-
+      sessionId,
+      interviewId,
+      jobRole,
+      interviewType,
+      difficulty,
+      questions: questions.map((item)=>item?.question || ""),
+      answers
     };
 
+    logInterviewEvent("completing session", { sessionId, interviewId, answerCount: answers.length });
+    logInterviewEvent("completion response", { sessionId, interviewId });
+
     stopInterviewTimer();
-
-    interviewSessionState.active=false;
-    interviewSessionState.currentIndex=0;
-    interviewSessionState.skippedIndices.clear();
-    interviewSessionState.answers={};
-    interviewSessionState.interviewId=null;
-    interviewSessionState.sessionId=null;
-    interviewSessionState.backendStatus="COMPLETED";
-    interviewSessionState.paused=false;
-    interviewSessionState.jobRole="";
-    interviewSessionState.interviewType="";
-    interviewSessionState.difficulty="";
-    interviewSessionState.timerSecondsRemaining=getConfiguredInterviewDurationSeconds();
-    interviewSessionState.lastRenderedQuestionIndex=null;
-    interviewSessionState.questionStartedAt=null;
-
-    persistLiveInterviewSnapshot(false);
-    liveInterviewState.pendingRecordingSessionId=null;
-
-    renderInterviewTimer();
-    refreshInterviewPauseControls();
 
     const sessionEl=document.getElementById("interviewSession");
     if(sessionEl) sessionEl.style.display="none";
@@ -4751,21 +4826,52 @@ const endInterviewSession=async (questionsEl,errorEl,options={})=>{
     showToast(options.toast || "🛑 Interview session ended");
     }
 
+    window.__smartHireCompletedSessionId = Number(evaluationPayload.sessionId || 0);
     const completedInterviewId = evaluationPayload.interviewId;
     let evaluationResult = null;
     try{
+      logInterviewEvent("evaluation request", { sessionId, interviewId: completedInterviewId, answerCount: evaluationPayload.answers.length });
       evaluationResult = await evaluateInterviewAnswers(evaluationPayload,errorEl);
+      logInterviewEvent("evaluation response", evaluationResult || { status: "empty" });
     }catch(evaluationError){
       console.error("[Interview] evaluation failed after session end:", evaluationError);
       setLiveInterviewError("Interview ended successfully. AI evaluation could not be completed yet: " + (evaluationError?.message || "Unknown error."));
       showToast("✅ Interview ended. Evaluation will need to be retried from the report.");
     }
 
+    const shouldNavigateToReport = Boolean(completedInterviewId) && evaluationResult && evaluationResult.overallScore !== undefined;
+
+    if(shouldNavigateToReport){
+      logInterviewEvent("report navigation", { interviewId: completedInterviewId, url: `interview-report.html?interviewId=${completedInterviewId}` });
+      window.location.href = `interview-report.html?interviewId=${encodeURIComponent(completedInterviewId)}`;
+    }
+
+    interviewSessionState.active=false;
+    interviewSessionState.currentIndex=0;
+    interviewSessionState.skippedIndices.clear();
+    interviewSessionState.answers={};
+    interviewSessionState.interviewId=null;
+    interviewSessionState.sessionId=null;
+    interviewSessionState.backendStatus="COMPLETED";
+    interviewSessionState.paused=false;
+    interviewSessionState.jobRole="";
+    interviewSessionState.interviewType="";
+    interviewSessionState.difficulty="";
+    interviewSessionState.timerSecondsRemaining=getConfiguredInterviewDurationSeconds();
+    interviewSessionState.lastRenderedQuestionIndex=null;
+    interviewSessionState.questionStartedAt=null;
+    persistLiveInterviewSnapshot(false);
+    liveInterviewState.pendingRecordingSessionId=null;
+    renderInterviewTimer();
+    refreshInterviewPauseControls();
+
     if(completedInterviewId){
       showInterviewCompletionModal(evaluationResult || {}, completedInterviewId);
       const subtitle=document.getElementById("completionSubtitle");
       if(subtitle){ subtitle.textContent=evaluationResult ? "Your interview session, answers and evaluation have been saved. Your detailed report is ready." : "Your interview session and answers were saved. The detailed evaluation is still being finalized."; }
-      showToast(evaluationResult ? "📄 Interview report is ready" : "✅ Interview ended");
+      if (!shouldNavigateToReport) {
+        showToast(evaluationResult ? "📄 Interview report is ready" : "✅ Interview ended");
+      }
     }
 
     return { completedInterviewId, evaluationResult, recordingError };
@@ -7002,3 +7108,10 @@ loadAdminDashboard();
 // SmartHire advanced live-room UI bridge: expose read-only interview state for the premium UI layer.
 try { window.interviewSessionState = interviewSessionState; } catch (_) {}
 try { window.liveInterviewState = liveInterviewState; } catch (_) {}
+
+window.addEventListener("smarthire:proctoring-terminated", () => {
+  try {
+    const q=document.getElementById("interviewQuestions"); const e=document.getElementById("liveInterviewError");
+    if (typeof endInterviewSession === "function") { endInterviewSession(q,e,{message:"Interview automatically submitted after 3 proctoring violations.",toast:"⚠ Interview auto-submitted for malpractice"}); }
+  } catch(err) { console.error("[Proctoring] auto-submit failed",err); }
+});

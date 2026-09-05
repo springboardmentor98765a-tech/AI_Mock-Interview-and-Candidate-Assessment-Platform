@@ -36,6 +36,9 @@ public class InterviewEvaluation {
     @Column(name = "professionalism_score")
     private Integer professionalismScore;
 
+    @Column(name = "professional_communication_score")
+    private Integer professionalCommunicationScore;
+
     @Column(name = "grammar_score")
     private Integer grammarScore;
 
@@ -68,6 +71,12 @@ public class InterviewEvaluation {
 
     @Column(name = "response_hesitation_score")
     private Integer responseHesitationScore;
+
+    @Column(name = "speaking_confidence_score")
+    private Integer speakingConfidenceScore;
+
+    @Column(name = "attention_score")
+    private Integer attentionScore;
 
     @Column(name = "keyword_matching_score")
     private Integer keywordMatchingScore;
@@ -116,6 +125,14 @@ public class InterviewEvaluation {
 
     @Column(name = "feedback", columnDefinition = "TEXT")
     private String feedback;
+    @Column(name = "proctoring_violation_count", nullable = false)
+    private int proctoringViolationCount = 0;
+    @Column(name = "malpractice_terminated", nullable = false)
+    private boolean malpracticeTerminated = false;
+    @Column(name = "malpractice_reason", columnDefinition = "TEXT")
+    private String malpracticeReason;
+    @Column(name = "proctoring_violations_json", columnDefinition = "TEXT")
+    private String proctoringViolationsJson;
 
     @Column(name = "evaluation_date", nullable = false, updatable = false)
     private LocalDateTime evaluationDate;
@@ -179,6 +196,9 @@ public class InterviewEvaluation {
     public Integer getProfessionalismScore() {
         return professionalismScore;
     }
+
+    public Integer getProfessionalCommunicationScore() { return professionalCommunicationScore; }
+    public void setProfessionalCommunicationScore(Integer score) { this.professionalCommunicationScore = score; }
 
     public void setProfessionalismScore(Integer professionalismScore) {
         this.professionalismScore = professionalismScore;
@@ -250,6 +270,11 @@ public class InterviewEvaluation {
     public Integer getResponseHesitationScore() {
         return responseHesitationScore;
     }
+
+    public Integer getSpeakingConfidenceScore() { return speakingConfidenceScore; }
+    public void setSpeakingConfidenceScore(Integer speakingConfidenceScore) { this.speakingConfidenceScore = speakingConfidenceScore; }
+    public Integer getAttentionScore() { return attentionScore; }
+    public void setAttentionScore(Integer attentionScore) { this.attentionScore = attentionScore; }
 
     public void setResponseHesitationScore(Integer responseHesitationScore) {
         this.responseHesitationScore = responseHesitationScore;
@@ -390,4 +415,9 @@ public class InterviewEvaluation {
     public void setEvaluationDate(LocalDateTime evaluationDate) {
         this.evaluationDate = evaluationDate;
     }
+    public int getProctoringViolationCount(){return proctoringViolationCount;} public void setProctoringViolationCount(int v){proctoringViolationCount=v;}
+    public boolean isMalpracticeTerminated(){return malpracticeTerminated;} public void setMalpracticeTerminated(boolean v){malpracticeTerminated=v;}
+    public String getMalpracticeReason(){return malpracticeReason;} public void setMalpracticeReason(String v){malpracticeReason=v;}
+    public String getProctoringViolationsJson(){return proctoringViolationsJson;} public void setProctoringViolationsJson(String v){proctoringViolationsJson=v;}
+
 }

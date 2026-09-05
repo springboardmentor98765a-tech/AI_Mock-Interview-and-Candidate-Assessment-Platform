@@ -92,6 +92,8 @@ def detect_face(frame):
 
 def preprocess(face):
     img = cv2.resize(face, (96, 96), interpolation=cv2.INTER_AREA)
+    # The trained CNN already contains a Keras Rescaling(1./255) layer.
+    # Keep API input in the 0..255 pixel range to avoid double normalization.
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
     return np.expand_dims(img, axis=0)
 
@@ -151,4 +153,3 @@ def analyze(payload: ImagePayload):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8095")))
-

@@ -2,35 +2,40 @@ package com.smarthire.backend.ai.emotion;
 
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
-/**
- * Orchestrates emotion detection between real and simulated providers.
- * Tries DeepFace first, falls back to simulation if unavailable.
- */
 @Service
 public class EmotionDetectionService {
-
+    private final CustomCnnEmotionProvider customCnnProvider;
     private final DeepFaceEmotionProvider deepFaceProvider;
-    private final SimulatedEmotionProvider simulatedProvider;
 
-    public EmotionDetectionService(DeepFaceEmotionProvider deepFaceProvider,
-                                   SimulatedEmotionProvider simulatedProvider) {
+    public EmotionDetectionService(CustomCnnEmotionProvider customCnnProvider,
+                                   DeepFaceEmotionProvider deepFaceProvider) {
+        this.customCnnProvider = customCnnProvider;
         this.deepFaceProvider = deepFaceProvider;
-        this.simulatedProvider = simulatedProvider;
     }
 
+    /**
+     * Custom three-class CNN is the primary Module 6 prediction engine.
+     * DeepFace is retained as a secondary general-emotion provider only when
+     * the custom CNN model is not yet trained. No synthetic values are returned.
+     */
     public EmotionDetectionProvider.EmotionDetectionResult detect(String imageBase64) {
-        // Try real DeepFace provider first
-        EmotionDetectionProvider.EmotionDetectionResult result = deepFaceProvider.detect(imageBase64);
-        if (result != null) {
-            return result;
-        }
-        // Fall back to simulation
-        return simulatedProvider.detect(imageBase64);
+        var cnn = customCnnProvider.detect(imageBase64);
+        if (cnn != null) return cnn;
+        var deepFace = deepFaceProvider.detect(imageBase64);
+        if (deepFace != null) return deepFace;
+        var unavailable = new EmotionDetectionProvider.EmotionDetectionResult();
+        unavailable.setDominantEmotion("Unavailable");
+        unavailable.setConfidence(0);
+        unavailable.setScores(Collections.emptyMap());
+        unavailable.setProvider("unavailable");
+        unavailable.setSimulated(false);
+        return unavailable;
     }
 
     public List<EmotionDetectionProvider> getAvailableProviders() {
-        return List.of(deepFaceProvider, simulatedProvider);
+        return List.of(customCnnProvider, deepFaceProvider);
     }
 }

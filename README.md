@@ -61,3 +61,20 @@ Production-ready AI Mock Interview and Candidate Assessment platform with integr
 - Real DeepFace, MediaPipe, and Whisper providers are enabled by default in the local configuration, with deterministic/browser fallbacks when those services are unavailable.
 - Pronunciation is represented by a speech-clarity/pronunciation proxy using speech-recognition confidence and transcript clarity; it is not a phoneme-level pronunciation benchmark.
 
+
+
+## Section 6 Proctoring
+SmartHire includes DeepFace emotion monitoring, MediaPipe eye tracking, attention/engagement aggregation, browser proctoring, persistent violations, 3-warning auto-submission, and an optional YOLO object-detection service for camera-visible prohibited objects. See `MANUAL-TEST-SECTION6-PROCTORING.md`.
+
+
+## Module 6 Custom CNN Emotion Engine
+
+The interview monitoring stack now includes a dedicated 3-class CNN inference/training path for the assignment classes **Nervous, Scared, Confused**. The model architecture is explicitly Conv2D → ReLU → Pooling → Conv2D → ReLU → Pooling → Conv2D → ReLU → Pooling → Flatten → Dense → Softmax.
+
+The repository includes a consent-based dataset collector and training script. No facial dataset images are redistributed in the repository. Use genuinely annotated images only.
+
+Official/reference sources include the McGill Face Database (complex mental-state facial expressions) and the CVPR 2023 MovieGraphs/EmoTx work, which documents labels including nervous, scared, and confused. See `ai-services/emotion-cnn-service/README.md` for provenance and limitations.
+
+
+### Local Module 6 launcher
+Use `START-MODULE6-LOCAL.ps1` to sync the previously trained real CNN model and start CNN, MediaPipe, object detection, backend, and frontend in separate PowerShell windows. Use `CHECK-MODULE6-LOCAL.ps1` to verify service health.

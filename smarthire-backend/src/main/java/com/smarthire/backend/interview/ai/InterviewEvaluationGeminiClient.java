@@ -132,6 +132,7 @@ public class InterviewEvaluationGeminiClient {
             safe.setConfidenceScore(clamp(parsed.getConfidenceScore()));
             safe.setTechnicalScore(clamp(parsed.getTechnicalScore()));
             safe.setProfessionalismScore(clamp(parsed.getProfessionalismScore()));
+            safe.setProfessionalCommunicationScore(clamp(parsed.getProfessionalCommunicationScore()));
             safe.setGrammarScore(clamp(parsed.getGrammarScore()));
             safe.setSpeechClarityScore(clamp(parsed.getSpeechClarityScore()));
             safe.setSpeakingPaceScore(clamp(parsed.getSpeakingPaceScore()));
@@ -140,6 +141,8 @@ public class InterviewEvaluationGeminiClient {
             safe.setEyeContactPercentage(clamp(parsed.getEyeContactPercentage()));
             safe.setFacialEngagementScore(clamp(parsed.getFacialEngagementScore()));
             safe.setResponseHesitationScore(clamp(parsed.getResponseHesitationScore()));
+            safe.setSpeakingConfidenceScore(clamp(parsed.getSpeakingConfidenceScore()));
+            safe.setAttentionScore(clamp(parsed.getAttentionScore()));
             safe.setKeywordMatchingScore(clamp(parsed.getKeywordMatchingScore()));
             safe.setDomainRelevanceScore(clamp(parsed.getDomainRelevanceScore()));
             safe.setTechnicalAccuracyScore(clamp(parsed.getTechnicalAccuracyScore()));
@@ -288,7 +291,15 @@ public class InterviewEvaluationGeminiClient {
         response.setEyeContactPercentage(eyeContact);
         response.setFacialEngagementScore(facialEngagement);
         response.setResponseHesitationScore(responseHesitation);
-        int confidenceScore = average(List.of(eyeContact, facialEngagement, responseHesitation));
+        int attention = request != null && request.getAttentionScore() != null && request.getAttentionScore() > 0
+                ? clamp(request.getAttentionScore()) : averageAttentionFromLiveSignals(request);
+        if (attention <= 0) attention = cameraAvailable ? 65 : 0;
+        int speakingConfidence = request != null && request.getSpeakingConfidenceScore() != null && request.getSpeakingConfidenceScore() > 0
+                ? clamp(request.getSpeakingConfidenceScore())
+                : clamp(Math.round(response.getSpeechClarityScore() * 0.45f + response.getSpeakingPaceScore() * 0.25f + responseHesitation * 0.30f));
+        response.setAttentionScore(attention);
+        response.setSpeakingConfidenceScore(speakingConfidence);
+        int confidenceScore = average(List.of(eyeContact, facialEngagement, responseHesitation, speakingConfidence, attention));
         if (!cameraAvailable || !microphoneAvailable || !microphoneActive) {
             confidenceScore = clamp(confidenceScore - 8);
         }
@@ -310,9 +321,13 @@ public class InterviewEvaluationGeminiClient {
         response.setTimeManagementScore(average(timeScores));
         response.setAnswerOrganizationScore(average(organizationScores));
         response.setInterviewEtiquetteScore(average(etiquetteScores));
+        response.setProfessionalCommunicationScore(average(List.of(
+                response.getAnswerOrganizationScore(), response.getInterviewEtiquetteScore()
+        )));
         response.setProfessionalismScore(average(List.of(
                 response.getTimeManagementScore(),
                 response.getAnswerOrganizationScore(),
+                response.getProfessionalCommunicationScore(),
                 response.getInterviewEtiquetteScore()
         )));
 
@@ -338,6 +353,22 @@ public class InterviewEvaluationGeminiClient {
         response.setFeedback(buildFeedback(response));
         response.setRecommendation(buildRecommendation(response));
         return response;
+    }
+
+    private int averageAttentionFromLiveSignals(InterviewEvaluationRequest request) {
+        if (request == null || request.getLiveSignalsJson() == null || request.getLiveSignalsJson().isBlank()) return 0;
+        try {
+            JsonNode summary = objectMapper.readTree(request.getLiveSignalsJson()).path("summary");
+            int average = summary.path("averageAttentionScore").asInt(0);
+            if (average > 0) return clamp(average);
+            String level = summary.path("dominantAttentionLevel").asText("");
+            return switch (level.toLowerCase(Locale.ROOT)) {
+                case "high" -> 100;
+                case "medium" -> 65;
+                case "low" -> 30;
+                default -> 0;
+            };
+        } catch (Exception ignored) { return 0; }
     }
 
     private InterviewEvaluationResponse buildNotAttemptedEvaluation(int totalQuestions) {
@@ -498,7 +529,7 @@ public class InterviewEvaluationGeminiClient {
         if (response.getOverallScore() >= 60) {
             return "Average interview performance. Focus on structure, confidence, and technical depth.";
         }
-        if (response.getOverallScore() >= 45) {
+        if (response.getOverallScore() >= 40) {
             return "Needs improvement. The next practice cycle should focus on complete answers and steady delivery.";
         }
         return "Poor interview performance. More repetition with guided mock interviews is recommended before the next attempt.";
@@ -524,9 +555,9 @@ public class InterviewEvaluationGeminiClient {
                 + "Use exactly this schema: "
                 + "{\"overallScore\":0,\"communicationScore\":0,\"confidenceScore\":0,\"technicalScore\":0,\"professionalismScore\":0,"
                 + "\"grammarScore\":0,\"speechClarityScore\":0,\"speakingPaceScore\":0,\"fillerWordScore\":0,\"responseCompletenessScore\":0,"
-                + "\"eyeContactPercentage\":0,\"facialEngagementScore\":0,\"responseHesitationScore\":0,\"keywordMatchingScore\":0,"
+                + "\"eyeContactPercentage\":0,\"facialEngagementScore\":0,\"responseHesitationScore\":0,\"speakingConfidenceScore\":0,\"attentionScore\":0,\"keywordMatchingScore\":0,"
                 + "\"domainRelevanceScore\":0,\"technicalAccuracyScore\":0,\"problemSolvingScore\":0,\"answerCompletenessScore\":0,"
-                + "\"timeManagementScore\":0,\"answerOrganizationScore\":0,\"interviewEtiquetteScore\":0,\"strengths\":[],\"weaknesses\":[],"
+                + "\"timeManagementScore\":0,\"answerOrganizationScore\":0,\"professionalCommunicationScore\":0,\"interviewEtiquetteScore\":0,\"strengths\":[],\"weaknesses\":[],"
                 + "\"improvementSuggestions\":[],\"practiceRecommendations\":[],\"learningResources\":[],\"feedback\":[],\"recommendation\":\"\",\"rating\":\"Good\"}. "
                 + "Scoring rules: all scores must be integers between 0 and 100. Overall score must use Communication 30%, Confidence 25%, Technical 30%, Professionalism 15%. "
                 + "If browser telemetry is missing, infer conservatively and still return a complete JSON object. "
@@ -541,7 +572,7 @@ public class InterviewEvaluationGeminiClient {
                 + "MicrophoneActive=" + safeBoolean(request.getMicrophoneActive()) + ", "
                 + "EyeContactPercentage=" + safeNumber(request.getEyeContactPercentage()) + ", "
                 + "FacialEngagementScore=" + safeNumber(request.getFacialEngagementScore()) + ", "
-                + "ResponseHesitationScore=" + safeNumber(request.getResponseHesitationScore()) + ". "
+                + "ResponseHesitationScore=" + safeNumber(request.getResponseHesitationScore()) + ", SpeakingConfidenceScore=" + safeNumber(request.getSpeakingConfidenceScore()) + ", AttentionScore=" + safeNumber(request.getAttentionScore()) + ", HeadStabilityScore=" + safeNumber(request.getHeadStabilityScore()) + ", EngagementScore=" + safeNumber(request.getEngagementScore()) + ", EmotionConfidenceScore=" + safeNumber(request.getEmotionConfidenceScore()) + ", DetectedEmotion=" + safeText(request.getDetectedEmotion()) + ", GazeDirection=" + safeText(request.getGazeDirection()) + ", MonitoringComplete=" + safeBoolean(request.getMonitoringComplete()) + ", MonitoringSampleCount=" + safeNumber(request.getMonitoringSampleCount()) + ". "
                 + "Question and Answer pairs:\n"
                 + pairsBuilder;
     }
@@ -854,7 +885,7 @@ public class InterviewEvaluationGeminiClient {
         if (overallScore >= 60) {
             return "Average";
         }
-        if (overallScore >= 45) {
+        if (overallScore >= 40) {
             return "Needs Improvement";
         }
         return "Poor";

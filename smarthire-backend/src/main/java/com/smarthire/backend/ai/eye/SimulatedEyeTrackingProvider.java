@@ -27,7 +27,7 @@ public class SimulatedEyeTrackingProvider implements EyeTrackingProvider {
         String attention = lastEyeContact >= 75 ? "High" : (lastEyeContact >= 50 ? "Medium" : "Low");
         String headOrientation = lastEyeContact >= 70 ? "Front" : (lastEyeContact >= 45 ? "Slight Turn" : "Turned Away");
 
-        return new EyeTrackingResult(
+        EyeTrackingResult result = new EyeTrackingResult(
                 lastEyeContact,
                 lookingAwayAccumulator,
                 headOrientation,
@@ -35,6 +35,8 @@ public class SimulatedEyeTrackingProvider implements EyeTrackingProvider {
                 "simulated-eye",
                 true
         );
+        result.setFaceCount(0); // simulated data must never be treated as a real face-detection signal
+        return result;
     }
 
     @Override

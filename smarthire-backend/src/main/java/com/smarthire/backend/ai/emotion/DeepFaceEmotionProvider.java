@@ -14,7 +14,7 @@ import java.util.Map;
  * DeepFace emotion detection adapter.
  * This provider is isolated so DeepFace can be plugged in without changing APIs.
  * It calls a DeepFace REST endpoint (e.g., a Python FastAPI service running DeepFace).
- * If the endpoint is not configured or unreachable, it falls back to simulation.
+ * If the endpoint is not configured or unreachable, it returns an explicit unavailable result when the provider is unavailable.
  */
 @Component
 public class DeepFaceEmotionProvider implements EmotionDetectionProvider {
@@ -36,7 +36,7 @@ public class DeepFaceEmotionProvider implements EmotionDetectionProvider {
     @Override
     public EmotionDetectionResult detect(String imageBase64) {
         if (!enabled || deepFaceUrl == null || deepFaceUrl.isBlank()) {
-            return null; // Not configured - caller falls back to simulation
+            return null; // Not configured - caller receives an unavailable result
         }
 
         try {
@@ -77,7 +77,7 @@ public class DeepFaceEmotionProvider implements EmotionDetectionProvider {
                     false
             );
         } catch (Exception e) {
-            return null; // DeepFace unreachable - caller falls back to simulation
+            return null; // DeepFace unreachable - caller receives an unavailable result
         }
     }
 

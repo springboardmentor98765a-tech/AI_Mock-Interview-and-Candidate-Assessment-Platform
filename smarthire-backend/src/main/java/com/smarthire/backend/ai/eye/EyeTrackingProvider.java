@@ -35,6 +35,12 @@ public interface EyeTrackingProvider {
         private String attentionLevel;
         private String provider;
         private boolean simulated;
+        private int faceCount;
+        private String gazeDirection;
+        private boolean eyesClosed;
+        private int headStabilityScore;
+        private int facialActivityScore;
+        private int engagementScore;
 
         public EyeTrackingResult() {
         }
@@ -51,7 +57,21 @@ public interface EyeTrackingProvider {
             this.attentionLevel = attentionLevel;
             this.provider = provider;
             this.simulated = simulated;
+            this.faceCount = 1;
         }
+
+        public int getFaceCount() { return faceCount; }
+        public void setFaceCount(int faceCount) { this.faceCount = faceCount; }
+        public String getGazeDirection() { return gazeDirection; }
+        public void setGazeDirection(String gazeDirection) { this.gazeDirection = gazeDirection; }
+        public boolean isEyesClosed() { return eyesClosed; }
+        public void setEyesClosed(boolean eyesClosed) { this.eyesClosed = eyesClosed; }
+        public int getHeadStabilityScore() { return headStabilityScore; }
+        public void setHeadStabilityScore(int headStabilityScore) { this.headStabilityScore = headStabilityScore; }
+        public int getFacialActivityScore() { return facialActivityScore; }
+        public void setFacialActivityScore(int facialActivityScore) { this.facialActivityScore = facialActivityScore; }
+        public int getEngagementScore() { return engagementScore; }
+        public void setEngagementScore(int engagementScore) { this.engagementScore = engagementScore; }
 
         public int getEyeContactPercentage() {
             return eyeContactPercentage;

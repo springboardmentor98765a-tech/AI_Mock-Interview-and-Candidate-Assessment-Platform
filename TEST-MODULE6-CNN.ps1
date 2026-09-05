@@ -23,8 +23,12 @@ foreach($token in @('haarcascade_frontalface_default.xml','cv2.resize','model.pr
 }
 if($main -match 'astype\(np\.float32\) / 255\.0'){ throw 'FAIL CNN API still double-normalizes input.' }
 $svc = Get-Content (Join-Path $root 'smarthire-backend/src/main/java/com/smarthire/backend/ai/emotion/CustomCnnEmotionProvider.java') -Raw
-foreach($token in @('custom-cnn','emotion_cnn','/analyze')){
+foreach($token in @('custom-cnn','/analyze')){
   if($svc -notmatch [regex]::Escape($token)){ throw "FAIL missing backend integration: $token" }
+}
+$props = Get-Content (Join-Path $root 'smarthire-backend/src/main/resources/application.properties') -Raw
+foreach($token in @('ai.emotion-cnn.url','ai.emotion-cnn.enabled')){
+  if($props -notmatch [regex]::Escape($token)){ throw "FAIL missing CNN configuration: $token" }
 }
 $html = Get-Content (Join-Path $root 'pages/live-interview.html') -Raw
 foreach($token in @('module6-monitoring-card','module6Emotion','module6EyeContact','module6Attention','module6Engagement','module6Confidence')){
@@ -35,4 +39,4 @@ foreach($token in @('/api/ai/emotion','/api/ai/eye-tracking','custom-cnn','media
   if($monitor -notmatch [regex]::Escape($token)){ throw "FAIL missing monitoring integration: $token" }
 }
 Write-Host 'PASS Module 6 CNN files, preprocessing, backend bridge and live UI checks.'
-Write-Host 'NOTE: The trained emotion_cnn.keras binary is not required for source validation; sync it locally before starting the CNN service.'
+Write-Host 'NOTE: Source validation passed. A real emotion_cnn.keras model is still required to run live CNN inference.'

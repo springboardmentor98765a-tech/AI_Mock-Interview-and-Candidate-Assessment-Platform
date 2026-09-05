@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  // Module 6 live monitoring bridge. No synthetic monitoring scores are being generated.
+  // Module 6 live monitoring bridge.
   // The browser talks to the existing Spring Boot /api/ai facade, which in turn
   // routes emotion detection to the trained Custom CNN and eye tracking to the
   // configured MediaPipe provider. No synthetic monitoring values are created.
@@ -9,7 +9,7 @@
   const $ = (id) => document.getElementById(id);
   const apiBase = () => (window.smartHireApi?.baseUrl || window.SMART_HIRE_API_BASE || "http://localhost:8080").replace(/\/$/, "");
   const localCnnBase = () => (window.SMART_HIRE_CNN_URL || "http://127.0.0.1:8095").replace(/\/$/, "");
-  const localEyeBase = () => (window.SMART_HIRE_EYE_URL || "http://127.0.0.1:8096").replace(/\/$/, "");
+  const localEyeBase = () => (window.SMART_HIRE_EYE_URL || "http://127.0.0.1:8093").replace(/\/$/, "");
 
   const token = () => localStorage.getItem("authToken") || "";
 
@@ -59,7 +59,10 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(path.startsWith("http://") || path.startsWith("https://") ? path : `${apiBase()}${path}`, {
+      const url = /^https?:\/\//i.test(String(path))
+        ? String(path)
+        : `${apiBase()}${path}`;
+      const response = await fetch(url, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify(body),
@@ -98,7 +101,16 @@
     }
   };
 
+  const isRealEmotionProvider = (provider) => ["custom-cnn", "deepface"].includes(String(provider || "").toLowerCase());
   const isRealEyeProvider = (provider) => ["mediapipe", "opencv-eye-tracker-fallback"].includes(String(provider || "").toLowerCase());
+
+  const getResultErrorMessage = (result) => {
+    if (!result) return "unknown error";
+    if (result instanceof Error) return result.message;
+    if (typeof result?.reason === "string") return result.reason;
+    if (result?.reason instanceof Error) return result.reason.message;
+    return String(result);
+  };
 
   const engagementFromSignals = (emotion, eye) => {
     const eyeContact = clamp(eye?.eyeContactPercentage);
@@ -109,8 +121,10 @@
   };
 
   const updatePanel = ({ emotion, eye, samples }) => {
-    const emotionAvailable = emotion?.provider === "custom-cnn" || emotion?.provider === "deepface";
-    const eyeAvailable = isRealEyeProvider(eye?.provider) && eye?.available !== false;
+    const emotionProvider = String(emotion?.provider || "").toLowerCase();
+    const eyeProvider = String(eye?.provider || "").toLowerCase();
+    const emotionAvailable = isRealEmotionProvider(emotionProvider) && emotion?.simulated !== true && emotion?.available !== false;
+    const eyeAvailable = isRealEyeProvider(eyeProvider) && eye?.simulated !== true && eye?.available !== false;
 
     setText("module6Emotion", emotionAvailable ? emotion.dominantEmotion : "Unavailable");
     setText("module6EmotionConfidence", emotionAvailable ? `${Math.round(clamp(emotion.confidence))}%` : "—");
@@ -140,8 +154,10 @@
 
   const saveSignals = (emotion, eye) => {
     const now = new Date().toISOString();
-    const emotionAvailable = emotion?.provider === "custom-cnn" || emotion?.provider === "deepface";
-    const eyeAvailable = isRealEyeProvider(eye?.provider) && eye?.available !== false;
+    const emotionProvider = String(emotion?.provider || "").toLowerCase();
+    const eyeProvider = String(eye?.provider || "").toLowerCase();
+    const emotionAvailable = isRealEmotionProvider(emotionProvider) && emotion?.simulated !== true && emotion?.available !== false;
+    const eyeAvailable = isRealEyeProvider(eyeProvider) && eye?.simulated !== true && eye?.available !== false;
 
     // A sample is considered real when at least one configured, non-simulated
     // provider produced a result. This lets the CNN remain visible even when
@@ -251,6 +267,11 @@
         postJson(`${localEyeBase()}/analyze`, { image })
       ]);
 
+      console.debug("[SmartHire][Module6] emotion backend result", emotionBackend.status === "fulfilled" ? emotionBackend.value : { error: getResultErrorMessage(emotionBackend) });
+      console.debug("[SmartHire][Module6] emotion local result", emotionLocal.status === "fulfilled" ? emotionLocal.value : { error: getResultErrorMessage(emotionLocal) });
+      console.debug("[SmartHire][Module6] eye backend result", eyeBackend.status === "fulfilled" ? eyeBackend.value : { error: getResultErrorMessage(eyeBackend) });
+      console.debug("[SmartHire][Module6] eye local result", eyeLocal.status === "fulfilled" ? eyeLocal.value : { error: getResultErrorMessage(eyeLocal) });
+
       const pick = (backend, local, valid) => {
         const b = backend.status === "fulfilled" ? backend.value : null;
         if (b && valid(b)) return b;
@@ -263,7 +284,7 @@
         emotionLocal,
         (r) => {
           const provider = String(r?.provider || "").toLowerCase();
-          return (provider === "custom-cnn" || provider === "deepface") && Boolean(r?.available ?? true);
+          return isRealEmotionProvider(provider) && r?.simulated !== true && r?.available !== false;
         }
       );
       const eyeResult = pick(
@@ -271,7 +292,7 @@
         eyeLocal,
         (r) => {
           const provider = String(r?.provider || "").toLowerCase();
-          return ["mediapipe", "opencv-eye-tracker-fallback"].includes(provider) && r?.available !== false;
+          return isRealEyeProvider(provider) && r?.simulated !== true && r?.available !== false;
         }
       );
 
@@ -280,7 +301,7 @@
         confidence: Number(emotionResult?.confidence || 0),
         scores: emotionResult?.scores || {},
         provider: String(emotionResult?.provider || "unavailable").toLowerCase(),
-        available: emotionResult?.provider === "custom-cnn" || emotionResult?.provider === "deepface",
+        available: isRealEmotionProvider(String(emotionResult?.provider || "").toLowerCase()) && emotionResult?.simulated !== true && emotionResult?.available !== false,
         simulated: Boolean(emotionResult?.simulated),
         faceCount: Number(emotionResult?.faceCount ?? emotionResult?.face_count ?? -1)
       };
@@ -296,12 +317,17 @@
         headStabilityScore: Number(eyeResult?.headStabilityScore ?? eyeResult?.head_stability_score ?? 0),
         facialActivityScore: Number(eyeResult?.facialActivityScore ?? eyeResult?.facial_activity_score ?? 0),
         provider: String(eyeResult?.provider || "unavailable").toLowerCase(),
-        available: Boolean(eyeResult?.available) && !eyeResult?.simulated,
+        available: (() => {
+          const eyeProvider = String(eyeResult?.provider || "").toLowerCase();
+          return ["mediapipe", "opencv-eye-tracker-fallback"].includes(eyeProvider) && eyeResult?.simulated !== true && eyeResult?.available !== false;
+        })(),
         simulated: Boolean(eyeResult?.simulated)
       };
 
       saveSignals(emotion, eye);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[SmartHire][Module6] monitoring cycle error:", message);
       saveSignals(
         { dominantEmotion: "Unavailable", confidence: 0, provider: "unavailable", available: false, simulated: false, faceCount: -1 },
         { eyeContactPercentage: 0, attentionLevel: "Unavailable", engagementLevel: "Unavailable", provider: "unavailable", available: false, simulated: false, faceCount: -1, gazeDirection: "Unavailable", headStabilityScore: 0, facialActivityScore: 0 }
@@ -340,6 +366,3 @@
     start();
   }, { once: true });
 })();
-
-
-

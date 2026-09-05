@@ -401,6 +401,11 @@ public class InterviewSessionService {
         response.setEndedAt(session.getEndedAt());
         response.setDurationSeconds(session.getDurationSeconds());
         response.setCreatedAt(session.getCreatedAt());
+        response.setViolationCount(session.getViolationCount());
+        response.setMaxViolations(session.getMaxViolations());
+        response.setMalpracticeTerminated(session.isMalpracticeTerminated());
+        response.setTerminatedReason(session.getTerminatedReason());
+        response.setTerminatedAt(session.getTerminatedAt());
 
         long elapsedActive = computeElapsedActiveSeconds(session);
         response.setElapsedActiveSeconds(elapsedActive);

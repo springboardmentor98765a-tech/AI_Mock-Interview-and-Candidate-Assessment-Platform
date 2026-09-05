@@ -28,6 +28,7 @@ body{background:#f7f7fb}
 .score-chip strong{display:block;font-size:28px;color:#1f4f8a;margin-top:8px}
 .transcript-box{white-space:pre-wrap;line-height:1.8;color:#243b53;background:#fbfcff;border:1px solid #e8eef8;border-radius:14px;padding:16px;min-height:140px}
 .preview-box{white-space:pre-wrap;background:#f7fbff;border:1px dashed #bfd5f5;border-radius:14px;padding:16px;color:#334e68;line-height:1.7}
+.module7-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.module7-panel,.feedback-panel{background:#f8fbff;border:1px solid #dfeaf7;border-radius:14px;padding:15px}.module7-panel h4,.feedback-panel h4{margin:0 0 10px;color:#16324f}.module7-metric{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #e8eef7;font-size:13px}.module7-metric:last-child{border-bottom:0}.module7-metric b{color:#1f4f8a}.feedback-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px}.feedback-panel ul{margin:0;padding-left:20px;color:#334e68;line-height:1.6}.feedback-panel li+li{margin-top:7px}
 @media (max-width: 720px){.report-shell{padding:16px}.report-hero{align-items:flex-start}.report-grid{grid-template-columns:1fr}}
 </style>
   <link rel="stylesheet" href="../css/smarthire-unified-theme.css">
@@ -76,8 +77,26 @@ body{background:#f7f7fb}
         </div>
 
         <section class="report-section report-card">
-            <h3>Evaluation Scores</h3>
+            <h3>Evaluation Scores &amp; Performance Rating</h3>
             <div class="score-grid" id="reportScores"></div>
+            <div id="ratingRubric" class="preview-box" style="margin-top:14px;"></div>
+        </section>
+
+        <section class="report-section report-card">
+            <h3>Module 7 AI Feedback &amp; Scoring</h3>
+            <div class="module7-grid">
+                <article class="module7-panel"><h4>Communication (30%)</h4><div id="module7Communication"></div></article>
+                <article class="module7-panel"><h4>Confidence (25%)</h4><div id="module7Confidence"></div></article>
+                <article class="module7-panel"><h4>Technical Relevance (30%)</h4><div id="module7Technical"></div></article>
+                <article class="module7-panel"><h4>Professionalism (15%)</h4><div id="module7Professionalism"></div></article>
+            </div>
+            <div class="feedback-grid">
+                <article class="feedback-panel"><h4>⭐ Strengths</h4><ul id="module7Strengths"></ul></article>
+                <article class="feedback-panel"><h4>⚠ Weaknesses</h4><ul id="module7Weaknesses"></ul></article>
+                <article class="feedback-panel"><h4>💡 Improvement Suggestions</h4><ul id="module7Improvements"></ul></article>
+                <article class="feedback-panel"><h4>🎯 Practice Recommendations</h4><ul id="module7Practice"></ul></article>
+                <article class="feedback-panel"><h4>📚 Learning Resources</h4><ul id="module7Resources"></ul></article>
+            </div>
         </section>
 
         <section class="report-section report-card">
@@ -124,6 +143,8 @@ body{background:#f7f7fb}
     const contentEl = document.getElementById("reportContent");
 
     const safeText = (value, fallback) => (typeof value === "string" && value.trim()) ? value.trim() : fallback;
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+    const linkify = (value) => escapeHtml(value).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="text-decoration:underline;">$1</a>');
     const formatDate = (value) => {
         if (!value) return "-";
         const date = new Date(value);
@@ -145,6 +166,21 @@ body{background:#f7f7fb}
         errorEl.textContent = "Interview ID is missing.";
         return;
     }
+
+    const metric = (label, value) => `<div class="module7-metric"><span>${label}</span><b>${pct(value)}</b></div>`;
+    const renderList = (id, items, fallback) => {
+        const el = document.getElementById(id); if (!el) return;
+        const values = Array.isArray(items) ? items.filter(x => String(x || '').trim()) : [];
+        el.innerHTML = (values.length ? values : [fallback]).map(x => `<li>${linkify(String(x || fallback))}</li>`).join('');
+    };
+    const renderModule7 = (evaluation) => {
+        if (!evaluation) return;
+        document.getElementById('module7Communication').innerHTML = [metric('Speech clarity',evaluation.speechClarityScore),metric('Grammar quality',evaluation.grammarScore),metric('Filler-word control',evaluation.fillerWordScore),metric('Speaking pace',evaluation.speakingPaceScore),metric('Response completeness',evaluation.responseCompletenessScore)].join('');
+        document.getElementById('module7Confidence').innerHTML = [metric('Eye-contact consistency',evaluation.eyeContactPercentage),metric('Facial engagement',evaluation.facialEngagementScore),metric('Response hesitation',evaluation.responseHesitationScore),metric('Speaking confidence',evaluation.speakingConfidenceScore),metric('Attention level',evaluation.attentionScore)].join('');
+        document.getElementById('module7Technical').innerHTML = [metric('Technical accuracy',evaluation.technicalAccuracyScore),metric('Keyword relevance',evaluation.keywordMatchingScore),metric('Problem-solving ability',evaluation.problemSolvingScore),metric('Domain knowledge',evaluation.domainRelevanceScore),metric('Answer completeness',evaluation.answerCompletenessScore)].join('');
+        document.getElementById('module7Professionalism').innerHTML = [metric('Time management',evaluation.timeManagementScore),metric('Response organization',evaluation.answerOrganizationScore),metric('Professional communication',evaluation.professionalCommunicationScore),metric('Interview etiquette',evaluation.interviewEtiquetteScore)].join('');
+        renderList('module7Strengths',evaluation.strengths,'No strengths returned.'); renderList('module7Weaknesses',evaluation.weaknesses,'No weaknesses returned.'); renderList('module7Improvements',evaluation.improvementSuggestions,'No improvement suggestions returned.'); renderList('module7Practice',evaluation.practiceRecommendations,'No practice recommendations returned.'); renderList('module7Resources',evaluation.learningResources,'No learning resources returned.');
+    };
 
     const renderScores = (evaluation, interviewType) => {
         const type = String(interviewType || "").toLowerCase();
@@ -169,12 +205,16 @@ body{background:#f7f7fb}
         }
         const scores = [
             ["Overall", evaluation?.overallScore],
-            ["Communication", evaluation?.communicationScore],
-            ["Confidence", evaluation?.confidenceScore],
-            ["Technical", evaluation?.technicalScore],
-            ["Professionalism", evaluation?.professionalismScore]
+            ["Communication · 30%", evaluation?.communicationScore],
+            ["Confidence · 25%", evaluation?.confidenceScore],
+            ["Technical Relevance · 30%", evaluation?.technicalScore],
+            ["Professionalism · 15%", evaluation?.professionalismScore],
+            ["Performance Rating", evaluation?.rating || "Pending"]
         ];
-        container.innerHTML = scores.map(([label, value]) => `<div class="score-chip"><span>${label}</span><strong>${pct(value)}</strong></div>`).join("");
+        container.innerHTML = scores.map(([label, value]) => `<div class="score-chip"><span>${escapeHtml(label)}</span><strong style="font-size:${typeof value === 'string' ? '19px' : '28px'};">${typeof value === 'string' ? escapeHtml(value) : pct(value)}</strong></div>`).join("");
+        const score = Math.round(Number(evaluation?.overallScore || 0));
+        let band = score >= 90 ? 'Excellent (90–100)' : score >= 75 ? 'Good (75–89)' : score >= 60 ? 'Average (60–74)' : score >= 40 ? 'Needs Improvement (40–59)' : 'Poor (Below 40)';
+        document.getElementById('ratingRubric').innerHTML = `<strong>Official Performance Rating Rubric:</strong> 90–100 = Excellent · 75–89 = Good · 60–74 = Average · 40–59 = Needs Improvement · Below 40 = Poor.<br><strong>Current result:</strong> ${score}/100 → ${escapeHtml(band)}.<br><strong>Overall formula:</strong> Communication × 30% + Confidence × 25% + Technical Relevance × 30% + Professionalism × 15%.`;
     };
 
     const renderTimeline = (items) => {
@@ -194,6 +234,7 @@ body{background:#f7f7fb}
 
     const renderReport = (data) => {
         const evaluation = data?.evaluation || null;
+        renderModule7(evaluation);
         const liveSignals = readJsonSafe(data?.liveSignalsJson, {});
         const speechInsights = readJsonSafe(data?.speechInsightsJson, {});
         const interviewType = safeText(data?.interviewType, "");
