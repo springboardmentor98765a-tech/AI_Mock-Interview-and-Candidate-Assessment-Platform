@@ -36,21 +36,23 @@ $pgRunning  = (Get-Service -Name $pgService -ErrorAction SilentlyContinue).Statu
 $ollamaUp   = Test-TcpPort 11434
 $whisperUp  = Test-HttpReady 'http://localhost:8765/health'
 $kokoroUp   = Test-HttpReady 'http://localhost:8766/health'
+$cvUp       = Test-HttpReady 'http://127.0.0.1:8767/health'
 $backendUp  = Test-TcpPort 5000
 $frontendUp = Test-TcpPort 5173
 
 Write-Host ''
 Write-Host '  HireAI Service Status' -ForegroundColor Cyan
 Write-Host '  ---------------------' -ForegroundColor DarkGray
-Show-Status 'PostgreSQL'     $pgRunning  ':5432  (Windows service)'
-Show-Status 'Ollama'         $ollamaUp   ':11434'
-Show-Status 'Faster-Whisper' $whisperUp  ':8765  (CUDA STT)'
-Show-Status 'Kokoro TTS'     $kokoroUp   ':8766  (CUDA TTS)'
-Show-Status 'Express Backend' $backendUp ':5000'
-Show-Status 'Vite Frontend'  $frontendUp ':5173'
+Show-Status 'PostgreSQL'       $pgRunning  ':5432  (Windows service)'
+Show-Status 'Ollama'           $ollamaUp   ':11434'
+Show-Status 'Faster-Whisper'   $whisperUp  ':8765  (CUDA STT)'
+Show-Status 'Kokoro TTS'       $kokoroUp   ':8766  (CUDA TTS)'
+Show-Status 'CV Analysis'      $cvUp       ':8767  (CUDA ResNet-18)'
+Show-Status 'Express Backend'  $backendUp  ':5000'
+Show-Status 'Vite Frontend'    $frontendUp ':5173'
 Write-Host ''
 
-if ($pgRunning -and $ollamaUp -and $whisperUp -and $kokoroUp -and $backendUp -and $frontendUp) {
+if ($pgRunning -and $ollamaUp -and $whisperUp -and $kokoroUp -and $cvUp -and $backendUp -and $frontendUp) {
     Write-Host '  All services running. Frontend: http://localhost:5173' -ForegroundColor Green
 } else {
     $stopped = @()
@@ -58,6 +60,7 @@ if ($pgRunning -and $ollamaUp -and $whisperUp -and $kokoroUp -and $backendUp -an
     if (-not $ollamaUp)   { $stopped += 'Ollama' }
     if (-not $whisperUp)  { $stopped += 'Faster-Whisper' }
     if (-not $kokoroUp)   { $stopped += 'Kokoro TTS' }
+    if (-not $cvUp)       { $stopped += 'CV Analysis' }
     if (-not $backendUp)  { $stopped += 'Express' }
     if (-not $frontendUp) { $stopped += 'Vite' }
     Write-Host "  Not running: $($stopped -join ', ')" -ForegroundColor Yellow

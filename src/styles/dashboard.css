@@ -542,3 +542,16 @@
     width: 100%;
   }
 }
+
+/* ── Module 7 category score grid: 2 columns → 1 column on narrow screens ── */
+.m7-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+@media (max-width: 600px) {
+  .m7-cat-grid {
+    grid-template-columns: 1fr;
+  }
+}

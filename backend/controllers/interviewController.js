@@ -8,6 +8,8 @@ const backgroundReasoner = require('../services/backgroundReasoner')
 const conversationEngine = require('../services/conversationEngine')
 const interviewGenerator = require('../services/interviewGenerator')
 const speechAnalysis     = require('../services/speechAnalysisService')
+const scoringEngine      = require('../services/scoringEngine')
+const feedbackService    = require('../services/feedbackService')
 
 
 /* ─── POST /api/interviews/recommend-roles ─────────────────────────────── */
@@ -555,32 +557,70 @@ async function complete(req, res) {
       console.log(`[SpeechAnalysis] Communication score blended: speech=${avgCommScore} llm=${llmComm} final=${evaluation.category_scores.communication}`)
     }
 
-    // Recalculate overall_score with updated category_scores
-    // Weights: technical=30%, communication=30%, confidence=25%, professionalism=15%
-    if (evaluation.category_scores) {
-      const cs = evaluation.category_scores
-      // AUD-03 FIX: only blend problem_solving into techScore when it is a
-      // genuinely positive value from the LLM.  interviewService.js defaults any
-      // missing key to 0 via `Number(...) || 0`, so typeof check alone is not
-      // sufficient — we must also verify > 0 to avoid halving technical score.
-      // Verification:
-      //   technical=80, problem_solving=0|missing → techScore = 80  ✓
-      //   technical=80, problem_solving=80        → techScore = 80  ✓
-      //   technical=90, problem_solving=70        → techScore = 80  ✓ (intended blend)
-      const techScore = (typeof cs.problem_solving === 'number' && cs.problem_solving > 0)
-        ? Math.round((cs.technical + cs.problem_solving) / 2)
-        : (cs.technical || 0)
-      const recomputed = Math.round(
-        techScore           * 0.30 +
-        (cs.communication   || 0) * 0.30 +
-        (cs.confidence      || 0) * 0.25 +
-        (cs.professionalism || cs.grammar || 0) * 0.15
+    // ── Module 7: Four-category scoring engine ───────────────────────────────
+    // Check whether CV analysis has already completed for this interview.
+    // This handles the race where CV analysis finishes BEFORE complete() runs:
+    // in that case we can already supply real CV data to the scoring engine.
+    // If CV data is not yet available, fall back to null (post-CV rescore in
+    // cvController._recomputeModule7WithCv will augment the score later).
+    let cvAnalysisForScoring = null
+    try {
+      const cvRow = await pool.query(
+        `SELECT engagement_estimate, confidence_indicator, attention_score,
+                eye_contact_pct, warning_count, avg_face_visibility, face_detection_rate
+           FROM interview_cv_analysis
+          WHERE interview_id = $1 AND status = 'completed'
+          LIMIT 1`,
+        [interviewId]
       )
-      // Only override if the recomputed score is within a reasonable range
-      if (recomputed > 0) {
-        evaluation.overall_score = Math.min(100, Math.max(0, recomputed))
-        console.log(`[complete] Overall score recomputed from category_scores: ${evaluation.overall_score}`)
+      if (cvRow.rows[0]) {
+        cvAnalysisForScoring = cvRow.rows[0]
+        console.log(`[Module7] CV analysis already available for interview=${interviewId} — using in initial scoring`)
       }
+    } catch (cvLookupErr) {
+      // Non-fatal: CV lookup failure must never block interview completion
+      console.warn(`[Module7] Non-fatal: CV lookup failed for interview=${interviewId}:`, cvLookupErr.message)
+    }
+
+    const module7 = scoringEngine.computeModule7Scores({
+      evaluation,
+      speechSummary,
+      cvAnalysis:           cvAnalysisForScoring,
+      questionsWithAnswers,
+    })
+
+    // Override evaluation overall_score with Module 7 result (if computable)
+    if (typeof module7.overallScore === 'number' && module7.overallScore > 0) {
+      evaluation.overall_score = module7.overallScore
+      console.log(
+        `[Module7] Scores — comm=${module7.communication.score} ` +
+        `conf=${module7.confidence.score} ` +
+        `(cvAvail=${cvAnalysisForScoring !== null}) ` +
+        `tech=${module7.technicalRelevance.score} ` +
+        `prof=${module7.professionalism.score} ` +
+        `overall=${module7.overallScore} ` +
+        `rating=${module7.performanceRating}`
+      )
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Module 7: AI Feedback Generation ───────────────────────────────────
+    // Generate evidence-based narrative feedback using the existing LLM.
+    // Non-fatal: a null result means feedback is unavailable for this interview;
+    // it does NOT fail or roll back the interview completion.
+    let module7Feedback = null
+    try {
+      module7Feedback = await feedbackService.generateFeedback({
+        module7:        module7,
+        evaluation:     evaluation,
+        speechSummary:  speechSummary,
+        cvAnalysis:     cvAnalysisForScoring,   // null when CV not yet available
+        role:           interview.selected_role,
+        interviewType:  interview.interview_type,
+      })
+    } catch (fbErr) {
+      // Should never reach here (feedbackService catches internally) — belt-and-suspenders
+      console.error('[Module7] Feedback generation threw unexpectedly:', fbErr.message)
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -608,11 +648,26 @@ async function complete(req, res) {
         )
       }
 
-      // Merge speech summary into category_scores for persistence
+      // Merge speech summary + Module 7 breakdown + Module 7 feedback into category_scores.
+      // Existing fields (strengths/weaknesses/recommendations) remain the LLM evaluation output.
+      // module7_feedback carries the new structured feedback with all five sections.
       const finalCategoryScores = {
         ...(evaluation.category_scores || {}),
         speech_analysis_summary: speechSummary,
+        module7_scores: {
+          communication:      module7.communication,
+          confidence:         module7.confidence,
+          technicalRelevance: module7.technicalRelevance,
+          professionalism:    module7.professionalism,
+          overallScore:       module7.overallScore,
+          performanceRating:  module7.performanceRating,
+          scoringMeta:        module7.scoringMeta,
+        },
+        // module7_feedback is null when LLM feedback generation fails —
+        // stored as null so the API can signal “not yet available” to the client.
+        module7_feedback: module7Feedback,
       }
+      const performanceRating = module7.performanceRating || 'Poor'
 
       await client.query(
         `UPDATE interviews
@@ -627,8 +682,9 @@ async function complete(req, res) {
                 recommendations = $7,
                 category_scores = $8,
                 hire_recommendation = $9,
+                performance_rating = $10,
                 paused_at = NULL
-          WHERE id = $10`,
+          WHERE id = $11`,
         [
           evaluation.overall_score,
           duration || 0,
@@ -639,6 +695,7 @@ async function complete(req, res) {
           JSON.stringify(evaluation.recommendations || []),
           JSON.stringify(finalCategoryScores),
           evaluation.hire_recommendation || 'Consider',
+          performanceRating,
           interviewId,
         ]
       )
@@ -707,7 +764,7 @@ async function getHistory(req, res) {
       `SELECT iv.id, iv.selected_role, iv.interview_type, iv.difficulty, iv.question_count,
               iv.status, iv.score, iv.started_at, iv.completed_at, iv.duration, iv.created_at,
               iv.questions_answered, iv.overall_feedback, iv.hire_recommendation,
-              iv.category_scores, iv.strengths, iv.weaknesses,
+              iv.category_scores, iv.strengths, iv.weaknesses, iv.performance_rating,
               (SELECT COUNT(*) FROM interview_recordings r WHERE r.interview_id = iv.id) AS recording_count,
               (SELECT r.id FROM interview_recordings r WHERE r.interview_id = iv.id ORDER BY r.created_at DESC LIMIT 1) AS recording_id
          FROM interviews iv
@@ -783,6 +840,9 @@ async function getById(req, res) {
         recommendations:    interview.recommendations,
         categoryScores:     interview.category_scores,
         hireRecommendation: interview.hire_recommendation,
+        performanceRating:  interview.performance_rating || null,
+        // Module 7 structured feedback (null when feedback generation failed or is pending)
+        module7Feedback:    interview.category_scores?.module7_feedback || null,
       },
       questions: qResult.rows.map(q => ({
         id:             q.id,

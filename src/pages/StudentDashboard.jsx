@@ -814,6 +814,176 @@ function StudentDashboard() {
                     </div>
                   )}
 
+                  {/* ── Module 7 AI Assessment ─────────────────────────────────────── */}
+                  {(() => {
+                    const m7s  = cs.module7_scores  || null
+                    const m7fb = cs.module7_feedback || null
+
+                    // Only render if we have at least an overall score
+                    if (!m7s || m7s.overallScore == null) return null
+
+                    const ratingColor = (r) => {
+                      if (r === 'Excellent') return '#10b981'
+                      if (r === 'Good')      return '#6366f1'
+                      if (r === 'Average')   return '#f59e0b'
+                      return '#ef4444'
+                    }
+
+                    const catBarColor = (s) => {
+                      if (s == null) return 'var(--border)'
+                      if (s >= 80)   return '#10b981'
+                      if (s >= 60)   return '#f59e0b'
+                      return '#ef4444'
+                    }
+
+                    const catScoreStr = (s) =>
+                      s != null && typeof s === 'number' ? `${s}/100` : '—'
+
+                    const M7_CATS = [
+                      { key: 'communication',      label: 'Communication',      pct: '30%', value: m7s.communication?.score },
+                      { key: 'confidence',         label: 'Confidence',         pct: '25%', value: m7s.confidence?.score },
+                      { key: 'technicalRelevance', label: 'Technical Relevance', pct: '30%', value: m7s.technicalRelevance?.score },
+                      { key: 'professionalism',    label: 'Professionalism',    pct: '15%', value: m7s.professionalism?.score },
+                    ]
+
+                    return (
+                      <div style={{ marginBottom: 20 }}>
+                        {/* Section header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Brain size={15} style={{ color: 'var(--primary)' }} />
+                            Module 7 AI Assessment
+                            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(scored by AI engine)</span>
+                          </div>
+                          {m7s.performanceRating && (
+                            <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: `${ratingColor(m7s.performanceRating)}18`, color: ratingColor(m7s.performanceRating), border: `1px solid ${ratingColor(m7s.performanceRating)}40` }}>
+                              {m7s.performanceRating}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Overall score hero */}
+                        <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.03))', borderRadius: 10, padding: '16px 20px', border: '1px solid rgba(99,102,241,0.2)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 20 }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 42, fontWeight: 900, lineHeight: 1, color: scoreColor(m7s.overallScore) }}>
+                              {m7s.overallScore}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>out of 100</div>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>Overall Performance Score</div>
+                            {/* Mini progress bar for overall */}
+                            <div style={{ height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${m7s.overallScore}%`, background: scoreColor(m7s.overallScore), borderRadius: 4, transition: 'width 0.6s ease' }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                              Weighted: Communication 30% · Confidence 25% · Technical 30% · Professionalism 15%
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Four category score bars */}
+                        <div className="m7-cat-grid">
+                          {M7_CATS.map(({ key, label, pct, value }) => (
+                            <div key={key} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--border-light)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <div>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
+                                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 5 }}>{pct}</span>
+                                </div>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: catBarColor(value) }}>{catScoreStr(value)}</span>
+                              </div>
+                              <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${value ?? 0}%`, background: catBarColor(value), borderRadius: 3, transition: 'width 0.5s ease' }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Module 7 AI Feedback sections */}
+                        {m7fb ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                            {/* Strengths */}
+                            {Array.isArray(m7fb.strengths) && m7fb.strengths.length > 0 && (
+                              <div style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <CheckCircle size={13} /> AI Identified Strengths
+                                </div>
+                                <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.65, listStyleType: 'disc' }}>
+                                  {m7fb.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Weaknesses */}
+                            {Array.isArray(m7fb.weaknesses) && m7fb.weaknesses.length > 0 && (
+                              <div style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(245,158,11,0.2)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Target size={13} /> Areas for Improvement
+                                </div>
+                                <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.65, listStyleType: 'disc' }}>
+                                  {m7fb.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Improvement Suggestions */}
+                            {Array.isArray(m7fb.improvementSuggestions) && m7fb.improvementSuggestions.length > 0 && (
+                              <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, border: '1px solid var(--border-light)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Zap size={13} /> Actionable Suggestions
+                                </div>
+                                <ol style={{ paddingLeft: 18, margin: 0, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.65 }}>
+                                  {m7fb.improvementSuggestions.map((s, i) => <li key={i} style={{ marginBottom: 3 }}>{s}</li>)}
+                                </ol>
+                              </div>
+                            )}
+
+                            {/* Practice Recommendations */}
+                            {Array.isArray(m7fb.practiceRecommendations) && m7fb.practiceRecommendations.length > 0 && (
+                              <div style={{ background: 'rgba(99,102,241,0.05)', borderRadius: 8, padding: 12, border: '1px solid rgba(99,102,241,0.15)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Activity size={13} /> Practice Recommendations
+                                </div>
+                                <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.65, listStyleType: 'disc' }}>
+                                  {m7fb.practiceRecommendations.map((r, i) => <li key={i}>{r}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Learning Resources — no URLs */}
+                            {Array.isArray(m7fb.learningResources) && m7fb.learningResources.length > 0 && (
+                              <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, border: '1px solid var(--border-light)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Star size={13} style={{ color: 'var(--primary)' }} /> Recommended Learning Resources
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  {m7fb.learningResources.map((res, i) => (
+                                    <div key={i} style={{ padding: '8px 10px', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border-light)', borderLeft: '3px solid var(--primary)' }}>
+                                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{res.topic}</div>
+                                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{res.resourceType}</span>
+                                        {res.reason && <span> · {res.reason}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        ) : (
+                          // m7fb is null — feedback unavailable, score still shows
+                          <div style={{ padding: '10px 14px', background: 'var(--bg-primary)', borderRadius: 8, border: '1px dashed var(--border)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Brain size={14} style={{ flexShrink: 0 }} />
+                            AI narrative feedback is currently unavailable for this interview. Your scores above reflect the actual assessment.
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
                   {/* Video Recording Player */}
                   {detailData.recordings && detailData.recordings.length > 0 && (
                     <div style={{ marginBottom: 20 }}>

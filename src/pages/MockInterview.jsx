@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import interviewApi from '../services/interviewApi'
 import recordingApi from '../services/recordingApi'
 import resumeApi from '../services/resumeApi'
+import cvApi from '../services/cvApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { useLocalSpeechRecognition } from '../hooks/useLocalSpeechRecognition'
 import { useVideoRecorder } from '../hooks/useVideoRecorder'
@@ -141,6 +142,36 @@ function MockInterview() {
   const [cameraError,   setCameraError]   = useState('')
   const [uploadState,   setUploadState]   = useState('idle') // 'idle'|'uploading'|'done'|'failed'
   const [uploadError,   setUploadError]   = useState('')
+
+  // ── Live CV Telemetry & 3-Chance Warning State ──────────────────────────
+  // liveCvData: raw latest result used for warning/visibility logic
+  // smoothedCvData: EMA-smoothed version used for display (emotion bars, confidence, visibility %)
+  const [liveCvData,      setLiveCvData]      = useState(null)
+  const [smoothedCvData,  setSmoothedCvData]  = useState(null) // display-only EMA output
+  const [liveWarnings,    setLiveWarnings]    = useState(0)
+  const [liveActiveAlert, setLiveActiveAlert] = useState(null) // { type, message, count }
+
+  const liveWarningsRef        = useRef(0)
+  const warningEventsRef       = useRef([])
+  const incidentActiveRef      = useRef(false)
+  const lowVisStartMsRef       = useRef(0)
+  const camOffStartMsRef       = useRef(0)
+  const visSumRef              = useRef({ total: 0, count: 0 })
+  const liveCvBusyRef          = useRef(false)
+  const liveCvTimerRef         = useRef(null)
+  const alertTimeoutRef        = useRef(null)
+  const hasForcedTerminatedRef = useRef(false)
+  const captureCanvasRef       = useRef(null)
+  const camOnRef               = useRef(camOn) // FIX 2: tracks camOn for stale-closure-safe access in interval
+
+  // ── EMA smoothing state (stored in refs to avoid stale-closure issues) ──
+  // alpha=0.30: new CNN prediction contributes 30%, prev smoothed 70%.
+  // This removes per-frame jitter while still visibly responding to real expression changes.
+  const EMA_ALPHA = 0.30
+  const emaEmotionsRef        = useRef(null) // { disquietment, fear, doubt_confusion, confidence, engagement, disconnection }
+  const emaConfidenceRef      = useRef(null) // number
+  const emaVisibilityRef      = useRef(null) // number
+  const lastFaceDetectedRef   = useRef(false) // tracks whether last sample had a face
 
   // Video recorder — isolated from STT pipeline
   const videoRecorder = useVideoRecorder()
@@ -276,6 +307,18 @@ function MockInterview() {
       }
     } else {
       setUploadState('done')
+    }
+
+    // Save live CV telemetry & compliance summary (warnings count, events, avg visibility)
+    if (interviewId) {
+      const vTotal = visSumRef.current.total
+      const vCount = visSumRef.current.count
+      const avgVis = vCount > 0 ? Number((vTotal / vCount).toFixed(1)) : null
+      cvApi.saveLiveSummary(interviewId, {
+        warning_count: liveWarningsRef.current,
+        warning_events: warningEventsRef.current,
+        avg_face_visibility: avgVis,
+      }).catch(e => console.warn('[LiveCV] Save live summary failed (non-fatal):', e.message))
     }
 
     // Show results regardless of upload outcome
@@ -618,6 +661,285 @@ function MockInterview() {
     }
     setPhase('interview')
   }, [interviewId, videoRecorder])
+
+  // ── Live CV: Warning / Alert Trigger Helper ────────────────────────────
+  const triggerWarningIncident = useCallback((type, message) => {
+    // FIX 5: Guard forced termination BEFORE any increment to prevent count > 4
+    if (hasForcedTerminatedRef.current) return
+    // Prevent count from ever exceeding 4
+    if (liveWarningsRef.current >= 4) return
+
+    const nextCount = liveWarningsRef.current + 1
+    liveWarningsRef.current = nextCount
+    setLiveWarnings(nextCount)
+
+    const event = {
+      timestamp: new Date().toISOString(),
+      type,
+      message,
+      count: nextCount,
+    }
+    warningEventsRef.current.push(event)
+    console.warn(`[LiveCV Alert] Warning ${nextCount}/3: ${message}`)
+
+    // Show prominent banner
+    setLiveActiveAlert({ type, message, count: nextCount })
+    if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current)
+    alertTimeoutRef.current = setTimeout(() => {
+      setLiveActiveAlert(null)
+    }, nextCount >= 3 ? 8000 : 4500)
+
+    // FIX 6: 4th incident -> Terminate interview immediately, exactly once
+    if (nextCount >= 4) {
+      hasForcedTerminatedRef.current = true
+      console.error('[LiveCV] 4th warning incident reached — terminating interview immediately.')
+      setSttStatusMsg('Interview terminated due to repeated camera/face visibility violations.')
+      // Stop the CV analysis loop immediately
+      if (liveCvTimerRef.current) {
+        clearInterval(liveCvTimerRef.current)
+        liveCvTimerRef.current = null
+      }
+      handleFinishRef.current?.()
+    }
+  }, [])
+
+  // ── Live CV: 1-FPS Sampled Frame Analysis Loop ─────────────────────────
+  // FIX 1: Removed !camOn from gate — loop stays alive for compliance timing
+  // even when candidate deliberately turns camera off.
+  useEffect(() => {
+    if (phase !== 'interview' || sessionStatus !== 'active') {
+      if (liveCvTimerRef.current) {
+        clearInterval(liveCvTimerRef.current)
+        liveCvTimerRef.current = null
+      }
+      return
+    }
+
+    // Don't restart if already forced-terminated
+    if (hasForcedTerminatedRef.current) return
+
+    if (!captureCanvasRef.current) {
+      captureCanvasRef.current = document.createElement('canvas')
+      captureCanvasRef.current.width = 320
+      captureCanvasRef.current.height = 240
+    }
+
+    liveCvTimerRef.current = setInterval(async () => {
+      // After forced termination, ignore all subsequent ticks
+      if (hasForcedTerminatedRef.current) return
+
+      // FIX 1: When camOn is false, skip frame capture but continue
+      // camera-off compliance timing via the debounce mechanism.
+      // camOnRef is used to avoid stale closure over camOn state.
+      if (!camOnRef.current) {
+        // Camera deliberately off — run camera-off debounce
+        if (camOffStartMsRef.current === 0) {
+          camOffStartMsRef.current = Date.now()
+        } else if (Date.now() - camOffStartMsRef.current >= 2000) {
+          if (!incidentActiveRef.current) {
+            incidentActiveRef.current = true
+            triggerWarningIncident('camera_off', 'Camera is off. Please turn your camera on and face it.')
+          }
+        }
+        return
+      }
+
+      const videoEl = videoRef.current
+      if (!videoEl || videoEl.readyState < 2 || videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+        if (camOffStartMsRef.current === 0) {
+          camOffStartMsRef.current = Date.now()
+        } else if (Date.now() - camOffStartMsRef.current >= 2000) {
+          if (!incidentActiveRef.current) {
+            incidentActiveRef.current = true
+            triggerWarningIncident('camera_off', 'Camera is off or unavailable. Please face the camera.')
+          }
+        }
+        return
+      }
+
+      // Check active video track
+      const track = cameraStreamRef.current?.getVideoTracks()?.[0]
+      if (!track || !track.enabled || track.readyState === 'ended') {
+        if (camOffStartMsRef.current === 0) {
+          camOffStartMsRef.current = Date.now()
+        } else if (Date.now() - camOffStartMsRef.current >= 2000) {
+          if (!incidentActiveRef.current) {
+            incidentActiveRef.current = true
+            triggerWarningIncident('camera_off', 'Camera stream is disabled or disconnected.')
+          }
+        }
+        return
+      }
+
+      if (liveCvBusyRef.current) return
+      liveCvBusyRef.current = true
+
+      try {
+        const canvas = captureCanvasRef.current
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.65)
+
+        const res = await cvApi.analyzeFrame(dataUrl)
+        // After forced termination, discard late responses
+        if (hasForcedTerminatedRef.current) return
+
+        if (res && res.status === 'ok') {
+          // Update raw data (used for warning/visibility threshold logic)
+          setLiveCvData(res)
+
+          const vis = res.face_visibility_pct != null ? res.face_visibility_pct : 0
+          visSumRef.current.total += vis
+          visSumRef.current.count += 1
+
+          // ── Apply EMA smoothing for display values ────────────────────────
+          // Only smooth when face is detected; when face disappears, clear smoothed state
+          if (res.face_detected && res.emotions && res.confidence != null) {
+            lastFaceDetectedRef.current = true
+            const α = EMA_ALPHA
+            const prev = emaEmotionsRef.current
+            if (prev === null) {
+              // First valid sample — initialise directly from CNN
+              emaEmotionsRef.current  = { ...res.emotions }
+              emaConfidenceRef.current  = res.confidence
+              emaVisibilityRef.current  = vis
+            } else {
+              // EMA: smoothed = α * current + (1-α) * previous
+              const emo = {}
+              for (const k of Object.keys(res.emotions)) {
+                emo[k] = α * res.emotions[k] + (1 - α) * (prev[k] ?? res.emotions[k])
+              }
+              emaEmotionsRef.current    = emo
+              emaConfidenceRef.current  = α * res.confidence + (1 - α) * emaConfidenceRef.current
+              emaVisibilityRef.current  = α * vis + (1 - α) * emaVisibilityRef.current
+            }
+            // Publish smoothed values to display state (same shape as raw res)
+            setSmoothedCvData({
+              face_detected:      true,
+              normalized_bbox:    res.normalized_bbox,
+              conf:               res.conf,
+              emotions:           { ...emaEmotionsRef.current },
+              confidence:         emaConfidenceRef.current,
+              face_visibility_pct: emaVisibilityRef.current,
+              gaze:               res.gaze,
+              head_pose:          res.head_pose,
+              camera_status:      res.camera_status,
+            })
+          } else {
+            // Face not detected this frame
+            if (lastFaceDetectedRef.current) {
+              lastFaceDetectedRef.current = false
+            }
+            // Show 'blocked/no-face' in display state
+            setSmoothedCvData(prev => prev ? { ...prev, face_detected: false, face_visibility_pct: 0 } : null)
+          }
+
+          // ── Debounced 3-chance alert evaluation ────────────────────────
+          // FIX 4: Symmetric incident reset — all paths lead to the same
+          // recovery logic when the face is visible and good.
+          if (res.camera_status === 'blocked') {
+            lowVisStartMsRef.current = 0  // FIX 4: clear the other timer
+            if (camOffStartMsRef.current === 0) {
+              camOffStartMsRef.current = Date.now()
+            } else if (Date.now() - camOffStartMsRef.current >= 2000) {
+              if (!incidentActiveRef.current) {
+                incidentActiveRef.current = true
+                triggerWarningIncident('blocked', 'Camera view is blocked or obscured. Please unblock your camera.')
+              }
+            }
+          } else if (!res.face_detected || vis < 60) {
+            camOffStartMsRef.current = 0
+            if (lowVisStartMsRef.current === 0) {
+              lowVisStartMsRef.current = Date.now()
+            } else if (Date.now() - lowVisStartMsRef.current >= 2000) {
+              if (!incidentActiveRef.current) {
+                incidentActiveRef.current = true
+                triggerWarningIncident('visibility', 'Low face visibility. Please face the camera and stay in view.')
+              }
+            }
+          } else {
+            // FIX 4: Face in view with >= 60% visibility -> resolve active incident
+            // This ALWAYS resets regardless of which incident type was active
+            lowVisStartMsRef.current = 0
+            camOffStartMsRef.current = 0
+            incidentActiveRef.current = false
+          }
+        }
+      } catch (err) {
+        // Silent transient error
+      } finally {
+        liveCvBusyRef.current = false
+      }
+    }, 1000)
+
+    return () => {
+      if (liveCvTimerRef.current) {
+        clearInterval(liveCvTimerRef.current)
+        liveCvTimerRef.current = null
+      }
+      if (alertTimeoutRef.current) {
+        clearTimeout(alertTimeoutRef.current)
+        alertTimeoutRef.current = null
+      }
+    }
+  }, [phase, sessionStatus, triggerWarningIncident])
+
+  // ── FIX 2: Deliberate camera-off must start debounce immediately ────────
+  // Tracks camOn state in a ref so the interval callback never has a stale value.
+  useEffect(() => {
+    camOnRef.current = camOn
+    if (phase !== 'interview' || sessionStatus !== 'active') return
+
+    if (!camOn) {
+      // Camera deliberately turned off — start debounce NOW if not already
+      if (camOffStartMsRef.current === 0) {
+        camOffStartMsRef.current = Date.now()
+        console.log('[LiveCV] Camera toggled off — debounce started')
+      }
+    } else {
+      // Camera turned back on — clear camera-off debounce and incident
+      if (camOffStartMsRef.current !== 0) {
+        camOffStartMsRef.current = 0
+        console.log('[LiveCV] Camera toggled on — debounce cleared')
+      }
+      // FIX 4: Reset incident when camera is restored
+      // (the next good-frame from the CV loop will also reset, but this
+      //  handles the gap before the first good frame arrives)
+      if (incidentActiveRef.current) {
+        // Only reset if the incident was camera_off type — a blocked/visibility
+        // incident should be resolved by actual good face data from the CV loop
+        const lastEvent = warningEventsRef.current[warningEventsRef.current.length - 1]
+        if (lastEvent && lastEvent.type === 'camera_off') {
+          incidentActiveRef.current = false
+          lowVisStartMsRef.current = 0
+        }
+      }
+    }
+  }, [camOn, phase, sessionStatus])
+
+  // ── FIX 3: MediaStreamTrack ended listener ──────────────────────────────
+  // When the OS/browser unexpectedly kills the camera track, start the
+  // same debounce mechanism that the CV loop uses.
+  useEffect(() => {
+    if (phase !== 'interview') return
+    const stream = cameraStreamRef.current
+    if (!stream) return
+    const track = stream.getVideoTracks()?.[0]
+    if (!track) return
+
+    const onTrackEnded = () => {
+      console.warn('[LiveCV] MediaStreamTrack ended unexpectedly')
+      // Start camera-off debounce if not already running
+      if (camOffStartMsRef.current === 0) {
+        camOffStartMsRef.current = Date.now()
+      }
+    }
+
+    track.addEventListener('ended', onTrackEnded)
+    return () => {
+      track.removeEventListener('ended', onTrackEnded)
+    }
+  }, [phase, cameraStatus])
 
   const handleNext = useCallback(() => {
     if (audioRef.current) {
@@ -1322,42 +1644,212 @@ function MockInterview() {
         </div>
 
         <div className="civ-stage">
+          {/* Live Alert Banner */}
+          <AnimatePresence>
+            {liveActiveAlert && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 60,
+                  background: liveActiveAlert.count >= 3 ? 'rgba(220, 38, 38, 0.95)' : 'rgba(217, 119, 6, 0.95)',
+                  backdropFilter: 'blur(16px)',
+                  color: '#fff',
+                  padding: '10px 22px',
+                  borderRadius: 12,
+                  boxShadow: '0 12px 30px rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  maxWidth: '90%',
+                  pointerEvents: 'none',
+                }}
+              >
+                <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                <span>
+                  {liveActiveAlert.count >= 3 ? '⚠️ FINAL WARNING (3/3): ' : `⚠️ Warning (${liveActiveAlert.count}/3): `}
+                  {liveActiveAlert.message}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {camOn && (
-            <div className="civ-candidate-pip">
-              <div className="civ-pip-label">
-                <span className="civ-pip-dot" style={{ background: cameraStatus === 'active' ? '#10b981' : '#64748b' }} /> You
-              </div>
-              {cameraStatus === 'active' ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  style={{
-                    width: '100%', height: '100%', objectFit: 'cover',
-                    transform: 'scaleX(-1)', borderRadius: 8,
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                <div className="civ-pip-avatar" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  {cameraStatus === 'initializing' ? <Loader size={20} style={{ animation: 'spin 1s linear infinite', color: '#6366f1' }} /> : <VideoOff size={20} style={{ color: '#64748b' }} />}
-                  <span style={{ fontSize: 10, color: '#64748b' }}>{cameraStatus === 'initializing' ? 'Starting…' : 'No Camera'}</span>
+            <>
+              {/* Candidate PIP — slightly enlarged for better face/bbox visibility */}
+              <div className="civ-candidate-pip" style={{ width: 260, height: 165 }}>
+                <div className="civ-pip-label">
+                  <span className="civ-pip-dot" style={{ background: cameraStatus === 'active' ? '#10b981' : '#64748b' }} /> You
                 </div>
-              )}
-              <div className="civ-pip-voice-meter">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <span
-                    key={i}
-                    className="civ-pip-bar"
-                    style={{
-                      height: isListening ? `${Math.random() * 60 + 20}%` : '20%',
-                      background: isListening ? '#10b981' : '#64748b',
-                    }}
-                  />
-                ))}
+                {cameraStatus === 'active' ? (
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      style={{
+                        width: '100%', height: '100%', objectFit: 'cover',
+                        transform: 'scaleX(-1)', borderRadius: 8,
+                        display: 'block',
+                      }}
+                    />
+                    {/* Live Face Bounding Box — uses raw liveCvData so box tracks real detection */}
+                    {liveCvData?.face_detected && liveCvData?.normalized_bbox && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${(1 - (liveCvData.normalized_bbox[0] + liveCvData.normalized_bbox[2])) * 100}%`,
+                          top: `${liveCvData.normalized_bbox[1] * 100}%`,
+                          width: `${liveCvData.normalized_bbox[2] * 100}%`,
+                          height: `${liveCvData.normalized_bbox[3] * 100}%`,
+                          border: '2px solid #10b981',
+                          borderRadius: 6,
+                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.45)',
+                          pointerEvents: 'none',
+                          transition: 'all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                          zIndex: 10,
+                        }}
+                      >
+                        <span style={{
+                          position: 'absolute',
+                          top: -16,
+                          left: 0,
+                          fontSize: 9,
+                          fontWeight: 800,
+                          color: '#10b981',
+                          background: 'rgba(7, 10, 18, 0.9)',
+                          padding: '1px 5px',
+                          borderRadius: 3,
+                          letterSpacing: '0.3px',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          Face {Math.round((liveCvData.conf || 0.9) * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="civ-pip-avatar" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    {cameraStatus === 'initializing' ? <Loader size={20} style={{ animation: 'spin 1s linear infinite', color: '#6366f1' }} /> : <VideoOff size={20} style={{ color: '#64748b' }} />}
+                    <span style={{ fontSize: 10, color: '#64748b' }}>{cameraStatus === 'initializing' ? 'Starting…' : 'No Camera'}</span>
+                  </div>
+                )}
+                {/* Decorative audio-level bars — pure UI animation, not related to CV */}
+                <div className="civ-pip-voice-meter">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="civ-pip-bar"
+                      style={{
+                        height: isListening ? `${Math.random() * 60 + 20}%` : '20%',
+                        background: isListening ? '#10b981' : '#64748b',
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+
+              {/* Live Behavioral & Emotion Telemetry Panel — enlarged ~15% and using EMA-smoothed values */}
+              <div style={{
+                position: 'absolute',
+                top: 197,   /* shifted down to sit below the enlarged PIP (165px + 8px gap) */
+                right: 28,
+                width: 250, /* was 220px — ~14% wider for comfortable readability */
+                background: 'rgba(15, 23, 42, 0.88)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 14,
+                padding: '11px 14px',
+                zIndex: 30,
+                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.5)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--civ-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Activity size={12} /> Behavioral Live
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: liveWarnings === 0 ? '#10b981' : liveWarnings >= 3 ? '#ef4444' : '#f59e0b',
+                    background: liveWarnings === 0 ? 'rgba(16,185,129,0.15)' : liveWarnings >= 3 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                    padding: '2px 6px',
+                    borderRadius: 10,
+                  }}>
+                    Warnings: {liveWarnings} / 3
+                  </span>
+                </div>
+
+                {/* Primary indicators — use smoothed values for display; raw liveCvData drives warning logic */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                  <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '5px 8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--civ-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Face Visibility</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: (smoothedCvData?.face_visibility_pct ?? 0) >= 60 ? '#10b981' : '#f59e0b' }}>
+                      {smoothedCvData?.face_visibility_pct != null
+                        ? (smoothedCvData.face_detected === false ? '—' : `${Math.round(smoothedCvData.face_visibility_pct)}%`)
+                        : '—'}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '5px 8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--civ-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Confidence Indicator</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#38bdf8' }}>
+                      {smoothedCvData?.confidence != null && smoothedCvData?.face_detected !== false
+                        ? `${Math.round(smoothedCvData.confidence * 100)}%`
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Emotion Estimate bars — values are EMA-smoothed real CNN predictions.
+                    alpha=0.30: bars visibly respond to expression changes but don't jump each frame.
+                    When face is absent, bars show last valid smoothed value (face_detected=false shows —). */}
+                <div style={{ fontSize: 9, color: 'var(--civ-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 5 }}>
+                  Emotion Estimate
+                  {smoothedCvData === null && (
+                    <span style={{ marginLeft: 6, color: '#64748b', fontWeight: 400, textTransform: 'none', fontSize: 8 }}>Analyzing…</span>
+                  )}
+                  {smoothedCvData !== null && smoothedCvData.face_detected === false && (
+                    <span style={{ marginLeft: 6, color: '#f59e0b', fontWeight: 400, textTransform: 'none', fontSize: 8 }}>No face detected</span>
+                  )}
+                </div>
+                {[
+                  { label: 'Disquietment',    key: 'disquietment',    color: '#818cf8' },
+                  { label: 'Fear',            key: 'fear',            color: '#f43f5e' },
+                  { label: 'Doubt / Confusion', key: 'doubt_confusion', color: '#fbbf24' },
+                  { label: 'Confidence',      key: 'confidence',      color: '#10b981' },
+                ].map(({ label, key, color }) => {
+                  // Use smoothed CNN values — null when not yet initialised or face absent
+                  const rawVal = (smoothedCvData?.face_detected !== false && smoothedCvData?.emotions)
+                    ? smoothedCvData.emotions[key]
+                    : null
+                  const pctVal = rawVal != null ? Math.round(rawVal * 100) : null
+                  return (
+                    <div key={label} style={{ marginBottom: 5 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 2 }}>
+                        <span style={{ color: 'var(--civ-text-subtle)' }}>{label}</span>
+                        <span style={{ fontWeight: 700, color: pctVal != null ? 'var(--civ-text-main)' : 'var(--civ-text-subtle)' }}>
+                          {pctVal != null ? `${pctVal}%` : '—'}
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                        {/* CSS transition on width provides smooth visual movement between EMA updates */}
+                        <div style={{ width: `${pctVal ?? 0}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           <div className="civ-avatar-center">

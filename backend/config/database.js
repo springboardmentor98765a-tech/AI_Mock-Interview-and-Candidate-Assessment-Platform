@@ -167,6 +167,8 @@ async function initDatabase() {
     await client.query(`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recommendations JSONB`)
     await client.query(`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS category_scores JSONB`)
     await client.query(`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS hire_recommendation VARCHAR(50)`)
+    // Module 7: performance rating column (Excellent/Good/Average/Needs Improvement/Poor)
+    await client.query(`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS performance_rating VARCHAR(30)`)
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS interview_questions (
@@ -279,6 +281,75 @@ async function initDatabase() {
             ON interview_recordings (interview_id, recording_type);
         END IF;
       END $$
+    `)
+
+    // ── Module 6: CV Analysis results ────────────────────────────────────────
+    // Stores one analysis row per interview (UNIQUE on interview_id).
+    // per_frame_raw is a compact JSONB audit trail of per-frame signals.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS interview_cv_analysis (
+        id                    SERIAL PRIMARY KEY,
+        interview_id          INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+        recording_id          INTEGER REFERENCES interview_recordings(id) ON DELETE SET NULL,
+        status                VARCHAR(20) NOT NULL DEFAULT 'pending',
+        analyzed_at           TIMESTAMP WITH TIME ZONE,
+        error_message         TEXT,
+
+        -- Aggregated behavioral signals (all nullable — null when insufficient data)
+        face_detection_rate   REAL,          -- fraction of sampled frames with a detected face
+        eye_contact_pct       REAL,          -- % of face-frames where gaze is toward camera
+        facing_camera_rate    REAL,          -- fraction of face-frames where head faces camera
+        head_movement_deg     REAL,          -- mean |yaw|+|pitch| per frame (degrees)
+        attention_score       REAL,          -- 0.55*eye_contact + 0.45*facing_camera
+        engagement_estimate   REAL,          -- composite: CNN + eye contact + attention + facial activity
+        confidence_indicator  REAL,          -- CNN "confidence" behavioral signal (NOT a psych diagnosis)
+        disquietment_level    REAL,          -- CNN "disquietment" mean prob
+        fear_level            REAL,          -- CNN "fear" mean prob
+        doubt_confusion_level REAL,          -- CNN "doubt_confusion" mean prob
+        disconnection_level   REAL,          -- CNN "disconnection" mean prob
+        facial_activity       REAL,          -- temporal std of affect-head mean prob (0..~0.3)
+        frames_total          INTEGER,       -- total frames sampled from video
+        frames_with_face      INTEGER,       -- frames where face was detected
+
+        -- JSONB columns for auditing and future expansion
+        cnn_mean_probs        JSONB,         -- {label: mean_prob} for all 6 labels
+        per_frame_raw         JSONB,         -- compact list of per-frame records
+
+        -- Live interview telemetry & compliance fields
+        warning_count         INTEGER DEFAULT 0,
+        warning_events        JSONB DEFAULT '[]'::jsonb,
+        avg_face_visibility   REAL,
+
+        created_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    // Add columns if table already existed from previous run
+    await client.query(`
+      ALTER TABLE interview_cv_analysis
+        ADD COLUMN IF NOT EXISTS warning_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS warning_events JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS avg_face_visibility REAL;
+    `)
+
+    // UNIQUE on interview_id: one analysis row per interview; upserts work via ON CONFLICT
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE tablename = 'interview_cv_analysis'
+            AND indexname  = 'idx_cv_analysis_interview_unique'
+        ) THEN
+          CREATE UNIQUE INDEX idx_cv_analysis_interview_unique
+            ON interview_cv_analysis (interview_id);
+        END IF;
+      END $$
+    `)
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_cv_analysis_status
+        ON interview_cv_analysis (status)
     `)
 
     await client.query('COMMIT')

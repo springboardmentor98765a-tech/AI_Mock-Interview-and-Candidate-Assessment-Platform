@@ -5,8 +5,10 @@
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $sttPython   = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $ttsPython   = Join-Path $projectRoot 'tts-venv\Scripts\python.exe'
+$cvPython    = Join-Path $projectRoot 'tts-venv\Scripts\python.exe'
 $sttScript   = Join-Path $projectRoot 'backend\ai\stt_service.py'
 $ttsScript   = Join-Path $projectRoot 'backend\ai\tts_service.py'
+$cvScript    = Join-Path $projectRoot 'backend\ai\cv_service.py'
 $backendDir  = Join-Path $projectRoot 'backend'
 $pgService   = 'postgresql-x64-18'
 $ollamaExe   = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
@@ -158,12 +160,13 @@ if (Test-TcpPort 11434) {
     }
 }
 
-# ── 3 + 4. Faster-Whisper (8765) and Kokoro (8766) — start in PARALLEL ───────
-# Both AI services are launched before waiting for either, allowing simultaneous
+# ── 3 + 4 + 5. Faster-Whisper (8765), Kokoro (8766), CV (8767) — start in PARALLEL ──
+# All three AI services are launched before waiting for any, allowing simultaneous
 # CUDA model loading which reduces total startup time significantly.
 
 $whisperAlreadyUp = Test-ServiceHttpReady 'http://localhost:8765/health'
 $kokoroAlreadyUp  = Test-ServiceHttpReady 'http://localhost:8766/health'
+$cvAlreadyUp      = Test-ServiceHttpReady 'http://127.0.0.1:8767/health'
 
 if ($whisperAlreadyUp) {
     Write-Ok "Faster-Whisper already running on 8765"
@@ -187,7 +190,18 @@ if ($kokoroAlreadyUp) {
         -ScriptArgs @('--port', '8766', '--voice', 'af_heart', '--device', 'cuda')
 }
 
-# Now wait for both (up to 150s each — models load in parallel)
+if ($cvAlreadyUp) {
+    Write-Ok "CV Analysis Service already running on 8767"
+} else {
+    Write-Step "Starting CV Analysis Service window..."
+    Start-ServiceWindow `
+        -Title      '[HireAI CV :8767]' `
+        -Python     $cvPython `
+        -Script     $cvScript `
+        -ScriptArgs @('--port', '8767', '--host', '127.0.0.1')
+}
+
+# Now wait for all three (up to 150s each — models load in parallel)
 if (-not $whisperAlreadyUp) {
     Write-Step "Waiting for Faster-Whisper to be ready (up to 150s)..."
     if (-not (Wait-ServiceHttpReady 'http://localhost:8765/health' 150)) {
@@ -206,6 +220,16 @@ if (-not $kokoroAlreadyUp) {
         exit 1
     }
     Write-Ok "Kokoro TTS ready on 8766"
+}
+
+if (-not $cvAlreadyUp) {
+    Write-Step "Waiting for CV Analysis Service to be ready (up to 150s)..."
+    if (-not (Wait-ServiceHttpReady 'http://127.0.0.1:8767/health' 150)) {
+        Write-Fail "CV Analysis Service did not become ready within 150s"
+        Write-Warn "Check the [HireAI CV :8767] window for errors."
+        exit 1
+    }
+    Write-Ok "CV Analysis Service ready on 8767"
 }
 
 # ── 5. Express Backend (5000) ─────────────────────────────────────────────────
@@ -257,6 +281,7 @@ Write-Host '  |  Frontend  :  http://localhost:5173      |' -ForegroundColor Gre
 Write-Host '  |  Backend   :  http://localhost:5000      |' -ForegroundColor Green
 Write-Host '  |  Whisper   :  http://localhost:8765      |' -ForegroundColor Green
 Write-Host '  |  Kokoro    :  http://localhost:8766      |' -ForegroundColor Green
+Write-Host '  |  CV Model  :  http://127.0.0.1:8767     |' -ForegroundColor Green
 Write-Host '  |  Ollama    :  http://localhost:11434     |' -ForegroundColor Green
 Write-Host '  +------------------------------------------+' -ForegroundColor Green
 Write-Host ''

@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import recordingApi from '../services/recordingApi'
+import cvApi        from '../services/cvApi'
 import {
   Users, Briefcase, FileText, Calendar, Video, Download,
   Eye, Star, Award, TrendingUp, TrendingDown, BarChart3,
   Activity, Search, ChevronUp, ChevronDown, MessageSquare,
-  X, CheckCircle, Send, Plus
+  X, CheckCircle, Send, Plus, Brain, Zap, Target
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -103,6 +104,458 @@ function Toast({ msg, onClose }) {
   )
 }
 
+/* ─── Behavioral & Visual Assessment panel ─────────────────────────────── */
+/**
+ * Renders the CV analysis result inline inside the detail modal.
+ * Receives exact DB column values; converts 0-1 floats to % where appropriate.
+ */
+function CvAnalysisPanel({ cvData, cvLoading, cvError, interviewId, onRetrigger, retriggerBusy }) {
+  // Helper: format a 0-1 float as a percentage string, or '—' if null
+  const pct  = (v) => v != null ? `${Math.round(v * 100)}%` : '—'
+  // Helper: format a 0-1 float as a 2-decimal score string
+  const sc   = (v) => v != null ? v.toFixed(2) : '—'
+  // Helper: format degrees
+  const deg  = (v) => v != null ? `${Math.round(v)}°` : '—'
+
+  const statusColor = {
+    completed:  '#10b981',
+    processing: '#f59e0b',
+    pending:    '#f59e0b',
+    error:      '#ef4444',
+    failed:     '#ef4444',
+  }
+
+  const containerStyle = {
+    marginBottom: 20,
+    borderRadius: 10,
+    border: '1px solid rgba(99,102,241,0.18)',
+    background: 'rgba(99,102,241,0.04)',
+    overflow: 'hidden',
+  }
+  const headerStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 16px',
+    borderBottom: '1px solid rgba(99,102,241,0.12)',
+    background: 'rgba(99,102,241,0.07)',
+  }
+  const sectionLabel = {
+    fontSize: 11, fontWeight: 700, color: 'var(--text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6,
+  }
+  const metricBox = {
+    background: 'var(--bg-primary)', borderRadius: 8,
+    padding: '10px 12px', border: '1px solid var(--border-light)',
+  }
+  const metricLabel = {
+    fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4,
+  }
+  const metricValue = {
+    fontSize: 18, fontWeight: 800, color: 'var(--text-primary)',
+  }
+
+  // Loading state
+  if (cvLoading) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+        </div>
+        <div style={{ padding: 20, fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+          Loading behavioral analysis…
+        </div>
+      </div>
+    )
+  }
+
+  // No data and no error — not yet triggered or still pending
+  if (!cvData && !cvError) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Not yet analyzed</span>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Video analysis has not been run yet or is still processing.
+          </span>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={retriggerBusy}
+            onClick={() => onRetrigger(interviewId)}
+          >
+            {retriggerBusy ? 'Queuing…' : 'Run Analysis'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (cvError && !cvData) {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>Error</span>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12, color: '#ef4444' }}>{cvError}</span>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={retriggerBusy}
+            onClick={() => onRetrigger(interviewId)}
+          >
+            {retriggerBusy ? 'Queuing…' : 'Re-run Analysis'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const a = cvData
+  const statusKey = (a.status || '').toLowerCase()
+
+  // Status is pending/processing — show status only, no scores yet
+  if (statusKey === 'pending' || statusKey === 'processing') {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: statusColor[statusKey] || '#f59e0b' }}>
+            {statusKey === 'processing' ? 'Processing…' : 'Pending…'}
+          </span>
+        </div>
+        <div style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+          Video analysis is in progress. Refresh this panel in a moment to see results.
+        </div>
+      </div>
+    )
+  }
+
+  // Error status from DB row
+  if (statusKey === 'error' || statusKey === 'failed') {
+    return (
+      <div style={containerStyle}>
+        <div style={headerStyle}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444' }}>Failed</span>
+        </div>
+        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12, color: '#ef4444' }}>{a.error_message || 'Analysis failed.'}</span>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={retriggerBusy}
+            onClick={() => onRetrigger(interviewId)}
+          >
+            {retriggerBusy ? 'Queuing…' : 'Re-run Analysis'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Completed — render full results
+  return (
+    <div style={containerStyle}>
+      {/* Header */}
+      <div style={headerStyle}>
+        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)' }}>Behavioral & Visual Assessment</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {a.analyzed_at && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {new Date(a.analyzed_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: 20 }}>Completed</span>
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 16px' }}>
+        {/* Primary metrics — 4 columns */}
+        <div style={{ ...sectionLabel, marginBottom: 8 }}>Primary Signals</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
+          {[
+            { label: 'Engagement',    value: pct(a.engagement_estimate),  note: 'composite' },
+            { label: 'Eye Contact',   value: a.eye_contact_pct != null ? `${Math.round(a.eye_contact_pct)}%` : '—', note: '% of face-frames' },
+            { label: 'Attention',     value: pct(a.attention_score),       note: 'eye + posture' },
+            { label: 'Confidence',    value: pct(a.confidence_indicator),  note: 'behavioral signal' },
+          ].map(({ label, value, note }) => (
+            <div key={label} style={metricBox}>
+              <div style={metricLabel}>{label}</div>
+              <div style={metricValue}>{value}</div>
+              {note && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{note}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Secondary metrics — 4 columns */}
+        <div style={{ ...sectionLabel, marginBottom: 8 }}>Secondary Signals</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
+          {[
+            { label: 'Head Movement', value: deg(a.head_movement_deg),      note: 'mean yaw+pitch' },
+            { label: 'Facial Activity', value: sc(a.facial_activity),       note: 'temporal change' },
+            { label: 'Facing Camera', value: pct(a.facing_camera_rate),     note: 'posture rate' },
+            { label: 'Face Detected', value: pct(a.face_detection_rate),    note: 'of sampled frames' },
+          ].map(({ label, value, note }) => (
+            <div key={label} style={metricBox}>
+              <div style={metricLabel}>{label}</div>
+              <div style={{ ...metricValue, fontSize: 16 }}>{value}</div>
+              {note && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{note}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Affect levels — horizontal bar-style */}
+        <div style={{ ...sectionLabel, marginBottom: 8 }}>Observable Affect Indicators</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+          {[
+            { label: 'Disquietment',    v: a.disquietment_level },
+            { label: 'Fear',            v: a.fear_level },
+            { label: 'Doubt / Confusion', v: a.doubt_confusion_level },
+            { label: 'Disconnection',   v: a.disconnection_level },
+          ].map(({ label, v }) => {
+            const pctNum = v != null ? Math.round(v * 100) : null
+            const barColor = pctNum != null && pctNum > 40 ? '#f59e0b' : '#6366f1'
+            return (
+              <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '8px 12px', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{pctNum != null ? `${pctNum}%` : '—'}</span>
+                </div>
+                {pctNum != null && (
+                  <div style={{ height: 4, borderRadius: 4, background: 'var(--border-light)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(100, pctNum)}%`, borderRadius: 4, background: barColor, transition: 'width 0.5s ease' }} />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Live Interview Compliance & Warnings */}
+        {(a.warning_count != null || a.avg_face_visibility != null) && (
+          <div style={{ marginTop: 12, marginBottom: 8, background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Live Interview Compliance
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: (a.warning_count || 0) === 0 ? '#10b981' : (a.warning_count || 0) >= 3 ? '#ef4444' : '#f59e0b',
+                background: (a.warning_count || 0) === 0 ? 'rgba(16,185,129,0.1)' : (a.warning_count || 0) >= 3 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                padding: '2px 8px',
+                borderRadius: 20,
+              }}>
+                Warnings: {a.warning_count ?? 0} / 3
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-primary)' }}>
+              {a.avg_face_visibility != null && (
+                <div>Avg Face Visibility: <strong>{Math.round(a.avg_face_visibility)}%</strong></div>
+              )}
+              {a.warning_count > 0 && (
+                <div style={{ color: a.warning_count >= 3 ? '#ef4444' : '#f59e0b' }}>
+                  {a.warning_count >= 4 ? 'Interview Terminated by Violation' : `${a.warning_count} recorded warning incident(s)`}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Frame coverage footnote */}
+        {a.frames_total != null && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right' }}>
+            Analyzed {a.frames_with_face ?? '?'} / {a.frames_total} sampled frames (1 FPS)
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Module 7 AI Assessment panel (recruiter view) ─────────────────────── */
+function Module7Panel({ categoryScores }) {
+  const cs  = categoryScores || {}
+  const m7s = cs.module7_scores  || null
+  const m7fb = cs.module7_feedback || null
+
+  if (!m7s || m7s.overallScore == null) return null
+
+  const ratingColor = (r) => {
+    if (r === 'Excellent') return '#10b981'
+    if (r === 'Good')      return '#6366f1'
+    if (r === 'Average')   return '#f59e0b'
+    return '#ef4444'
+  }
+  const catColor = (s) => {
+    if (s == null) return 'var(--border)'
+    if (s >= 80)   return '#10b981'
+    if (s >= 60)   return '#f59e0b'
+    return '#ef4444'
+  }
+  const catStr  = (s) => (s != null && typeof s === 'number') ? `${s}/100` : '—'
+  const scoreC  = (s) => s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+
+  const M7_CATS = [
+    { key: 'communication',      label: 'Communication',       pct: '30%', value: m7s.communication?.score },
+    { key: 'confidence',         label: 'Confidence',          pct: '25%', value: m7s.confidence?.score },
+    { key: 'technicalRelevance', label: 'Technical Relevance', pct: '30%', value: m7s.technicalRelevance?.score },
+    { key: 'professionalism',    label: 'Professionalism',     pct: '15%', value: m7s.professionalism?.score },
+  ]
+
+  // Radar chart data for Recharts
+  const radarData = M7_CATS.map(c => ({ skill: c.label.split(' ')[0], score: c.value ?? 0 }))
+
+  const containerStyle = {
+    marginBottom: 20,
+    borderRadius: 10,
+    border: '1px solid rgba(99,102,241,0.18)',
+    background: 'rgba(99,102,241,0.04)',
+    overflow: 'hidden',
+  }
+  const headerStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 16px',
+    borderBottom: '1px solid rgba(99,102,241,0.12)',
+    background: 'rgba(99,102,241,0.07)',
+  }
+
+  return (
+    <div style={containerStyle}>
+      {/* Panel header */}
+      <div style={headerStyle}>
+        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Brain size={14} /> Module 7 AI Assessment
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {m7s.scoringMeta?.hasCvData && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>CV-augmented</span>
+          )}
+          {m7s.performanceRating && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
+              background: `${ratingColor(m7s.performanceRating)}18`,
+              color: ratingColor(m7s.performanceRating),
+              border: `1px solid ${ratingColor(m7s.performanceRating)}40`,
+            }}>
+              {m7s.performanceRating}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 16px' }}>
+        {/* Overall score hero row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 16,
+          background: 'linear-gradient(135deg,rgba(99,102,241,0.08),rgba(99,102,241,0.03))',
+          borderRadius: 8, padding: '12px 16px', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <div style={{ textAlign: 'center', minWidth: 64 }}>
+            <div style={{ fontSize: 38, fontWeight: 900, lineHeight: 1, color: scoreC(m7s.overallScore) }}>
+              {m7s.overallScore}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>/ 100</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 5 }}>Overall Performance Score</div>
+            <div style={{ height: 7, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${m7s.overallScore}%`, background: scoreC(m7s.overallScore), borderRadius: 4, transition: 'width 0.6s ease' }} />
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+              Comm 30% · Conf 25% · Tech 30% · Prof 15%
+            </div>
+          </div>
+        </div>
+
+        {/* Two-column: category bars + radar chart */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14, alignItems: 'start' }}>
+          {/* Category bars */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {M7_CATS.map(({ key, label, pct, value }) => (
+              <div key={key} style={{ background: 'var(--bg-primary)', borderRadius: 7, padding: '8px 12px', border: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>{pct}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: catColor(value) }}>{catStr(value)}</span>
+                </div>
+                <div style={{ height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${value ?? 0}%`, background: catColor(value), borderRadius: 3, transition: 'width 0.5s ease' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Radar chart */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Category Radar</div>
+            <ResponsiveContainer width="100%" height={160}>
+              <RadarChart data={radarData} margin={{ top: 4, right: 10, bottom: 4, left: 10 }}>
+                <PolarGrid stroke="rgba(99,102,241,0.18)" />
+                <PolarAngleAxis dataKey="skill" tick={{ fontSize: 10, fill: '#64748b' }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.22} />
+                <Tooltip contentStyle={{ borderRadius: 7, fontSize: 11 }} formatter={(v) => [`${v}/100`]} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Module 7 feedback — recruiter-relevant subset */}
+        {m7fb ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+            {/* Strengths */}
+            {Array.isArray(m7fb.strengths) && m7fb.strengths.length > 0 && (
+              <div style={{ background: 'var(--success-bg)', borderRadius: 7, padding: '10px 12px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <CheckCircle size={12} /> AI-Identified Strengths
+                </div>
+                <ul style={{ paddingLeft: 16, margin: 0, fontSize: 11, color: 'var(--text-primary)', lineHeight: 1.6, listStyleType: 'disc' }}>
+                  {m7fb.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Weaknesses */}
+            {Array.isArray(m7fb.weaknesses) && m7fb.weaknesses.length > 0 && (
+              <div style={{ background: 'var(--warning-bg)', borderRadius: 7, padding: '10px 12px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Target size={12} /> Areas for Improvement
+                </div>
+                <ul style={{ paddingLeft: 16, margin: 0, fontSize: 11, color: 'var(--text-primary)', lineHeight: 1.6, listStyleType: 'disc' }}>
+                  {m7fb.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Improvement suggestions */}
+            {Array.isArray(m7fb.improvementSuggestions) && m7fb.improvementSuggestions.length > 0 && (
+              <div style={{ background: 'var(--bg-primary)', borderRadius: 7, padding: '10px 12px', border: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Zap size={12} /> Improvement Suggestions
+                </div>
+                <ol style={{ paddingLeft: 16, margin: 0, fontSize: 11, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                  {m7fb.improvementSuggestions.map((s, i) => <li key={i} style={{ marginBottom: 2 }}>{s}</li>)}
+                </ol>
+              </div>
+            )}
+
+          </div>
+        ) : (
+          <div style={{ padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 7, border: '1px dashed var(--border)', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Brain size={13} style={{ flexShrink: 0 }} />
+            AI narrative feedback unavailable. Scores above reflect the formal assessment.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Modal({ title, children, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
@@ -142,6 +595,12 @@ function RecruiterDashboard() {
   const [detail,     setDetail]         = useState(null)  // { interview, questions, recordings }
   const [detailLoading, setDetailLoading] = useState(false)
 
+  // CV analysis state — loaded when a detail modal opens
+  const [cvData,    setCvData]    = useState(null)   // analysis object or null
+  const [cvLoading, setCvLoading] = useState(false)
+  const [cvError,   setCvError]   = useState('')
+  const [cvTriggerBusy, setCvTriggerBusy] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     async function loadResults() {
@@ -164,13 +623,45 @@ function RecruiterDashboard() {
     setDetailOpen(interviewId)
     setDetailLoading(true)
     setDetail(null)
+    // Reset CV state for new modal
+    setCvData(null)
+    setCvError('')
+    setCvLoading(true)
     try {
-      const data = await recordingApi.getDetail(interviewId)
-      setDetail(data)
-    } catch (e) {
-      setDetail({ error: e.message })
+      // Fetch interview detail and CV result in parallel
+      const [detailData, cvResult] = await Promise.allSettled([
+        recordingApi.getDetail(interviewId),
+        cvApi.getResult(interviewId),
+      ])
+      if (detailData.status === 'fulfilled') setDetail(detailData.value)
+      else setDetail({ error: detailData.reason?.message || 'Failed to load' })
+      if (cvResult.status === 'fulfilled' && cvResult.value?.analysis) {
+        setCvData(cvResult.value.analysis)
+      } else {
+        // 404 means not yet triggered / still pending — not an error worth showing
+        const msg = cvResult.reason?.message || ''
+        if (!msg.includes('not yet available') && !msg.includes('404')) {
+          setCvError(msg)
+        }
+      }
     } finally {
       setDetailLoading(false)
+      setCvLoading(false)
+    }
+  }
+
+  async function handleCvRetrigger(interviewId) {
+    setCvTriggerBusy(true)
+    setCvError('')
+    try {
+      await cvApi.trigger(interviewId)
+      showToast('Video re-analysis queued. Check back in a minute.')
+      setCvData(null)   // clear stale data; recruiter can refresh to see result
+    } catch (e) {
+      setCvError(e.message)
+      showToast('Re-trigger failed: ' + e.message)
+    } finally {
+      setCvTriggerBusy(false)
     }
   }
 
@@ -411,6 +902,104 @@ function RecruiterDashboard() {
       </div>
     </>
   )
+
+  // ── Helpers used by the detail modal (hoisted to component scope so the
+  //    modal can be rendered from ANY section, not only 'ai-results') ────
+  const scoreColor = (s) => s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
+  const fmtDur = (s) => { if (!s) return '—'; const m = Math.floor(s/60); const ss = s%60; return `${m}m ${ss}s` }
+  const fmtSA = (val, suffix = '') => {
+    if (val === null || val === undefined) return 'Not available'
+    if (val === 'insufficient_audio' || val === 'insufficient_data') return 'Insufficient audio'
+    if (typeof val === 'number') return `${val}${suffix}`
+    return String(val)
+  }
+  const renderCommBreakdown = (categoryScores) => {
+    if (!categoryScores) return null
+    const cs = categoryScores
+    const sas = cs.speech_analysis_summary
+    const rows = [
+      ['Overall Communication',   cs.communication     != null ? `${cs.communication}/100`     : '—'],
+      ['Technical Relevance',      cs.technical         != null ? `${cs.technical}/100`         : '—'],
+      ['Confidence',               cs.confidence        != null ? `${cs.confidence}/100`        : '—'],
+      ['Professionalism / Grammar',cs.professionalism   != null ? `${cs.professionalism}/100`   : (cs.grammar != null ? `${cs.grammar}/100` : '—')],
+    ]
+    const speechRows = sas ? [
+      ['Avg Speaking Pace',    sas.avg_words_per_minute    != null ? `${sas.avg_words_per_minute} WPM (${sas.dominant_pace || '—'})` : 'Not available'],
+      ['Avg Grammar Score',    sas.avg_grammar_score       != null ? `${sas.avg_grammar_score}/100` : 'Not available'],
+      ['Avg Filler Rate',      sas.avg_filler_rate         != null ? `${sas.avg_filler_rate}%`      : 'Not available'],
+      ['Avg Comm Score (Speech)', sas.avg_communication_score != null ? `${sas.avg_communication_score}/100` : 'Not available'],
+      ['Answers Analysed',     `${sas.answers_analysed ?? 0} / ${sas.total_answers ?? '?'}`],
+    ] : null
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: 'var(--text-primary)' }}>Score Breakdown</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {rows.map(([label, val]) => (
+            <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {speechRows && (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 13, margin: '14px 0 8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Activity size={14} style={{ color: 'var(--primary)' }} /> Speech & Communication Analysis
+              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(aggregated from real audio)</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {speechRows.map(([label, val]) => (
+                <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+  const renderQuestionSpeech = (sa) => {
+    if (!sa) return null
+    const metrics = [
+      ['WPM',        fmtSA(sa.words_per_minute, '') + (sa.pace_label && sa.pace_label !== 'insufficient_data' ? ` (${sa.pace_label})` : '')],
+      ['Fillers',    sa.filler_count != null ? `${sa.filler_count} (${fmtSA(sa.filler_rate, '%')})` : 'Not available'],
+      ['Grammar',    fmtSA(sa.grammar_score, '/100')],
+      ['Clarity',    fmtSA(sa.speech_clarity_score, '/100')],
+      ['Completeness', fmtSA(sa.response_completeness_score, '/100')],
+      ['Pronunciation', sa.pronunciation_score === 'insufficient_audio' ? 'Insufficient audio' : fmtSA(sa.pronunciation_score, '/100')],
+    ]
+    return (
+      <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(99,102,241,0.06)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+          Speech Analysis
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {metrics.map(([label, val]) => (
+            <div key={label}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: val === 'Not available' || val === 'Insufficient audio' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {sa.communication_score != null && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+            Communication score: <strong style={{ color: scoreColor(sa.communication_score) }}>{sa.communication_score}/100</strong>
+            {sa.intelligibility_note && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>({sa.intelligibility_note})</span>
+            )}
+          </div>
+        )}
+        {Array.isArray(sa.strengths) && sa.strengths.length > 0 && (
+          <div style={{ marginTop: 6, fontSize: 11, color: '#10b981' }}>✓ {sa.strengths.join(' · ')}</div>
+        )}
+        {Array.isArray(sa.weaknesses) && sa.weaknesses.length > 0 && (
+          <div style={{ fontSize: 11, color: '#f59e0b' }}>⚠ {sa.weaknesses.join(' · ')}</div>
+        )}
+      </div>
+    )
+  }
 
   const renderSection = () => {
     switch (activeSection) {
@@ -709,108 +1298,6 @@ function RecruiterDashboard() {
         )
 
     case 'ai-results': {
-        const scoreColor = (s) => s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444'
-        const fmtDur = (s) => { if (!s) return '—'; const m = Math.floor(s/60); const ss = s%60; return `${m}m ${ss}s` }
-
-        // Helper: format a speech analysis metric value safely (never shows 0 as substitute)
-        const fmtSA = (val, suffix = '') => {
-          if (val === null || val === undefined) return 'Not available'
-          if (val === 'insufficient_audio' || val === 'insufficient_data') return 'Insufficient audio'
-          if (typeof val === 'number') return `${val}${suffix}`
-          return String(val)
-        }
-
-        // Communication Breakdown panel (shown inside the detail modal when data exists)
-        const renderCommBreakdown = (categoryScores) => {
-          if (!categoryScores) return null
-          const cs = categoryScores
-          const sas = cs.speech_analysis_summary  // may be null for older interviews
-          const rows = [
-            ['Overall Communication',   cs.communication     != null ? `${cs.communication}/100`     : '—'],
-            ['Technical Relevance',      cs.technical         != null ? `${cs.technical}/100`         : '—'],
-            ['Confidence',               cs.confidence        != null ? `${cs.confidence}/100`        : '—'],
-            ['Professionalism / Grammar',cs.professionalism   != null ? `${cs.professionalism}/100`   : (cs.grammar != null ? `${cs.grammar}/100` : '—')],
-          ]
-          const speechRows = sas ? [
-            ['Avg Speaking Pace',    sas.avg_words_per_minute    != null ? `${sas.avg_words_per_minute} WPM (${sas.dominant_pace || '—'})` : 'Not available'],
-            ['Avg Grammar Score',    sas.avg_grammar_score       != null ? `${sas.avg_grammar_score}/100` : 'Not available'],
-            ['Avg Filler Rate',      sas.avg_filler_rate         != null ? `${sas.avg_filler_rate}%`      : 'Not available'],
-            ['Avg Comm Score (Speech)', sas.avg_communication_score != null ? `${sas.avg_communication_score}/100` : 'Not available'],
-            ['Answers Analysed',     `${sas.answers_analysed ?? 0} / ${sas.total_answers ?? '?'}`],
-          ] : null
-
-          return (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: 'var(--text-primary)' }}>Score Breakdown</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {rows.map(([label, val]) => (
-                  <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-              {speechRows && (
-                <>
-                  <div style={{ fontWeight: 700, fontSize: 13, margin: '14px 0 8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Activity size={14} style={{ color: 'var(--primary)' }} /> Speech & Communication Analysis
-                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>(aggregated from real audio)</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {speechRows.map(([label, val]) => (
-                      <div key={label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{val}</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        }
-
-        // Per-question speech analysis mini-panel
-        const renderQuestionSpeech = (sa) => {
-          if (!sa) return null
-          const metrics = [
-            ['WPM',        fmtSA(sa.words_per_minute, '') + (sa.pace_label && sa.pace_label !== 'insufficient_data' ? ` (${sa.pace_label})` : '')],
-            ['Fillers',    sa.filler_count != null ? `${sa.filler_count} (${fmtSA(sa.filler_rate, '%')})` : 'Not available'],
-            ['Grammar',    fmtSA(sa.grammar_score, '/100')],
-            ['Clarity',    fmtSA(sa.speech_clarity_score, '/100')],
-            ['Completeness', fmtSA(sa.response_completeness_score, '/100')],
-            ['Pronunciation', sa.pronunciation_score === 'insufficient_audio' ? 'Insufficient audio' : fmtSA(sa.pronunciation_score, '/100')],
-          ]
-          return (
-            <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(99,102,241,0.06)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                Speech Analysis
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                {metrics.map(([label, val]) => (
-                  <div key={label}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: val === 'Not available' || val === 'Insufficient audio' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-              {sa.communication_score != null && (
-                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Communication score: <strong style={{ color: scoreColor(sa.communication_score) }}>{sa.communication_score}/100</strong>
-                  {sa.intelligibility_note && (
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>({sa.intelligibility_note})</span>
-                  )}
-                </div>
-              )}
-              {Array.isArray(sa.strengths) && sa.strengths.length > 0 && (
-                <div style={{ marginTop: 6, fontSize: 11, color: '#10b981' }}>✓ {sa.strengths.join(' · ')}</div>
-              )}
-              {Array.isArray(sa.weaknesses) && sa.weaknesses.length > 0 && (
-                <div style={{ fontSize: 11, color: '#f59e0b' }}>⚠ {sa.weaknesses.join(' · ')}</div>
-              )}
-            </div>
-          )
-        }
 
         return (
           <>
@@ -872,134 +1359,9 @@ function RecruiterDashboard() {
               )}
             </div>
 
-            {/* Per-interview detail modal */}
-            {detailOpen && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-                onClick={e => e.target === e.currentTarget && setDetailOpen(null)}>
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                  style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <h2 style={{ fontSize: 18, fontWeight: 700 }}>AI Interview Detail & Evaluation</h2>
-                    <button onClick={() => setDetailOpen(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></button>
-                  </div>
-                  {detailLoading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading interview evaluation…</div>}
-                  {detail?.error && <div style={{ color: '#ef4444', fontSize: 13 }}>Error: {detail.error}</div>}
-                  {detail && !detail.error && (
-                    <>
-                      {/* Header info grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-                        {[
-                          ['Candidate', detail.interview.candidateName],
-                          ['Email',     detail.interview.candidateEmail],
-                          ['Role',      detail.interview.role],
-                          ['Type',      detail.interview.interviewType],
-                          ['Difficulty',detail.interview.difficulty],
-                          ['Score',     detail.interview.score != null ? `${detail.interview.score}/100` : '—'],
-                          ['Duration',  fmtDur(detail.interview.duration)],
-                          ['Questions', `${detail.interview.questionsAnswered} / ${detail.interview.questionCount} answered`],
-                          ['Recommendation', detail.interview.hireRecommendation || 'Consider'],
-                        ].map(([k,v]) => (
-                          <div key={k} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{k}</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{v}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Score + Communication Breakdown */}
-                      {renderCommBreakdown(detail.interview.categoryScores)}
-
-                      {/* Video Player */}
-                      {detail.recordings && detail.recordings.length > 0 && (
-                        <div style={{ marginBottom: 20 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Video size={16} style={{ color: 'var(--primary)' }} /> Interview Video Recording
-                          </div>
-                          <div style={{ background: '#0f172a', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                            <video
-                              src={recordingApi.getStreamUrl(detail.recordings[0].id)}
-                              controls
-                              playsInline
-                              style={{ width: '100%', maxHeight: 320, display: 'block' }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Overall AI Feedback */}
-                      {detail.interview.overallFeedback && (
-                        <div style={{ background: 'var(--primary-bg)', borderRadius: 8, padding: 14, marginBottom: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)', marginBottom: 4 }}>AI Evaluation Summary</div>
-                          <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{detail.interview.overallFeedback}</div>
-                        </div>
-                      )}
-
-                      {/* Strengths & Weaknesses */}
-                      {((detail.interview.strengths && detail.interview.strengths.length > 0) || (detail.interview.weaknesses && detail.interview.weaknesses.length > 0)) && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                          {detail.interview.strengths && Array.isArray(detail.interview.strengths) && detail.interview.strengths.length > 0 && (
-                            <div style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>Key Strengths</div>
-                              <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
-                                {detail.interview.strengths.map((s, idx) => (
-                                  <li key={idx}>{s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {detail.interview.weaknesses && Array.isArray(detail.interview.weaknesses) && detail.interview.weaknesses.length > 0 && (
-                            <div style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(245,158,11,0.2)' }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas for Improvement</div>
-                              <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
-                                {detail.interview.weaknesses.map((w, idx) => (
-                                  <li key={idx}>{w}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Recommendations */}
-                      {detail.interview.recommendations && Array.isArray(detail.interview.recommendations) && detail.interview.recommendations.length > 0 && (
-                        <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid var(--border-light)' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6 }}>Recommendations</div>
-                          <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
-                            {detail.interview.recommendations.map((r, idx) => (
-                              <li key={idx}>{r}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Per-question scores + speech analysis */}
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>Per-Question Results & Transcripts</div>
-                        {detail.questions.map((q, qi) => (
-                          <div key={q.id} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '12px 16px', marginBottom: 10, border: '1px solid var(--border-light)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Q{qi + 1} · {q.category || 'General'}</span>
-                              {q.score != null && <span style={{ fontSize: 13, fontWeight: 800, color: scoreColor(q.score) }}>{q.score}/100</span>}
-                            </div>
-                            <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.5 }}>{q.question}</div>
-                            {q.answer ? (
-                              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>"{q.answer}"</div>
-                            ) : (
-                              <div style={{ fontSize: 12, color: '#ef4444' }}>No answer recorded</div>
-                            )}
-                            {q.feedback && (
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, borderTop: '1px solid var(--border-light)', paddingTop: 6 }}>{q.feedback}</div>
-                            )}
-                            {renderQuestionSpeech(q.speechAnalysis)}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </motion.div>
-              </div>
-            )}
+            {/* Detail modal is rendered at top-level return so it works from any section */}
           </>
+
         )
       }
 
@@ -1008,6 +1370,146 @@ function RecruiterDashboard() {
     }
   }
 
+  // ── Detail modal — rendered at top-level so it's available from ANY section ──
+  // Triggered by openDetail(interviewId) which is called by View buttons in
+  // both the 'reports' table (line ~879) and the 'ai-results' table (line ~1174).
+  const detailModal = detailOpen && (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={e => e.target === e.currentTarget && setDetailOpen(null)}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: 28, width: '100%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>AI Interview Detail & Evaluation</h2>
+          <button onClick={() => setDetailOpen(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></button>
+        </div>
+        {detailLoading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading interview evaluation…</div>}
+        {detail?.error && <div style={{ color: '#ef4444', fontSize: 13 }}>Error: {detail.error}</div>}
+        {detail && !detail.error && (
+          <>
+            {/* Header info grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+              {[
+                ['Candidate', detail.interview.candidateName],
+                ['Email',     detail.interview.candidateEmail],
+                ['Role',      detail.interview.role],
+                ['Type',      detail.interview.interviewType],
+                ['Difficulty',detail.interview.difficulty],
+                ['Score',     detail.interview.score != null ? `${detail.interview.score}/100` : '—'],
+                ['Duration',  fmtDur(detail.interview.duration)],
+                ['Questions', `${detail.interview.questionsAnswered} / ${detail.interview.questionCount} answered`],
+                ['Recommendation', detail.interview.hireRecommendation || 'Consider'],
+              ].map(([k,v]) => (
+                <div key={k} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{k}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Score + Communication Breakdown (legacy LLM evaluation) */}
+            {renderCommBreakdown(detail.interview.categoryScores)}
+
+            {/* Module 7 AI Assessment */}
+            <Module7Panel categoryScores={detail.interview.categoryScores} />
+
+            {/* Video Player */}
+            {detail.recordings && detail.recordings.length > 0 && (
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)', display: 'flex' }}>🎥 Interview Recording</div>
+                          <div style={{ background: '#0f172a', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <video
+                  src={recordingApi.getStreamUrl(detail.recordings[0].id)}
+                  controls
+                  playsInline
+                  style={{ width: '100%', maxHeight: 320, display: 'block' }}
+                />
+              </div>
+            </div>
+            )}
+
+            {/* Behavioral & Visual Assessment (CV Analysis) — Module 6 */}
+            <CvAnalysisPanel
+              cvData={cvData}
+              cvLoading={cvLoading}
+              cvError={cvError}
+              interviewId={detailOpen}
+              onRetrigger={handleCvRetrigger}
+              retriggerBusy={cvTriggerBusy}
+            />
+
+            {/* Overall AI Feedback */}
+            {detail.interview.overallFeedback && (
+              <div style={{ background: 'var(--primary-bg)', borderRadius: 8, padding: 14, marginBottom: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--primary)', marginBottom: 4 }}>AI Evaluation Summary</div>
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{detail.interview.overallFeedback}</div>
+              </div>
+            )}
+
+            {/* Strengths & Weaknesses */}
+            {((detail.interview.strengths && detail.interview.strengths.length > 0) || (detail.interview.weaknesses && detail.interview.weaknesses.length > 0)) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                {detail.interview.strengths && Array.isArray(detail.interview.strengths) && detail.interview.strengths.length > 0 && (
+                  <div style={{ background: 'var(--success-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>Key Strengths</div>
+                    <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                      {detail.interview.strengths.map((s, idx) => (
+                        <li key={idx}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {detail.interview.weaknesses && Array.isArray(detail.interview.weaknesses) && detail.interview.weaknesses.length > 0 && (
+                  <div style={{ background: 'var(--warning-bg)', borderRadius: 8, padding: 12, border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas for Improvement</div>
+                    <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                      {detail.interview.weaknesses.map((w, idx) => (
+                        <li key={idx}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {detail.interview.recommendations && Array.isArray(detail.interview.recommendations) && detail.interview.recommendations.length > 0 && (
+              <div style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', marginBottom: 6 }}>Recommendations</div>
+                <ul style={{ paddingLeft: 16, fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5, listStyleType: 'disc' }}>
+                  {detail.interview.recommendations.map((r, idx) => (
+                    <li key={idx}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Per-question scores + speech analysis */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>Per-Question Results & Transcripts</div>
+              {detail.questions.map((q, qi) => (
+                <div key={q.id} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '12px 16px', marginBottom: 10, border: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Q{qi + 1} · {q.category || 'General'}</span>
+                    {q.score != null && <span style={{ fontSize: 13, fontWeight: 800, color: scoreColor(q.score) }}>{q.score}/100</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.5 }}>{q.question}</div>
+                  {q.answer ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>" {q.answer}"</div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: '#ef4444' }}>No answer recorded</div>
+                  )}
+                  {q.feedback && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, borderTop: '1px solid var(--border-light)', paddingTop: 6 }}>{q.feedback}</div>
+                  )}
+                  {renderQuestionSpeech(q.speechAnalysis)}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  )
 
   return (
     <DashboardLayout
@@ -1015,6 +1517,9 @@ function RecruiterDashboard() {
       sidebarLinks={sidebarLinks} activeSection={activeSection} onSectionChange={handleSectionChange}
     >
       <Toast msg={toast} onClose={() => setToast('')} />
+
+      {/* Detail modal — always mounted so View works from any section (Reports, AI Results, etc.) */}
+      {detailModal}
 
       {viewCandidate && (
         <Modal title="Candidate Profile" onClose={() => setViewCandidate(null)}>

@@ -4,6 +4,8 @@ const path = require('path')
 const fs   = require('fs')
 const { pool }             = require('../config/database')
 const { uploadRecording, recordingDir } = require('../config/multerRecording')
+// CV auto-trigger — imported lazily to avoid circular-dep issues at startup
+const { _runAndPersist }   = require('./cvController')
 
 /* ─── POST /api/recordings/upload ───────────────────────────────────────── */
 // Called by frontend after interview ends.
@@ -79,12 +81,35 @@ async function uploadRecordingHandler(req, res) {
       console.log(`[RECORDING] Saved — id=${recordingId} interview=${interviewId} type=${type} size=${fileSize} bytes`)
     }
 
-    return res.status(201).json({
+    // Send the success response immediately — HTTP round-trip is complete here.
+    res.status(201).json({
       success: true,
       recordingId,
       fileName,
       recordingType: type,
     })
+
+    // Auto-trigger CV analysis for video recordings only.
+    // Fire-and-forget via setImmediate — runs AFTER the response is sent.
+    // Never blocks, never throws into the upload handler.
+    if (type === 'video') {
+      // Insert a 'pending' row now so status polls work immediately.
+      pool.query(
+        `INSERT INTO interview_cv_analysis (interview_id, recording_id, status)
+         VALUES ($1, $2, 'pending')
+         ON CONFLICT (interview_id)
+         DO UPDATE SET status = 'pending', error_message = NULL, analyzed_at = NULL`,
+        [interviewId, recordingId]
+      ).catch(e => console.error('[CV] Failed to create pending row:', e.message))
+
+      setImmediate(() => {
+        _runAndPersist(interviewId, recordingId, filePath)
+          .catch(err => console.error(
+            `[CV] Auto-analysis failed interview=${interviewId}:`, err.message
+          ))
+      })
+      console.log(`[CV] Auto-analysis queued interview=${interviewId} recording=${recordingId}`)
+    }
   } catch (err) {
     console.error('[uploadRecording]', err.message)
     // Clean up disk file on any error — prevents orphaned files

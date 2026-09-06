@@ -11,6 +11,7 @@ const interviewRoutes = require('./routes/interviewRoutes')
 const recordingRoutes = require('./routes/recordingRoutes')
 const ttsRoutes       = require('./routes/ttsRoutes')
 const sttRoutes       = require('./routes/sttRoutes')
+const cvRoutes        = require('./routes/cvRoutes')
 const { errorHandler } = require('./middleware/errorHandler')
 const { testConnection, initDatabase } = require('./config/database')
 
@@ -42,6 +43,7 @@ app.use('/api/interviews', interviewRoutes)
 app.use('/api/recordings', recordingRoutes)
 app.use('/api/interview',  ttsRoutes)
 app.use('/api/stt',        sttRoutes)
+app.use('/api/cv',         cvRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })

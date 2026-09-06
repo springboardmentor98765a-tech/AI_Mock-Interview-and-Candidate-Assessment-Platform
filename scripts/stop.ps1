@@ -38,6 +38,7 @@ Write-Host ''
 
 Stop-ByPort 8765 'Faster-Whisper STT'
 Stop-ByPort 8766 'Kokoro TTS'
+Stop-ByPort 8767 'CV Analysis Service'
 Stop-ByPort 5000 'Express Backend'
 Stop-ByPort 5173 'Vite Frontend'
 
