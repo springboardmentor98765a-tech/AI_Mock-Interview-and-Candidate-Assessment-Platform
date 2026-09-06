@@ -59,9 +59,15 @@ class TestClassification:
             assert isinstance(exc, AIUnavailable)
 
     def test_missing_key_raises_not_configured(self, monkeypatch):
+        """
+        Checked when a call is made rather than when the client is built:
+        _client now takes the key it should use, because the caller picks one
+        from however many are configured.
+        """
         monkeypatch.setattr(settings, "GEMINI_API_KEY", "")
+        monkeypatch.setattr(settings, "GEMINI_API_KEYS", "")
         with pytest.raises(AINotConfigured):
-            gemini._client()
+            gemini._generate(model="m", contents=["c"])
 
 
 class TestQuotaFallsBackToBank:
@@ -199,3 +205,92 @@ class TestModelConfiguration:
         spoken interviewer — so TTS configuration must not creep back in.
         """
         assert not [name for name in type(settings).model_fields if "TTS" in name]
+
+
+class TestKeyFailover:
+    """
+    Multiple Gemini keys, tried in order when one is out of quota.
+
+    Module 5 spends a request per answer against a free tier measured in tens
+    per day, and there is no local speech model to fall back on, so one spent
+    key otherwise stops every interview being transcribed for the rest of the
+    day.
+    """
+
+    @staticmethod
+    def _fake_clients(behaviour_by_key, tried):
+        """A _client stand-in that records which key was used."""
+
+        class Models:
+            def __init__(self, key):
+                self.key = key
+
+            def generate_content(self, **kwargs):
+                result = behaviour_by_key[self.key]
+                if isinstance(result, Exception):
+                    raise result
+                return result
+
+        class Client:
+            def __init__(self, key):
+                self.models = Models(key)
+
+        def factory(api_key):
+            tried.append(api_key)
+            return Client(api_key)
+
+        return factory
+
+    def _run(self, monkeypatch, keys, behaviour_by_key, start=0):
+        tried = []
+        monkeypatch.setattr(gemini, "_key_index", start, raising=False)
+        monkeypatch.setattr(gemini, "_client", self._fake_clients(behaviour_by_key, tried))
+        monkeypatch.setattr(
+            type(gemini.settings), "gemini_api_keys", property(lambda self: keys)
+        )
+        return tried
+
+    def test_spent_key_fails_over_to_the_next(self, monkeypatch):
+        tried = self._run(
+            monkeypatch, ["k1", "k2"], {"k1": FakeQuotaError(), "k2": "response"}
+        )
+        assert gemini._generate(model="m", contents=["c"]) == "response"
+        assert tried == ["k1", "k2"]
+
+    def test_the_working_key_is_reused_rather_than_rediscovered(self, monkeypatch):
+        """A spent key is stepped over once, not re-tried on every later call."""
+        tried = self._run(
+            monkeypatch, ["k1", "k2"], {"k1": FakeQuotaError(), "k2": "response"}
+        )
+        gemini._generate(model="m", contents=["c"])
+        tried.clear()
+        gemini._generate(model="m", contents=["c"])
+        assert tried == ["k2"], "the spent key should not be paid for twice"
+
+    def test_all_keys_spent_raises_quota_exceeded(self, monkeypatch):
+        self._run(
+            monkeypatch,
+            ["k1", "k2"],
+            {"k1": FakeQuotaError(), "k2": FakeQuotaError()},
+        )
+        with pytest.raises(AIQuotaExceeded):
+            gemini._generate(model="m", contents=["c"])
+
+    def test_a_non_quota_error_does_not_burn_the_other_keys(self, monkeypatch):
+        """
+        A bad request fails the same way on every key, so retrying it would
+        turn one error into as many slow errors as there are keys.
+        """
+        tried = self._run(
+            monkeypatch,
+            ["k1", "k2", "k3"],
+            {"k1": ValueError("bad request"), "k2": "response", "k3": "response"},
+        )
+        with pytest.raises(AIUnavailable):
+            gemini._generate(model="m", contents=["c"])
+        assert tried == ["k1"]
+
+    def test_no_keys_configured_is_not_configured(self, monkeypatch):
+        self._run(monkeypatch, [], {})
+        with pytest.raises(AINotConfigured):
+            gemini._generate(model="m", contents=["c"])

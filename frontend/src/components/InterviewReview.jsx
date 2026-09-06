@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import { AnswerDetail } from './AnalysisReport';
+import Module7Report from './Module7Report';
 import BehaviorReport from './BehaviorReport';
 import { RATING_TONE } from '../lib/scoring';
 
@@ -114,6 +115,8 @@ export default function InterviewReview({ interview, onClose }) {
             <span className="badge badge-muted">not scored</span>
           )}
         </div>
+
+        <Module7Report summary={analysis.data?.summary} behavior={analysis.data?.behavior} />
 
         <BehaviorReport behavior={analysis.data?.behavior} />
 

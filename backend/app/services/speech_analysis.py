@@ -288,7 +288,10 @@ def _as_int(value, default: int = 0) -> int:
         return default
 
 
-def summarise(analyses: List[Dict]) -> Dict:
+def summarise(
+    analyses: List[Dict],
+    time_score: Optional[int] = None,
+) -> Dict:
     """
     Roll per-answer analyses up to the whole interview.
 
@@ -346,7 +349,8 @@ def summarise(analyses: List[Dict]) -> Dict:
         },
         "grammar_issue_total": grammar_total,
         "grammar_reviewed_answers": graded,
-        "score": _summarise_score(usable),
+        "score": _summarise_score(usable, time_score),
+        "feedback": _summarise_feedback(usable),
         # Stated explicitly so nobody reads the measured/assessed numbers
         # above as the score.
         "note": (
@@ -358,7 +362,44 @@ def summarise(analyses: List[Dict]) -> Dict:
     }
 
 
-def _summarise_score(usable: List[Dict]) -> Dict:
+def _summarise_feedback(usable: List[Dict]) -> Dict:
+    """
+    The spec's last two feedback outputs: practice recommendations and learning
+    resources, keyed off the weakest rubric axis.
+
+    Rolled up here rather than per answer because the advice is about the
+    interview — one weak answer out of eight is not a training plan.
+    Strengths and improvements already exist per answer, inside each
+    `communication` block, and are left there: they quote specific wording, so
+    flattening them across answers would strip the context that makes them
+    useful.
+    """
+    from app.services import practice_recommendations
+
+    axes = practice_recommendations.average_axes(usable)
+    if axes is None:
+        return {
+            "available": False,
+            "reason": "No answer in this interview has been scored yet.",
+        }
+
+    return {
+        "available": True,
+        "source": "rule_based",
+        "axis_averages": axes,
+        **practice_recommendations.generate_feedback_extras(axes),
+        "method_note": (
+            "Recommendations follow a fixed table keyed on the lowest-scoring "
+            "rubric axis, not a model call — the same scores always produce the "
+            "same advice. Resources are suggestions, not endorsements."
+        ),
+    }
+
+
+def _summarise_score(
+    usable: List[Dict],
+    time_score: Optional[int] = None,
+) -> Dict:
     """
     The interview's overall score, folded into the summary block.
 
@@ -367,7 +408,7 @@ def _summarise_score(usable: List[Dict]) -> Dict:
     the same way — see that module for why skipped questions are excluded
     rather than counted as zero.
     """
-    overall = scoring.aggregate_score(usable)
+    overall = scoring.aggregate_score(usable, time_score)
     graded = sum(1 for a in usable if (a.get("score") or {}).get("available"))
 
     if overall is None:
@@ -472,11 +513,22 @@ def analyse_answer(
                 difficulty=difficulty,
             )
             axes = graded.model_dump(exclude={"rationale"})
+
+            # Professionalism is a blend, not the model's single tone score.
+            # The raw components are kept in the stored block so the interview
+            # -level pass can re-blend with measured time management, which
+            # does not exist yet at this point — one answer has no session
+            # overrun.
+            tone = axes.pop("professionalism")
+            organization = axes["response_organization"]
+            axes["professionalism"] = scoring.professionalism_axis(tone, organization, None)
+
             overall = scoring.weighted_overall(axes)
             analysis["score"] = {
                 "available": True,
                 "source": "ai_assessment",
                 **axes,
+                "professionalism_tone": tone,
                 "overall": overall,
                 "rating": scoring.rating_label(overall),
                 "rationale": graded.rationale,

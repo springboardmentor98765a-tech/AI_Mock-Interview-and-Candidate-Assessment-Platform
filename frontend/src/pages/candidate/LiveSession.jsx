@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import AnalysisReport from '../../components/AnalysisReport';
+import Module7Report from '../../components/Module7Report';
 import { createFaceTracker } from '../../lib/faceTracker';
 
 /**
@@ -389,11 +390,21 @@ export default function LiveSession() {
   // The status the interview was in when it was paused, so resuming puts the
   // screen back where it was rather than dumping the candidate at "ready".
   const beforePauseRef = useRef('ready');
+  // The question on screen, readable from the socket handler without making
+  // the handler depend on it. Analysis runs in the background server-side, so
+  // a transcript or analysis frame for the previous question can now land
+  // after the next one is already showing — these frames carry a sequence_no
+  // and are matched against this before anything is rendered from them.
+  const questionRef = useRef(null);
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [recorded, setRecorded] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  // The candidate's own words, shown as soon as the speech model returns
+  // them rather than waiting for grading. Null means "not back yet";
+  // an empty string is a real answer — silence — and must render as such.
+  const [liveTranscript, setLiveTranscript] = useState(null);
   const [playbackUrl, setPlaybackUrl] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [lastSkipped, setLastSkipped] = useState(null);
@@ -518,8 +529,10 @@ export default function LiveSession() {
         // left standing next to it so the candidate can see what just happened;
         // answering clears it.
         setQuestion(message);
+        questionRef.current = message;
         setRecorded(null);
         setAnalysis(null);
+        setLiveTranscript(null);
         setStatus('asking');
         if (readAloudRef.current) {
           setSpeaking(true);
@@ -531,9 +544,25 @@ export default function LiveSession() {
         setProgress({ answered: message.answered, skipped: message.skipped, total: message.total });
         // The audio is safe at this point; the transcript is still coming.
         setStatus(message.analysis_pending ? 'analysing' : 'ready');
+      } else if (message.type === 'transcript') {
+        // Ignore a transcript for a question that has already moved on, or it
+        // would appear under the question now on screen.
+        if (message.sequence_no === questionRef.current?.sequence_no) {
+          setLiveTranscript(message.transcript ?? '');
+        }
       } else if (message.type === 'analysis') {
-        setAnalysis(message);
-        setStatus('ready');
+        // Same guard, and for the same reason. Dropping it here loses nothing:
+        // the analysis is stored server-side and the end-of-interview report
+        // fetches every answer's in full.
+        if (message.sequence_no === questionRef.current?.sequence_no) {
+          setAnalysis(message);
+          // The analysis frame repeats the transcript. Trust it over the
+          // earlier one so the two can never disagree on screen, but only when
+          // it actually carries one — a failed analysis has no transcript to
+          // give and must not blank out the words already shown.
+          if (message.transcript !== undefined) setLiveTranscript(message.transcript);
+          setStatus('ready');
+        }
       } else if (message.type === 'paused') {
         setStatus('paused');
       } else if (message.type === 'resumed') {
@@ -543,6 +572,7 @@ export default function LiveSession() {
       } else if (message.type === 'closed') {
         setProgress({ answered: message.answered, skipped: message.skipped, total: message.total });
         setQuestion(null);
+        questionRef.current = null;
         setStatus('complete');
       } else if (message.type === 'skipped') {
         // The server sends the next question straight after this frame, so do
@@ -550,10 +580,12 @@ export default function LiveSession() {
         setLastSkipped(message.sequence_no);
         setRecorded(null);
         setAnalysis(null);
+        setLiveTranscript(null);
         setProgress({ answered: message.answered, skipped: message.skipped, total: message.total });
       } else if (message.type === 'complete') {
         setProgress({ answered: message.answered, skipped: message.skipped, total: message.total });
         setQuestion(null);
+        questionRef.current = null;
         setStatus('complete');
       } else if (message.type === 'error') {
         setError(message.detail);
@@ -1030,6 +1062,7 @@ export default function LiveSession() {
                 interview from your history to try again.
               </p>
             )}
+            {report.data?.summary && <Module7Report summary={report.data.summary} behavior={report.data.behavior} />}
             {report.data && <AnalysisReport report={report.data} />}
           </>
         )}
@@ -1261,6 +1294,38 @@ export default function LiveSession() {
                 </>
               )}
 
+              {/* The transcript, as soon as it exists.
+                  This is not the "full breakdown" the note below withholds —
+                  it is what the candidate just said, with no judgement
+                  attached, and there is no reason to make them wait on grading
+                  to read it back. The numbers still wait for the report. */}
+              {recorded &&
+                recorded.analysis_pending &&
+                // When analysis comes back failed with no transcript — a spent
+                // quota, a timeout — there is never going to be one, so the
+                // block goes away and the failure note below explains why.
+                // Leaving "Transcribing…" spinning for ever would be a lie.
+                !(analysis?.available === false && liveTranscript === null) && (
+                <div className="gap-top">
+                  <p className="label">Transcript</p>
+                  {liveTranscript === null ? (
+                    // A loading state, not a blank space: transcription can
+                    // take a while, and silence here reads as breakage.
+                    <p className="note" aria-live="polite" aria-busy="true">
+                      Transcribing your answer…
+                    </p>
+                  ) : liveTranscript ? (
+                    <p className="quote" aria-live="polite">
+                      {liveTranscript}
+                    </p>
+                  ) : (
+                    <p className="note" aria-live="polite">
+                      No speech was picked up in this recording. Play it back above to check.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* During the interview the candidate gets a confirmation, not a
                   critique: a full breakdown mid-session invites them to start
                   performing for the metrics instead of answering. Everything
@@ -1296,6 +1361,7 @@ export default function LiveSession() {
                       // question on its own — no follow-up "next" needed.
                       setRecorded(null);
                       setAnalysis(null);
+                      setLiveTranscript(null);
                       send({ type: 'skip' });
                     }}
                     disabled={busy || paused}

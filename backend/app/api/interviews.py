@@ -40,7 +40,13 @@ from app.schemas.interview import (
     StartRequest,
 )
 from app.schemas.behavior import BehaviorSubmission
-from app.services import behavior_analysis, question_bank, speech_analysis
+from app.services import (
+    behavior_analysis,
+    practice_recommendations,
+    question_bank,
+    scoring,
+    speech_analysis,
+)
 from app.services.interview_generator import build_questions
 from app.services.session_timing import (
     elapsed_seconds,
@@ -796,6 +802,27 @@ def submit_behavior(
         payload.alerts_shown,
     )
 
+    # The behaviour-adjusted confidence reading, for the candidate to see next
+    # to their own report. It lives on behavior_report and nowhere else.
+    #
+    # `interview.overall_score` is deliberately NOT reassigned in this function
+    # and must not be: these samples come from the candidate's own browser and
+    # are forgeable, so anything they can move is something a candidate can
+    # move about themselves. The score ranks people on the leaderboard, so the
+    # camera data stays out of it entirely — not bounded, out. `confidence_note`
+    # is safe precisely because nothing aggregates or ranks on it, and
+    # behavior_analysis.recruiter_view's allowlist keeps it off recruiter
+    # surfaces too.
+    analyses = [
+        row[0]
+        for row in db.query(InterviewQuestion.analysis)
+        .filter(InterviewQuestion.interview_id == interview.id)
+        .all()
+    ]
+    axes = practice_recommendations.average_axes(analyses)
+    if axes is not None and "confidence" in axes:
+        report["confidence_note"] = scoring.apply_behavior_modifier(axes["confidence"], report)
+
     interview.behavior_report = report
     db.commit()
 
@@ -862,7 +889,8 @@ def get_interview_analysis(
         "question_seconds": interview.question_seconds,
         "questions": questions,
         "summary": speech_analysis.summarise(
-            [q.analysis for q in interview.questions]
+            [q.analysis for q in interview.questions],
+            scoring.time_management_score(interview),
         ),
         # Module 6: the whole-session behavior report, or None until the
         # background analysis job (kicked off when the recording uploads)

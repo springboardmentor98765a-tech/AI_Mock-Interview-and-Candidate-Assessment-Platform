@@ -30,6 +30,7 @@ Protocol (JSON text frames over a WebSocket):
                "duration_seconds":42.5}
     server -> {"type":"recorded","sequence_no":1,"bytes":48213,
                "analysis_pending":true,"answered":1,"skipped":0,"total":5}
+    server -> {"type":"transcript","sequence_no":1,"transcript":"..."}
     server -> {"type":"analysis","sequence_no":1,"transcript":"...",
                "fillers":{...},"pace":{...},"communication":{...},
                "pronunciation":{...},
@@ -41,9 +42,24 @@ Protocol (JSON text frames over a WebSocket):
 is computed from — see the column comment on answer_duration_seconds for why
 the asked-to-answered interval will not do.
 
-`recorded` is sent as soon as the audio is on disk; `analysis` follows seconds
-later once transcription finishes. A client that ignores `analysis` still runs
-a complete interview.
+`transcript` and `analysis` are produced by a background task, so they are the
+one part of this protocol that is NOT ordered against the rest: the candidate
+can ask for the next question while the previous answer is still being
+transcribed, and its frames then arrive after that next `question` frame. Both
+carry `sequence_no` for exactly this reason, and a client must match on it
+rather than assuming the newest frame describes the question on screen. This is
+deliberate — awaiting the analysis inline blocked the receive loop, so `next`
+went unread until transcription and scoring had finished and the button looked
+dead. Nothing is scored or closed out with an analysis still in flight.
+
+`recorded` is sent as soon as the audio is on disk; `transcript` follows once
+the speech model has answered and the result has passed the plausibility check;
+`analysis` follows that, once grammar, pronunciation and scoring are done. The
+transcript is repeated on the `analysis` frame, so `transcript` is purely an
+earlier chance to show the candidate their own words — it exists because
+grading is slow and can fail, and neither should decide whether someone gets to
+read back what they said. A client that ignores both still runs a complete
+interview.
 
     client -> {"type":"pause"}       # stop the clock
     server -> {"type":"paused","interview_id":1,"total_paused_seconds":0}
@@ -96,10 +112,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from starlette.websockets import WebSocketState
 
 from app.core.config import settings
 from app.core.security import decode_access_token
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.models.interview import (
     QUESTION_ANSWERED,
     QUESTION_HANDLED,
@@ -174,11 +191,32 @@ def _duration(raw) -> Optional[float]:
     return round(seconds, 2)
 
 
+async def _try_send(websocket: WebSocket, payload: dict) -> bool:
+    """
+    Send a frame, or give up quietly if the candidate has already gone.
+
+    Analysis now runs in the background and outlives the socket: a candidate
+    who finishes and navigates away leaves a transcription still in flight,
+    which then tries to report into a closed connection. That used to raise
+    `Unexpected ASGI message 'websocket.send', after sending 'websocket.close'`
+    and take the whole handler down with it — losing the analysis of every
+    other answer still running. A disconnected candidate is a normal way for an
+    interview to end, not an error, so it is logged and swallowed.
+    """
+    if websocket.client_state != WebSocketState.CONNECTED:
+        return False
+    try:
+        await websocket.send_json(payload)
+        return True
+    except (RuntimeError, WebSocketDisconnect):
+        logger.info("Dropped a frame for a websocket that had already closed.")
+        return False
+
+
 async def _analyse_answer(
     websocket: WebSocket,
-    db: Session,
-    interview: Interview,
-    question: InterviewQuestion,
+    interview_id: int,
+    question_id: int,
     audio: bytes,
     mime: str,
 ) -> None:
@@ -190,96 +228,145 @@ async def _analyse_answer(
     transcription outage, a spent quota or a malformed response. A failure
     costs the transcript and the analysis, never the answer.
 
-    The provider calls are synchronous and slow, so they go through
-    asyncio.to_thread. Calling them inline would block the event loop and the
-    WebSocket would miss its keepalives and drop mid-interview.
-    """
-    try:
-        transcript = await asyncio.to_thread(ai_provider.speech_to_text, audio, mime)
-    except AIUnavailable as exc:
-        logger.warning("Transcription unavailable for question %s: %s", question.id, exc)
-        await websocket.send_json(
-            {
-                "type": "analysis",
-                "sequence_no": question.sequence_no,
-                "available": False,
-                "reason": str(exc),
-            }
-        )
-        return
-    except Exception:  # noqa: BLE001
-        logger.exception("Transcription failed for question %s", question.id)
-        await websocket.send_json(
-            {
-                "type": "analysis",
-                "sequence_no": question.sequence_no,
-                "available": False,
-                "reason": "The answer was recorded, but it could not be transcribed.",
-            }
-        )
-        return
+    Runs as a background task, NOT inline in the receive loop. Awaiting it
+    there meant the server could not read another client message until every
+    provider call had finished: the candidate saw "Next question" light up (the
+    `recorded` frame had arrived), clicked it, and nothing happened for as long
+    as transcription and scoring took — which reads as a broken button, and on
+    a spent quota never resolved at all.
 
-    # Before the transcript is stored or shown, check it could physically have
-    # been said in the recording's length. The speech model invents fluent
-    # answers for audio it cannot make out, and an invented transcript attached
-    # to a candidate's interview is worse than no transcript at all — so a
-    # failed check discards it rather than storing it with a caveat.
-    plausible, reason = speech_analysis.transcript_is_plausible(
-        transcript, question.answer_duration_seconds
-    )
-    if not plausible:
-        logger.warning(
-            "Discarding implausible transcript for question %s: %s", question.id, reason
+    Because it outlives the loop's turn, it takes ids rather than ORM objects
+    and opens its own Session. Sharing the request's session would mean two
+    coroutines committing through one SQLAlchemy Session concurrently, which is
+    not safe. The provider calls themselves are synchronous and slow, so they
+    still go through asyncio.to_thread to keep the event loop free.
+    """
+    with SessionLocal() as db:
+        question = (
+            db.query(InterviewQuestion)
+            .filter(InterviewQuestion.id == question_id)
+            .first()
         )
-        question.analysis = {"available": False, "reason": reason}
+        interview = db.query(Interview).filter(Interview.id == interview_id).first()
+        if question is None or interview is None:
+            logger.warning("Answer analysis skipped: question %s is gone.", question_id)
+            return
+
+        sequence_no = question.sequence_no
+
+        try:
+            transcript = await asyncio.to_thread(ai_provider.speech_to_text, audio, mime)
+        except AIUnavailable as exc:
+            logger.warning("Transcription unavailable for question %s: %s", question_id, exc)
+            await _try_send(
+                websocket,
+                {
+                    "type": "analysis",
+                    "sequence_no": sequence_no,
+                    "available": False,
+                    "reason": str(exc),
+                },
+            )
+            return
+        except Exception:  # noqa: BLE001
+            logger.exception("Transcription failed for question %s", question_id)
+            await _try_send(
+                websocket,
+                {
+                    "type": "analysis",
+                    "sequence_no": sequence_no,
+                    "available": False,
+                    "reason": "The answer was recorded, but it could not be transcribed.",
+                },
+            )
+            return
+
+        # Before the transcript is stored or shown, check it could physically
+        # have been said in the recording's length. The speech model invents
+        # fluent answers for audio it cannot make out, and an invented
+        # transcript attached to a candidate's interview is worse than no
+        # transcript at all — so a failed check discards it rather than storing
+        # it with a caveat.
+        plausible, reason = speech_analysis.transcript_is_plausible(
+            transcript, question.answer_duration_seconds
+        )
+        if not plausible:
+            logger.warning(
+                "Discarding implausible transcript for question %s: %s", question_id, reason
+            )
+            question.analysis = {"available": False, "reason": reason}
+            question.analyzed_at = datetime.now(timezone.utc)
+            db.commit()
+            await _try_send(
+                websocket,
+                {
+                    "type": "analysis",
+                    "sequence_no": sequence_no,
+                    "available": False,
+                    "reason": reason,
+                },
+            )
+            return
+
+        # An empty transcript is a real outcome, not a failure: the candidate
+        # may have recorded silence. Saying so is more useful than a generic
+        # error.
+        question.answer_text = transcript
+        db.commit()
+
+        # Hand the candidate their own words the moment they exist, rather than
+        # holding them behind grading.
+        #
+        # Everything after this point is slow and can fail: two more cloud calls
+        # and a local model, any of which can spend a quota or time out. None of
+        # that changes what was said, so none of it should gate showing it. The
+        # same transcript is repeated on the `analysis` frame below — this is
+        # additive, so a client that ignores this frame behaves exactly as before.
+        #
+        # Sent only once the plausibility check above has passed: an invented
+        # transcript is worse than a late one, and this must never show text that
+        # the checks would go on to discard.
+        await _try_send(
+            websocket,
+            {
+                "type": "transcript",
+                "sequence_no": sequence_no,
+                "transcript": transcript,
+            },
+        )
+
+        try:
+            analysis = await asyncio.to_thread(
+                speech_analysis.analyse_answer,
+                question_text=question.question_text,
+                transcript=transcript,
+                duration_seconds=question.answer_duration_seconds,
+                audio=audio,
+                audio_mime=mime,
+                interview_type=interview.interview_type.value,
+                domain=interview.domain,
+                difficulty=interview.difficulty.value,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Answer analysis failed for question %s", question_id)
+            analysis = {
+                "available": False,
+                "reason": "The answer was transcribed, but the analysis could not be completed.",
+            }
+
+        question.analysis = analysis
         question.analyzed_at = datetime.now(timezone.utc)
         db.commit()
-        await websocket.send_json(
+
+        await _try_send(
+            websocket,
             {
                 "type": "analysis",
-                "sequence_no": question.sequence_no,
-                "available": False,
-                "reason": reason,
-            }
+                "sequence_no": sequence_no,
+                "transcript": transcript,
+                **analysis,
+            },
         )
-        return
-
-    # An empty transcript is a real outcome, not a failure: the candidate may
-    # have recorded silence. Saying so is more useful than a generic error.
-    question.answer_text = transcript
-    db.commit()
-
-    try:
-        analysis = await asyncio.to_thread(
-            speech_analysis.analyse_answer,
-            question_text=question.question_text,
-            transcript=transcript,
-            duration_seconds=question.answer_duration_seconds,
-            audio=audio,
-            audio_mime=mime,
-            interview_type=interview.interview_type.value,
-            domain=interview.domain,
-            difficulty=interview.difficulty.value,
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("Answer analysis failed for question %s", question.id)
-        analysis = {
-            "available": False,
-            "reason": "The answer was transcribed, but the analysis could not be completed.",
-        }
-
-    question.analysis = analysis
-    question.analyzed_at = datetime.now(timezone.utc)
-    db.commit()
-
-    await websocket.send_json(
-        {
-            "type": "analysis",
-            "sequence_no": question.sequence_no,
-            "transcript": transcript,
-            **analysis,
-        }
-    )
 
 
 def _authenticate(token: Optional[str], db: Session) -> Optional[User]:
@@ -354,7 +441,10 @@ def _score_interview(db: Session, interview: Interview) -> dict:
         .filter(InterviewQuestion.interview_id == interview.id)
         .all()
     ]
-    overall = scoring.aggregate_score(analyses)
+    overall = scoring.aggregate_score(
+        analyses,
+        scoring.time_management_score(interview),
+    )
     interview.overall_score = overall
     if overall is None:
         return {"available": False}
@@ -547,6 +637,25 @@ async def voice_interview(
 
     current: Optional[InterviewQuestion] = None
 
+    # Analyses still running in the background. Held so the interview can be
+    # settled against them: they commit through their own sessions, and a score
+    # computed while one is still in flight would silently omit that answer.
+    pending: set[asyncio.Task] = set()
+
+    async def settle_analyses() -> None:
+        """
+        Wait for every in-flight analysis, then re-read what they wrote.
+
+        Called before anything that scores the interview. `expire_all` matters
+        as much as the wait: the background tasks commit through their own
+        sessions, so without it this session would score from the stale
+        question rows it already has in memory and lose exactly the answers it
+        just waited for.
+        """
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        db.expire_all()
+
     async def serve_next() -> tuple[Optional[InterviewQuestion], bool]:
         """
         Send the next unhandled question, or close the interview out.
@@ -558,6 +667,9 @@ async def voice_interview(
         question = _next_question(db, interview.id)
 
         if question is None:
+            # The last answer's analysis may still be running; scoring now
+            # would leave it out of the result the candidate is about to see.
+            await settle_analyses()
             interview.status = SessionStatus.COMPLETED
             interview.completed_at = datetime.now(timezone.utc)
             interview.duration_seconds = finalise_duration(interview)
@@ -680,7 +792,18 @@ async def voice_interview(
                 )
 
                 if settings.ANALYSE_ANSWERS:
-                    await _analyse_answer(websocket, db, interview, current, audio_bytes, mime)
+                    # Deliberately not awaited: the loop has to get back to
+                    # receive_json so `next`, `skip` and `end` stay responsive
+                    # while this runs. Tracked in `pending` so the interview is
+                    # never scored or closed out with an analysis still in
+                    # flight.
+                    task = asyncio.create_task(
+                        _analyse_answer(
+                            websocket, interview.id, current.id, audio_bytes, mime
+                        )
+                    )
+                    pending.add(task)
+                    task.add_done_callback(pending.discard)
 
                 current = None
 
@@ -780,6 +903,8 @@ async def voice_interview(
                         (interview.total_paused_seconds or 0) + max(paused_for, 0)
                     )
 
+                await settle_analyses()
+
                 score = {"available": interview.overall_score is not None}
                 if score["available"]:
                     score = {
@@ -819,10 +944,16 @@ async def voice_interview(
         return
     except Exception:
         logger.exception("Voice interview %s failed.", interview.id)
-        try:
-            await websocket.send_json({"type": "error", "detail": "Internal error."})
-        except Exception:
-            pass
+        await _try_send(websocket, {"type": "error", "detail": "Internal error."})
+    finally:
+        # Let the background analyses finish rather than cancelling them on the
+        # way out. They write the transcript and score straight to the
+        # database, and the report is fetched over HTTP after this socket is
+        # gone — so a candidate who closes the tab the moment they finish still
+        # gets the analysis of the answers they gave. Their frames are dropped
+        # harmlessly by _try_send once the socket has closed.
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     try:
         await websocket.close()

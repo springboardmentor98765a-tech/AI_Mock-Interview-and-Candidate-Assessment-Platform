@@ -221,3 +221,104 @@ class TestItDoesNotRank:
             blob = str(row).lower()
             for banned in ("eye_contact", "look_away", "gaze"):
                 assert banned not in blob
+
+
+class TestBehaviorNeverReachesTheScore:
+    """
+    The invariant TestItDoesNotRank cannot see.
+
+    That class checks no attention *field* appears in the leaderboard payload.
+    It cannot catch a design where behaviour data moves `overall_score`, because
+    what travels then is a number, not a field name — and a number that can move
+    someone across a rating band is exactly what these samples must never do:
+    they come from the candidate's own browser and are forgeable.
+
+    `apply_behavior_modifier` still exists and is still used — for the
+    candidate-facing `confidence_note` on their own report. What is forbidden is
+    any write path from it into the score.
+    """
+
+    def test_submitting_a_report_does_not_change_overall_score(
+        self, client, candidate_token, db, scored_session
+    ):
+        """The end-to-end version: post real samples, score must not move."""
+        from app.models.interview import Interview
+
+        _, interview_id = scored_session
+        before = db.query(Interview).filter(Interview.id == interview_id).one().overall_score
+
+        posted = client.post(
+            f"/interviews/{interview_id}/behavior",
+            headers=auth(candidate_token),
+            json={
+                "samples": [
+                    {"gaze": "camera", "expression": "confident",
+                     "face_present": True, "confidence": 0.9}
+                ] * 400,
+                "tracked_seconds": 300.0,
+                "alerts_shown": 0,
+            },
+        )
+        assert posted.status_code == 200, posted.text
+
+        db.expire_all()
+        after = db.query(Interview).filter(Interview.id == interview_id).one().overall_score
+        assert after == before, (
+            "posting a behaviour report moved overall_score — camera data is "
+            "forgeable and must never touch a number that ranks people"
+        )
+
+    def test_aggregate_score_takes_no_behavior_argument(self):
+        """
+        Structural, so the path cannot be quietly re-added: neither scoring
+        entry point may accept behaviour data at all.
+        """
+        import inspect
+
+        from app.services import scoring
+
+        for fn in (scoring.aggregate_score, scoring.answer_overall):
+            params = set(inspect.signature(fn).parameters)
+            assert not any("behavior" in p or "behaviour" in p for p in params), (
+                f"{fn.__name__} accepts behaviour data; the scoring path must not see it"
+            )
+
+    def test_confidence_axis_is_untouched_by_behaviour(self):
+        """The same answer scores identically whatever the camera saw."""
+        from app.services.scoring import answer_overall
+
+        answer = {
+            "available": True, "communication": 80, "confidence": 50,
+            "technical_relevance": 70, "professionalism": 60,
+        }
+        # 80(.30) + 50(.25) + 70(.30) + 60(.15)
+        assert answer_overall(answer) == 66.5
+
+    def test_modifier_still_serves_the_candidate_facing_note(self):
+        """
+        It is not dead code — it produces `confidence_note`, which nothing
+        aggregates or ranks on.
+        """
+        from app.services.scoring import BEHAVIOR_MODIFIER_CAP, apply_behavior_modifier
+
+        strong = {**REPORT, "eye_contact_percent": 100, "engagement": "High"}
+        assert apply_behavior_modifier(50, strong) > 50
+        assert apply_behavior_modifier(50, strong) - 50 <= BEHAVIOR_MODIFIER_CAP
+        assert apply_behavior_modifier(50, None) == 50
+        assert apply_behavior_modifier(50, {**REPORT, "tracked_seconds": 12.0}) == 50
+
+    def test_confidence_note_is_not_visible_to_recruiters(self, client, recruiter_token, scored_session):
+        """It is candidate-facing; the recruiter allowlist must keep it out."""
+        candidate_id, _ = scored_session
+        rows = client.get(
+            f"/analytics/recruiter/candidates/{candidate_id}/interviews",
+            headers=auth(recruiter_token),
+        ).json()
+        assert "confidence_note" not in str(rows)
+
+    def test_leaderboard_still_exposes_no_attention_fields(self, client, recruiter_token, scored_session):
+        board = client.get("/analytics/leaderboard", headers=auth(recruiter_token)).json()
+        for entry in board:
+            blob = str(entry).lower()
+            for banned in ("eye_contact", "look_away", "attention", "gaze", "engagement"):
+                assert banned not in blob

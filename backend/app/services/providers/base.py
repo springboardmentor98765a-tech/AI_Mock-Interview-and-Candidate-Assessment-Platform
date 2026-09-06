@@ -95,6 +95,12 @@ class AnswerScore(BaseModel):
     app.services.scoring into the interview's overall score. It is still an
     AI opinion of one answer, not a certified evaluation — the API and UI
     both say so wherever the number is shown.
+
+    `response_organization` is not a fifth weighted axis. It is one of the
+    three inputs the professionalism axis is built from — see
+    scoring.professionalism_axis — asked for separately because "was this
+    structured" and "was the tone right" are different judgements that one
+    number cannot carry.
     """
 
     communication: int = Field(
@@ -119,8 +125,16 @@ class AnswerScore(BaseModel):
     professionalism: int = Field(
         ge=0, le=100, description="Tone and interview-appropriate language."
     )
+    response_organization: int = Field(
+        ge=0,
+        le=100,
+        description=(
+            "How clearly the answer was structured — beginning, middle, end, "
+            "logical flow."
+        ),
+    )
     rationale: str = Field(
-        description="One or two sentences justifying the four scores together."
+        description="One or two sentences justifying the five scores together."
     )
 
 
@@ -236,13 +250,16 @@ COMMUNICATION_SYSTEM_PROMPT = (
 
 SCORE_SYSTEM_PROMPT = (
     "You are an interview assessor grading one spoken interview answer against "
-    "a fixed rubric. Score each of four dimensions from 0 to 100: "
+    "a fixed rubric. Score each of five dimensions from 0 to 100: "
     "communication is grammar, clarity and structure; confidence is how "
     "assured and decisive the delivery sounds — penalise hedging and filler "
     "language, reward directness; technical_relevance is how directly and how "
     "thoroughly the content answers the specific question asked for the "
     "stated role and difficulty; professionalism is tone and "
-    "interview-appropriate language. Grade only this answer as given — do not "
+    "interview-appropriate language; response_organization is whether the "
+    "answer had a beginning, middle and end and moved logically between "
+    "them, judged separately from whether the content was correct. "
+    "Grade only this answer as given — do not "
     "reward length for its own sake, and do not invent facts about the "
     "candidate. An empty, silent or off-topic answer should score low on "
     "technical_relevance and confidence rather than being refused."
@@ -280,9 +297,10 @@ def score_prompt(
         f"DIFFICULTY: {difficulty}\n\n"
         f"QUESTION ASKED:\n{question}\n\n"
         f"TRANSCRIPT OF THE SPOKEN ANSWER:\n{transcript}\n\n"
-        "Score communication, confidence, technical_relevance and "
-        "professionalism from 0-100 each, and give one short rationale "
-        "covering all four together."
+        "Score communication, confidence, technical_relevance, professionalism, "
+        "and response_organization from 0-100 each, and give one short rationale "
+        "covering all five together. response_organization is specifically about "
+        "structure and flow, separate from grammar or content quality."
     )
 
 

@@ -58,6 +58,7 @@ SCORE_JSON = {
     "confidence": 65,
     "technical_relevance": 82,
     "professionalism": 90,
+    "response_organization": 70,
     "rationale": "Clear and on-topic, with some hedging language.",
 }
 
@@ -330,6 +331,7 @@ class TestProviderSelection:
         assert result.confidence == 65
         assert result.technical_relevance == 82
         assert result.professionalism == 90
+        assert result.response_organization == 70
         assert isinstance(client.calls[0]["format"], dict), "must use native structured output"
 
     def test_score_answer_malformed_becomes_AIUnavailable(self, monkeypatch, use_ollama):

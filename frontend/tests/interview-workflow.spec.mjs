@@ -22,6 +22,21 @@
  * Not wired into a runner: this repo has no frontend test harness, and this
  * needs a real browser, a real websocket and a real database. It is written to
  * be run by hand and to fail loudly.
+ *
+ * ON WAITING, because an earlier version of this file got it wrong and
+ * reported failures that were not real:
+ *
+ * Every wait here is on an observed condition — a websocket frame, or a DOM
+ * state — never on a fixed duration. Answering one question uploads audio,
+ * transcribes it through a cloud model and scores it through a local one, and
+ * that takes anywhere from two seconds to thirty depending on what else the
+ * machine is doing. A `waitForTimeout(5000)` guess against that pipeline fails
+ * on a slow run and, worse, can pass on a fast one for the wrong reason.
+ *
+ * The frames the server sends are the real signal, so this listens for them.
+ * The one deliberate exception is the negative assertion in (b): proving no
+ * frame was sent means allowing time for one to arrive and observing that none
+ * did, which is the one thing a fixed settle period is right for.
  */
 
 import { chromium } from 'playwright';
@@ -29,11 +44,37 @@ import { chromium } from 'playwright';
 const APP = process.env.APP_URL ?? 'http://localhost:5453';
 const CANDIDATE = { email: 'candidate.demo@smarthire.dev', password: 'Candidate@123' };
 
+// Generous, because these cover real AI calls. They are ceilings before the
+// spec gives up and reports a failure, not delays it waits out.
+const FRAME_TIMEOUT = 60000;
+const UI_TIMEOUT = 10000;
+// Long enough for a stray frame to land if the gating were broken.
+const SETTLE = 2000;
+
 let failures = 0;
 const check = (name, ok, detail = '') => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
   if (!ok) failures += 1;
 };
+
+/** Poll until `fn` is true, or give up. Returns whether it became true. */
+async function waitUntil(fn, timeout = UI_TIMEOUT, interval = 100) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    if (await fn()) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, interval));
+  }
+}
+
+/**
+ * A check whose condition is expected to become true, not to be true already.
+ *
+ * Passes the instant it holds, so a fast run is not slowed down and a slow one
+ * is not failed for being slow. It still fails loudly if it never holds.
+ */
+const checkEventually = async (name, fn, detail = '', timeout = UI_TIMEOUT) =>
+  check(name, await waitUntil(fn, timeout), detail);
 
 async function signIn(page) {
   await page.goto(`${APP}/login`);
@@ -59,14 +100,6 @@ const removeInterview = (page, id) =>
     await api.deleteInterview(i);
   }, id);
 
-/** Answer the question on screen, and wait for the server to confirm it. */
-async function answerCurrent(page) {
-  await page.getByRole('button', { name: /answer out loud/i }).click();
-  await page.waitForTimeout(1800);
-  await page.getByRole('button', { name: /stop and send/i }).click();
-  await page.waitForTimeout(5000);
-}
-
 async function main() {
   const browser = await chromium.launch({
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
@@ -74,63 +107,94 @@ async function main() {
   const context = await browser.newContext({ permissions: ['microphone', 'camera'] });
   const page = await context.newPage();
 
-  // Every frame the client sends, so "did it send `next`?" is answerable.
+  // Both directions. `sent` answers "did the client send `next`/`skip`?";
+  // `received` is what the waits key on, because a server frame is the only
+  // honest signal that a step actually finished.
   const sent = [];
+  const received = [];
   page.on('websocket', (ws) => {
     if (!ws.url().includes('/voice/')) return;
     ws.on('framesent', (f) => {
       try { sent.push(JSON.parse(f.payload).type); } catch { /* binary */ }
     });
+    ws.on('framereceived', (f) => {
+      try { received.push(JSON.parse(f.payload)); } catch { /* binary */ }
+    });
   });
+
+  const got = (type, sequenceNo) =>
+    received.some((m) => m.type === type && (sequenceNo === undefined || m.sequence_no === sequenceNo));
 
   await signIn(page);
   const interviewId = await makeInterview(page, 2);
   await page.goto(`${APP}/interview/live?interview=${interviewId}`);
-  await page.waitForTimeout(6000);
 
   const next = () => page.getByRole('button', { name: /next question/i });
   const start = () => page.getByRole('button', { name: /^Start$/ });
   const finish = () => page.getByRole('button', { name: /finish interview/i });
 
+  /** Answer the question on screen, and wait for the server to confirm THAT question. */
+  async function answerCurrent(sequenceNo) {
+    await page.getByRole('button', { name: /answer out loud/i }).click();
+    // A real duration of real audio — this one is a genuine recording length,
+    // not a guess at how long the server needs.
+    await page.waitForTimeout(1800);
+    await page.getByRole('button', { name: /stop and send/i }).click();
+    const confirmed = await waitUntil(() => got('recorded', sequenceNo), FRAME_TIMEOUT);
+    if (!confirmed) throw new Error(`no 'recorded' frame for question ${sequenceNo}`);
+  }
+
   try {
+    // The socket is open and the server has greeted us.
+    if (!(await waitUntil(() => got('ready'), FRAME_TIMEOUT))) {
+      throw new Error('the voice websocket never sent `ready`');
+    }
+
     console.log('\nBefore the interview starts');
-    check('"Start" is offered, not "Next question"',
-      (await start().count()) === 1 && (await next().count()) === 0);
+    await checkEventually('"Start" is offered, not "Next question"',
+      async () => (await start().count()) === 1 && (await next().count()) === 0);
     check('"Finish interview" is not offered yet', (await finish().count()) === 0);
 
     await start().click();
-    await page.waitForTimeout(3500);
+    if (!(await waitUntil(() => got('question', 1), FRAME_TIMEOUT))) {
+      throw new Error('question 1 was never served');
+    }
 
     console.log('\n(a) Next question is disabled before the question is dealt with');
-    check('a question is on screen', (await page.locator('.quote').count()) > 0);
-    check('"Next question" is present but disabled', await next().isDisabled());
-    check('the reason is explained on screen',
-      (await page.getByText(/answer or skip this question/i).count()) > 0);
+    await checkEventually('a question is on screen', async () => (await page.locator('.quote').count()) > 0);
+    await checkEventually('"Next question" is present but disabled', () => next().isDisabled());
+    await checkEventually('the reason is explained on screen',
+      async () => (await page.getByText(/answer or skip this question/i).count()) > 0);
 
     console.log('\n(b) Clicking it while disabled sends no `next` frame');
     const before = sent.filter((t) => t === 'next').length;
     await next().click({ force: true, timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    // Deliberate fixed settle: proving a frame was NOT sent means giving one
+    // time to appear and seeing that none did.
+    await page.waitForTimeout(SETTLE);
     const after = sent.filter((t) => t === 'next').length;
     check('no `next` frame was sent', after === before, `next frames ${before} -> ${after}`);
     check('the same question is still on screen', (await page.locator('.quote').count()) > 0);
 
     console.log('\n(a, cont.) It enables once the question is answered');
-    await answerCurrent(page);
-    check('"Next question" is now enabled', await next().isEnabled());
+    await answerCurrent(1);
+    await checkEventually('"Next question" is now enabled', () => next().isEnabled());
 
     console.log('\n(c) Finish is gated until the last question is resolved');
     check('"Finish interview" is not offered with a question outstanding',
       (await finish().count()) === 0, 'question 2 has not been reached');
 
     await next().click();
-    await page.waitForTimeout(3500);
-    check('question 2 was served', await next().isDisabled(), 'gated again on the new question');
+    if (!(await waitUntil(() => got('question', 2), FRAME_TIMEOUT))) {
+      throw new Error('question 2 was never served');
+    }
+    await checkEventually('question 2 was served and is gated again', () => next().isDisabled(),
+      'the new question re-disables Next');
 
-    await answerCurrent(page);
-    check('"Finish interview" appears once every question is resolved',
-      (await finish().count()) === 1);
-    check('it is enabled', await finish().isEnabled());
+    await answerCurrent(2);
+    await checkEventually('"Finish interview" appears once every question is resolved',
+      async () => (await finish().count()) === 1);
+    await checkEventually('it is enabled', () => finish().isEnabled());
 
     console.log('\nSkip stays a separate, explicit action');
     check('"Skip" is its own control', (await page.getByRole('button', { name: /^Skip$/ }).count()) === 1);
@@ -139,12 +203,13 @@ async function main() {
 
     console.log('\n(c, cont.) Finish closes the interview and shows the report');
     await finish().click();
-    await page.waitForTimeout(6000);
-    check('the completion screen is shown',
-      (await page.getByText(/interview complete/i).count()) > 0);
-    check('an `end` frame was sent', sent.includes('end'));
-    check('the report view is reachable',
-      (await page.getByRole('button', { name: /back to history/i }).count()) > 0);
+    check('an `end` frame was sent',
+      await waitUntil(() => sent.includes('end'), UI_TIMEOUT));
+    // The server scores the interview before replying, so this is the slow one.
+    await checkEventually('the completion screen is shown',
+      async () => (await page.getByText(/interview complete/i).count()) > 0, '', FRAME_TIMEOUT);
+    await checkEventually('the report view is reachable',
+      async () => (await page.getByRole('button', { name: /back to history/i }).count()) > 0);
   } finally {
     await removeInterview(page, interviewId).catch(() => {});
     await browser.close();

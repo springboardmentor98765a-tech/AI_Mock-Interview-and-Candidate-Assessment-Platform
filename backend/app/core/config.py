@@ -45,6 +45,18 @@ class Settings(BaseSettings):
     # --- Google Gemini ---
     GEMINI_API_KEY: str = ""
 
+    # Additional keys, comma-separated, tried in order when the one before them
+    # is out of quota. Module 5 spends one request per answer against a free
+    # tier measured in tens per day, and there is no local speech model to fall
+    # back on, so a single key puts a hard ceiling on how many interviews can
+    # be transcribed in a day.
+    #
+    # These must be keys you are entitled to use — a second project spun up
+    # purely to multiply the free allowance is against Google's terms, and the
+    # supported ways to raise the ceiling are billing on the project or
+    # ANALYSE_ANSWERS=false to run interviews without transcription.
+    GEMINI_API_KEYS: str = ""
+
     # Used for question generation AND résumé extraction. A "lite" model is
     # chosen for its larger free-tier daily request allowance — the heavier
     # Flash models exhaust in the low tens of requests per day, which a single
@@ -116,8 +128,25 @@ class Settings(BaseSettings):
         return bool(self.GITHUB_CLIENT_ID and self.GITHUB_CLIENT_SECRET)
 
     @property
+    def gemini_api_keys(self) -> list[str]:
+        """
+        Every configured key, in the order they should be tried.
+
+        GEMINI_API_KEY stays first so existing single-key setups behave exactly
+        as before. Deduplicated because the same key listed twice would be
+        retried against a quota it has already exhausted, turning one failure
+        into two slow ones.
+        """
+        keys: list[str] = []
+        for raw in [self.GEMINI_API_KEY, *self.GEMINI_API_KEYS.split(",")]:
+            key = raw.strip()
+            if key and key not in keys:
+                keys.append(key)
+        return keys
+
+    @property
     def ai_enabled(self) -> bool:
-        return bool(self.GEMINI_API_KEY)
+        return bool(self.gemini_api_keys)
 
 
 settings = Settings()

@@ -51,12 +51,67 @@ def is_reachable() -> tuple[bool, str]:
     return True, "ok"
 
 
-def _client():
-    if not settings.ai_enabled:
-        raise AINotConfigured("GEMINI_API_KEY is not set.")
+def _client(api_key: str):
     from google import genai
 
-    return genai.Client(api_key=settings.GEMINI_API_KEY)
+    return genai.Client(api_key=api_key)
+
+
+# Which configured key to reach for first. Held across calls so that once a key
+# is spent the whole process stops paying a failed request to rediscover that
+# on every single call for the rest of the day.
+_key_index = 0
+
+
+def _generate(**kwargs):
+    """
+    One generate_content call, moving to the next key when one is out of quota.
+
+    Only a quota error advances the key. Every other failure — a bad request, a
+    network problem, a malformed response — is raised immediately: those will
+    fail identically on the next key, and retrying them would multiply one
+    error into as many slow errors as there are keys configured.
+
+    On success the working key becomes the starting point for the next call, so
+    a spent key is stepped over once rather than re-tried every time. When all
+    of them are exhausted the last quota error is raised, which is what the
+    caller already knows how to report.
+    """
+    global _key_index
+
+    keys = settings.gemini_api_keys
+    if not keys:
+        raise AINotConfigured("GEMINI_API_KEY is not set.")
+
+    last_quota_error: Optional[AIUnavailable] = None
+
+    for offset in range(len(keys)):
+        index = (_key_index + offset) % len(keys)
+        try:
+            # Bound to a local rather than called inline: `models` does not keep
+            # its parent Client alive, so a temporary one is free to be
+            # collected mid-request, and it closes the underlying HTTP
+            # transport on the way out — surfacing as "Cannot send a request,
+            # as the client has been closed" and losing the answer's analysis.
+            client = _client(keys[index])
+            response = client.models.generate_content(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            error = _classify(exc)
+            if not isinstance(error, AIQuotaExceeded):
+                raise error from exc
+            last_quota_error = error
+            logger.warning(
+                "Gemini key %d of %d is out of quota; trying the next.",
+                index + 1,
+                len(keys),
+            )
+            continue
+
+        _key_index = index
+        return response
+
+    logger.warning("Every configured Gemini key (%d) is out of quota.", len(keys))
+    raise last_quota_error
 
 
 def generate_questions(
@@ -80,8 +135,7 @@ def generate_questions(
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -127,8 +181,7 @@ def extract_resume(resume_text: str) -> "ExtractedResume":
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -164,8 +217,7 @@ def analyse_communication(*, question: str, transcript: str) -> CommunicationAss
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_MODEL,
             contents=communication_prompt(question=question, transcript=transcript),
             config=types.GenerateContentConfig(
@@ -198,8 +250,7 @@ def score_answer(
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_MODEL,
             contents=score_prompt(
                 question=question,
@@ -256,8 +307,7 @@ def speech_to_text(audio: bytes, mime_type: str = "audio/webm") -> str:
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_STT_MODEL,
             contents=[
                 types.Part.from_bytes(data=audio, mime_type=mime_type),
@@ -300,8 +350,7 @@ def assess_pronunciation(audio: bytes, mime_type: str = "audio/webm") -> Pronunc
     try:
         from google.genai import types
 
-        client = _client()
-        response = client.models.generate_content(
+        response = _generate(
             model=settings.GEMINI_STT_MODEL,
             contents=[
                 types.Part.from_bytes(data=audio, mime_type=mime_type),
