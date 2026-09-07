@@ -1,6 +1,7 @@
 import hashlib
 import jwt
 import datetime
+from typing import Optional
 from fastapi import HTTPException, Security, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from backend.config import settings
@@ -52,6 +53,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
             detail="User associated with token no longer exists."
         )
     return user
+
+optional_security = HTTPBearer(auto_error=False)
+
+def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Security(optional_security)) -> Optional[dict]:
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+        user_id = payload.get("user_id")
+        return db.users.get(user_id)
+    except Exception:
+        return None
 
 def require_role(allowed_roles: list):
     def role_checker(current_user: dict = Depends(get_current_user)):

@@ -6,6 +6,8 @@ class InMemoryDB:
         self.users = {}
         self.resumes = {}
         self.interviews = {}
+        self.assessments = {}
+        self.speech_sessions = {}
         self._seed_data()
 
     def _seed_data(self):

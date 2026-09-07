@@ -35,13 +35,31 @@
           Automate candidate screening, parse resume skills into structured data, and conduct adaptive, real-time technical & HR mock interviews.
         </p>
 
-        <div class="role-select-cards">
+        <div class="role-select-cards" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
           <div class="glass-card" onclick="quickLogin('candidate')">
             <div class="card-icon">🎓</div>
             <h3>Candidate Portal</h3>
             <p>Upload PDF resume for AI parsing, practice domain-specific AI interviews, and get detailed score breakdowns.</p>
             <div style="margin-top: 1.25rem;">
               <span class="badge badge-candidate">Practice Mode</span>
+            </div>
+          </div>
+
+          <div class="glass-card" onclick="navigateTo('speech-analysis')">
+            <div class="card-icon">🎙️</div>
+            <h3>Speech & Communication Lab</h3>
+            <p>Real-time speech transcription, grammar verification, filler word rate, speaking pace (WPM), pause timeline & AI voice coaching.</p>
+            <div style="margin-top: 1.25rem;">
+              <span class="badge badge-success">Audio Intelligence</span>
+            </div>
+          </div>
+
+          <div class="glass-card" onclick="navigateTo('behavior-studio')">
+            <div class="card-icon">👁️</div>
+            <h3>AI Video & Behavior Studio</h3>
+            <p>Real-time CNN emotion detection (Nervous, Scared, Confused), eye tracking, gaze estimation, attention, engagement & confidence telemetry.</p>
+            <div style="margin-top: 1.25rem;">
+              <span class="badge badge-candidate">Computer Vision ML</span>
             </div>
           </div>
 
@@ -336,6 +354,399 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- 6. SPEECH-TO-TEXT & COMMUNICATION ANALYSIS VIEW -->
+    <section id="view-speech-analysis" class="view-section">
+      <div class="speech-studio-wrapper">
+        <!-- Studio Header -->
+        <div class="studio-header">
+          <span class="badge badge-candidate">🎙️ Real-Time Audio Intelligence</span>
+          <h1 style="font-size: 2.4rem; margin: 0.5rem 0;">Speech-to-Text & Communication Lab</h1>
+          <p style="max-width: 750px; margin: 0 auto; color: var(--text-muted);">
+            Capture real audio from your microphone, convert speech to text with configurable STT engines, 
+            evaluate grammar, detect filler words, calculate speaking pace (WPM), map pause timelines, and receive personalized AI communication coaching.
+          </p>
+
+          <div class="studio-mode-toggle">
+            <button id="speech-mode-mic-btn" class="studio-mode-btn active" onclick="switchSpeechStudioMode('mic')">
+              🎙️ Live Microphone Studio
+            </button>
+            <button id="speech-mode-text-btn" class="studio-mode-btn" onclick="switchSpeechStudioMode('text')">
+              ✍️ Direct Transcript Analysis Testbed
+            </button>
+          </div>
+        </div>
+
+        <!-- Notification / Alert Box -->
+        <div id="speech-alert-box" style="display: none; margin-bottom: 1.5rem; padding: 1rem 1.25rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-danger); color: #fecaca;">
+          <span id="speech-alert-msg"></span>
+        </div>
+
+        <!-- Mode A: Microphone Recording Studio -->
+        <div id="speech-mic-panel">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            
+            <!-- Recorder Card -->
+            <div class="recorder-card">
+              <div class="recorder-header-flex">
+                <h3>🎙️ Microphone Studio</h3>
+                <span id="speech-rec-status" class="recording-status-pill">Ready to Record</span>
+              </div>
+
+              <div class="timer-large-display">
+                <div id="speech-timer-display" class="timer-digits">00:00</div>
+                <p id="speech-timer-subtext" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.25rem;">
+                  Speak for at least 3-5 seconds. Automatic instant analysis triggers when you stop!
+                </p>
+                <!-- Real-Time Audio Frequency Waveform Visualizer -->
+                <canvas id="speech-waveform-canvas" height="60" style="width: 100%; height: 60px; border-radius: var(--radius-sm); background: #030712; border: 1px solid var(--border-color); margin-top: 1rem; display: none;"></canvas>
+                
+                <!-- Real-Time Live Metrics Bar while speaking -->
+                <div id="speech-live-metrics-bar" style="display: none; justify-content: space-around; padding: 0.6rem 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-top: 0.75rem; font-size: 0.85rem; text-align: center;">
+                  <div>⚡ Live Pace: <strong id="live-stat-pace" style="color: var(--secondary);">0 WPM</strong></div>
+                  <div>🔤 Spoken: <strong id="live-stat-words" style="color: var(--text-main);">0 words</strong></div>
+                  <div>🗣️ Fillers: <strong id="live-stat-fillers" style="color: var(--accent-warning);">0</strong></div>
+                </div>
+              </div>
+
+              <div class="recorder-controls-toolbar">
+                <button id="btn-start-speech-rec" class="btn btn-primary btn-lg" onclick="startSpeechRecording()">
+                  ▶️ Start Recording
+                </button>
+                <button id="btn-pause-speech-rec" class="btn btn-outline" style="display: none;" onclick="pauseSpeechRecording()">
+                  ⏸️ Pause
+                </button>
+                <button id="btn-resume-speech-rec" class="btn btn-primary" style="display: none;" onclick="resumeSpeechRecording()">
+                  ▶️ Resume
+                </button>
+                <button id="btn-stop-speech-rec" class="btn btn-outline" style="display: none; border-color: var(--accent-danger); color: var(--accent-danger);" onclick="stopSpeechRecording()">
+                  🛑 Stop & Analyze Instantly
+                </button>
+                <button id="btn-reset-speech-rec" class="btn btn-outline" onclick="resetSpeechRecording()">
+                  🔄 Reset
+                </button>
+              </div>
+
+              <div style="margin-top: 1rem; text-align: center; display: flex; justify-content: center; gap: 0.5rem; align-items: center;">
+                <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted); cursor: pointer;">
+                  <input type="checkbox" id="speech-auto-analyze-toggle" checked style="accent-color: var(--primary);" />
+                  ⚡ Auto-analyze instantly upon stopping recording
+                </label>
+              </div>
+            </div>
+
+            <!-- Live Stream Preview & Audio Player Card -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              
+              <!-- Live Transcript Stream -->
+              <div class="live-transcript-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+                    <span class="pulse-dot"></span> Live Speech Stream Preview
+                  </span>
+                  <span id="speech-stream-badge" class="badge badge-candidate" style="font-size: 0.7rem;">Web Speech API</span>
+                </div>
+                <div id="speech-live-transcript" class="live-transcript-text">
+                  Listening stream is inactive. Click "Start Recording" and speak to observe live partial transcription.
+                </div>
+              </div>
+
+              <!-- Audio Player & Analysis Trigger -->
+              <div class="glass-card" id="speech-player-card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                  <h4 style="color: var(--primary);">🎧 Recorded Audio Playback</h4>
+                  <span class="badge badge-success">Audio Captured</span>
+                </div>
+                <audio id="speech-audio-element" controls style="width: 100%; border-radius: var(--radius-sm);"></audio>
+                
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;">
+                  <button id="btn-run-speech-analysis" class="btn btn-primary" onclick="analyzeRecordedSpeech()">
+                    ⚡ Analyze Speech & Communication
+                  </button>
+                  <a id="btn-download-speech-audio" href="#" download="speech_recording.webm" class="btn btn-outline" style="text-decoration: none;">
+                    📥 Download Audio (.webm)
+                  </a>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Mode B: Direct Transcript Testbed -->
+        <div id="speech-text-panel" style="display: none; margin-bottom: 2rem;">
+          <div class="glass-card">
+            <h3 style="margin-bottom: 0.5rem;">✍️ Direct Transcript Speech Testbed</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+              Test deterministic calculation functions (Grammar, Filler rate, WPM pace, Pronunciation, Communication score) with custom text input.
+            </p>
+
+            <div class="form-group">
+              <label>Candidate Spoken Transcript</label>
+              <textarea id="speech-direct-text" class="form-control" rows="4" placeholder="Type or paste candidate transcript...">Um, in my recent project, basically I designed a scalable asynchronous FastAPI backend with PostgreSQL, you know, to handle high concurrency while maintaining high test coverage.</textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+              <div class="form-group">
+                <label>Spoken Duration (Seconds)</label>
+                <input type="number" id="speech-direct-duration" class="form-control" value="38" min="5" max="600" />
+              </div>
+              <div class="form-group">
+                <label>Preset Samples</label>
+                <select id="speech-preset-select" class="form-control" onchange="loadSpeechPreset(this.value)">
+                  <option value="balanced">Sample 1: Balanced High Performer</option>
+                  <option value="fillers">Sample 2: High Filler Words ("Um", "Like", "You know")</option>
+                  <option value="grammar">Sample 3: Grammatical Inconsistencies</option>
+                  <option value="fast">Sample 4: Very Fast Speaking Pace</option>
+                </select>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="analyzeTextDirectSpeech()">
+              ⚡ Run Speech Analysis on Text
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading State Indicator -->
+        <div id="speech-loading-spinner" class="glass-card" style="display: none; text-align: center; padding: 3rem 1.5rem; margin-bottom: 2rem;">
+          <div class="spinner" style="width: 50px; height: 50px; margin: 0 auto 1.5rem auto;"></div>
+          <h3>Computing Multidimensional Speech Analytics...</h3>
+          <p style="color: var(--text-muted); max-width: 600px; margin: 0.5rem auto 0 auto;">
+            Transcribing audio stream, evaluating grammatical structures, counting filler phrases, measuring WPM pace, calculating silence timeline, and formulating personalized AI speech coaching.
+          </p>
+        </div>
+
+        <!-- Complete Results Dashboard Container -->
+        <div id="speech-results-dashboard" style="display: none; flex-direction: column; gap: 2rem; margin-bottom: 3rem;">
+          <!-- Dynamically populated by renderSpeechAnalysisDashboard -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7. AI VIDEO & BEHAVIORAL ANALYSIS STUDIO -->
+    <section id="view-behavior-studio" class="view-section">
+      <div class="speech-studio-wrapper">
+        <!-- Studio Header -->
+        <div class="studio-header">
+          <span class="badge badge-candidate">👁️ Real-Time Computer Vision & ML</span>
+          <h1 style="font-size: 2.4rem; margin: 0.5rem 0;">AI Video, Emotion & Eye Tracking Lab</h1>
+          <p style="max-width: 750px; margin: 0 auto; color: var(--text-muted);">
+            Capture real webcam video frames, detect candidate facial landmarks, infer CNN expressions (Nervous, Scared, Confused),
+            track eye gaze & head direction, accumulate genuine eye contact percentage, and compute live attention, engagement, and confidence-related indicators.
+          </p>
+          <div style="margin-top: 0.75rem;">
+            <span class="badge badge-success" id="bs-model-status-badge">CNN Model: Loaded</span>
+            <span class="badge badge-candidate" id="bs-fps-badge">Stream: 2.5 FPS</span>
+          </div>
+        </div>
+
+        <!-- Studio Main Layout Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          
+          <!-- Left Column: Camera Preview & Controls -->
+          <div class="recorder-card">
+            <div class="recorder-header-flex">
+              <h3>📹 Live Camera Feed</h3>
+              <span id="bs-rec-status" class="recording-status-pill">Ready to Stream</span>
+            </div>
+
+            <div class="webcam-container" style="margin-top: 1rem;">
+              <video id="bs-webcam-preview" class="webcam-video" autoplay muted playsinline style="display: none;"></video>
+              <div id="bs-webcam-placeholder" class="webcam-placeholder" style="display: flex;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📷</div>
+                <h4 style="margin-bottom: 0.25rem;">Camera Offline</h4>
+                <p style="font-size: 0.8rem; margin-bottom: 1rem; color: var(--text-muted);">
+                  Click "Start Camera Analysis" to test the real-time ML vision pipeline.
+                </p>
+              </div>
+            </div>
+
+            <div class="recorder-controls-toolbar" style="margin-top: 1.25rem;">
+              <button id="btn-start-bs-cam" class="btn btn-primary btn-lg" onclick="startBehaviorStudioCamera()">
+                ▶️ Start Camera Analysis
+              </button>
+              <button id="btn-stop-bs-cam" class="btn btn-outline" style="display: none; border-color: var(--accent-danger); color: var(--accent-danger);" onclick="stopBehaviorStudioCamera()">
+                🛑 Stop Camera
+              </button>
+              <button id="btn-reset-bs" class="btn btn-outline" onclick="resetBehaviorStudioSession()">
+                🔄 Reset Session
+              </button>
+              <button id="btn-report-bs" class="btn btn-secondary" style="display: none;" onclick="generateBehaviorStudioReport()">
+                📊 View Full Behavior Report
+              </button>
+            </div>
+
+            <!-- Disclaimer alert -->
+            <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.02); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              ℹ️ <strong>Scientific Notice:</strong> Emotion classifications (Nervous, Scared, Confused) and confidence indicators represent observable facial expression estimates and do not constitute psychological mind-reading or medical diagnoses.
+            </div>
+          </div>
+
+          <!-- Right Column: Live Real-Time Telemetry HUD -->
+          <div class="glass-card" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+              <h3 style="color: var(--secondary);">⚡ Live Telemetry HUD</h3>
+              <span id="bs-face-status-pill" class="badge badge-outline">Awaiting Stream</span>
+            </div>
+
+            <!-- Telemetry Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              
+              <!-- 1. Emotion Card -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">CNN Emotion Estimate</div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
+                  <span id="bs-emotion-label" style="font-size: 1.3rem; font-weight: 700; color: var(--primary);">Analyzing...</span>
+                  <span id="bs-emotion-conf" style="font-size: 0.85rem; color: var(--text-muted);">0%</span>
+                </div>
+                <div class="metric-bar" style="height: 6px; margin-top: 0.4rem;">
+                  <div id="bs-emotion-bar" class="metric-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <!-- 2. Gaze Direction -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">Eye Gaze Direction</div>
+                <div style="margin-top: 0.35rem;">
+                  <span id="bs-gaze-label" class="badge badge-candidate" style="font-size: 0.95rem;">Looking at Camera</span>
+                </div>
+                <span id="bs-eyes-closed-warning" style="display: none; color: var(--accent-danger); font-size: 0.75rem; font-weight: 600; margin-top: 0.25rem;">⚠️ Eyes Closed</span>
+              </div>
+
+              <!-- 3. Eye Contact Percentage -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">Eye Contact (Accumulated)</div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
+                  <span id="bs-eye-contact-pct" style="font-size: 1.4rem; font-weight: 700; color: var(--accent-success);">0%</span>
+                  <span id="bs-eye-contact-level" class="badge badge-success" style="font-size: 0.75rem;">High</span>
+                </div>
+                <div class="metric-bar" style="height: 6px; margin-top: 0.4rem;">
+                  <div id="bs-eye-contact-bar" class="metric-fill" style="width: 0%; background: var(--accent-success);"></div>
+                </div>
+              </div>
+
+              <!-- 4. Head Pose Direction -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">Head Direction</div>
+                <div style="margin-top: 0.35rem;">
+                  <span id="bs-head-label" class="badge badge-candidate" style="font-size: 0.95rem;">Forward</span>
+                </div>
+              </div>
+
+              <!-- 5. Attention Score -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">Attention Score</div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
+                  <span id="bs-attention-score" style="font-size: 1.4rem; font-weight: 700; color: var(--secondary);">0%</span>
+                  <span id="bs-attention-level" class="badge badge-candidate" style="font-size: 0.75rem;">Low</span>
+                </div>
+                <div class="metric-bar" style="height: 6px; margin-top: 0.4rem;">
+                  <div id="bs-attention-bar" class="metric-fill" style="width: 0%; background: var(--secondary);"></div>
+                </div>
+              </div>
+
+              <!-- 6. Engagement Score -->
+              <div class="telemetry-card">
+                <div class="telemetry-label">Engagement Score</div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
+                  <span id="bs-engagement-score" style="font-size: 1.4rem; font-weight: 700; color: var(--primary);">0%</span>
+                  <span id="bs-engagement-level" class="badge badge-candidate" style="font-size: 0.75rem;">Low</span>
+                </div>
+                <div class="metric-bar" style="height: 6px; margin-top: 0.4rem;">
+                  <div id="bs-engagement-bar" class="metric-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Confidence Indicators Row -->
+            <div style="background: rgba(0,0,0,0.2); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.85rem; font-weight: 600;">Confidence-Related Indicators:</span>
+                <span id="bs-confidence-level" class="badge badge-candidate">Moderate</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                <div>Eye Contact: <strong id="bs-sub-eye" style="color: var(--text-main);">0%</strong></div>
+                <div>Head Stability: <strong id="bs-sub-head" style="color: var(--text-main);">0%</strong></div>
+                <div>Facial Activity: <strong id="bs-sub-facial" style="color: var(--text-main);">0</strong></div>
+              </div>
+            </div>
+
+            <!-- Frames counter & session timer -->
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); margin-top: auto; padding-top: 0.5rem;">
+              <span>Frames Processed: <strong id="bs-frame-counter">0</strong></span>
+              <span>Session Duration: <strong id="bs-session-timer">00:00</strong></span>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Behavioral Report Display Box (When Generated) -->
+        <div id="bs-report-container" style="display: none; margin-bottom: 3rem;"></div>
+
+      </div>
+    </section>
+
+    <!-- 8. AI INTERVIEW ASSESSMENT RESULTS DASHBOARD -->
+    <section id="view-assessment" class="view-section">
+      <div class="assessment-page-wrapper">
+        <!-- Assessment Header -->
+        <div class="assessment-header-banner">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span class="badge badge-candidate" id="assess-domain-badge">Full Stack</span>
+                <span class="badge badge-outline" id="assess-difficulty-badge">Medium</span>
+                <span class="badge badge-success" id="assess-type-badge">Technical</span>
+              </div>
+              <h1 style="font-size: 2.2rem; margin-bottom: 0.25rem;">AI Interview Assessment Results</h1>
+              <p style="color: var(--text-muted);">
+                Comprehensive multidimensional scoring & evidence-based feedback for <strong id="assess-candidate-name" style="color: var(--text-main);">Candidate</strong>
+              </p>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <button class="btn btn-outline" style="font-size: 0.85rem;" onclick="routeRoleDashboard()">
+                ⬅️ Back to Portal
+              </button>
+              <button class="btn btn-outline" style="border-color: var(--secondary); color: var(--secondary); font-size: 0.85rem;" onclick="regenerateCurrentAssessment()">
+                🔄 Regenerate Assessment
+              </button>
+              <button class="btn btn-primary" style="font-size: 0.85rem;" onclick="exportAssessmentJSON()">
+                📥 Export JSON
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generating / Analyzing Multi-Stage Progress Box -->
+        <div id="assessment-generating-box" class="glass-card" style="display: none; text-align: center; padding: 3rem 1.5rem; margin-bottom: 2rem;">
+          <div class="spinner" style="width: 50px; height: 50px; margin: 0 auto 1.5rem auto;"></div>
+          <h2 id="assess-gen-title" style="margin-bottom: 0.5rem; color: var(--primary);">Analyzing your interview...</h2>
+          <p id="assess-gen-sub" style="color: var(--text-muted); margin-bottom: 2rem;">Evaluating speech cadence, video engagement, technical correctness, and synthesizing personalized AI coaching.</p>
+          
+          <div class="progress-stages-list" style="max-width: 480px; margin: 0 auto; text-align: left; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="stage-item" id="stage-1"><span class="stage-icon">⏳</span> <span>Collecting interview responses</span></div>
+            <div class="stage-item" id="stage-2"><span class="stage-icon">⏳</span> <span>Analyzing communication quality</span></div>
+            <div class="stage-item" id="stage-3"><span class="stage-icon">⏳</span> <span>Evaluating confidence & behavioral poise</span></div>
+            <div class="stage-item" id="stage-4"><span class="stage-icon">⏳</span> <span>Evaluating technical answers & domain mastery</span></div>
+            <div class="stage-item" id="stage-5"><span class="stage-icon">⏳</span> <span>Evaluating professionalism & time management</span></div>
+            <div class="stage-item" id="stage-6"><span class="stage-icon">⏳</span> <span>Calculating overall weighted score</span></div>
+            <div class="stage-item" id="stage-7"><span class="stage-icon">⏳</span> <span>Generating personalized AI feedback & evidence</span></div>
+          </div>
+        </div>
+
+        <!-- Dynamic Results Container (Populated dynamically) -->
+        <div id="assessment-content-container" style="display: none; flex-direction: column; gap: 2rem; margin-bottom: 3rem;">
+          <!-- Dynamically populated by renderAssessmentDashboard() -->
+        </div>
+
       </div>
     </section>
 
