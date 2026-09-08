@@ -208,11 +208,14 @@ Manage company job postings.
 
 <!-- Candidate Table -->
 
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
 <h2 id="recentCandidates">
 
 Recent Candidates
 
 </h2>
+<button type="button" onclick="openCompareCandidates()" style="width:auto;padding:8px 16px;">📊 Compare Candidates</button>
+</div>
 
 <table>
 
@@ -280,6 +283,33 @@ Interview Schedule
 
 </tbody>
 
+</table>
+
+<!-- Interview Templates (Module 1 — Create interview templates) -->
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:30px;">
+<h2 id="interviewTemplates" style="margin:0;">📋 Interview Templates</h2>
+<button type="button" onclick="promptCreateTemplate()" style="width:auto;padding:8px 16px;">+ New Template</button>
+</div>
+<p style="margin:6px 0 12px;font-size:0.85rem;color:var(--muted);">
+Saved presets candidates can pick from instead of filling in the interview-generation form manually.
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Track</th>
+<th>Category</th>
+<th>Difficulty</th>
+<th>Questions</th>
+<th>Created By</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="interviewTemplatesBody">
+<tr><td class="table-loading" colspan="7">Loading templates…</td></tr>
+</tbody>
 </table>
 
 <!-- Job Openings -->

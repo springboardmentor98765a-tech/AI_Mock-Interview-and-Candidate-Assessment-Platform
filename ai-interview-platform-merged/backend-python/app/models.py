@@ -5,9 +5,9 @@ only describes/reads the same tables, it never creates or alters
 them, so both backends stay in sync automatically).
 """
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -61,12 +61,6 @@ class Interview(Base):
     scheduled_at = Column(TIMESTAMP)
     completed_at = Column(TIMESTAMP)
     created_at = Column(TIMESTAMP, server_default=func.now())
-    # Module 4: live session lifecycle. started_at is set once (on
-    # PATCH /{id}/begin) and never overwritten; paused_at/paused_seconds
-    # track pause/resume so the UI can report true active session time.
-    started_at = Column(TIMESTAMP)
-    paused_at = Column(TIMESTAMP)
-    paused_seconds = Column(Integer, nullable=False, default=0)
     domain = Column(String(100))
     difficulty = Column(String(10), nullable=False, default="medium")
     question_count = Column(Integer, nullable=False, default=0)
@@ -74,19 +68,30 @@ class Interview(Base):
     # multi-face warnings raised during a live session (see
     # POST /{id}/violation and frontend/js/interview-session.js).
     proctoring_violations = Column(Integer, nullable=False, default=0)
-    # Module 4/5: explicit session identifier (distinct from the
-    # numeric `id`), the frozen total active-session duration in
-    # seconds (set once at /finish), and how many questions the
-    # candidate has actually answered so far (vs. question_count,
-    # the target/total for the session).
-    session_id = Column(String(36), unique=True)
-    duration_seconds = Column(Integer)
-    questions_attempted = Column(Integer, nullable=False, default=0)
-    # Deterministic MCQ/coding marks sheet totals (see schema.sql) —
-    # a straight sum of points earned, separate from the holistic
-    # 0-100 `score` above.
-    marks_awarded = Column(Numeric(6, 2))
-    marks_total = Column(Numeric(6, 2))
+    # Filename (not a full path) of this session's recorded webcam+mic
+    # video under config.RECORDINGS_DIR, e.g. "42.webm" — set once
+    # POST /{id}/recording finishes uploading. NULL until then.
+    recording_path = Column(String(255))
+
+    # Module 7 — AI Feedback & Scoring. skill_professionalism is the 4th
+    # weighted category (Communication 30 / Confidence 25 / Technical
+    # Relevance [=skill_technical] 30 / Professionalism 15). feedback_json
+    # holds the structured breakdown; ai_feedback stays the short
+    # free-text summary. behavior_* is the Module 6 webcam-analytics
+    # snapshot sent by the frontend at finish time (null when no webcam
+    # session was involved).
+    skill_professionalism = Column(Integer)
+    rating_label = Column(String(20))
+    feedback_json = Column(Text)
+    behavior_eye_contact_pct = Column(Integer)
+    behavior_engagement_pct = Column(Integer)
+    behavior_attention_level = Column(String(10))
+    behavior_confidence_label = Column(String(10))
+    behavior_dominant_emotion = Column(String(30))
+
+    @property
+    def has_recording(self) -> bool:
+        return bool(self.recording_path)
 
     questions = relationship(
         "InterviewQuestion",
@@ -96,11 +101,6 @@ class Interview(Base):
     )
     reviewer = relationship("User", foreign_keys=[reviewed_by])
     candidate = relationship("User", foreign_keys=[candidate_id])
-    # Module 5 (Recording): one recording per session, pointing at the
-    # file on disk (see app/recording_store.py). uselist=False makes
-    # this a one-to-one relationship, matching the UNIQUE constraint
-    # on interview_recordings.interview_id.
-    recording = relationship("InterviewRecording", backref="interview", uselist=False, cascade="all, delete-orphan")
 
     @property
     def candidate_name(self):
@@ -118,26 +118,7 @@ class InterviewQuestion(Base):
     category = Column(String(20), nullable=False)
     difficulty = Column(String(10), nullable=False, default="medium")
     sequence_no = Column(Integer, nullable=False)
-    # Milestone 3+ — Keyword Answer Analysis. 3-6 short concepts a
-    # strong answer should mention, comma-separated. Only populated
-    # when the LLM provider generated the question (see
-    # ai_providers.generate_questions_llm); NULL for questions pulled
-    # from the static fallback bank, since we can't honestly claim to
-    # know what "should" be in the answer to a canned question without
-    # the model that wrote it.
-    expected_keywords = Column(Text)
     created_at = Column(TIMESTAMP, server_default=func.now())
-    # MCQ / Coding round. question_type: 'open' (default, AI-scored) |
-    # 'mcq' | 'coding'. options/correct_option back MCQ (JSON array of
-    # strings + the correct letter — correct_option is never sent to
-    # the client). marks is what this question is worth. test_cases /
-    # starter_code back the coding round (JSON).
-    question_type = Column(String(10), nullable=False, default="open")
-    options = Column(Text)
-    correct_option = Column(String(5))
-    marks = Column(Numeric(6, 2), nullable=False, default=1)
-    test_cases = Column(Text)
-    starter_code = Column(Text)
 
 
 class InterviewAnswer(Base):
@@ -153,58 +134,18 @@ class InterviewAnswer(Base):
     answer_text = Column(Text)
     input_mode = Column(String(10), nullable=False, default="typed")  # typed | voice
     time_taken_seconds = Column(Integer)
-    # Milestone 3 — Speech Analysis & AI Monitoring. filler_word_count /
-    # words_per_minute computed server-side in speech_analysis.py from
-    # answer_text + time_taken_seconds. dominant_emotion / eye_contact_percentage
-    # computed client-side (face-api.js) per question and sent up with the
-    # answer — best-effort, stay NULL if no face was detected/model didn't load.
-    filler_word_count = Column(Integer)
-    words_per_minute = Column(Integer)
-    dominant_emotion = Column(String(20))
-    eye_contact_percentage = Column(Integer)
-    # grammar_issue_count computed server-side (speech_analysis.check_grammar,
-    # rule-based). pronunciation_confidence is the average Web Speech API
-    # recognition confidence for this answer's voice input, sent by the
-    # client — a rough clarity proxy, NULL for typed answers.
-    grammar_issue_count = Column(Integer)
-    pronunciation_confidence = Column(Integer)
-    # % of this question's expected_keywords found in the answer text
-    # (case-insensitive word match). NULL when the question has no
-    # expected_keywords (e.g. from the static fallback bank).
-    keyword_match_percentage = Column(Integer)
+
+    # Module 5 — Speech-to-Text & Communication Analysis (see
+    # app/communication_analysis.py for how each is computed and its
+    # honest scope/limits).
+    filler_word_count = Column(Integer, nullable=False, default=0)
+    filler_words_found = Column(Text)  # JSON list
+    grammar_issue_count = Column(Integer, nullable=False, default=0)
+    grammar_feedback = Column(Text)
+    speech_wpm = Column(Integer)
+    voice_confidence = Column(Float)       # 0-1, avg Web Speech API confidence (voice answers only)
+    pronunciation_score = Column(Integer)  # 0-100, derived from voice_confidence
     created_at = Column(TIMESTAMP, server_default=func.now())
-    # MCQ / Coding round grading — see schema.sql for the full story.
-    selected_option = Column(String(5))
-    code_answer = Column(Text)
-    code_language = Column(String(10))
-    is_correct = Column(Boolean)
-    marks_awarded = Column(Numeric(6, 2))
-    test_case_results = Column(Text)
-
-
-class InterviewRecording(Base):
-    """Metadata for the proctored session's video+audio recording.
-    The file itself lives on disk (app/recording_store.py); this row
-    is what the API checks to decide whether a recording exists and
-    who is allowed to stream it."""
-
-    __tablename__ = "interview_recordings"
-
-    id = Column(Integer, primary_key=True)
-    interview_id = Column(Integer, ForeignKey("interviews.id", ondelete="CASCADE"), nullable=False, unique=True)
-    file_path = Column(String(500), nullable=False)
-    mime_type = Column(String(100), nullable=False, default="video/webm")
-    size_bytes = Column(BigInteger, nullable=False, default=0)
-    duration_seconds = Column(Integer)
-    started_at = Column(TIMESTAMP)
-    ended_at = Column(TIMESTAMP)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    # Audio-only reference, extracted from the uploaded video at save
-    # time (see recording_store.extract_audio_track). None if ffmpeg
-    # isn't available on the host — the combined video is still the
-    # source of truth either way.
-    audio_file_path = Column(String(500))
-    audio_mime_type = Column(String(100))
 
 
 class Notification(Base):
@@ -217,3 +158,70 @@ class Notification(Base):
     message = Column(String(500), nullable=False)
     is_read = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
+
+
+class CodingSubmission(Base):
+    """One graded attempt at a standalone Coding Practice problem —
+    separate from the scored live-interview flow above. Scoring is
+    purely algorithmic (judge.py runs the code against test cases and
+    compares stdout), never AI-judged."""
+
+    __tablename__ = "coding_submissions"
+
+    id = Column(Integer, primary_key=True)
+    candidate_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(String(100), nullable=False)
+    title = Column(String(150), nullable=False)
+    role = Column(String(100), nullable=False)
+    language = Column(String(20), nullable=False)
+    code = Column(Text, nullable=False)
+    passed_count = Column(Integer, nullable=False, default=0)
+    total_count = Column(Integer, nullable=False, default=0)
+    score_percent = Column(Integer, nullable=False, default=0)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    candidate = relationship("User", foreign_keys=[candidate_id])
+
+
+class GeneratedCodingQuestion(Base):
+    """One AI-generated (or offline-fallback) Coding Practice problem.
+    Persisted so a later submission can be graded against the exact
+    test cases it was generated with — the frontend only ever sees
+    title/prompt/starter_code, never test_cases_json."""
+
+    __tablename__ = "generated_coding_questions"
+
+    id = Column(String(64), primary_key=True)
+    candidate_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(100), nullable=False)
+    language = Column(String(20), nullable=False)
+    difficulty = Column(String(10), nullable=False)
+    title = Column(String(200), nullable=False)
+    prompt = Column(Text, nullable=False)
+    starter_code = Column(Text, nullable=False)
+    test_cases_json = Column(Text, nullable=False)
+    source = Column(String(10), nullable=False, default="ai")
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    candidate = relationship("User", foreign_keys=[candidate_id])
+
+
+class InterviewTemplate(Base):
+    """Module 1 — recruiter/coach 'Create interview templates'. A named
+    preset for the fields on POST /interviews/generate; picking one in
+    the UI just pre-fills that form, nothing more."""
+
+    __tablename__ = "interview_templates"
+
+    id = Column(Integer, primary_key=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    name = Column(String(150), nullable=False)
+    interview_type = Column(String(50), nullable=False)
+    category = Column(String(50))
+    domain = Column(String(100))
+    difficulty = Column(String(10), nullable=False, default="medium")
+    question_count = Column(Integer, nullable=False, default=5)
+    mode = Column(String(20), nullable=False, default="online")
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    creator = relationship("User", foreign_keys=[created_by])

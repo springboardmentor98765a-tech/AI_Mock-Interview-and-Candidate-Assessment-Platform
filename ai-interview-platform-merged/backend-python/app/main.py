@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import FRONTEND_ORIGINS
-from app.routers import interviews
+from app.routers import admin_ai, coding, interviews, templates
 
 app = FastAPI(
     title="AI Interview Platform — Module 3 (Python)",
@@ -31,7 +31,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(templates.router)
 app.include_router(interviews.router)
+app.include_router(coding.router)
+app.include_router(admin_ai.router)
 
 
 @app.get("/")

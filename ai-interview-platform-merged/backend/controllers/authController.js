@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { getSetting } = require('../utils/settingsStore');
 const { notify } = require('../utils/notify');
+const { logActivity } = require('../utils/activityLog');
 require('dotenv').config();
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '2h';
@@ -105,6 +106,13 @@ async function register(req, res) {
       });
     }
 
+    logActivity({
+      userId: user.id,
+      role: user.role,
+      action: 'user_registered',
+      details: `${user.full_name} (${user.email}) registered as ${user.role}.`,
+    });
+
     return res.status(201).json({ message: 'Registration successful', token, user: sanitizeUser(user) });
   } catch (err) {
     console.error('Register error:', err);
@@ -144,6 +152,7 @@ async function login(req, res) {
     }
 
     const token = signToken(user);
+    logActivity({ userId: user.id, role: user.role, action: 'user_login', details: `${user.full_name} (${user.email}) logged in.` });
     return res.status(200).json({ message: 'Login successful', token, user: sanitizeUser(user) });
   } catch (err) {
     console.error('Login error:', err);

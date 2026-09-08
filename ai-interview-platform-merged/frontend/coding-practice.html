@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coding Practice</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body onload="checkRole('candidate'); loadProfile(); initCodingPractice();">
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar">
+  <div class="logo">🤖 AI Interview</div>
+  <ul>
+    <li><a href="candidate.html">Dashboard</a></li>
+    <li><a href="coding-practice.html" class="active">Coding Practice</a></li>
+    <li><a href="#" onclick="openEditProfileModal()">Profile</a></li>
+    <li><a href="#" onclick="logout()">Logout</a></li>
+  </ul>
+</nav>
+
+<div class="dashboard-container">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="profile-card">
+      <div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Click to change your photo">
+        <img id="userAvatarImg" src="images/profile.png" alt="Profile">
+        <span class="avatar-edit-badge">&#9998;</span>
+      </div>
+      <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="changeAvatar(this)">
+      <h2 id="userName"></h2>
+      <p id="userRole"></p>
+      <hr>
+      <p id="userEmail"></p>
+    </div>
+    <div class="menu">
+      <a href="candidate.html">🏠 Dashboard</a>
+      <a href="#" class="active" onclick="event.preventDefault()">💻 Coding Practice</a>
+      <a href="candidate.html#interviewHistory">📊 Reports</a>
+      <a href="#" onclick="openChangePasswordModal()">⚙ Settings</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <h1>💻 Coding Practice</h1>
+    <p>
+      Pick your role and a difficulty, then generate a brand-new problem written by AI —
+      each one is checked against its own answer key before you ever see it, so the test
+      cases are always solvable. Your code is graded on the server by running it against
+      those test cases and comparing the output exactly — never judged by AI.
+    </p>
+
+    <!-- Role + difficulty + generate -->
+    <div class="dashboard-card">
+      <h3>1. Choose your role &amp; difficulty</h3>
+      <div class="coding-controls-row">
+        <div class="coding-field">
+          <label for="roleSelect">Role (locks the language)</label>
+          <select id="roleSelect" onchange="onRoleChanged()">
+            <option value="">Loading roles…</option>
+          </select>
+        </div>
+        <div class="coding-field">
+          <label for="languageBadgeLabel">Language</label>
+          <div id="languageBadgeLabel" class="badge badge-warning">—</div>
+        </div>
+        <div class="coding-field">
+          <label for="difficultySelect">Difficulty</label>
+          <select id="difficultySelect">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <div class="coding-field">
+          <label>&nbsp;</label>
+          <button type="button" id="generateBtn" class="btn-primary" onclick="generateQuestion()" disabled>🎲 Generate Question</button>
+        </div>
+      </div>
+      <p id="problemListEmpty" class="table-loading">Select a role, then click "Generate Question" for a fresh AI-written problem.</p>
+    </div>
+
+    <!-- Editor -->
+    <div class="dashboard-card" id="editorCard" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <h3 id="problemTitle">2. Write your solution</h3>
+        <span id="sourceBadge" class="badge badge-success">✨ AI-generated</span>
+      </div>
+      <p id="problemPrompt" class="coding-prompt"></p>
+
+      <textarea id="codeEditor" class="code-editor" spellcheck="false" placeholder="Your code goes here…"></textarea>
+
+      <div class="coding-actions">
+        <button type="button" class="btn-ghost" onclick="resetStarterCode()">↺ Reset to starter code</button>
+        <button type="button" id="submitCodeBtn" class="btn-primary" onclick="submitCode()">▶ Run &amp; Score</button>
+      </div>
+
+      <div id="resultBox" class="coding-result-box" style="display:none">
+        <div id="resultSummary" class="coding-result-summary"></div>
+        <table id="resultTable" class="coding-result-table">
+          <thead>
+            <tr><th>#</th><th>Input</th><th>Expected</th><th>Actual</th><th>Result</th></tr>
+          </thead>
+          <tbody id="resultTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Submission history -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:30px">
+      <h2>My Submission History</h2>
+      <div class="coding-export-buttons">
+        <button type="button" class="btn-ghost" onclick="downloadExport('pdf')">⬇ Download PDF</button>
+        <button type="button" class="btn-ghost" onclick="downloadExport('xlsx')">⬇ Download Excel</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Problem</th>
+          <th>Role</th>
+          <th>Language</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="submissionHistoryBody">
+        <tr><td class="table-loading" colspan="5">Loading submission history…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/script.js?v=20260830"></script>
+<script src="js/coding-practice.js?v=20260830"></script>
+</body>
+
+</html>

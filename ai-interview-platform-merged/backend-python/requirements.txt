@@ -8,9 +8,6 @@ psycopg2-binary>=2.9.10
 PyJWT==2.9.0
 python-dotenv==1.0.1
 pydantic==2.9.2
-# Required by FastAPI to parse multipart/form-data (UploadFile, Form) —
-# used by the recording upload endpoint (POST /interviews/{id}/recording).
-python-multipart==0.0.12
 
 # Text-to-Speech (Module 3 enhancement)
 # gTTS = free, high quality, needs internet access at request time.
@@ -21,3 +18,11 @@ pyttsx3==2.90
 # Multi-provider AI engine (app/ai_providers.py) — talks to Ollama /
 # Gemini / OpenAI / Grok over plain HTTP.
 requests==2.32.3
+
+# Coding Practice — PDF and Excel score-list export (app/routers/coding.py)
+reportlab==4.2.5
+openpyxl==3.1.5
+
+# Interview session recording upload (multipart/form-data file uploads
+# in app/routers/interviews.py's POST /{id}/recording)
+python-multipart==0.0.12

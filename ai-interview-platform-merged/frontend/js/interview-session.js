@@ -4,49 +4,17 @@
 // for questions / answers / violations / finishing the session.
 // ============================================================
 
-// Per-question time "weight" by category + difficulty — used only to
-// build the overall session time budget below, not shown per-question.
-// Categories aren't interchangeable: a quick HR/Aptitude question
-// deserves far less of the budget than a Behavioral story or an
-// open-ended Technical design question.
-const CATEGORY_DIFFICULTY_SECONDS = {
-  HR: { easy: 60, medium: 90, hard: 120 },
-  Aptitude: { easy: 60, medium: 90, hard: 120 },
-  Behavioral: { easy: 90, medium: 120, hard: 180 },
-  Technical: { easy: 90, medium: 150, hard: 240 }, // hard tier is largely
-  // open-ended system-design questions (see question_bank.py) — these
-  // need real thinking + explaining time, not a quick-recall window.
-};
-const DEFAULT_DIFFICULTY_SECONDS = { easy: 90, medium: 120, hard: 150 }; // fallback for unknown categories
-const LONG_QUESTION_BONUS_SECONDS = 20; // extra reading/thinking time for a longer prompt
-const LONG_QUESTION_WORD_THRESHOLD = 22;
-
-function getQuestionTimeWeight(question) {
-  const byCategory = CATEGORY_DIFFICULTY_SECONDS[question.category];
-  const table = byCategory || DEFAULT_DIFFICULTY_SECONDS;
-  let seconds = table[question.difficulty] || table.medium || 120;
-
-  const wordCount = (question.question_text || '').trim().split(/\s+/).filter(Boolean).length;
-  if (wordCount > LONG_QUESTION_WORD_THRESHOLD) {
-    seconds += LONG_QUESTION_BONUS_SECONDS;
-  }
-  return seconds;
-}
-
-// The whole session gets ONE countdown, not one per question — its
-// length is just each question's weight added up, so a 5-question set
-// and a 30-question set each get a total that actually fits their mix
-// of categories/difficulties (e.g. five easy HR questions total far
-// less time than five hard Technical ones would).
-function computeSessionTimeBudget(qs) {
-  return qs.reduce((sum, q) => sum + getQuestionTimeWeight(q), 0);
-}
-
+const DIFFICULTY_SECONDS = { easy: 90, medium: 120, hard: 150 };
 const MAX_STRIKES = 5;
 const VIOLATION_COOLDOWN_MS = 8000; // don't spam the same violation type more than once per 8s
 const FACE_CHECK_INTERVAL_MS = 1500;
 const NO_FACE_STRIKES_BEFORE_WARN = 3; // ~4.5s of no face before it counts as a violation
 const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+
+// --- Behavior analytics thresholds (emotion / gaze / attention / engagement) ---
+const LOOK_AWAY_X_RATIO = 0.28;   // horizontal face-offset ratio considered "looking away"
+const LOOK_DOWN_Y_RATIO = 0.22;   // vertical face-offset ratio considered "looking down"
+const EAR_CLOSED_THRESHOLD = 0.21; // eye-aspect-ratio below this ~= eyes closed
 
 let interviewId = null;
 let interview = null;
@@ -56,188 +24,47 @@ let localAnswers = {}; // questionId -> { text, inputMode }
 
 let webcamStream = null;
 let faceApiReady = false;
-let faceExpressionsReady = false; // Milestone 3 — separate flag: expression model may fail to load even if detector loaded fine
 let faceCheckTimer = null;
 let noFaceStreak = 0;
-let liveHudTimer = null; // Module 5/6 — refreshes the real-time analytics HUD
 
-// Milestone 3 — Speech Analysis & AI Monitoring: per-question tally of
-// on-camera samples (for eye_contact_percentage) and detected emotions
-// (for dominant_emotion), reset every time a new question is shown and
-// read once when that question's answer is saved.
-let faceOnCameraSamples = 0;
-let faceTotalSamples = 0;
-let faceEmotionTally = {};
-
-// Milestone 3 — pronunciation proxy: the Web Speech API returns a
-// confidence (0-1) per final recognized phrase, reflecting how sure
-// the recognizer was about what it heard — low confidence usually
-// means unclear/mumbled speech. Averaged per question. This is a
-// real browser-provided signal, not a fabricated score — but it's a
-// rough proxy, not true phoneme-level pronunciation analysis, since
-// no browser API exposes that.
-let pronunciationConfidenceSamples = [];
-
-function resetFaceSignalsForQuestion() {
-  faceOnCameraSamples = 0;
-  faceTotalSamples = 0;
-  faceEmotionTally = {};
-  pronunciationConfidenceSamples = [];
-}
-
-function getPronunciationConfidenceForAnswer() {
-  if (pronunciationConfidenceSamples.length === 0) return null;
-  const avg = pronunciationConfidenceSamples.reduce((a, b) => a + b, 0) / pronunciationConfidenceSamples.length;
-  return Math.round(avg * 100);
-}
-
-function getFaceSignalsForAnswer() {
-  const eyeContactPercentage =
-    faceTotalSamples > 0 ? Math.round((faceOnCameraSamples / faceTotalSamples) * 100) : null;
-  let dominantEmotion = null;
-  let bestCount = 0;
-  for (const [emotion, count] of Object.entries(faceEmotionTally)) {
-    if (count > bestCount) {
-      bestCount = count;
-      dominantEmotion = emotion;
-    }
-  }
-  return { dominantEmotion, eyeContactPercentage };
-}
-
-// ---------------------------------------------------------------
-// Module 5 — Real-time Speech & Communication Analysis (client side).
-// A lightweight mirror of backend-python/app/speech_analysis.py's
-// filler-word list, used only to give the candidate live feedback as
-// they type/speak — the authoritative, scored numbers are still
-// computed server-side in submit_answer() when the answer is saved.
-// ---------------------------------------------------------------
-const LIVE_FILLER_PHRASES = [
-  'you know what i mean', 'you know', 'i mean', 'sort of', 'kind of',
-  'basically', 'actually', 'literally', 'honestly', 'so yeah',
-  'um', 'umm', 'uh', 'uhh', 'er', 'erm', 'like', 'well',
-];
-
-function analyzeLiveText(text) {
-  const trimmed = (text || '').trim();
-  const words = trimmed.match(/[A-Za-z']+/g) || [];
-  const wordCount = words.length;
-
-  let lowered = ` ${trimmed.toLowerCase()} `;
-  let fillerCount = 0;
-  for (const phrase of LIVE_FILLER_PHRASES) {
-    const pattern = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-    const matches = lowered.match(pattern);
-    if (matches) {
-      fillerCount += matches.length;
-      lowered = lowered.replace(pattern, ' ');
-    }
-  }
-  return { wordCount, fillerCount };
-}
-
-// Reads the current on-screen answer + this question's tallied face
-// signals so far and refreshes the live HUD. Safe to call frequently —
-// every branch degrades to "—" placeholders rather than throwing when
-// a panel/question isn't in the expected state (e.g. MCQ/coding
-// questions, which don't collect speech/emotion signals).
-function updateLiveAnalyticsHud() {
-  const hud = document.getElementById('liveAnalyticsHud');
-  if (!hud) return;
-
-  const q = questions[currentIndex];
-  const isOpenQuestion = q && (q.question_type || 'open') === 'open';
-  const textarea = document.getElementById('answerText');
-  const text = isOpenQuestion && textarea ? textarea.value : '';
-  const { wordCount, fillerCount } = analyzeLiveText(text);
-
-  const elapsedSeconds = questionStartedAt ? Math.max(1, Math.round((Date.now() - questionStartedAt) / 1000)) : null;
-  const liveWpm = wordCount > 0 && elapsedSeconds ? Math.round(wordCount / (elapsedSeconds / 60)) : null;
-
-  const eyeContactPercentage =
-    faceTotalSamples > 0 ? Math.round((faceOnCameraSamples / faceTotalSamples) * 100) : null;
-  let dominantEmotion = null;
-  let bestCount = 0;
-  for (const [emotion, count] of Object.entries(faceEmotionTally)) {
-    if (count > bestCount) {
-      bestCount = count;
-      dominantEmotion = emotion;
-    }
-  }
-  const avgPronunciation = getPronunciationConfidenceForAnswer();
-
-  setText('hudWordCount', wordCount || '0');
-  setText('hudFillerCount', fillerCount || '0');
-  setText('hudWpm', liveWpm !== null ? `${liveWpm} wpm` : '—');
-  setText('hudEyeContact', eyeContactPercentage !== null ? `${eyeContactPercentage}%` : '—');
-  setText('hudEmotion', dominantEmotion ? capitalize(dominantEmotion) : '—');
-  setText('hudPronunciation', avgPronunciation !== null ? `${avgPronunciation}%` : '—');
-
-  const fillerRatio = wordCount > 0 ? fillerCount / wordCount : 0;
-  setBarWidth('hudFillerBar', Math.min(100, fillerRatio * 100 * 6)); // scaled so ~16% ratio = full bar
-  setChipTone('hudFillerCount', fillerRatio > 0.08 ? 'bad' : fillerCount > 0 ? 'warn' : 'ok');
-  setChipTone('hudWpm', liveWpm === null ? 'neutral' : liveWpm < 90 || liveWpm > 180 ? 'warn' : 'ok');
-  setChipTone('hudEyeContact', eyeContactPercentage === null ? 'neutral' : eyeContactPercentage >= 70 ? 'ok' : eyeContactPercentage < 40 ? 'bad' : 'warn');
-}
-
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
-}
-
-function setBarWidth(id, percent) {
-  const el = document.getElementById(id);
-  if (el) el.style.width = `${Math.max(0, Math.min(100, percent))}%`;
-}
-
-function setChipTone(id, tone) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('hud-tone-ok', 'hud-tone-warn', 'hud-tone-bad', 'hud-tone-neutral');
-  el.classList.add(`hud-tone-${tone}`);
-}
-
-function capitalize(word) {
-  return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
-}
-
-// ---------------------------------------------------------------
-// Recording — MediaRecorder captures the SAME webcamStream already
-// used for proctoring/webcam preview (no second getUserMedia call).
-// One recording per session: started once camera/mic access is
-// granted, paused/resumed alongside the session itself, stopped and
-// uploaded exactly once when the session ends (Finish, timeout
-// auto-submit, or violation auto-submit all funnel through
-// finishInterview() below).
-// ---------------------------------------------------------------
+// --- Session recording (webcam + mic -> uploaded once the interview ends) ---
+// Auto-starts silently alongside the camera; if MediaRecorder isn't
+// supported or fails to init, the interview proceeds without a
+// recording rather than blocking the candidate.
 let mediaRecorder = null;
 let recordedChunks = [];
-let recordingMimeType = '';
-let recordingStartedAt = null;
-let recordingSecondsRecorded = 0; // wall-clock seconds actually spent recording (excludes pauses)
-let recordingSegmentStartedAt = null;
 
-// Tried in order — the browser picks the first one it actually supports.
-const RECORDING_MIME_CANDIDATES = [
-  'video/webm;codecs=vp9,opus',
-  'video/webm;codecs=vp8,opus',
-  'video/webm',
-];
+// --- Module 5: voice recognition confidence per question, used as a
+// pronunciation/clarity proxy (see backend/communication_analysis.py) ---
+let voiceConfidenceByQuestion = {};
 
-// Microphone level meter (Web Audio API) — proves the audio track is
-// actually being captured, not just requested.
-let micAudioCtx = null;
-let micAnalyser = null;
-let micLevelTimer = null;
+// --- Behavior analytics state (emotion / gaze / attention / engagement / confidence) ---
+// analyticsReady stays false (and the panel shows "unavailable") if the
+// landmark/expression models fail to load — core proctoring above still
+// works either way, this is purely additive.
+let analyticsReady = false;
+let currentEmotionLabel = '—';
+let emotionSampleCount = 0;
+let emotionScoreTotals = { nervous: 0, scared: 0, confused: 0, calm: 0 };
+let previousExpressionLabel = null;
+let expressionChangeCount = 0;
 
-// Pause/resume — sessionPaused is checked by the timers and by every
-// proctoring listener so nothing ticks or fires warnings while paused.
-let sessionPaused = false;
-let pauseInProgress = false;
+let eyeContactSeconds = 0;
+let trackedSeconds = 0;
+
+let currentAttentionLevel = '—';
+let attentionSampleTotals = { high: 0, medium: 0, low: 0 };
+
+let engagementScoreTotal = 0;
+let engagementSampleCount = 0;
+let headPositionHistory = [];
+
+let questionTimerInterval = null;
+let questionSecondsLeft = 0;
+let questionStartedAt = 0;
 
 let overallTimerInterval = null;
-let overallSecondsLeft = 0; // counts DOWN from the whole-session budget
-let questionStartedAt = 0; // still tracked per-question for the answers' timeTakenSeconds field
+let overallSecondsElapsed = 0;
 
 let strikeCount = 0;
 let lastViolationAt = {}; // type -> timestamp
@@ -314,13 +141,7 @@ async function initInterviewSession() {
   try {
     const savedAnswers = await apiFetchPy(`/interviews/${interviewId}/answers`);
     (savedAnswers || []).forEach((a) => {
-      localAnswers[a.question_id] = {
-        text: a.answer_text || '',
-        inputMode: a.input_mode || 'typed',
-        selectedOption: a.selected_option || null,
-        codeAnswer: a.code_answer || '',
-        codeLanguage: a.code_language || 'python',
-      };
+      localAnswers[a.question_id] = { text: a.answer_text || '', inputMode: a.input_mode || 'typed' };
     });
   } catch (err) {
     // Non-fatal — session just starts with blank answers.
@@ -337,117 +158,6 @@ function showCompletedAlready() {
   document.getElementById('finishScoreCircle').textContent =
     interview.score !== null && interview.score !== undefined ? `${interview.score}%` : '—';
   document.getElementById('finishFeedbackText').textContent = interview.ai_feedback || '';
-  loadAndRenderScoreSheet();
-  loadAndRenderCommunicationReport();
-}
-
-// ---------------------------------------------------------------
-// MCQ + Coding marks sheet (shown on the finish/results overlay)
-// ---------------------------------------------------------------
-async function loadAndRenderScoreSheet() {
-  let sheet;
-  try {
-    sheet = await apiFetchPy(`/interviews/${interviewId}/scoresheet`);
-  } catch (err) {
-    console.warn('Could not load score sheet:', err);
-    return;
-  }
-
-  if (!sheet || !sheet.rows || !sheet.rows.length) return;
-
-  const rowsHtml = sheet.rows
-    .map((row) => {
-      let resultLabel;
-      if (row.question_type === 'mcq') {
-        resultLabel = row.is_correct
-          ? '✅ Correct'
-          : `❌ Wrong${row.selected_option ? ` (picked ${row.selected_option}` : ' (no answer'}${
-              row.correct_option ? `, correct: ${row.correct_option})` : ')'
-            }`;
-      } else {
-        resultLabel = `${row.test_cases_passed ?? 0} / ${row.test_cases_total ?? 0} test cases passed`;
-      }
-      const typeLabel = row.question_type === 'mcq' ? 'MCQ' : 'Coding';
-      return `
-        <tr style="border-bottom:1px solid rgba(0,0,0,0.08)">
-          <td style="padding:4px">${row.sequence_no}</td>
-          <td style="padding:4px">${typeLabel}</td>
-          <td style="padding:4px;max-width:260px">${escapeHtmlSession(row.question_text)}</td>
-          <td style="padding:4px">${resultLabel}</td>
-          <td style="padding:4px">${row.marks_awarded} / ${row.marks}</td>
-        </tr>`;
-    })
-    .join('');
-
-  document.getElementById('scoreSheetBody').innerHTML = rowsHtml;
-  document.getElementById('scoreSheetTotal').textContent =
-    `Total: ${sheet.marks_awarded} / ${sheet.marks_total} marks`;
-  document.getElementById('scoreSheetBox').style.display = 'block';
-}
-
-// ---------------------------------------------------------------
-// Module 5 & 6 — Communication & Confidence report (shown on the
-// finish overlay once scoring completes).
-// ---------------------------------------------------------------
-async function loadAndRenderCommunicationReport() {
-  let report;
-  try {
-    report = await apiFetchPy(`/interviews/${interviewId}/communication-report`);
-  } catch (err) {
-    console.warn('Could not load communication report:', err);
-    return;
-  }
-
-  if (!report || !report.questions_analyzed) return; // nothing to show for MCQ/coding-only or unanswered sessions
-
-  setText('crWpm', report.avg_words_per_minute !== null ? `${report.avg_words_per_minute} wpm (${report.pace_label || '—'})` : '—');
-  setText(
-    'crFiller',
-    report.total_filler_words !== null
-      ? `${report.total_filler_words} total (${report.filler_label || '—'})`
-      : '—'
-  );
-  setText('crGrammar', report.avg_grammar_issues !== null && report.avg_grammar_issues !== undefined ? report.avg_grammar_issues : '—');
-  setText('crKeyword', report.avg_keyword_match_percentage !== null ? `${report.avg_keyword_match_percentage}%` : 'no keyword data');
-  setText('crCompleteness', report.avg_response_completeness !== null ? `${report.avg_response_completeness} words/answer` : '—');
-
-  setText(
-    'crEyeContact',
-    report.avg_eye_contact_percentage !== null ? `${report.avg_eye_contact_percentage}% (${report.confidence_label || '—'})` : 'not tracked'
-  );
-  setText('crEmotion', report.dominant_emotion_overall ? capitalize(report.dominant_emotion_overall) : 'not tracked');
-  setText('crPronunciation', report.avg_pronunciation_confidence !== null ? `${report.avg_pronunciation_confidence}%` : 'typed answers only');
-  setText('crVoiceRatio', report.voice_answer_ratio !== null ? `${Math.round(report.voice_answer_ratio * 100)}%` : '0%');
-  setText('crViolations', `${report.proctoring_violations ?? 0}`);
-
-  const breakdown = document.getElementById('crEmotionBreakdown');
-  if (breakdown) {
-    const entries = Object.entries(report.emotion_breakdown || {});
-    breakdown.innerHTML = entries.length
-      ? `Emotion mix across answers: ${entries.map(([e, c]) => `${capitalize(e)} (${c})`).join(', ')}`
-      : '';
-  }
-
-  if (report.rows && report.rows.length) {
-    const rowsHtml = report.rows
-      .map(
-        (r) => `
-        <tr>
-          <td>${r.sequence_no}</td>
-          <td>${escapeHtmlSession(r.category)}</td>
-          <td>${r.word_count}</td>
-          <td>${r.filler_word_count ?? '—'}</td>
-          <td>${r.words_per_minute !== null && r.words_per_minute !== undefined ? r.words_per_minute : '—'}</td>
-          <td>${r.eye_contact_percentage !== null && r.eye_contact_percentage !== undefined ? `${r.eye_contact_percentage}%` : '—'}</td>
-          <td>${r.dominant_emotion ? capitalize(r.dominant_emotion) : '—'}</td>
-        </tr>`
-      )
-      .join('');
-    document.getElementById('crTableBody').innerHTML = rowsHtml;
-    document.getElementById('crTable').style.display = 'table';
-  }
-
-  document.getElementById('commReportBox').style.display = 'block';
 }
 
 // ---------------------------------------------------------------
@@ -458,32 +168,7 @@ async function beginProctoredSession() {
   const errBox = document.getElementById('preStartError');
   errBox.style.display = 'none';
   btn.disabled = true;
-  btn.textContent = 'Requesting camera & microphone…';
-
-  // Best-effort pre-check so we can give a specific message ("no camera
-  // found" vs "no microphone found") before even prompting for
-  // permission — device labels aren't available pre-permission, but
-  // kind/count are, which is enough to catch the "no such device" case.
-  let missingCamera = false;
-  let missingMic = false;
-  try {
-    if (navigator.mediaDevices.enumerateDevices) {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      missingCamera = !devices.some((d) => d.kind === 'videoinput');
-      missingMic = !devices.some((d) => d.kind === 'audioinput');
-    }
-  } catch (e) {
-    /* enumeration isn't critical — fall through to getUserMedia */
-  }
-
-  if (missingCamera || missingMic) {
-    const what = missingCamera && missingMic ? 'camera or microphone' : missingCamera ? 'camera' : 'microphone';
-    errBox.textContent = `No ${what} was found on this device. Please connect one and try again.`;
-    errBox.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = '▶ Enable Camera & Start';
-    return;
-  }
+  btn.textContent = 'Requesting camera…';
 
   try {
     webcamStream = await navigator.mediaDevices.getUserMedia({
@@ -491,7 +176,8 @@ async function beginProctoredSession() {
       audio: true,
     });
   } catch (err) {
-    errBox.textContent = preStartErrorMessage(err);
+    errBox.textContent =
+      'Camera access is required for this proctored assessment. Please allow camera permission and try again.';
     errBox.style.display = 'block';
     btn.disabled = false;
     btn.textContent = '▶ Enable Camera & Start';
@@ -500,8 +186,8 @@ async function beginProctoredSession() {
 
   const video = document.getElementById('webcamVideo');
   video.srcObject = webcamStream;
-  startMicLevelMeter();
-  startRecording();
+
+  startInterviewRecording(webcamStream);
 
   // Fullscreen is best-effort — some browsers/embedded contexts block it,
   // so a failure here doesn't stop the interview, it just skips that check.
@@ -511,50 +197,14 @@ async function beginProctoredSession() {
     console.warn('Fullscreen request failed/denied:', err);
   }
 
-  try {
-    const updated = await apiFetchPy(`/interviews/${interviewId}/begin`, { method: 'PATCH' });
-    interview = updated;
-  } catch (err) {
-    // Non-fatal — the candidate already has camera/mic access, so let
-    // them proceed locally even if the status update didn't stick;
-    // /finish will still succeed at the end.
-    console.warn('Could not mark interview as started:', err);
-  }
-
   document.getElementById('preStartOverlay').style.display = 'none';
   document.getElementById('sessionShell').style.display = 'flex';
   sessionActive = true;
-  sessionPaused = false;
-  updateSessionStatusBadge();
 
   attachProctoringListeners();
   setupFaceDetection(); // async, non-blocking
-  startOverallTimer(computeSessionTimeBudget(questions));
+  startOverallTimer();
   renderQuestion(0);
-
-  // Module 5/6 — real-time HUD: recompute live filler/pace/emotion/eye
-  // contact roughly twice a second, independent of the face-detection
-  // cadence, so typed answers get live speech-signal feedback too.
-  clearInterval(liveHudTimer);
-  liveHudTimer = setInterval(updateLiveAnalyticsHud, 700);
-}
-
-// Maps getUserMedia failures to a message that tells the candidate
-// what actually went wrong and what to do about it.
-function preStartErrorMessage(err) {
-  switch (err && err.name) {
-    case 'NotAllowedError':
-    case 'SecurityError':
-      return 'Camera and microphone access were denied. Please allow both permissions in your browser and try again.';
-    case 'NotFoundError':
-    case 'OverconstrainedError':
-      return 'No camera or microphone could be found on this device. Please connect one and try again.';
-    case 'NotReadableError':
-    case 'TrackStartError':
-      return 'Your camera or microphone is already in use by another application. Close it and try again.';
-    default:
-      return 'Camera and microphone access are required for this proctored assessment. Please allow both permissions and try again.';
-  }
 }
 
 // ---------------------------------------------------------------
@@ -563,280 +213,84 @@ function preStartErrorMessage(err) {
 function renderQuestion(index) {
   currentIndex = index;
   const q = questions[index];
-  const qType = q.question_type || 'open';
 
   document.getElementById('sessionProgress').textContent = `Question ${index + 1} / ${questions.length}`;
   document.getElementById('qCategoryBadge').textContent = q.category;
-  const marksLabel = q.marks === 1 ? '1 mark' : `${q.marks} marks`;
-  document.getElementById('qDifficultyBadge').textContent =
-    qType === 'coding' || qType === 'mcq' ? `${q.difficulty} · ${marksLabel}` : q.difficulty;
+  document.getElementById('qDifficultyBadge').textContent = q.difficulty;
   document.getElementById('questionText').textContent = q.question_text;
 
-  document.getElementById('openAnswerCard').style.display = qType === 'open' ? '' : 'none';
-  document.getElementById('mcqAnswerCard').style.display = qType === 'mcq' ? '' : 'none';
-  document.getElementById('codingAnswerCard').style.display = qType === 'coding' ? '' : 'none';
-
   const saved = localAnswers[q.id];
-
-  if (qType === 'mcq') {
-    renderMcqOptions(q, saved);
-  } else if (qType === 'coding') {
-    renderCodingQuestion(q, saved);
-  } else {
-    document.getElementById('answerText').value = saved ? saved.text : '';
-  }
-
+  document.getElementById('answerText').value = saved ? saved.text : '';
   document.getElementById('micStatus').textContent = '';
   stopVoiceInputIfActive();
 
   document.getElementById('nextBtn').textContent =
     index === questions.length - 1 ? 'Finish Interview ✔' : 'Save & Next ▶';
 
-  questionStartedAt = Date.now(); // still used for the per-answer timeTakenSeconds field
-  resetFaceSignalsForQuestion(); // Milestone 3 — fresh emotion/eye-contact tally per question
+  questionStartedAt = Date.now();
+  startQuestionTimer(DIFFICULTY_SECONDS[q.difficulty] || 120);
 }
 
-function renderMcqOptions(q, saved) {
-  let options = [];
-  try {
-    options = q.options ? JSON.parse(q.options) : [];
-  } catch (e) {
-    options = [];
-  }
-  const list = document.getElementById('mcqOptionsList');
-  const selected = saved ? saved.selectedOption : null;
-  list.innerHTML = options
-    .map((opt, i) => {
-      const letter = String.fromCharCode(65 + i); // A, B, C, D...
-      const checked = selected === letter ? 'checked' : '';
-      return `
-        <li style="margin-bottom:8px">
-          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-            <input type="radio" name="mcqOption" value="${letter}" ${checked} onchange="onMcqOptionChange('${letter}')" style="margin-top:3px">
-            <span><strong>${letter}.</strong> ${escapeHtmlSession(opt)}</span>
-          </label>
-        </li>`;
-    })
-    .join('');
-}
-
-function onMcqOptionChange(letter) {
-  const q = questions[currentIndex];
-  localAnswers[q.id] = { ...(localAnswers[q.id] || {}), selectedOption: letter };
-}
-
-function renderCodingQuestion(q, saved) {
-  let starterCode = {};
-  try {
-    starterCode = q.starter_code ? JSON.parse(q.starter_code) : {};
-  } catch (e) {
-    starterCode = {};
-  }
-  let testCases = [];
-  try {
-    testCases = q.test_cases ? JSON.parse(q.test_cases) : [];
-  } catch (e) {
-    testCases = [];
-  }
-
-  const language = (saved && saved.codeLanguage) || 'python';
-  document.getElementById('codeLanguageSelect').value = language;
-  document.getElementById('codeAnswerText').value =
-    saved && saved.codeAnswer !== undefined && saved.codeAnswer !== ''
-      ? saved.codeAnswer
-      : starterCode[language] || '';
-  document.getElementById('codeAnswerText').dataset.starterCode = JSON.stringify(starterCode);
-
-  // Clear any stale "Run Code" output from a previous render of this
-  // (or another) coding question.
-  const resultsBox = document.getElementById('runCodeResultsBox');
-  if (resultsBox) {
-    resultsBox.style.display = 'none';
-    resultsBox.innerHTML = '';
-  }
-  const runStatus = document.getElementById('runCodeStatus');
-  if (runStatus) runStatus.textContent = '';
-
-  document.getElementById('codingTestCasesBox').innerHTML =
-    '<strong>Sample test cases (your code is graded against these):</strong>' +
-    testCases
-      .map(
-        (tc, i) =>
-          `<div style="margin-top:6px;padding:8px;background:rgba(0,0,0,0.04);border-radius:6px">
-            <div>Input ${i + 1}: <code>${escapeHtmlSession(tc.input)}</code></div>
-            <div>Expected Output: <code>${escapeHtmlSession(tc.output)}</code></div>
-          </div>`
-      )
-      .join('');
-}
-
-function onCodeLanguageChange() {
-  const q = questions[currentIndex];
-  const language = document.getElementById('codeLanguageSelect').value;
-  let starterCode = {};
-  try {
-    starterCode = JSON.parse(document.getElementById('codeAnswerText').dataset.starterCode || '{}');
-  } catch (e) {
-    starterCode = {};
-  }
-  const saved = localAnswers[q.id];
-  // Only swap in the language's starter code if the candidate hasn't
-  // typed anything of their own for this question yet.
-  const currentText = document.getElementById('codeAnswerText').value;
-  const hadCustomCode = saved && saved.codeAnswer && saved.codeAnswer.trim() && saved.codeAnswer !== currentText;
-  if (!currentText.trim() || (saved && saved.codeAnswer === currentText && !hadCustomCode)) {
-    document.getElementById('codeAnswerText').value = starterCode[language] || '';
-  }
-  localAnswers[q.id] = { ...(localAnswers[q.id] || {}), codeLanguage: language };
-}
-
-// ---------------------------------------------------------------
-// Coding round — "Run Code" (test execution, not the final graded
-// submission). Hits POST /{id}/questions/{qid}/run, which reuses the
-// same judge as the real grading but never persists or scores
-// anything, so the candidate can iterate freely before Save & Next.
-// ---------------------------------------------------------------
-async function runCandidateCode() {
-  const q = questions[currentIndex];
-  if (!q || q.question_type !== 'coding') return;
-
-  const btn = document.getElementById('runCodeBtn');
-  const statusEl = document.getElementById('runCodeStatus');
-  const resultsBox = document.getElementById('runCodeResultsBox');
-  const code = document.getElementById('codeAnswerText').value;
-  const language = document.getElementById('codeLanguageSelect').value;
-
-  if (!code.trim()) {
-    statusEl.textContent = 'Write some code first.';
-    return;
-  }
-
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = '⏳ Running…';
-  statusEl.textContent = '';
-  resultsBox.style.display = 'none';
-
-  try {
-    const result = await apiFetchPy(`/interviews/${interviewId}/questions/${q.id}/run`, {
-      method: 'POST',
-      body: JSON.stringify({ codeAnswer: code, codeLanguage: language }),
-    });
-
-    const allPassed = result.passed_count === result.total_count && result.total_count > 0;
-    const summaryClass = allPassed ? 'run-code-pass' : 'run-code-fail';
-    const summaryIcon = allPassed ? '✅' : '⚠️';
-    const casesHtml = result.results
-      .map(
-        (r, i) => `
-        <div class="run-code-case">
-          <div>Test ${i + 1}: <span class="${r.passed ? 'run-code-case-pass' : 'run-code-case-fail'}">${
-            r.passed ? 'PASSED' : 'FAILED'
-          }</span></div>
-          <div>Input: <code>${escapeHtmlSession(r.input)}</code></div>
-          <div>Expected: <code>${escapeHtmlSession(r.expected)}</code></div>
-          <div>Got: <code>${escapeHtmlSession(r.actual)}</code></div>
-        </div>`
-      )
-      .join('');
-
-    resultsBox.innerHTML = `
-      <div class="run-code-summary ${summaryClass}">
-        ${summaryIcon} ${result.passed_count} / ${result.total_count} test cases passed
-      </div>
-      ${casesHtml}`;
-    resultsBox.style.display = 'block';
-    statusEl.textContent = 'This is a test run only — it does not save or score your answer. Click "Save & Next" when ready.';
-  } catch (err) {
-    statusEl.textContent = err.message || 'Could not run your code — check your connection and try again.';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalLabel;
-  }
-}
-
-function escapeHtmlSession(str) {
-  const div = document.createElement('div');
-  div.textContent = str === undefined || str === null ? '' : String(str);
-  return div.innerHTML;
-}
-
-// One countdown for the whole session — sized once at the start from
-// computeSessionTimeBudget(questions), so it already scales with the
-// question count and its mix of categories/difficulties (5 easy HR
-// questions vs. 30 mixed questions each get an appropriately sized
-// total instead of a per-question clock).
-function startOverallTimer(seconds) {
-  clearInterval(overallTimerInterval);
-  if (typeof seconds === 'number') overallSecondsLeft = seconds;
-  updateOverallTimerDisplay();
-  overallTimerInterval = setInterval(() => {
-    overallSecondsLeft -= 1;
-    updateOverallTimerDisplay();
-    if (overallSecondsLeft <= 0) {
-      clearInterval(overallTimerInterval);
-      showToast("Time's up for the interview — auto-submitting.", 'info');
-      autoSubmitDueToTimeout();
+function startQuestionTimer(seconds) {
+  clearInterval(questionTimerInterval);
+  questionSecondsLeft = seconds;
+  updateQuestionTimerDisplay();
+  questionTimerInterval = setInterval(() => {
+    questionSecondsLeft -= 1;
+    updateQuestionTimerDisplay();
+    if (questionSecondsLeft <= 0) {
+      clearInterval(questionTimerInterval);
+      showToast("Time's up for this question — moving on.", 'info');
+      advanceFromTimeout();
     }
   }, 1000);
 }
 
-function updateOverallTimerDisplay() {
-  const el = document.getElementById('overallTimer');
-  const m = Math.floor(Math.max(0, overallSecondsLeft) / 60).toString().padStart(2, '0');
-  const s = Math.max(0, overallSecondsLeft % 60).toString().padStart(2, '0');
-  el.textContent = `Total ${m}:${s}`;
-  el.classList.toggle('session-timer-low', overallSecondsLeft <= 30);
+function updateQuestionTimerDisplay() {
+  const el = document.getElementById('questionTimer');
+  const m = Math.floor(Math.max(0, questionSecondsLeft) / 60)
+    .toString()
+    .padStart(2, '0');
+  const s = Math.max(0, questionSecondsLeft % 60)
+    .toString()
+    .padStart(2, '0');
+  el.textContent = `⏱ ${m}:${s}`;
+  el.classList.toggle('session-timer-low', questionSecondsLeft <= 10);
 }
 
-async function autoSubmitDueToTimeout() {
-  if (finishInProgress || sessionFinished) return;
-  await saveCurrentAnswer();
-  finishInterview();
+function startOverallTimer() {
+  overallTimerInterval = setInterval(() => {
+    overallSecondsElapsed += 1;
+    const m = Math.floor(overallSecondsElapsed / 60).toString().padStart(2, '0');
+    const s = (overallSecondsElapsed % 60).toString().padStart(2, '0');
+    document.getElementById('overallTimer').textContent = `Total ${m}:${s}`;
+  }, 1000);
 }
 
 async function saveCurrentAnswer() {
   const q = questions[currentIndex];
-  const qType = q.question_type || 'open';
+  const text = document.getElementById('answerText').value.trim();
+  const inputMode = localAnswers[q.id]?.inputMode === 'voice' && !text ? 'typed' : localAnswers[q.id]?.usedVoice ? 'voice' : 'typed';
   const timeTaken = Math.max(0, Math.round((Date.now() - questionStartedAt) / 1000));
 
-  const body = { questionId: q.id, timeTakenSeconds: timeTaken };
+  const confidenceSamples = voiceConfidenceByQuestion[q.id];
+  const voiceConfidence =
+    inputMode === 'voice' && confidenceSamples && confidenceSamples.length
+      ? confidenceSamples.reduce((a, b) => a + b, 0) / confidenceSamples.length
+      : null;
 
-  if (qType === 'mcq') {
-    const selectedOption = localAnswers[q.id]?.selectedOption || null;
-    localAnswers[q.id] = { ...(localAnswers[q.id] || {}), selectedOption };
-    body.selectedOption = selectedOption;
-    body.answerText = selectedOption || '';
-  } else if (qType === 'coding') {
-    const codeAnswer = document.getElementById('codeAnswerText').value;
-    const codeLanguage = document.getElementById('codeLanguageSelect').value;
-    localAnswers[q.id] = { ...(localAnswers[q.id] || {}), codeAnswer, codeLanguage };
-    body.codeAnswer = codeAnswer;
-    body.codeLanguage = codeLanguage;
-    body.answerText = '';
-  } else {
-    const text = document.getElementById('answerText').value.trim();
-    const inputMode = localAnswers[q.id]?.inputMode === 'voice' && !text ? 'typed' : localAnswers[q.id]?.usedVoice ? 'voice' : 'typed';
-    localAnswers[q.id] = { text, inputMode, usedVoice: localAnswers[q.id]?.usedVoice };
-    body.answerText = text;
-    body.inputMode = inputMode;
-
-    // Milestone 3 — pull this question's tallied face-api.js signals
-    // (dominant emotion + % of samples where a face was on-camera) and
-    // the average Web Speech API recognition confidence (a rough proxy
-    // for pronunciation clarity — not true phoneme-level scoring, but a
-    // real, non-fabricated signal the browser actually gives us).
-    const { dominantEmotion, eyeContactPercentage } = getFaceSignalsForAnswer();
-    const pronunciationConfidence = getPronunciationConfidenceForAnswer();
-    body.dominantEmotion = dominantEmotion;
-    body.eyeContactPercentage = eyeContactPercentage;
-    body.pronunciationConfidence = pronunciationConfidence;
-  }
+  localAnswers[q.id] = { text, inputMode, usedVoice: localAnswers[q.id]?.usedVoice };
 
   try {
     await apiFetchPy(`/interviews/${interviewId}/answers`, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        questionId: q.id,
+        answerText: text,
+        inputMode,
+        timeTakenSeconds: timeTaken,
+        voiceConfidence,
+      }),
     });
   } catch (err) {
     console.error('Failed to save answer:', err);
@@ -856,6 +310,15 @@ async function goToNextQuestion() {
   }
 }
 
+async function advanceFromTimeout() {
+  await saveCurrentAnswer();
+  if (currentIndex === questions.length - 1) {
+    finishInterview();
+  } else {
+    renderQuestion(currentIndex + 1);
+  }
+}
+
 // ---------------------------------------------------------------
 // Finish
 // ---------------------------------------------------------------
@@ -864,16 +327,19 @@ async function finishInterview() {
   finishInProgress = true;
   sessionActive = false;
 
+  clearInterval(questionTimerInterval);
   clearInterval(overallTimerInterval);
   clearInterval(faceCheckTimer);
-  clearInterval(liveHudTimer);
   stopVoiceInputIfActive();
 
-  // Stop the recorder first (while the stream is still live) so its
-  // final chunk flushes cleanly, then release the camera/mic.
-  const recordingBlob = await stopRecordingAndGetBlob();
+  // Recorder must be stopped (and its final chunk flushed) BEFORE the
+  // tracks it's reading from are stopped, or the last second or so of
+  // the recording can be lost.
+  const recordingBlob = await stopInterviewRecording();
   stopWebcamTracks(); // turn the camera off right away — proctoring listeners (incl. the
-                       // leave-page guard) stay armed until everything below settles
+                       // leave-page guard) stay armed until the /finish call below settles
+  uploadInterviewRecording(recordingBlob); // fire-and-forget — never blocks scoring/finish
+
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   }
@@ -884,33 +350,36 @@ async function finishInterview() {
   document.getElementById('finishHeading').textContent = '⏳ Scoring your interview…';
   document.getElementById('finishSubtext').textContent = 'The AI is reviewing your answers. This takes a few seconds.';
   document.getElementById('finishScoreBox').style.display = 'none';
-  document.getElementById('scoreSheetBox').style.display = 'none';
+  renderFinalBehaviorReport();
+  renderCommunicationReport(); // fire-and-forget — Module 5, independent of scoring
 
   try {
-    const result = await apiFetchPy(`/interviews/${interviewId}/finish`, { method: 'PATCH' });
+    const finishBody = {};
+    const behaviorMetrics = buildBehaviorMetricsPayload();
+    if (behaviorMetrics) finishBody.behaviorMetrics = behaviorMetrics;
+
+    const result = await apiFetchPy(`/interviews/${interviewId}/finish`, {
+      method: 'PATCH',
+      body: JSON.stringify(finishBody),
+    });
     document.getElementById('finishHeading').textContent = '✅ Interview complete';
     document.getElementById('finishSubtext').textContent = `"${result.interview_type}" — report ready.`;
     document.getElementById('finishScoreBox').style.display = 'block';
     document.getElementById('finishScoreCircle').textContent = `${result.score}%`;
+    document.getElementById('finishRatingLabel').textContent = result.rating_label || '';
     document.getElementById('finishFeedbackText').textContent = result.ai_feedback || '';
-
-    await loadAndRenderScoreSheet();
-    await loadAndRenderCommunicationReport();
+    renderScoreBreakdown(result);
+    renderFeedbackBreakdown(result);
   } catch (err) {
     document.getElementById('finishHeading').textContent = '⚠️ Could not score interview';
     document.getElementById('finishSubtext').textContent =
       err.message || 'Something went wrong while scoring. Your answers were saved — try again from the dashboard.';
+  } finally {
+    // Only now is it safe to let the candidate navigate away freely.
+    sessionFinished = true;
+    finishInProgress = false;
+    removeProctoringListeners();
   }
-
-  // Uploading the recording never blocks or fails the score above —
-  // it's a best-effort add-on, handled (and reported) entirely inside
-  // uploadRecording() itself.
-  await uploadRecording(recordingBlob);
-
-  // Only now is it safe to let the candidate navigate away freely.
-  sessionFinished = true;
-  finishInProgress = false;
-  removeProctoringListeners();
 }
 
 async function autoSubmitDueToViolations() {
@@ -980,15 +449,19 @@ function toggleVoiceInput() {
   recognition.onresult = (event) => {
     let finalTranscript = '';
     let interimTranscript = '';
+    const q = questions[currentIndex];
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
         finalTranscript += transcript;
-        // Milestone 3 — pronunciation proxy: confidence is only
-        // meaningful on final results, not interim guesses.
+        // Web Speech API's own confidence for what it just recognized —
+        // used as an honest proxy for speech clarity (Module 5), not a
+        // linguistic pronunciation score. Some browsers always report 1;
+        // this is still the best signal actually available client-side.
         const confidence = event.results[i][0].confidence;
         if (typeof confidence === 'number' && confidence > 0) {
-          pronunciationConfidenceSamples.push(confidence);
+          if (!voiceConfidenceByQuestion[q.id]) voiceConfidenceByQuestion[q.id] = [];
+          voiceConfidenceByQuestion[q.id].push(confidence);
         }
       } else {
         interimTranscript += transcript;
@@ -996,7 +469,6 @@ function toggleVoiceInput() {
     }
     if (finalTranscript) baseTextBeforeVoice += `${finalTranscript} `;
     textarea.value = baseTextBeforeVoice + interimTranscript;
-    const q = questions[currentIndex];
     localAnswers[q.id] = { ...(localAnswers[q.id] || {}), usedVoice: true };
   };
 
@@ -1067,7 +539,7 @@ async function logViolation(type, message) {
   appendWarningLog(message);
   showToast(message, 'error');
 
-  if (!sessionActive || sessionPaused) return;
+  if (!sessionActive) return;
 
   try {
     const result = await apiFetchPy(`/interviews/${interviewId}/violation`, {
@@ -1125,7 +597,7 @@ function attachProctoringListeners() {
 }
 
 function handleVisibilityChange() {
-  if (!sessionActive || sessionPaused) return;
+  if (!sessionActive) return;
   if (document.hidden) {
     setChecklistState('chkTab', 'bad', 'Switched away');
     logViolation('tab_switch', 'You switched away from the interview tab.');
@@ -1135,13 +607,13 @@ function handleVisibilityChange() {
 }
 
 function handleWindowBlur() {
-  if (!sessionActive || sessionPaused) return;
+  if (!sessionActive) return;
   setChecklistState('chkTab', 'bad', 'Lost focus');
   logViolation('tab_switch', 'The interview window lost focus.');
 }
 
 function handleFullscreenChange() {
-  if (!sessionActive || sessionPaused) return;
+  if (!sessionActive) return;
   if (!document.fullscreenElement) {
     setChecklistState('chkFullscreen', 'bad', 'Exited');
     logViolation('fullscreen_exit', 'You exited fullscreen mode.');
@@ -1151,7 +623,7 @@ function handleFullscreenChange() {
 }
 
 function handleCopyPasteBlock(e) {
-  if (!sessionActive || sessionPaused) return;
+  if (!sessionActive) return;
   e.preventDefault();
   logViolation('copy_paste', 'Copy/paste/right-click is disabled during the assessment.');
 }
@@ -1173,7 +645,6 @@ function setChecklistState(id, state, label) {
 }
 
 function stopWebcamTracks() {
-  stopMicLevelMeter();
   if (webcamStream) {
     webcamStream.getTracks().forEach((t) => t.stop());
     webcamStream = null;
@@ -1181,74 +652,27 @@ function stopWebcamTracks() {
 }
 
 // ---------------------------------------------------------------
-// Microphone level meter — small live bar showing the mic is
-// actually picking up audio, driven by the same stream's audio track.
+// Session recording — webcam + mic, auto-started silently alongside
+// the camera. Uploaded once via POST /interviews/:id/recording when
+// the interview finishes; viewable afterward by the candidate and by
+// staff (coach/recruiter/admin) through watchRecording() in script.js.
+// Best-effort: any failure here (unsupported browser, upload error)
+// is swallowed so it never blocks the interview itself.
 // ---------------------------------------------------------------
-function startMicLevelMeter() {
-  if (!webcamStream || webcamStream.getAudioTracks().length === 0) return;
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtx) return;
-
-  try {
-    micAudioCtx = new AudioCtx();
-    const source = micAudioCtx.createMediaStreamSource(webcamStream);
-    micAnalyser = micAudioCtx.createAnalyser();
-    micAnalyser.fftSize = 512;
-    source.connect(micAnalyser);
-
-    const data = new Uint8Array(micAnalyser.frequencyBinCount);
-    const bar = document.getElementById('micLevelBar');
-
-    micLevelTimer = setInterval(() => {
-      if (!micAnalyser) return;
-      micAnalyser.getByteFrequencyData(data);
-      const avg = data.reduce((sum, v) => sum + v, 0) / data.length;
-      const pct = Math.min(100, Math.round((avg / 160) * 100));
-      if (bar) bar.style.width = `${pct}%`;
-    }, 150);
-  } catch (err) {
-    console.warn('Mic level meter unavailable:', err);
-  }
-}
-
-function stopMicLevelMeter() {
-  clearInterval(micLevelTimer);
-  micLevelTimer = null;
-  micAnalyser = null;
-  if (micAudioCtx) {
-    micAudioCtx.close().catch(() => {});
-    micAudioCtx = null;
-  }
-}
-
-// ---------------------------------------------------------------
-// Recording — captures the session's webcam/mic stream to a single
-// video file, uploaded once when the session ends. Pausing the
-// session pauses the recorder too (MediaRecorder.pause()), so paused
-// time isn't captured, matching the "no answers are being recorded"
-// message already shown on the paused overlay.
-// ---------------------------------------------------------------
-function pickRecordingMimeType() {
-  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
-  return RECORDING_MIME_CANDIDATES.find((t) => MediaRecorder.isTypeSupported(t)) || '';
-}
-
-function startRecording() {
+function startInterviewRecording(stream) {
   if (typeof MediaRecorder === 'undefined') {
-    console.warn('MediaRecorder is not supported in this browser — session will not be recorded.');
+    console.warn('MediaRecorder is not supported in this browser — proceeding without a recording.');
     return;
   }
-  if (!webcamStream || webcamStream.getTracks().length === 0) return;
 
-  recordingMimeType = pickRecordingMimeType();
   recordedChunks = [];
+  const candidateTypes = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
+  const mimeType = candidateTypes.find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
 
   try {
-    mediaRecorder = recordingMimeType
-      ? new MediaRecorder(webcamStream, { mimeType: recordingMimeType })
-      : new MediaRecorder(webcamStream);
+    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   } catch (err) {
-    console.warn('Could not start session recording:', err);
+    console.warn('Could not start session recording — proceeding without one:', err);
     mediaRecorder = null;
     return;
   }
@@ -1256,204 +680,58 @@ function startRecording() {
   mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) recordedChunks.push(e.data);
   };
-  mediaRecorder.onerror = (e) => {
-    console.warn('Recording error:', e.error || e);
-  };
+  mediaRecorder.onerror = (e) => console.warn('Recording error:', e.error || e);
 
-  recordingMimeType = recordingMimeType || mediaRecorder.mimeType || 'video/webm';
-  recordingStartedAt = new Date();
-  recordingSegmentStartedAt = Date.now();
-  recordingSecondsRecorded = 0;
-
-  // 1s timeslices so ondataavailable fires incrementally rather than
-  // only at stop() — keeps memory bounded for longer sessions and
-  // means a crash/tab-close still leaves earlier chunks recoverable
-  // in principle, even though today only the final upload uses them.
+  // Collect a chunk every second rather than only at the end — if the
+  // tab crashes mid-interview we still have everything up to that point
+  // instead of losing the whole recording.
   mediaRecorder.start(1000);
-  updateRecordingIndicator(true);
 }
 
-function pauseRecording() {
-  if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-  try {
-    mediaRecorder.pause();
-  } catch (err) {
-    console.warn('Could not pause recording:', err);
-    return;
-  }
-  if (recordingSegmentStartedAt) {
-    recordingSecondsRecorded += Math.round((Date.now() - recordingSegmentStartedAt) / 1000);
-    recordingSegmentStartedAt = null;
-  }
-  updateRecordingIndicator(false);
-}
-
-function resumeRecording() {
-  if (!mediaRecorder || mediaRecorder.state !== 'paused') return;
-  try {
-    mediaRecorder.resume();
-  } catch (err) {
-    console.warn('Could not resume recording:', err);
-    return;
-  }
-  recordingSegmentStartedAt = Date.now();
-  updateRecordingIndicator(true);
-}
-
-function updateRecordingIndicator(active) {
-  const el = document.getElementById('recordingIndicator');
-  if (!el) return;
-  el.style.display = mediaRecorder ? 'inline-flex' : 'none';
-  el.classList.toggle('session-recording-live', !!active);
-  el.textContent = active ? '🔴 REC' : '⏸ REC paused';
-}
-
-// Stops the recorder (if any) and resolves with the finished Blob —
-// or null if recording never started/isn't supported, so callers can
-// treat "no recording" as a non-fatal, expected case.
-function stopRecordingAndGetBlob() {
+// Stops the recorder and resolves with the finished Blob (or null if
+// there's nothing to stop / nothing was captured). Tracks must stay
+// live until this resolves, or the last chunk can be lost — callers
+// should stop webcam tracks AFTER awaiting this, not before.
+function stopInterviewRecording() {
   return new Promise((resolve) => {
     if (!mediaRecorder || mediaRecorder.state === 'inactive') {
       resolve(null);
       return;
     }
     mediaRecorder.onstop = () => {
-      if (recordingSegmentStartedAt) {
-        recordingSecondsRecorded += Math.round((Date.now() - recordingSegmentStartedAt) / 1000);
-        recordingSegmentStartedAt = null;
-      }
-      const blob = recordedChunks.length
-        ? new Blob(recordedChunks, { type: recordingMimeType || 'video/webm' })
-        : null;
-      resolve(blob);
+      const blob = recordedChunks.length ? new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' }) : null;
+      mediaRecorder = null;
+      recordedChunks = [];
+      resolve(blob && blob.size > 0 ? blob : null);
     };
     try {
       mediaRecorder.stop();
     } catch (err) {
-      console.warn('Could not stop recording cleanly:', err);
+      console.warn('Error stopping recorder:', err);
       resolve(null);
     }
   });
 }
 
-// Uploads the recording blob. Failure here is logged and surfaced as
-// a toast but never blocks scoring — the interview's answers/score
-// are the part that matters most, and a recording upload issue
-// shouldn't strand the candidate on the finish screen.
-async function uploadRecording(blob) {
-  if (!blob || blob.size === 0) return;
-  const heading = document.getElementById('finishHeading');
-  const previousHeading = heading ? heading.textContent : '';
-  if (heading) heading.textContent = '💾 Saving your session recording…';
-
+async function uploadInterviewRecording(blob) {
+  if (!blob) return;
   try {
     const formData = new FormData();
-    const ext = (recordingMimeType || 'video/webm').includes('mp4') ? 'mp4' : 'webm';
-    formData.append('file', blob, `session.${ext}`);
-    if (recordingStartedAt) formData.append('startedAt', recordingStartedAt.toISOString());
-    formData.append('endedAt', new Date().toISOString());
-    formData.append('durationSeconds', String(recordingSecondsRecorded));
-    await apiUploadPy(`/interviews/${interviewId}/recording`, formData);
+    formData.append('file', blob, 'interview.webm');
+    const token = getToken();
+    const res = await fetch(`${PY_API_BASE_URL}/interviews/${interviewId}/recording`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      console.warn('Recording upload failed with status', res.status);
+    }
   } catch (err) {
-    console.warn('Recording upload failed:', err);
-    showToast('Your answers were saved, but the session recording could not be uploaded.', 'error');
-  } finally {
-    if (heading) heading.textContent = previousHeading;
+    // Never block the finish flow on an upload failure — the interview
+    // score/answers already saved are what matters most.
+    console.warn('Recording upload error:', err);
   }
-}
-
-// ---------------------------------------------------------------
-// Pause / resume — freezes both timers and suspends proctoring
-// warnings until resumed. Webcam preview stays visible throughout.
-// ---------------------------------------------------------------
-async function togglePauseSession() {
-  if (pauseInProgress || !sessionActive) return;
-  if (sessionPaused) {
-    await resumeSession();
-  } else {
-    await pauseSession();
-  }
-}
-
-async function pauseSession() {
-  pauseInProgress = true;
-  const btn = document.getElementById('pauseBtn');
-  if (btn) btn.disabled = true;
-
-  try {
-    await apiFetchPy(`/interviews/${interviewId}/pause`, { method: 'PATCH' });
-  } catch (err) {
-    console.error('Failed to pause interview:', err);
-    showToast(err.message || 'Could not pause the interview — check your connection.', 'error');
-    pauseInProgress = false;
-    if (btn) btn.disabled = false;
-    return;
-  }
-
-  sessionPaused = true;
-  clearInterval(overallTimerInterval);
-  clearInterval(faceCheckTimer);
-  clearInterval(liveHudTimer);
-  stopVoiceInputIfActive();
-  pauseRecording();
-
-  document.getElementById('nextBtn').disabled = true;
-  document.getElementById('answerText').disabled = true;
-  document.getElementById('micBtn').disabled = true;
-  document.getElementById('pausedOverlay').style.display = 'flex';
-  updateSessionStatusBadge();
-
-  pauseInProgress = false;
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = '▶ Resume';
-  }
-}
-
-async function resumeSession() {
-  pauseInProgress = true;
-  const btn = document.getElementById('pauseBtn');
-  if (btn) btn.disabled = true;
-
-  try {
-    await apiFetchPy(`/interviews/${interviewId}/resume`, { method: 'PATCH' });
-  } catch (err) {
-    console.error('Failed to resume interview:', err);
-    showToast(err.message || 'Could not resume the interview — check your connection.', 'error');
-    pauseInProgress = false;
-    if (btn) btn.disabled = false;
-    return;
-  }
-
-  sessionPaused = false;
-  document.getElementById('pausedOverlay').style.display = 'none';
-  document.getElementById('nextBtn').disabled = false;
-  document.getElementById('answerText').disabled = false;
-  document.getElementById('micBtn').disabled = false;
-  updateSessionStatusBadge();
-
-  // Resume the overall session countdown from wherever it was frozen,
-  // and restart proctoring rather than re-rendering the question (which
-  // would reset the candidate's in-progress answer text).
-  startOverallTimer();
-  setupFaceDetection();
-  resumeRecording();
-  clearInterval(liveHudTimer);
-  liveHudTimer = setInterval(updateLiveAnalyticsHud, 700);
-
-  pauseInProgress = false;
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = '⏸ Pause';
-  }
-}
-
-function updateSessionStatusBadge() {
-  const el = document.getElementById('sessionStatusBadge');
-  if (!el) return;
-  const label = sessionPaused ? 'Paused' : sessionActive ? 'In Progress' : 'Scheduled';
-  el.textContent = label;
-  el.classList.toggle('session-status-paused', sessionPaused);
 }
 
 function removeProctoringListeners() {
@@ -1478,6 +756,7 @@ async function setupFaceDetection() {
   if (typeof faceapi === 'undefined') {
     label.textContent = 'Face detection unavailable (script failed to load) — tab & fullscreen checks still active.';
     setChecklistState('chkFace', 'warn', 'Unavailable');
+    showBehaviorUnavailable();
     return;
   }
 
@@ -1487,18 +766,8 @@ async function setupFaceDetection() {
     console.warn('Face detection models failed to load:', err);
     label.textContent = 'Face detection unavailable (models failed to load) — tab & fullscreen checks still active.';
     setChecklistState('chkFace', 'warn', 'Unavailable');
+    showBehaviorUnavailable();
     return;
-  }
-
-  // Milestone 3 — emotion recognition. Best-effort and separate from
-  // the detector above: proctoring (no-face/multi-face/look-away)
-  // must keep working even if this second, larger model fails to load
-  // on a slow connection.
-  try {
-    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL);
-    faceExpressionsReady = true;
-  } catch (err) {
-    console.warn('Face expression model failed to load — emotion tracking disabled:', err);
   }
 
   faceApiReady = true;
@@ -1506,20 +775,40 @@ async function setupFaceDetection() {
   label.textContent = 'Watching for face presence…';
   dot.className = 'session-face-dot session-face-dot-ok';
 
+  // Emotion / eye-contact / attention / engagement analytics ride on two
+  // extra, smaller models (68-point landmarks + expression classifier).
+  // They're strictly additive on top of the tinyFaceDetector above — if a
+  // slow connection or blocked CDN keeps them from loading, core
+  // proctoring (face presence / multi-face / look-away) keeps working
+  // exactly as before, just without the behavior-monitoring panel.
+  try {
+    await Promise.all([
+      faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL),
+      faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL_URL),
+    ]);
+    analyticsReady = true;
+  } catch (err) {
+    console.warn('Behavior analytics models failed to load:', err);
+    analyticsReady = false;
+    showBehaviorUnavailable();
+  }
+
   const video = document.getElementById('webcamVideo');
   const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
 
   faceCheckTimer = setInterval(async () => {
-    if (!sessionActive || sessionPaused || !faceApiReady) return;
+    if (!sessionActive || !faceApiReady) return;
     try {
-      // Single call — chaining .withFaceExpressions() when the model
-      // loaded, or plain detectAllFaces() otherwise — instead of two
-      // separate calls per tick (which could theoretically disagree on
-      // face count between the two frames sampled a moment apart).
-      const detections = faceExpressionsReady
-        ? await faceapi.detectAllFaces(video, options).withFaceExpressions()
-        : await faceapi.detectAllFaces(video, options);
-      handleFaceDetections(detections, video);
+      if (analyticsReady) {
+        const detections = await faceapi
+          .detectAllFaces(video, options)
+          .withFaceLandmarks(true)
+          .withFaceExpressions();
+        handleFaceDetections(detections, video, true);
+      } else {
+        const detections = await faceapi.detectAllFaces(video, options);
+        handleFaceDetections(detections, video, false);
+      }
     } catch (err) {
       // A transient detection error shouldn't crash the loop.
       console.warn('Face detection frame error:', err);
@@ -1527,18 +816,14 @@ async function setupFaceDetection() {
   }, FACE_CHECK_INTERVAL_MS);
 }
 
-function handleFaceDetections(detections, video) {
+function showBehaviorUnavailable() {
+  const note = document.getElementById('behaviorUnavailableNote');
+  if (note) note.style.display = 'block';
+}
+
+function handleFaceDetections(detections, video, withAnalytics) {
   const dot = document.getElementById('faceStatusDot');
   const label = document.getElementById('faceStatusLabel');
-
-  // Module 6 — Emotion Detection & Eye Tracking: every detection tick
-  // (whether or not it's a violation) is one "sample" for this
-  // question's eye-contact percentage; a sample only counts as
-  // "on-camera" when exactly one face is present and roughly centered
-  // (i.e. not a proctoring violation below). Emotion is tallied the
-  // same tick, from face-api.js's expression scores, whenever the
-  // expression model loaded successfully.
-  faceTotalSamples += 1;
 
   if (detections.length === 0) {
     noFaceStreak += 1;
@@ -1550,7 +835,7 @@ function handleFaceDetections(detections, video) {
       dot.className = 'session-face-dot session-face-dot-warn';
       label.textContent = 'Checking for your face…';
     }
-    updateLiveAnalyticsHud();
+    recordAttentionSample('low');
     return;
   }
 
@@ -1560,49 +845,430 @@ function handleFaceDetections(detections, video) {
     dot.className = 'session-face-dot session-face-dot-bad';
     label.textContent = `${detections.length} faces detected — only the candidate should be visible.`;
     logViolation('multi_face', `${detections.length} faces detected in frame.`);
-    updateLiveAnalyticsHud();
+    recordAttentionSample('low');
     return;
   }
 
+  const single = detections[0];
+  const box = withAnalytics ? single.detection.box : single.box;
+
   // Single face — rough "looking away" heuristic: is the face's
   // bounding-box center significantly off from the frame center?
-  // NOTE: detectAllFaces() alone returns FaceDetection[] with `.box`
-  // directly, but .withFaceExpressions() nests it under `.detection.box`
-  // instead (`{ detection, expressions }`). Reading `.box` unconditionally
-  // used to throw here whenever the expression model had loaded (the
-  // normal case) — silently swallowed by the caller's try/catch — so
-  // faceOnCameraSamples never incremented and eye-contact% was always 0.
-  const det = detections[0];
-  const box = det.detection ? det.detection.box : det.box;
+  const frameWidth = video.videoWidth || 480;
+  const frameHeight = video.videoHeight || 360;
   const faceCenterX = box.x + box.width / 2;
-  const frameCenterX = video.videoWidth / 2 || 240;
-  const offsetRatio = Math.abs(faceCenterX - frameCenterX) / (video.videoWidth || 480);
+  const faceCenterY = box.y + box.height / 2;
+  const offsetRatioX = Math.abs(faceCenterX - frameWidth / 2) / frameWidth;
+  const offsetRatioY = (faceCenterY - frameHeight / 2) / frameHeight; // signed: positive = lower in frame
+  const lookingAway = offsetRatioX > LOOK_AWAY_X_RATIO;
 
-  // Emotion tally — read whichever expression face-api.js scored
-  // highest for this frame (e.g. "neutral", "happy", "surprised").
-  if (faceExpressionsReady && det.expressions) {
-    const expressions = det.expressions;
-    let topEmotion = null;
-    let topScore = 0;
-    for (const [emotion, score] of Object.entries(expressions)) {
-      if (score > topScore) {
-        topScore = score;
-        topEmotion = emotion;
-      }
-    }
-    if (topEmotion) {
-      faceEmotionTally[topEmotion] = (faceEmotionTally[topEmotion] || 0) + 1;
-    }
-  }
-
-  if (offsetRatio > 0.28) {
+  if (lookingAway) {
     dot.className = 'session-face-dot session-face-dot-warn';
     label.textContent = 'Please look at the screen.';
     logViolation('look_away', 'You appear to be looking away from the screen.');
   } else {
     dot.className = 'session-face-dot session-face-dot-ok';
     label.textContent = 'Face detected — you are good.';
-    faceOnCameraSamples += 1; // only a clean, centered, single-face frame counts as "on camera"
   }
-  updateLiveAnalyticsHud();
+
+  if (withAnalytics) {
+    updateBehaviorAnalytics(single, offsetRatioX, offsetRatioY, lookingAway);
+  } else {
+    // No landmarks/expressions available this tick — still feed a coarse
+    // attention signal from head position so the panel isn't left blank.
+    recordAttentionSample(lookingAway ? 'medium' : 'high');
+  }
+}
+
+// =================================================================
+// Behavior analytics — Parts 1-9 of the CNN brief, adapted to run
+// fully client-side with face-api.js (browser CNNs under the hood)
+// instead of a custom offline-trained model:
+//
+//   Part 1-3 (emotion):     face-api.js ships a general 7-class expression
+//                           model (neutral/happy/sad/angry/fearful/
+//                           disgusted/surprised) rather than a bespoke
+//                           3-class Nervous/Scared/Confused CNN. Those 7
+//                           classes are combined below into weighted
+//                           Nervous / Scared / Confused / Calm-Confident
+//                           scores so the *reported categories* match the
+//                           brief without requiring an offline training
+//                           pipeline. This is an approximation, not a
+//                           literal 3-class CNN.
+//   Part 4-5 (eye/gaze):    68-point face landmarks give eye corner
+//                           positions (eye-aspect-ratio -> eyes open/
+//                           closed) and, combined with the face
+//                           bounding-box offset, an approximate gaze/
+//                           head-direction state and eye-contact %.
+//   Part 6 (attention):     combines gaze state + face presence into
+//                           High / Medium / Low.
+//   Part 7 (engagement):    weighted blend of eye contact, attention,
+//                           emotion, and facial-expression variability.
+//   Part 8 (confidence):    weighted blend of eye contact, head-position
+//                           stability, and calm-vs-fearful emotion.
+//   Part 9 (final report):  renderFinalBehaviorReport(), called from
+//                           finishInterview() below.
+// =================================================================
+
+function updateBehaviorAnalytics(faceResult, offsetRatioX, offsetRatioY, lookingAway) {
+  trackedSeconds += FACE_CHECK_INTERVAL_MS / 1000;
+
+  // --- Emotion (Parts 1-3) ---
+  const expressions = faceResult.expressions || {};
+  const nervous = (expressions.fearful || 0) * 0.6 + (expressions.sad || 0) * 0.4;
+  const scared = (expressions.fearful || 0) * 0.7 + (expressions.surprised || 0) * 0.3;
+  const confused =
+    (expressions.surprised || 0) * 0.5 + (expressions.disgusted || 0) * 0.2 + (1 - (expressions.neutral || 0)) * 0.1;
+  const calm = (expressions.neutral || 0) * 0.7 + (expressions.happy || 0) * 0.3;
+
+  emotionScoreTotals.nervous += nervous;
+  emotionScoreTotals.scared += scared;
+  emotionScoreTotals.confused += confused;
+  emotionScoreTotals.calm += calm;
+  emotionSampleCount += 1;
+
+  const scores = { Nervous: nervous, Scared: scared, Confused: confused, 'Calm / Confident': calm };
+  const topLabel = Object.keys(scores).reduce((a, b) => (scores[a] >= scores[b] ? a : b));
+  currentEmotionLabel = topLabel;
+
+  if (previousExpressionLabel && previousExpressionLabel !== topLabel) {
+    expressionChangeCount += 1;
+  }
+  previousExpressionLabel = topLabel;
+
+  // --- Eye state / gaze (Part 4) ---
+  let eyesClosed = false;
+  if (faceResult.landmarks) {
+    const ear = computeEyeAspectRatio(faceResult.landmarks);
+    eyesClosed = ear !== null && ear < EAR_CLOSED_THRESHOLD;
+  }
+
+  let gazeState = 'Looking at camera';
+  if (eyesClosed) gazeState = 'Eyes closed';
+  else if (offsetRatioY > LOOK_DOWN_Y_RATIO) gazeState = 'Looking down';
+  else if (lookingAway) gazeState = 'Looking left/right';
+
+  const onCamera = gazeState === 'Looking at camera';
+
+  // --- Eye contact % (Part 5) ---
+  if (onCamera) eyeContactSeconds += FACE_CHECK_INTERVAL_MS / 1000;
+  const eyeContactPct = trackedSeconds > 0 ? Math.round((eyeContactSeconds / trackedSeconds) * 100) : 0;
+
+  // --- Attention (Part 6) ---
+  let attentionLevel = 'High';
+  if (!onCamera && !eyesClosed) attentionLevel = 'Medium';
+  if (eyesClosed || (!onCamera && gazeState === 'Looking down')) attentionLevel = 'Low';
+  recordAttentionSample(attentionLevel.toLowerCase());
+
+  // --- Head-position history, used for confidence stability (Part 8) ---
+  headPositionHistory.push(offsetRatioX);
+  if (headPositionHistory.length > 20) headPositionHistory.shift();
+
+  // --- Engagement (Part 7): eye contact + attention + emotion + facial activity ---
+  const attentionScoreMap = { high: 1, medium: 0.55, low: 0.15 };
+  const facialActivityScore = Math.min(1, (expressionChangeCount / Math.max(1, emotionSampleCount)) * 4);
+  const engagementScore =
+    0.35 * (eyeContactPct / 100) +
+    0.3 * attentionScoreMap[attentionLevel.toLowerCase()] +
+    0.25 * calm +
+    0.1 * facialActivityScore;
+  engagementScoreTotal += engagementScore;
+  engagementSampleCount += 1;
+  const engagementPct = Math.round((engagementScoreTotal / engagementSampleCount) * 100);
+
+  renderBehaviorPanel({ emotionLabel: currentEmotionLabel, eyeContactPct, attentionLevel, engagementPct });
+}
+
+// Standard eye-aspect-ratio (EAR) from 6 eye landmark points per eye —
+// low EAR means the eye is closed/near-closed.
+function computeEyeAspectRatio(landmarks) {
+  try {
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const earFor = (pts) => {
+      const vertical = dist(pts[1], pts[5]) + dist(pts[2], pts[4]);
+      const horizontal = dist(pts[0], pts[3]);
+      return horizontal === 0 ? null : vertical / (2 * horizontal);
+    };
+    const left = earFor(landmarks.getLeftEye());
+    const right = earFor(landmarks.getRightEye());
+    if (left === null || right === null) return null;
+    return (left + right) / 2;
+  } catch (err) {
+    return null;
+  }
+}
+
+function recordAttentionSample(level) {
+  if (attentionSampleTotals[level] === undefined) return;
+  attentionSampleTotals[level] += 1;
+  const dominant = Object.keys(attentionSampleTotals).reduce((a, b) =>
+    attentionSampleTotals[a] >= attentionSampleTotals[b] ? a : b
+  );
+  currentAttentionLevel = dominant.charAt(0).toUpperCase() + dominant.slice(1);
+}
+
+function renderBehaviorPanel({ emotionLabel, eyeContactPct, attentionLevel, engagementPct }) {
+  const emotionEl = document.getElementById('emotionValue');
+  const eyeEl = document.getElementById('eyeContactValue');
+  const attentionEl = document.getElementById('attentionValue');
+  const engagementEl = document.getElementById('engagementValue');
+  const confidenceEl = document.getElementById('confidenceValue');
+
+  if (emotionEl) emotionEl.textContent = emotionLabel;
+  if (eyeEl) eyeEl.textContent = `${eyeContactPct}%`;
+  if (attentionEl) attentionEl.textContent = attentionLevel;
+  if (engagementEl) engagementEl.textContent = `${engagementPct}%`;
+  if (confidenceEl) confidenceEl.textContent = computeConfidenceLabel();
+}
+
+// Confidence (Part 8): blends eye-contact ratio, head-position stability,
+// and calm-vs-fearful emotion balance into a single Low/Moderate/High label.
+function computeConfidenceLabel() {
+  if (emotionSampleCount === 0) return '—';
+
+  const avgCalm = emotionScoreTotals.calm / emotionSampleCount;
+  const avgNervousScared = (emotionScoreTotals.nervous + emotionScoreTotals.scared) / (2 * emotionSampleCount);
+  const eyeContactRatio = trackedSeconds > 0 ? eyeContactSeconds / trackedSeconds : 0;
+
+  let headStability = 1;
+  if (headPositionHistory.length > 1) {
+    const mean = headPositionHistory.reduce((a, b) => a + b, 0) / headPositionHistory.length;
+    const variance = headPositionHistory.reduce((a, b) => a + (b - mean) ** 2, 0) / headPositionHistory.length;
+    headStability = Math.max(0, 1 - variance * 20);
+  }
+
+  const confidenceScore =
+    0.4 * eyeContactRatio + 0.3 * headStability + 0.3 * ((avgCalm - avgNervousScared + 1) / 2);
+
+  if (confidenceScore > 0.66) return 'High';
+  if (confidenceScore > 0.4) return 'Moderate';
+  return 'Low';
+}
+
+// ---------------------------------------------------------------
+// Module 7 — AI Feedback & Scoring. The finish response (InterviewOut)
+// already carries the 4 weighted category scores, rating label, and
+// structured feedback computed server-side (see app/scoring_engine.py);
+// this just renders them.
+// ---------------------------------------------------------------
+function renderScoreBreakdown(result) {
+  const box = document.getElementById('scoreBreakdownBox');
+  const list = document.getElementById('scoreBreakdownList');
+  if (!box || !list) return;
+
+  const rows = [
+    ['Communication (30%)', result.skill_communication],
+    ['Confidence (25%)', result.skill_confidence],
+    ['Technical Relevance (30%)', result.skill_technical],
+    ['Professionalism (15%)', result.skill_professionalism],
+  ].filter(([, value]) => value !== null && value !== undefined);
+
+  if (!rows.length) {
+    box.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = '';
+  rows.forEach(([label, value]) => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    span.textContent = label;
+    const strong = document.createElement('strong');
+    strong.textContent = `${value}%`;
+    li.appendChild(span);
+    li.appendChild(strong);
+    list.appendChild(li);
+  });
+  box.style.display = 'block';
+}
+
+function renderFeedbackBreakdown(result) {
+  const box = document.getElementById('feedbackBreakdownBox');
+  if (!box) return;
+
+  let feedback = null;
+  try {
+    feedback = result.feedback_json ? JSON.parse(result.feedback_json) : null;
+  } catch (e) {
+    feedback = null;
+  }
+  if (!feedback) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const sections = [
+    ['strengths', '✅ Strengths'],
+    ['weaknesses', '⚠️ Weaknesses'],
+    ['improvements', '💡 Improvement Suggestions'],
+    ['practice_recommendations', '🎯 Practice Recommendations'],
+    ['learning_resources', '📚 Learning Resources'],
+  ];
+
+  let html = '';
+  sections.forEach(([key, title]) => {
+    const items = feedback[key];
+    if (!Array.isArray(items) || !items.length) return;
+    html += `<h4>${title}</h4><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+  });
+
+  if (!html) {
+    box.style.display = 'none';
+    return;
+  }
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+// Module 7 wiring: packages the same aggregates renderFinalBehaviorReport()
+// already computes into the shape PATCH /finish expects, so the backend's
+// Confidence Score can use real webcam-analytics data instead of guessing.
+// Returns null when no webcam analytics ran this session (e.g. camera
+// unavailable) — the backend gracefully falls back to AI-only scoring.
+function buildBehaviorMetricsPayload() {
+  if (emotionSampleCount === 0) return null;
+
+  const eyeContactPct = trackedSeconds > 0 ? Math.round((eyeContactSeconds / trackedSeconds) * 100) : null;
+  const engagementPct = engagementSampleCount > 0 ? Math.round((engagementScoreTotal / engagementSampleCount) * 100) : null;
+  const dominantEmotionKey = Object.keys(emotionScoreTotals).reduce((a, b) =>
+    emotionScoreTotals[a] >= emotionScoreTotals[b] ? a : b
+  );
+  const emotionLabelMap = { nervous: 'Nervous', scared: 'Scared', confused: 'Confused', calm: 'Calm / Confident' };
+
+  return {
+    eyeContactPct,
+    engagementPct,
+    attentionLevel: currentAttentionLevel !== '—' ? currentAttentionLevel : null,
+    confidenceLabel: computeConfidenceLabel() !== '—' ? computeConfidenceLabel() : null,
+    dominantEmotion: emotionLabelMap[dominantEmotionKey] || null,
+  };
+}
+
+// Part 9: final combined report, called once from finishInterview().
+function renderFinalBehaviorReport() {
+  const box = document.getElementById('behaviorReportBox');
+  const list = document.getElementById('behaviorReportList');
+  if (!box || !list) return;
+
+  if (emotionSampleCount === 0) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const eyeContactPct = trackedSeconds > 0 ? Math.round((eyeContactSeconds / trackedSeconds) * 100) : 0;
+  const engagementPct =
+    engagementSampleCount > 0 ? Math.round((engagementScoreTotal / engagementSampleCount) * 100) : 0;
+
+  const emotionLabelMap = { nervous: 'Nervous', scared: 'Scared', confused: 'Confused', calm: 'Calm / Confident' };
+  const dominantEmotionKey = Object.keys(emotionScoreTotals).reduce((a, b) =>
+    emotionScoreTotals[a] >= emotionScoreTotals[b] ? a : b
+  );
+
+  const rows = [
+    ['Dominant emotion', emotionLabelMap[dominantEmotionKey] || '—'],
+    ['Eye contact', `${eyeContactPct}%`],
+    ['Attention', currentAttentionLevel],
+    ['Engagement', `${engagementPct}%`],
+    ['Confidence-related indicators', computeConfidenceLabel()],
+  ];
+
+  list.innerHTML = '';
+  rows.forEach(([lbl, value]) => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    span.textContent = lbl;
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    li.appendChild(span);
+    li.appendChild(strong);
+    list.appendChild(li);
+  });
+  box.style.display = 'block';
+}
+
+// =================================================================
+// Module 5 — Speech-to-Text & Communication Analysis. Metrics are
+// computed server-side per-answer (see backend-python/app/
+// communication_analysis.py) as each answer is saved; this pulls them
+// all back via GET /answers and aggregates into one summary. Labeling
+// mirrors that module's honesty notes: "pace" is only a real speech
+// metric for voice answers, and "pronunciation" is Web Speech API
+// recognition confidence, not phonetic analysis.
+// =================================================================
+async function renderCommunicationReport() {
+  const box = document.getElementById('commReportBox');
+  const list = document.getElementById('commReportList');
+  if (!box || !list) return;
+
+  let answers;
+  try {
+    answers = await apiFetchPy(`/interviews/${interviewId}/answers`);
+  } catch (err) {
+    console.warn('Could not load answers for communication report:', err);
+    return;
+  }
+
+  const answered = answers.filter((a) => (a.answer_text || '').trim());
+  if (!answered.length) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const totalFillers = answered.reduce((sum, a) => sum + (a.filler_word_count || 0), 0);
+  const fillerSet = new Set();
+  answered.forEach((a) => {
+    try {
+      (JSON.parse(a.filler_words_found || '[]')).forEach((w) => fillerSet.add(w));
+    } catch (e) {
+      /* ignore malformed JSON, just skip */
+    }
+  });
+
+  const totalGrammarIssues = answered.reduce((sum, a) => sum + (a.grammar_issue_count || 0), 0);
+
+  const voiceAnswers = answered.filter((a) => a.input_mode === 'voice');
+  const wpmValues = answered.filter((a) => a.speech_wpm != null).map((a) => a.speech_wpm);
+  const avgWpm = wpmValues.length ? Math.round(wpmValues.reduce((a, b) => a + b, 0) / wpmValues.length) : null;
+
+  const pronunciationValues = voiceAnswers.filter((a) => a.pronunciation_score != null).map((a) => a.pronunciation_score);
+  const avgPronunciation = pronunciationValues.length
+    ? Math.round(pronunciationValues.reduce((a, b) => a + b, 0) / pronunciationValues.length)
+    : null;
+
+  const usedVoiceAtAll = voiceAnswers.length > 0;
+  const paceLabel = avgWpm == null ? '—' : commPaceLabel(avgWpm, usedVoiceAtAll);
+  const pronunciationLabel = avgPronunciation == null ? 'N/A (no voice answers)' : commPronunciationLabel(avgPronunciation);
+
+  const rows = [
+    ['Filler words used', `${totalFillers}${fillerSet.size ? ` (${[...fillerSet].join(', ')})` : ''}`],
+    ['Grammar issues flagged', `${totalGrammarIssues} across ${answered.length} answer${answered.length === 1 ? '' : 's'}`],
+    [usedVoiceAtAll ? 'Speaking pace (avg)' : 'Response pace (avg)', paceLabel],
+    ['Pronunciation clarity (avg)', pronunciationLabel],
+  ];
+
+  list.innerHTML = '';
+  rows.forEach(([lbl, value]) => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    span.textContent = lbl;
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    li.appendChild(span);
+    li.appendChild(strong);
+    list.appendChild(li);
+  });
+  box.style.display = 'block';
+}
+
+function commPaceLabel(wpm, isVoice) {
+  if (!isVoice) return `${wpm} wpm (typing pace — not a speech metric)`;
+  if (wpm < 110) return `${wpm} wpm (slower than typical conversational pace)`;
+  if (wpm <= 160) return `${wpm} wpm (natural conversational pace)`;
+  return `${wpm} wpm (faster than typical — may be rushing)`;
+}
+
+function commPronunciationLabel(score) {
+  if (score >= 80) return `${score}/100 (speech recognized clearly)`;
+  if (score >= 50) return `${score}/100 (moderate — some words may have been misheard)`;
+  return `${score}/100 (low — the browser struggled to recognize speech clearly)`;
 }

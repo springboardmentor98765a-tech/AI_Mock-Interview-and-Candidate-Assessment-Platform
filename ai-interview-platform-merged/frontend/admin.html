@@ -435,6 +435,64 @@ System Settings
 
 </div>
 
+<!-- AI Configuration (Module 1 — Manage AI configurations) -->
+
+<h2 id="aiConfig" style="margin-top:30px;">
+
+🤖 AI Configuration
+
+</h2>
+
+<div class="dashboard-card" style="max-width:520px;">
+<p style="margin:0 0 14px;font-size:0.85rem;color:var(--muted);">
+API keys stay server-side in <code>.env</code> and are never viewable or editable here — that's a
+deliberate security boundary, not a missing feature. What's shown below is read-only visibility into
+what's configured, plus one safe platform-wide switch.
+</p>
+
+<h4 style="margin-bottom:8px;">Provider fallback order</h4>
+<p id="aiProviderOrderDisplay" style="font-size:0.9rem;color:var(--ink);margin-bottom:14px;">Loading…</p>
+
+<h4 style="margin-bottom:8px;">Configured providers</h4>
+<ul id="aiProvidersList" style="list-style:none;padding:0;margin:0 0 16px;font-size:0.9rem;"></ul>
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);">
+<div>
+<strong>Disable AI scoring platform-wide</strong>
+<p style="margin:4px 0 0;font-size:0.85rem;">When on, every interview is scored by the deterministic simulator instead of calling an LLM — useful for demos or cost control.</p>
+</div>
+<label class="switch">
+<input type="checkbox" id="settingAiScoringDisabled" onchange="saveAiScoringToggle()">
+<span class="slider"></span>
+</label>
+</div>
+
+</div>
+
+<!-- Activity Log (Module 1 — Monitor system activities) -->
+
+<h2 id="activityLog" style="margin-top:30px;">
+
+🕵️ System Activity Log
+
+</h2>
+
+<div class="dashboard-card">
+<table>
+<thead>
+<tr>
+<th>When</th>
+<th>Actor</th>
+<th>Action</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody id="activityLogBody">
+<tr><td class="table-loading" colspan="4">Loading activity…</td></tr>
+</tbody>
+</table>
+</div>
+
 <!-- Notifications -->
 
 <h2 style="margin-top:30px;">

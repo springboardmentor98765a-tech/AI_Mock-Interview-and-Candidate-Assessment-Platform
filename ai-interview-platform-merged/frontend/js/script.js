@@ -333,39 +333,6 @@ async function apiUpload(path, formData) {
   return data;
 }
 
-// ---------------- Multipart upload helper, pointed at the Python
-// service (recording uploads) — same shape as apiUpload above, just a
-// different base URL and no forced JSON Content-Type. ----------------
-async function apiUploadPy(path, formData) {
-  const token = getToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-  let res;
-  try {
-    res = await fetch(`${PY_API_BASE_URL}${path}`, { method: 'POST', body: formData, headers });
-  } catch (networkErr) {
-    throw new Error("Could not reach the AI interview service (port 8001). Make sure it's running.");
-  }
-
-  if (res.status === 401) {
-    clearSession();
-    window.location.href = 'login.html';
-    throw new Error('Session expired');
-  }
-
-  let data = null;
-  try {
-    data = await res.json();
-  } catch (e) {
-    data = null;
-  }
-
-  if (!res.ok) {
-    throw new Error((data && data.message) || (data && data.detail) || `Request failed (${res.status})`);
-  }
-  return data;
-}
-
 // ---------------- Toast (lightweight, non-blocking feedback) ----------------
 function showToast(message, type = 'info') {
   const el = document.createElement('div');
@@ -540,8 +507,36 @@ async function initAdminDashboard() {
     loadAdminInterviews(),
     loadPlatformAnalytics(),
     loadAdminSettingsUI(),
+    loadActivityLog(),
+    loadAiStatus(),
     loadNotificationsInto('adminNotifications'),
   ]);
+}
+
+// ---------------- Module 1: Admin "Monitor system activities" ----------------
+async function loadActivityLog() {
+  const tbody = document.getElementById('activityLogBody');
+  if (!tbody) return;
+  try {
+    const { activity } = await apiFetch('/admin/activity?limit=50');
+    if (!activity.length) {
+      tbody.innerHTML = '<tr><td class="table-loading" colspan="4">No activity recorded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = activity
+      .map(
+        (a) => `
+        <tr>
+          <td>${formatDateTime(a.createdAt)}</td>
+          <td>${escapeHtml(a.actorName)}${a.actorRole ? ` <span class="badge badge-warning">${escapeHtml(a.actorRole)}</span>` : ''}</td>
+          <td>${escapeHtml(a.action)}</td>
+          <td>${escapeHtml(a.details || '—')}</td>
+        </tr>`
+      )
+      .join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td class="table-loading" colspan="4">${escapeHtml(err.message || 'Could not load activity log.')}</td></tr>`;
+  }
 }
 
 async function loadAdminStats() {
@@ -702,6 +697,10 @@ async function loadAdminSettingsUI() {
     const { settings } = await apiFetch('/admin/settings');
     document.getElementById('settingAllowRegistrations').checked = settings.allowRegistrations;
     document.getElementById('settingMaintenanceMode').checked = settings.maintenanceMode;
+    document.getElementById('settingAiProviderOrder').value = settings.aiProviderOrder || '';
+    document.getElementById('settingAiInterviewGen').checked = settings.aiInterviewGenerationEnabled;
+    document.getElementById('settingAiCodingGen').checked = settings.aiCodingGenerationEnabled;
+    document.getElementById('settingAiGrammarCheck').checked = settings.aiGrammarCheckEnabled;
   } catch (err) {
     console.error('Failed to load settings:', err);
   }
@@ -718,6 +717,39 @@ async function saveAdminSettings() {
     showToast('Settings saved.', 'success');
   } catch (err) {
     showToast(err.message, 'error');
+  }
+}
+
+// ---------------- Module 1: Admin "Manage AI configurations" ----------------
+async function loadAiStatus() {
+  const orderEl = document.getElementById('aiProviderOrderDisplay');
+  const listEl = document.getElementById('aiProvidersList');
+  const toggleEl = document.getElementById('settingAiScoringDisabled');
+  if (!orderEl || !listEl || !toggleEl) return;
+  try {
+    const status = await apiFetchPy('/admin/ai/status');
+    orderEl.textContent = status.providerOrder.join(' → ');
+    listEl.innerHTML = Object.entries(status.providers)
+      .map(([name, configured]) => `<li>${configured ? '✅' : '⚪'} ${escapeHtml(name)} ${configured ? '(configured)' : '(not configured)'}</li>`)
+      .join('');
+    toggleEl.checked = status.aiScoringDisabled;
+  } catch (err) {
+    orderEl.textContent = 'Could not load AI status.';
+    console.error('Failed to load AI status:', err);
+  }
+}
+
+async function saveAiScoringToggle() {
+  const toggleEl = document.getElementById('settingAiScoringDisabled');
+  try {
+    await apiFetchPy('/admin/ai/scoring', {
+      method: 'PATCH',
+      body: JSON.stringify({ disabled: toggleEl.checked }),
+    });
+    showToast(toggleEl.checked ? 'AI scoring disabled platform-wide.' : 'AI scoring re-enabled.', 'success');
+  } catch (err) {
+    toggleEl.checked = !toggleEl.checked; // revert the switch on failure
+    showToast(err.message || 'Could not update AI scoring setting.', 'error');
   }
 }
 
@@ -860,10 +892,6 @@ async function loadCandidateHistory() {
         }${
           iv.status === 'completed'
             ? `<button style="margin-left:6px;margin-top:4px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewFeedback(${iv.id})">💬 View Feedback</button>`
-            : ''
-        }${
-          iv.status === 'completed' && Number(iv.question_count) > 0
-            ? `<button style="margin-left:6px;margin-top:4px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${iv.id})">🎥 View Recording</button>`
             : ''
         }${
           iv.status !== 'completed'
@@ -1134,6 +1162,81 @@ function promptGenerateQuestions() {
   });
 }
 
+// ---------------- Module 1: candidate picks a saved recruiter template ----------------
+async function openTemplatePicker() {
+  let templates;
+  try {
+    templates = await apiFetchPy('/interviews/templates');
+  } catch (err) {
+    showToast(err.message || 'Could not load templates.', 'error');
+    return;
+  }
+
+  if (!templates.length) {
+    showToast('No interview templates have been created yet — ask a recruiter, or use "Generate AI Questions" instead.', 'info');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width:560px">
+      <h3>📋 Choose an Interview Template</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;">
+        ${templates
+          .map(
+            (t) => `
+          <button type="button" class="template-pick-btn" data-template-id="${t.id}" style="width:100%;text-align:left;background:var(--surface-sunk);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;">
+            <strong>${escapeHtml(t.name)}</strong>
+            <div style="font-size:0.82rem;color:var(--muted);margin-top:4px;">
+              ${escapeHtml(t.interviewType)} · ${escapeHtml(t.category || 'Mixed')} · ${escapeHtml(t.difficulty)} · ${t.questionCount} questions
+              ${t.domain ? ` · ${escapeHtml(t.domain)}` : ''}
+            </div>
+            ${t.createdByName ? `<div style="font-size:0.76rem;color:var(--muted);margin-top:2px;">By ${escapeHtml(t.createdByName)}</div>` : ''}
+          </button>`
+          )
+          .join('')}
+      </div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button type="button" class="btn-cancel">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  overlay.querySelector('.btn-cancel').addEventListener('click', close);
+
+  overlay.querySelectorAll('.template-pick-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const template = templates.find((t) => String(t.id) === btn.dataset.templateId);
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+      try {
+        const { interview, questions } = await apiFetchPy('/interviews/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            interviewType: template.interviewType,
+            category: template.category || 'Mixed',
+            domain: template.domain || '',
+            difficulty: template.difficulty,
+            questionCount: template.questionCount,
+            mode: template.mode,
+          }),
+        });
+        showToast(`${questions.length} questions generated from "${template.name}"!`, 'success');
+        close();
+        setTimeout(() => goToInterviewSession(interview.id), 1100);
+      } catch (err) {
+        showToast(err.message || 'Could not start this template.', 'error');
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
 async function viewInterviewQuestions(interviewId) {
   try {
     const { interview, questions } = await apiFetchPy(`/interviews/${interviewId}`);
@@ -1188,6 +1291,70 @@ function showQuestionsModal(interview, questions) {
   overlay.querySelector('.btn-cancel').addEventListener('click', close);
 }
 
+// ---------------- Download a candidate's interview report as PDF (Module 1) ----------------
+async function downloadInterviewReportPdf(interviewId) {
+  try {
+    const token = getToken();
+    const res = await fetch(`${PY_API_BASE_URL}/interviews/${interviewId}/report/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Could not generate the report.');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interview-report-${interviewId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showToast(err.message || 'Could not download the report.', 'error');
+  }
+}
+
+// ---------------- Watch an interview's recording (candidate + staff) ----------------
+// GET /api/interviews/{id}/recording returns the raw video/webm file —
+// apiFetchPy always expects JSON, so this fetches directly with the same
+// auth header (same pattern as the Coding Practice export downloads).
+async function watchRecording(interviewId) {
+  try {
+    const token = getToken();
+    const res = await fetch(`${PY_API_BASE_URL}/interviews/${interviewId}/recording`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.status === 404) {
+      showToast('No recording was saved for this interview.', 'info');
+      return;
+    }
+    if (!res.ok) throw new Error('Could not load the recording.');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box" style="max-width:640px">
+        <h3>🎥 Interview Recording</h3>
+        <video controls autoplay src="${url}" style="width:100%;border-radius:var(--radius-sm);background:#000;display:block"></video>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button type="button" class="btn-cancel">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => {
+      overlay.remove();
+      URL.revokeObjectURL(url);
+    };
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+    overlay.querySelector('.btn-cancel').addEventListener('click', close);
+  } catch (err) {
+    showToast(err.message || 'Could not load the recording.', 'error');
+  }
+}
+
 // ---------------- Candidate feedback view (Module 3 enhancement) ----------------
 // Feedback is served by the Python service (backend-python) — the same
 // PATCH /interviews/:id/review a recruiter/coach submits is what shows up here.
@@ -1219,18 +1386,62 @@ function showFeedbackModal(feedback) {
          <p style="color:var(--muted)">No recruiter or coach feedback yet — check back after your session has been reviewed.</p>
        </div>`;
 
+  // Module 7 — score breakdown (4 weighted categories)
+  const breakdownRows = [
+    ['Communication (30%)', feedback.skill_communication],
+    ['Confidence (25%)', feedback.skill_confidence],
+    ['Technical Relevance (30%)', feedback.skill_technical],
+    ['Professionalism (15%)', feedback.skill_professionalism],
+  ].filter(([, v]) => v !== null && v !== undefined);
+  const breakdownSection = breakdownRows.length
+    ? `<div style="margin-top:14px">
+         <h4 style="margin-bottom:6px">📈 Score Breakdown</h4>
+         <ul class="behavior-report-list">
+           ${breakdownRows.map(([label, v]) => `<li><span>${label}</span><strong>${v}%</strong></li>`).join('')}
+         </ul>
+       </div>`
+    : '';
+
+  // Module 7 — structured feedback (strengths/weaknesses/etc)
+  let structuredFeedback = null;
+  try {
+    structuredFeedback = feedback.feedback_json ? JSON.parse(feedback.feedback_json) : null;
+  } catch (e) {
+    structuredFeedback = null;
+  }
+  const feedbackSections = [
+    ['strengths', '✅ Strengths'],
+    ['weaknesses', '⚠️ Weaknesses'],
+    ['improvements', '💡 Improvement Suggestions'],
+    ['practice_recommendations', '🎯 Practice Recommendations'],
+    ['learning_resources', '📚 Learning Resources'],
+  ];
+  let structuredHtml = '';
+  if (structuredFeedback) {
+    feedbackSections.forEach(([key, title]) => {
+      const items = structuredFeedback[key];
+      if (!Array.isArray(items) || !items.length) return;
+      structuredHtml += `<h4 style="margin:12px 0 4px">${title}</h4><ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+    });
+  }
+
   overlay.innerHTML = `
     <div class="modal-box" style="max-width:560px;max-height:80vh;overflow-y:auto">
       <h3>💬 ${escapeHtml(feedback.interview_type)} — Feedback</h3>
       <p style="color:var(--muted);margin-top:-6px">
         Score: ${feedback.score !== null && feedback.score !== undefined ? `${feedback.score}%` : '—'}
+        ${feedback.rating_label ? ` (${escapeHtml(feedback.rating_label)})` : ''}
       </p>
-      <div>
+      ${breakdownSection}
+      <div style="margin-top:14px">
         <h4 style="margin-bottom:4px">🤖 AI Feedback</h4>
         <p>${feedback.ai_feedback ? escapeHtml(feedback.ai_feedback) : 'No AI feedback available.'}</p>
+        ${structuredHtml}
       </div>
       ${recruiterSection}
       <div class="modal-actions">
+        <button type="button" onclick="downloadInterviewReportPdf(${feedback.interview_id})" style="background:transparent;border:1px solid var(--line);color:var(--ink)">⬇ Download Report</button>
+        <button type="button" onclick="watchRecording(${feedback.interview_id})" style="background:transparent;border:1px solid var(--line);color:var(--ink)">🎥 Watch Recording</button>
         <button type="button" class="btn-cancel">Close</button>
       </div>
     </div>
@@ -1279,74 +1490,6 @@ async function playQuestionAudio(interviewId, questionId, btnEl) {
   } finally {
     btnEl.disabled = false;
   }
-}
-
-// ---------------- Session recording playback (Recording feature) ----------------
-// Same authenticated-blob approach as playQuestionAudio above: a
-// <video src="..."> can't send an Authorization header, so the file
-// is fetched as a blob first and played from an object URL.
-async function viewInterviewRecording(interviewId) {
-  try {
-    await apiFetchPy(`/interviews/${interviewId}/recording/meta`);
-  } catch (err) {
-    showToast('No recording is available for this interview.', 'info');
-    return;
-  }
-  showRecordingModal(interviewId);
-}
-
-function showRecordingModal(interviewId) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-box" style="max-width:640px;">
-      <h3>🎥 Session Recording</h3>
-      <div id="recordingModalBody" style="margin-top:10px;min-height:200px;display:flex;align-items:center;justify-content:center;">
-        <p style="color:var(--ink-soft);">⏳ Loading recording…</p>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel">Close</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  let objectUrl = null;
-  const close = () => {
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
-    overlay.remove();
-  };
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
-  });
-  overlay.querySelector('.btn-cancel').addEventListener('click', close);
-
-  (async () => {
-    const body = document.getElementById('recordingModalBody');
-    try {
-      const token = getToken();
-      let res;
-      try {
-        res = await fetch(`${PY_API_BASE_URL}/interviews/${interviewId}/recording`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-      } catch (networkErr) {
-        throw new Error("Could not reach the AI interview service (port 8001). Make sure it's running.");
-      }
-      if (!res.ok) {
-        throw new Error('Could not load this recording.');
-      }
-      const blob = await res.blob();
-      objectUrl = URL.createObjectURL(blob);
-      if (body) {
-        body.innerHTML = `<video src="${objectUrl}" controls style="width:100%;max-height:60vh;border-radius:8px;background:#000;"></video>`;
-      }
-    } catch (err) {
-      if (body) {
-        body.innerHTML = `<p style="color:var(--danger,#d33);">${escapeHtml(err.message || 'Could not load this recording.')}</p>`;
-      }
-    }
-  })();
 }
 
 function promptScheduleInterview() {
@@ -1477,17 +1620,11 @@ async function openReviewPicker(candidateId, candidateName) {
                 <strong>${escapeHtml(iv.interview_type)}</strong><br>
                 <span style="font-size:0.78rem;color:var(--ink-soft)">${formatDate(iv.scheduled_at || iv.created_at)} • ${statusBadge(iv.status)}${iv.score !== null ? ` • ${iv.score}%` : ''}</span>
               </div>
-              <div>
-                <button ${iv.status !== 'completed' ? 'disabled title="Only completed interviews can be reviewed"' : ''}
-                  onclick="this.closest('.modal-overlay').remove(); promptReview(${iv.id}, '${escapeHtml(candidateName).replace(/'/g, "\\'")}')">
-                  Give Feedback
-                </button>
-                ${
-                  iv.status === 'completed' && Number(iv.question_count) > 0
-                    ? `<button style="margin-left:6px;background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${iv.id})">🎥 Recording</button>`
-                    : ''
-                }
-              </div>
+              <button ${iv.status !== 'completed' ? 'disabled title="Only completed interviews can be reviewed"' : ''}
+                onclick="this.closest('.modal-overlay').remove(); promptReview(${iv.id}, '${escapeHtml(candidateName).replace(/'/g, "\\'")}')">
+                Give Feedback
+              </button>
+              <button onclick="watchRecording(${iv.id})" style="margin-left:6px;background:transparent;border:1px solid var(--line);color:var(--ink)">🎥</button>
             </div>`
             )
             .join('')}
@@ -1526,11 +1663,7 @@ async function viewCandidateProfile(candidateId, interviewId, candidateName) {
         <h4 style="margin-bottom:4px;">🧑‍🏫 Coach Feedback</h4>
         <p style="color:var(--ink-soft);font-size:0.88rem;">${feedback.has_feedback ? escapeHtml(feedback.recruiter_feedback) : 'No coach feedback on this session yet.'}</p>
         <div class="modal-actions" style="margin-top:14px;">
-          ${
-            feedback.status === 'completed'
-              ? `<button type="button" style="background:transparent;border:1px solid var(--line);color:var(--ink)" onclick="viewInterviewRecording(${interviewId})">🎥 View Recording</button>`
-              : ''
-          }
+          <button type="button" onclick="watchRecording(${interviewId})" style="background:transparent;border:1px solid var(--line);color:var(--ink)">🎥 Watch Recording</button>
           <button type="button" class="btn-cancel">Close</button>
         </div>
       </div>`;
@@ -1559,6 +1692,104 @@ function promptReview(interviewId, candidateName) {
   });
 }
 
+// ---------------- Compare candidate performance (recruiter) ----------------
+function openCompareCandidates() {
+  const withInterview = (CANDIDATE_SUMMARIES_CACHE || []).filter((c) => c.latest_interview_id);
+  if (withInterview.length < 2) {
+    showToast('Need at least two candidates with a completed interview to compare.', 'info');
+    return;
+  }
+
+  const options = withInterview
+    .map((c) => `<option value="${c.candidate_id}">${escapeHtml(c.full_name)} — ${escapeHtml(c.interview_type || 'N/A')}</option>`)
+    .join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width:720px">
+      <h3>📊 Compare Candidates</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="flex:1;min-width:220px;">
+          <label style="font-size:0.8rem;color:var(--ink-soft);font-weight:600;">Candidate A</label>
+          <select id="compareCandidateA">${options}</select>
+        </div>
+        <div style="flex:1;min-width:220px;">
+          <label style="font-size:0.8rem;color:var(--ink-soft);font-weight:600;">Candidate B</label>
+          <select id="compareCandidateB">${options}</select>
+        </div>
+      </div>
+      <button type="button" id="runCompareBtn" onclick="runCandidateComparison()">Compare</button>
+      <div id="compareResultBox" style="margin-top:16px;"></div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button type="button" class="btn-cancel">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Default B to a different candidate than A when possible.
+  if (withInterview.length > 1) overlay.querySelector('#compareCandidateB').selectedIndex = 1;
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  overlay.querySelector('.btn-cancel').addEventListener('click', close);
+}
+
+async function runCandidateComparison() {
+  const idA = parseInt(document.getElementById('compareCandidateA').value, 10);
+  const idB = parseInt(document.getElementById('compareCandidateB').value, 10);
+  const box = document.getElementById('compareResultBox');
+  const btn = document.getElementById('runCompareBtn');
+
+  if (idA === idB) {
+    showToast('Pick two different candidates.', 'info');
+    return;
+  }
+
+  const a = CANDIDATE_SUMMARIES_CACHE.find((c) => c.candidate_id === idA);
+  const b = CANDIDATE_SUMMARIES_CACHE.find((c) => c.candidate_id === idB);
+
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try {
+    const [detailA, detailB] = await Promise.all([
+      apiFetchPy(`/interviews/${a.latest_interview_id}`),
+      apiFetchPy(`/interviews/${b.latest_interview_id}`),
+    ]);
+    const ivA = detailA.interview;
+    const ivB = detailB.interview;
+
+    const rows = [
+      ['Interview Track', ivA.interview_type, ivB.interview_type],
+      ['Overall Score', fmtPct(ivA.score), fmtPct(ivB.score)],
+      ['Communication', fmtPct(ivA.skill_communication), fmtPct(ivB.skill_communication)],
+      ['Technical', fmtPct(ivA.skill_technical), fmtPct(ivB.skill_technical)],
+      ['Confidence', fmtPct(ivA.skill_confidence), fmtPct(ivB.skill_confidence)],
+      ['Problem Solving', fmtPct(ivA.skill_problem_solving), fmtPct(ivB.skill_problem_solving)],
+      ['Professionalism', fmtPct(ivA.skill_professionalism), fmtPct(ivB.skill_professionalism)],
+      ['Rating', ivA.rating_label, ivB.rating_label],
+      ['Status', ivA.status, ivB.status],
+    ];
+
+    box.innerHTML = `
+      <table>
+        <thead><tr><th></th><th>${escapeHtml(a.full_name)}</th><th>${escapeHtml(b.full_name)}</th></tr></thead>
+        <tbody>
+          ${rows.map(([label, va, vb]) => `<tr><td><strong>${label}</strong></td><td>${escapeHtml(String(va ?? '—'))}</td><td>${escapeHtml(String(vb ?? '—'))}</td></tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (err) {
+    box.innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message || 'Could not load comparison.')}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Compare';
+  }
+}
+
+function fmtPct(v) {
+  return v === null || v === undefined ? null : `${v}%`;
+}
+
 // ============================================================
 // RECRUITER DASHBOARD
 // ============================================================
@@ -1568,6 +1799,7 @@ async function initRecruiterDashboard() {
     loadCandidateSummaries('recruiterCandidatesBody', '👁 View Profile', 'recruiter'),
     loadSchedule('recruiterScheduleBody', 'today'),
     loadJobs(),
+    loadInterviewTemplates(),
     loadNotificationsInto('recruiterNotifications'),
   ]);
 }
@@ -1587,6 +1819,68 @@ async function loadJobs() {
       </tr>`);
   } catch (err) {
     console.error('Failed to load jobs:', err);
+  }
+}
+
+// ---------------- Module 1: Recruiter "Create interview templates" ----------------
+let INTERVIEW_TEMPLATES_CACHE = [];
+
+async function loadInterviewTemplates() {
+  try {
+    INTERVIEW_TEMPLATES_CACHE = await apiFetchPy('/interviews/templates');
+    renderTableRows('interviewTemplatesBody', INTERVIEW_TEMPLATES_CACHE, 7, (t) => `
+      <tr>
+        <td>${escapeHtml(t.name)}</td>
+        <td>${escapeHtml(t.interviewType)}</td>
+        <td>${escapeHtml(t.category || 'Mixed')}</td>
+        <td>${escapeHtml(t.difficulty)}</td>
+        <td>${t.questionCount}</td>
+        <td>${escapeHtml(t.createdByName || '—')}</td>
+        <td><button onclick="deleteTemplate(${t.id})" style="width:auto;padding:6px 12px;">Delete</button></td>
+      </tr>`);
+  } catch (err) {
+    console.error('Failed to load interview templates:', err);
+    const tbody = document.getElementById('interviewTemplatesBody');
+    if (tbody) tbody.innerHTML = `<tr><td class="table-loading" colspan="7">${escapeHtml(err.message || 'Could not load templates.')}</td></tr>`;
+  }
+}
+
+function promptCreateTemplate() {
+  openFormModal({
+    title: '📋 New Interview Template',
+    submitLabel: 'Create Template',
+    fields: [
+      { name: 'name', label: 'Template name', type: 'text', placeholder: 'e.g. Junior Java Screen' },
+      { name: 'interviewType', label: 'Interview track', type: 'select', options: INTERVIEW_TYPE_OPTIONS },
+      { name: 'category', label: 'Question category', type: 'select', options: CATEGORY_OPTIONS },
+      { name: 'domain', label: 'Domain (for Technical, e.g. Java, Python, Frontend, Data)', type: 'text', placeholder: 'e.g. Java' },
+      { name: 'difficulty', label: 'Difficulty', type: 'select', options: DIFFICULTY_OPTIONS },
+      { name: 'questionCount', label: 'Number of questions', type: 'number', min: 1, placeholder: '5' },
+      { name: 'mode', label: 'Mode', type: 'select', options: MODE_OPTIONS },
+    ],
+    onSubmit: async (values) => {
+      if (!values.name) throw new Error('Template name is required.');
+      await apiFetchPy('/interviews/templates', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...values,
+          questionCount: values.questionCount ? Number(values.questionCount) : 5,
+        }),
+      });
+      showToast('Template created.', 'success');
+      loadInterviewTemplates();
+    },
+  });
+}
+
+async function deleteTemplate(templateId) {
+  if (!confirm('Delete this interview template? Candidates will no longer be able to select it.')) return;
+  try {
+    await apiFetchPy(`/interviews/templates/${templateId}`, { method: 'DELETE' });
+    showToast('Template deleted.', 'success');
+    loadInterviewTemplates();
+  } catch (err) {
+    showToast(err.message || 'Could not delete template.', 'error');
   }
 }
 

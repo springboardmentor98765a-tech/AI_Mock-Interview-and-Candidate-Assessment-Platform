@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const settingsStore = require('../utils/settingsStore');
+const { logActivity } = require('../utils/activityLog');
 
 // GET /api/admin/stats — admin dashboard stat-card numbers
 async function getStats(req, res) {
@@ -91,6 +92,12 @@ async function forceDeleteInterview(req, res) {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Interview not found' });
     }
+    logActivity({
+      userId: req.user?.id,
+      role: req.user?.role,
+      action: 'admin_force_delete_interview',
+      details: `Admin deleted interview #${id}.`,
+    });
     res.status(200).json({ message: 'Interview deleted' });
   } catch (err) {
     console.error('Admin delete interview error:', err);
@@ -180,16 +187,58 @@ async function getSettings(req, res) {
 async function updateSettings(req, res) {
   try {
     const { allowRegistrations, maintenanceMode } = req.body;
+    const changes = [];
     if (typeof allowRegistrations === 'boolean') {
       await settingsStore.setSetting('allow_registrations', allowRegistrations);
+      changes.push(`allow_registrations=${allowRegistrations}`);
     }
     if (typeof maintenanceMode === 'boolean') {
       await settingsStore.setSetting('maintenance_mode', maintenanceMode);
+      changes.push(`maintenance_mode=${maintenanceMode}`);
+    }
+    if (changes.length) {
+      logActivity({
+        userId: req.user?.id,
+        role: req.user?.role,
+        action: 'admin_updated_settings',
+        details: `Admin changed settings: ${changes.join(', ')}.`,
+      });
     }
     res.status(200).json({ message: 'Settings updated' });
   } catch (err) {
     console.error('Admin update settings error:', err);
     res.status(500).json({ message: 'Server error updating settings' });
+  }
+}
+
+// ============================================================
+// Module 1 — Admin "Monitor system activities": GET /api/admin/activity
+// ============================================================
+async function getActivityLog(req, res) {
+  try {
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const result = await pool.query(
+      `SELECT al.id, al.action, al.details, al.actor_role, al.created_at,
+              u.full_name AS actor_name
+       FROM activity_log al
+       LEFT JOIN users u ON u.id = al.actor_user_id
+       ORDER BY al.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    res.status(200).json({
+      activity: result.rows.map((r) => ({
+        id: r.id,
+        action: r.action,
+        details: r.details,
+        actorName: r.actor_name || 'System',
+        actorRole: r.actor_role,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('Admin activity log error:', err);
+    res.status(500).json({ message: 'Server error fetching activity log' });
   }
 }
 
@@ -200,4 +249,5 @@ module.exports = {
   getAnalytics,
   getSettings,
   updateSettings,
+  getActivityLog,
 };

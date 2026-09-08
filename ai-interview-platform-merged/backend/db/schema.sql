@@ -1,6 +1,4 @@
--- ============================================================
--- AI Mock Interview Platform — Database Schema
--- ============================================================
+
 
 CREATE TABLE IF NOT EXISTS users (
     id              SERIAL PRIMARY KEY,
@@ -22,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_provider ON users (auth_provider, provider_id);
 
--- Keep updated_at fresh on every row change
+
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -37,13 +35,6 @@ CREATE TRIGGER trg_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 
--- ============================================================
--- Interviews — every mock interview a candidate takes (instant
--- AI-scored sessions) or books (future scheduled sessions).
--- Feeds candidate.html (history/stats), coach.html (assigned
--- candidates + today's schedule) and recruiter.html (recent
--- candidates + today's schedule).
--- ============================================================
 CREATE TABLE IF NOT EXISTS interviews (
     id                     SERIAL PRIMARY KEY,
     candidate_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -51,7 +42,7 @@ CREATE TABLE IF NOT EXISTS interviews (
     mode                   VARCHAR(20) NOT NULL DEFAULT 'online'
                                CHECK (mode IN ('online', 'offline')),
     status                 VARCHAR(20) NOT NULL DEFAULT 'scheduled'
-                               CHECK (status IN ('scheduled', 'in_progress', 'paused', 'completed', 'cancelled')),
+                               CHECK (status IN ('scheduled', 'completed', 'cancelled')),
     score                  INTEGER CHECK (score BETWEEN 0 AND 100),
     skill_communication    INTEGER CHECK (skill_communication BETWEEN 0 AND 100),
     skill_technical        INTEGER CHECK (skill_technical BETWEEN 0 AND 100),
@@ -69,99 +60,29 @@ CREATE INDEX IF NOT EXISTS idx_interviews_candidate ON interviews (candidate_id)
 CREATE INDEX IF NOT EXISTS idx_interviews_status ON interviews (status);
 CREATE INDEX IF NOT EXISTS idx_interviews_scheduled_at ON interviews (scheduled_at);
 
--- Module 3 additions: domain customization + difficulty selection for
--- AI-generated interview sessions. Safe to re-run on an existing DB.
+
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS domain VARCHAR(100);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS difficulty VARCHAR(10) NOT NULL DEFAULT 'medium'
     CHECK (difficulty IN ('easy', 'medium', 'hard'));
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS question_count INTEGER NOT NULL DEFAULT 0;
 
--- Proctoring: running count of tab-switch / fullscreen-exit / no-face /
--- multi-face / look-away warnings raised during a live AI interview
--- session. Written by POST /api/interviews/:id/violation (Python service).
+
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS proctoring_violations INTEGER NOT NULL DEFAULT 0;
 
--- Module 4 additions: explicit session lifecycle (start / pause / resume /
--- end) for the live proctored interview page, distinct from the coarser
--- scheduled/completed/cancelled states above. started_at/completed_at give
--- the true wall-clock start and end of the session; paused_at/paused_seconds
--- let the UI show accurate "active" elapsed time across one or more pauses.
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP;
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS paused_seconds INTEGER NOT NULL DEFAULT 0;
 
--- Existing databases created before 'in_progress'/'paused' were added to
--- the status enum still have the old CHECK constraint — widen it here so
--- this file stays safe to re-run on both fresh and pre-existing installs.
-ALTER TABLE interviews DROP CONSTRAINT IF EXISTS interviews_status_check;
-ALTER TABLE interviews ADD CONSTRAINT interviews_status_check
-    CHECK (status IN ('scheduled', 'in_progress', 'paused', 'completed', 'cancelled'));
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_path VARCHAR(255);
 
--- Module 4/5 additions: an explicit, externally-referenceable session
--- identifier (separate from the numeric interview_id primary key —
--- used wherever the *session*, not the interview record, needs to be
--- named, e.g. in recording/report links), the total active session
--- duration in seconds (started_at → completed_at, minus paused_seconds,
--- frozen once the session finishes so it never needs recomputing), and
--- a running count of how many questions the candidate has actually
--- answered (kept separate from question_count, which is the *target*
--- number of questions for the session).
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS session_id VARCHAR(36) UNIQUE;
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS questions_attempted INTEGER NOT NULL DEFAULT 0;
 
--- Deterministic MCQ/coding marks sheet totals, computed at /finish
--- from interview_questions.marks + interview_answers.marks_awarded.
--- Separate from `score` (the holistic 0-100 AI score across ALL
--- questions) since these are a straight sum of actual points earned.
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS marks_awarded NUMERIC(6,2);
-ALTER TABLE interviews ADD COLUMN IF NOT EXISTS marks_total NUMERIC(6,2);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS skill_professionalism INTEGER;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS rating_label VARCHAR(20);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS feedback_json TEXT;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_eye_contact_pct INTEGER;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_engagement_pct INTEGER;
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_attention_level VARCHAR(10);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_confidence_label VARCHAR(10);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_dominant_emotion VARCHAR(30);
 
--- ============================================================
--- Interview Recordings — Module 5 (Recording). The proctored live
--- session's combined video+audio, captured client-side with the
--- MediaRecorder API from the same webcam/mic stream already used for
--- proctoring (frontend/js/interview-session.js), uploaded once when
--- the candidate finishes.
---
--- The actual video FILE lives on disk under backend-python/recordings/
--- (see app/recording_store.py) rather than as a bytea blob in this
--- table — Postgres isn't a good fit for large binary video (it bloats
--- the DB and every read/write goes through the connection pool
--- instead of being streamed straight off disk/through a CDN later).
--- This table is the database-side source of truth: it's what proves
--- a recording exists, who it belongs to, and — via the access checks
--- in the Python service — who's allowed to open it, without anyone
--- having to touch the filesystem directly.
--- ============================================================
-CREATE TABLE IF NOT EXISTS interview_recordings (
-    id                SERIAL PRIMARY KEY,
-    interview_id      INTEGER NOT NULL UNIQUE REFERENCES interviews(id) ON DELETE CASCADE,
-    file_path         VARCHAR(500) NOT NULL,     -- combined video+audio file, relative to backend-python/
-    mime_type         VARCHAR(100) NOT NULL DEFAULT 'video/webm',
-    size_bytes        BIGINT NOT NULL DEFAULT 0,
-    duration_seconds  INTEGER,
-    started_at        TIMESTAMP,
-    ended_at          TIMESTAMP,
-    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
-);
 
--- Module 5 addition: an audio-only reference alongside the combined
--- video file. Extracted server-side (ffmpeg, see recording_store.py)
--- from the uploaded video the moment it's saved, so callers that only
--- need the audio track (e.g. a future transcript/analysis feature)
--- don't have to demux the video themselves.
-ALTER TABLE interview_recordings ADD COLUMN IF NOT EXISTS audio_file_path VARCHAR(500);
-ALTER TABLE interview_recordings ADD COLUMN IF NOT EXISTS audio_mime_type VARCHAR(100);
-
-CREATE INDEX IF NOT EXISTS idx_interview_recordings_interview ON interview_recordings (interview_id);
-
--- ============================================================
--- Interview Questions — AI-generated questions belonging to an
--- interview session (Module 3: AI Interview Generation). Each
--- session can mix categories (HR / Technical / Behavioral /
--- Aptitude) at a chosen difficulty, ordered by sequence_no.
--- ============================================================
 CREATE TABLE IF NOT EXISTS interview_questions (
     id             SERIAL PRIMARY KEY,
     interview_id   INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
@@ -171,99 +92,36 @@ CREATE TABLE IF NOT EXISTS interview_questions (
     difficulty     VARCHAR(10) NOT NULL DEFAULT 'medium'
                        CHECK (difficulty IN ('easy', 'medium', 'hard')),
     sequence_no    INTEGER NOT NULL,
-    -- 3-6 comma-separated concepts a strong answer should mention;
-    -- only populated when an LLM provider generated the question.
-    expected_keywords TEXT,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_interview_questions_interview ON interview_questions (interview_id);
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS expected_keywords TEXT;
 
--- MCQ / Coding round additions: question_type distinguishes plain
--- open-ended questions (scored holistically by AI) from auto-gradable
--- ones. options/correct_option back MCQ questions (Aptitude); marks
--- is what the question is worth (MCQ = 1, coding = 10) so a
--- deterministic marks sheet can be built alongside the AI score.
--- test_cases/starter_code back the coding round.
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS question_type VARCHAR(10) NOT NULL DEFAULT 'open'
-    CHECK (question_type IN ('open', 'mcq', 'coding'));
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS options TEXT;         -- JSON array of option strings (MCQ)
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS correct_option VARCHAR(5); -- e.g. "A" (never sent to the client)
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS marks NUMERIC(6,2) NOT NULL DEFAULT 1;
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS test_cases TEXT;      -- JSON array of {input, output} (coding)
-ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS starter_code TEXT;    -- JSON: {python: "...", javascript: "..."}
 
--- ============================================================
--- Interview Answers — the candidate's typed-or-voice-transcribed
--- answer to each generated question in a live session (one row per
--- question, upserted as they move through the interview). Feeds the
--- real LLM-based scoring in POST/PATCH /api/interviews/:id/finish;
--- falls back to the simulator in question_bank.py when empty.
--- ============================================================
 CREATE TABLE IF NOT EXISTS interview_answers (
-    id                     SERIAL PRIMARY KEY,
-    interview_id           INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
-    question_id            INTEGER NOT NULL REFERENCES interview_questions(id) ON DELETE CASCADE,
-    answer_text            TEXT,
-    input_mode             VARCHAR(10) NOT NULL DEFAULT 'typed'
-                               CHECK (input_mode IN ('typed', 'voice')),
-    time_taken_seconds     INTEGER,
-    -- Milestone 3 — Speech Analysis & AI Monitoring. filler_word_count
-    -- and words_per_minute are computed server-side from answer_text +
-    -- time_taken_seconds (app/speech_analysis.py). dominant_emotion and
-    -- eye_contact_percentage are computed client-side per question via
-    -- face-api.js (frontend/js/interview-session.js) and sent up
-    -- alongside the answer — best-effort, null when the browser
-    -- couldn't load the face model or no face was detected.
-    filler_word_count      INTEGER,
-    words_per_minute       INTEGER,
-    dominant_emotion       VARCHAR(20),
-    eye_contact_percentage INTEGER,
-    -- grammar_issue_count: rule-based spot-check (app/speech_analysis.py
-    -- check_grammar), computed server-side from answer_text.
-    -- pronunciation_confidence: average Web Speech API recognition
-    -- confidence (0-100) for this answer's voice input — a rough
-    -- clarity proxy sent by the client; NULL for typed answers.
-    grammar_issue_count     INTEGER,
-    pronunciation_confidence INTEGER,
-    -- % of the question's expected_keywords found in this answer.
-    keyword_match_percentage INTEGER,
-    created_at             TIMESTAMP NOT NULL DEFAULT NOW()
+    id                  SERIAL PRIMARY KEY,
+    interview_id        INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+    question_id         INTEGER NOT NULL REFERENCES interview_questions(id) ON DELETE CASCADE,
+    answer_text         TEXT,
+    input_mode          VARCHAR(10) NOT NULL DEFAULT 'typed'
+                            CHECK (input_mode IN ('typed', 'voice')),
+    time_taken_seconds  INTEGER,
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
--- Safe to re-run against a database created before Milestone 3 —
--- ADD COLUMN IF NOT EXISTS is a no-op on a fresh install where the
--- CREATE TABLE above already included these columns.
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_word_count INTEGER;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS words_per_minute INTEGER;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS dominant_emotion VARCHAR(20);
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS eye_contact_percentage INTEGER;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS grammar_issue_count INTEGER;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS pronunciation_confidence INTEGER;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS keyword_match_percentage INTEGER;
-
--- MCQ / Coding round grading. selected_option is the candidate's pick
--- for an MCQ question, graded deterministically against
--- interview_questions.correct_option (1 mark correct, 0 wrong).
--- code_answer/code_language back the coding round; test_case_results
--- is a JSON array of {input, expected, actual, passed} for each case
--- run, and marks_awarded is partial credit: marks * passed/total.
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS selected_option VARCHAR(5);
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS code_answer TEXT;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS code_language VARCHAR(10);
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS is_correct BOOLEAN;
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS marks_awarded NUMERIC(6,2);
-ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS test_case_results TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_interview_answers_interview ON interview_answers (interview_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_interview_answers_question ON interview_answers (question_id);
 
--- ============================================================
--- Notifications — small activity feed shown on every dashboard.
--- Either targeted at one user (user_id) or broadcast to a whole
--- role (role), e.g. "New candidate applied" for all recruiters.
--- ============================================================
+
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_word_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_words_found TEXT; -- JSON list, e.g. ["um","like"]
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS grammar_issue_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS grammar_feedback TEXT;
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS speech_wpm INTEGER;              -- words per minute (typed or voice)
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS voice_confidence REAL;           -- 0-1, avg Web Speech API confidence, voice answers only
+ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS pronunciation_score INTEGER;     -- 0-100, derived from voice_confidence
+
+
 CREATE TABLE IF NOT EXISTS notifications (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -278,10 +136,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications (role);
 
--- ============================================================
--- Job openings — managed by recruiters, feeds the "Job Openings"
--- card and open-positions count on recruiter.html.
--- ============================================================
+
 CREATE TABLE IF NOT EXISTS job_openings (
     id           SERIAL PRIMARY KEY,
     title        VARCHAR(150) NOT NULL,
@@ -294,13 +149,7 @@ CREATE TABLE IF NOT EXISTS job_openings (
 
 CREATE INDEX IF NOT EXISTS idx_job_openings_status ON job_openings (is_open);
 
--- ============================================================
--- Resumes — Module 2: Resume Upload & Skill Extraction. Each
--- upload is parsed once at upload time and the extracted structured
--- data is cached here so dashboards never have to re-parse the PDF.
--- A candidate may upload more than once; the most recent row (by
--- created_at) is treated as their "current" resume.
--- ============================================================
+
 CREATE TABLE IF NOT EXISTS resumes (
     id                 SERIAL PRIMARY KEY,
     candidate_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -317,9 +166,7 @@ CREATE TABLE IF NOT EXISTS resumes (
     created_at         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- ATS-friendliness score (0-100) + the specific formatting/content
--- issues found, e.g. "no email found", "missing skills section".
--- Computed by backend/utils/resumeEngine.js#scoreAts() at upload time.
+
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_score INTEGER CHECK (ats_score BETWEEN 0 AND 100);
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_feedback JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type VARCHAR(10); -- "pdf" | "image"
@@ -327,8 +174,64 @@ ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type VARCHAR(10); -- "pdf" | "
 CREATE INDEX IF NOT EXISTS idx_resumes_candidate ON resumes (candidate_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_created_at ON resumes (created_at);
 
--- ============================================================
--- Seed a default admin (matches the "Default Admin Login" shown
--- on login.html). Password is hashed at app-start via seed.js,
--- NOT stored in plaintext here.
--- ============================================================
+
+CREATE TABLE IF NOT EXISTS coding_submissions (
+    id              SERIAL PRIMARY KEY,
+    candidate_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id     VARCHAR(100) NOT NULL,          -- id from app/coding_bank.py's curated bank
+    title           VARCHAR(150) NOT NULL,
+    role            VARCHAR(100) NOT NULL,          -- e.g. "Java Developer" — locks the language
+    language        VARCHAR(20) NOT NULL,           -- python | javascript | java | cpp | c
+    code            TEXT NOT NULL,
+    passed_count    INTEGER NOT NULL DEFAULT 0,
+    total_count     INTEGER NOT NULL DEFAULT 0,
+    score_percent   INTEGER NOT NULL DEFAULT 0 CHECK (score_percent BETWEEN 0 AND 100),
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_coding_submissions_candidate ON coding_submissions (candidate_id);
+CREATE INDEX IF NOT EXISTS idx_coding_submissions_created_at ON coding_submissions (created_at);
+
+
+CREATE TABLE IF NOT EXISTS generated_coding_questions (
+    id              VARCHAR(64) PRIMARY KEY,        -- uuid4 hex
+    candidate_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role            VARCHAR(100) NOT NULL,
+    language        VARCHAR(20) NOT NULL,
+    difficulty      VARCHAR(10) NOT NULL,           -- easy | medium | hard
+    title           VARCHAR(200) NOT NULL,
+    prompt          TEXT NOT NULL,
+    starter_code    TEXT NOT NULL,
+    test_cases_json TEXT NOT NULL,                  -- JSON-encoded [{input, expected_output}, ...]
+    source          VARCHAR(10) NOT NULL DEFAULT 'ai', -- 'ai' (Gemini) | 'bank' (offline fallback)
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_coding_questions_candidate ON generated_coding_questions (candidate_id);
+
+
+CREATE TABLE IF NOT EXISTS activity_log (
+    id              SERIAL PRIMARY KEY,
+    actor_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    actor_role      VARCHAR(20),
+    action          VARCHAR(100) NOT NULL,
+    details         TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log (created_at DESC);
+
+
+CREATE TABLE IF NOT EXISTS interview_templates (
+    id              SERIAL PRIMARY KEY,
+    created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    name            VARCHAR(150) NOT NULL,
+    interview_type  VARCHAR(50) NOT NULL,
+    category        VARCHAR(50),
+    domain          VARCHAR(100),
+    difficulty      VARCHAR(10) NOT NULL DEFAULT 'medium',
+    question_count  INTEGER NOT NULL DEFAULT 5,
+    mode            VARCHAR(20) NOT NULL DEFAULT 'online',
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+

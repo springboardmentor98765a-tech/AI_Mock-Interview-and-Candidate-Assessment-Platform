@@ -10,6 +10,7 @@ const {
   getAnalytics,
   getSettings,
   updateSettings,
+  getActivityLog,
 } = require('../controllers/adminController');
 
 router.get('/stats', authenticateJWT, authorizeRoles('admin'), getStats);
@@ -18,5 +19,6 @@ router.delete('/interviews/:id', authenticateJWT, authorizeRoles('admin'), force
 router.get('/analytics', authenticateJWT, authorizeRoles('admin'), getAnalytics);
 router.get('/settings', authenticateJWT, authorizeRoles('admin'), getSettings);
 router.patch('/settings', authenticateJWT, authorizeRoles('admin'), updateSettings);
+router.get('/activity', authenticateJWT, authorizeRoles('admin'), getActivityLog);
 
 module.exports = router;
