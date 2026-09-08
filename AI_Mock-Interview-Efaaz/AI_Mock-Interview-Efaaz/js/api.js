@@ -92,6 +92,15 @@ var api = {
       body: { status: 'completed', elapsed_seconds: elapsedSeconds }
     });
   },
+  analyzeVisionFrame: function(id, imageData) {
+    return apiRequest('/interviews/' + id + '/vision/frame', {
+      method: 'POST',
+      body: { image_data: imageData }
+    });
+  },
+  getVisionSummary: function(id) {
+    return apiRequest('/interviews/' + id + '/vision/summary');
+  },
   submitInterviewAnswer: function(interviewId, questionId, answerText, durationSeconds, wpm) {
     var payload = { question_id: questionId, answer_text: answerText };
     if (typeof durationSeconds === 'number') payload.duration_seconds = durationSeconds;

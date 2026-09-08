@@ -1,0 +1,15 @@
+{
+  "classes": [
+    "nervousness",
+    "confidence",
+    "fear",
+    "confused"
+  ],
+  "input": [
+    48,
+    48,
+    1
+  ],
+  "scale": "raw_gray_0_255",
+  "seed": 42
+}

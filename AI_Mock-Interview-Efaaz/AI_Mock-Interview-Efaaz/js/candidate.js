@@ -786,6 +786,20 @@ function candidateSession() {
             </span>
           </div>
         </div>
+
+        <div class="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300">Live Vision Monitor</span>
+            <span id="vision-live-status" class="text-[10px] text-white/60">Initializing...</span>
+          </div>
+          <p id="vision-live-warning" class="text-[10px] text-amber-300 mb-2">Vision monitoring active</p>
+          <div class="grid grid-cols-2 gap-2 text-[10px]">
+            <div class="rounded-lg bg-white/5 p-2"><span class="text-white/40">Eye Contact</span><br><strong id="vision-live-eye" class="text-cyan-300">Analyzing</strong></div>
+            <div class="rounded-lg bg-white/5 p-2"><span class="text-white/40">Emotion</span><br><strong id="vision-live-emotion" class="text-emerald-300">Analyzing</strong></div>
+            <div class="rounded-lg bg-white/5 p-2"><span class="text-white/40">Attention</span><br><strong id="vision-live-attention" class="text-indigo-300">Monitoring</strong></div>
+            <div class="rounded-lg bg-white/5 p-2"><span class="text-white/40">Confidence</span><br><strong id="vision-live-confidence" class="text-amber-300">Analyzing</strong></div>
+          </div>
+        </div>
       </div>
 
       <!-- ════ COLUMN 2 (MIDDLE): Interviewer Question Arena ════ -->
@@ -1637,6 +1651,7 @@ async function autoEndInterviewTimerExpired() {
   if (!state.currentInterview || !state.currentInterview.interview) return;
   stopAutoRecording();
   stopSessionTimer();
+  stopVisionMonitoring();
   var id = state.currentInterview.interview.id;
   await stopAndUploadSessionRecording(id);
   stopInterviewDevices();
@@ -1651,6 +1666,88 @@ async function autoEndInterviewTimerExpired() {
     }
     render();
   }
+}
+
+
+function stopVisionMonitoring() {
+  if (state.visionTimer) {
+    clearInterval(state.visionTimer);
+    state.visionTimer = null;
+  }
+  state.visionCanvas = null;
+}
+
+function updateVisionLiveUI(result) {
+  state.visionLive = result || null;
+  var status = document.getElementById('vision-live-status');
+  var warning = document.getElementById('vision-live-warning');
+  var eye = document.getElementById('vision-live-eye');
+  var emo = document.getElementById('vision-live-emotion');
+  var att = document.getElementById('vision-live-attention');
+  var conf = document.getElementById('vision-live-confidence');
+  if (!result) return;
+  if (status) {
+    if (result.status === 'no_face') status.textContent = 'No face detected';
+    else if (result.status === 'multiple_faces') status.textContent = 'Multiple faces detected';
+    else if (result.status === 'face_detected') status.textContent = 'Face detected';
+    else status.textContent = result.status || 'Vision monitoring';
+  }
+  if (warning) {
+    if (result.status === 'no_face') warning.textContent = '⚠ Please stay visible in the camera.';
+    else if (result.status === 'multiple_faces') warning.textContent = '⚠ Only the candidate should be visible.';
+    else if (result.warnings && result.warnings.length) warning.textContent = '⚠ ' + result.warnings[0];
+    else if (result.attention && result.attention.live_warning) warning.textContent = '⚠ ' + result.attention.live_warning;
+    else warning.textContent = 'Vision monitoring active';
+  }
+  var eyeState = result.eye_contact && result.eye_contact.state;
+  if (eye) eye.textContent = eyeState || 'Analyzing';
+  if (emo) emo.textContent = result.emotion && result.emotion.dominant ? result.emotion.dominant : 'Analyzing';
+  if (att) att.textContent = result.attention && result.attention.state ? result.attention.state : 'Monitoring';
+  if (conf) {
+    var ci = result.summary && result.summary.confidence_indicator;
+    conf.textContent = ci && ci.score != null ? Math.round(ci.score) + '%' : 'Analyzing';
+  }
+  // Replace the old simulated eye/emotion telemetry with actual vision results.
+  var eyeVal = document.getElementById('telemetry-eye-val');
+  var eyePct = result.summary && result.summary.eye && result.summary.eye.contact_pct;
+  if (eyeVal && typeof eyePct === 'number') eyeVal.textContent = Math.round(eyePct) + '%';
+  var emoVal = document.getElementById('telemetry-emo-val');
+  if (emoVal && result.emotion && result.emotion.dominant) emoVal.textContent = result.emotion.dominant;
+}
+
+function startVisionMonitoring() {
+  stopVisionMonitoring();
+  var interview = state.currentInterview && state.currentInterview.interview;
+  if (!interview) return;
+  var canvas = document.createElement('canvas');
+  state.visionCanvas = canvas;
+  var busy = false;
+  async function captureFrame() {
+    if (busy) return;
+    var video = document.getElementById('candidate-camera');
+    if (!video || !state.interviewStream || !video.videoWidth || !video.videoHeight) return;
+    var tracks = state.interviewStream.getVideoTracks ? state.interviewStream.getVideoTracks() : [];
+    if (!tracks.length || tracks[0].readyState !== 'live' || tracks[0].enabled === false) return;
+    busy = true;
+    try {
+      var scale = Math.min(1, 640 / video.videoWidth);
+      canvas.width = Math.max(2, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(2, Math.round(video.videoHeight * scale));
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      var imageData = canvas.toDataURL('image/jpeg', 0.65);
+      var result = await api.analyzeVisionFrame(interview.id, imageData);
+      updateVisionLiveUI(result);
+      if (result && result.attention && result.attention.terminated) {
+        stopVisionMonitoring();
+        state.currentInterview.interview.status = 'completed';
+        render();
+      }
+    } catch (error) {
+      console.error('Vision analysis error:', error);
+    } finally { busy = false; }
+  }
+  captureFrame();
+  state.visionTimer = setInterval(captureFrame, 1500);
 }
 
 async function startInterviewSession() {
@@ -1668,6 +1765,7 @@ async function startInterviewSession() {
     startSessionMediaRecorder();
     render();
     startSessionTimer();
+    startVisionMonitoring();
     speakCurrentQuestion();
   } catch (err) {
     window.alert('Unable to start interview: ' + err.message);
@@ -1678,6 +1776,7 @@ async function pauseInterviewSession() {
   if (!state.currentInterview || !state.currentInterview.interview) return;
   var id = state.currentInterview.interview.id;
   stopSessionTimer();
+  stopVisionMonitoring();
   stopAutoRecording();
   pauseSessionMediaRecorder();
   if (state.interviewerAudio) state.interviewerAudio.pause();
@@ -1704,12 +1803,14 @@ async function resumeInterviewSession() {
     startSessionMediaRecorder();
     render();
     startSessionTimer();
+    startVisionMonitoring();
     speakCurrentQuestion();
   } catch (err) {
     state.currentInterview.interview.status = 'in_progress';
     startSessionMediaRecorder();
     render();
     startSessionTimer();
+    startVisionMonitoring();
     speakCurrentQuestion();
   }
 }
@@ -1747,6 +1848,7 @@ async function confirmEndInterviewSession() {
   if (!state.currentInterview || !state.currentInterview.interview) return;
   stopSessionTimer();
   stopAutoRecording();
+  stopVisionMonitoring();
   if (state.interviewerAudio) state.interviewerAudio.pause();
 
   var id = state.currentInterview.interview.id;
@@ -1871,6 +1973,7 @@ async function enableInterviewDevices() {
 }
 
 function stopInterviewDevices() {
+  stopVisionMonitoring();
   if (state.audioMonitor) { try { state.audioMonitor.proc.disconnect(); state.audioMonitor.src.disconnect(); state.audioMonitor.ctx.close(); } catch (e) { } state.audioMonitor = null; }
   if (state.mediaRecorder && state.mediaRecorder.state === 'recording') { try { state.mediaRecorder.stop(); } catch (e) { } }
   state.mediaRecorder = null;
@@ -2489,6 +2592,7 @@ function renderReportModal(report) {
     { id: 'report-overview', label: 'Overview' },
     { id: 'report-speech-grammar', label: 'Communication & Grammar' },
     { id: 'report-performance', label: 'Performance' },
+    { id: 'report-vision', label: 'Vision & Behavior' },
     { id: 'report-gaps', label: 'Strengths & Gaps' },
     { id: 'report-plan', label: 'Improvement Plan' },
     { id: 'report-resources', label: 'Resources' },
@@ -3011,7 +3115,45 @@ function renderReportModal(report) {
           </div>
         </div>
 
-        <!-- 8. Learning Resources -->
+        <!-- 8. Vision & Behavior -->
+        ${report.vision_metrics ? (function () {
+          var vm = report.vision_metrics || {};
+          var eye = vm.eye || {};
+          var att = vm.attention || {};
+          var ci = vm.confidence_indicator || {};
+          var eng = vm.engagement || {};
+          var emo = vm.emotion || {};
+          var behavior = vm.behavior || {};
+          var dist = emo.dominant_distribution || {};
+          var face = vm.face_detected_pct != null ? vm.face_detected_pct : 0;
+          var multi = vm.multiple_faces_pct != null ? vm.multiple_faces_pct : 0;
+          var warningCount = att.warnings || 0;
+          var contact = eye.contact_pct != null ? eye.contact_pct : 0;
+          var attentionPct = eng.components && eng.components.attention != null ? eng.components.attention : (ci.components && ci.components.attention != null ? ci.components.attention : 0);
+          var engagement = eng.score != null ? eng.score : 0;
+          var conf = ci.score != null ? ci.score : 0;
+          return `<div class="report-section" id="report-vision">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(6,182,212,0.15);color:#67e8f9">${icon('eye', 15)}</span>
+              <div><h3 class="text-base font-semibold text-white" style="font-family:'Outfit',sans-serif">Vision &amp; Behavior</h3><p class="text-[10px] text-white/40">Measured from the interview webcam and attention monitor</p></div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              ${[['Face Visibility',face],['Eye Contact',contact],['Attention',attentionPct],['Confidence Indicator',conf]].map(function(x){return `<div class="rounded-xl border border-white/8 p-3" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase">${x[0]}</p><p class="text-xl font-bold text-white mt-1">${Number(x[1]||0).toFixed(0)}%</p></div>`}).join('')}
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+              <div class="rounded-xl border border-white/8 p-3" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase">Engagement</p><p class="text-xl font-bold text-white mt-1">${Number(engagement).toFixed(0)}%</p></div>
+              <div class="rounded-xl border border-white/8 p-3" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase">Multiple Faces</p><p class="text-xl font-bold text-white mt-1">${Number(multi).toFixed(0)}%</p></div>
+              <div class="rounded-xl border border-white/8 p-3" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase">Warnings</p><p class="text-xl font-bold text-white mt-1">${warningCount}</p></div>
+              <div class="rounded-xl border border-white/8 p-3" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase">Integrity</p><p class="text-sm font-bold text-white mt-2">${report.integrity_flag || 'Normal'}</p></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+              <div class="rounded-xl border border-white/8 p-4" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase mb-2">Emotion Distribution</p>${Object.keys(dist).length ? Object.keys(dist).map(function(k){return `<div class="flex justify-between text-xs py-1"><span class="text-white/70 capitalize">${k}</span><strong class="text-white">${dist[k]}%</strong></div>`}).join('') : '<p class="text-xs text-white/40">No emotion samples recorded.</p>'}</div>
+              <div class="rounded-xl border border-white/8 p-4" style="background:#0c0e1c"><p class="text-[10px] text-white/40 uppercase mb-2">Behavior Analysis</p>${behavior.summary_points && behavior.summary_points.length ? behavior.summary_points.map(function(x){return `<p class="text-xs text-white/70 py-1">• ${x}</p>`}).join('') : '<p class="text-xs text-white/40">No behavior summary available.</p>'}</div>
+            </div>
+          </div>`;
+        })() : ''}
+
+        <!-- 9. Learning Resources -->
         ${resources.length ? `<div class="report-section" id="report-resources">
           <div class="flex items-center gap-2 mb-3">
             <span class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(6,182,212,0.15);color:#67e8f9">${icon('bookOpen', 15)}</span>

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+import threading
 from config import PORT
 from database import init_db
 from routes import auth, users, interviews, assessments, recruiter, notifications
@@ -19,6 +20,11 @@ from routes import auth, users, interviews, assessments, recruiter, notification
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    try:
+        from services import vision_monitor
+        threading.Thread(target=vision_monitor.warm_up, daemon=True).start()
+    except Exception as exc:
+        print(f"  [vision] warm-up skipped: {exc}")
     yield
 
 
