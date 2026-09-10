@@ -76,7 +76,7 @@ async function login() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/auth/login",
+            "https://smarthire-backend-eow3.onrender.com/api/auth/login",
             {
 
                 method: "POST",
@@ -186,7 +186,7 @@ async function uploadResume() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/resume/upload",
+            "https://smarthire-backend-eow3.onrender.com/api/resume/upload",
             {
 
                 method: "POST",
@@ -251,7 +251,7 @@ async function extractAISkills() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/ai/extract-skills",
+            "https://smarthire-backend-eow3.onrender.com/api/ai/extract-skills",
             {
                 method: "GET",
 
@@ -706,7 +706,7 @@ async function generateInterview() {
         const response =
             await fetch(
 
-                "http://localhost:5000/api/interview/generate",
+                "https://smarthire-backend-eow3.onrender.com/api/interview/generate",
 
                 {
 
@@ -793,7 +793,7 @@ async function generateInterview() {
         const sessionResponse =
             await fetch(
 
-                "http://localhost:5000/api/interview/session",
+                "https://smarthire-backend-eow3.onrender.com/api/interview/session",
 
                 {
 
@@ -950,7 +950,7 @@ async function createInterviewSession() {
         const response =
             await fetch(
 
-                "http://localhost:5000/api/interview/session",
+                "https://smarthire-backend-eow3.onrender.com/api/interview/session",
 
                 {
 
@@ -1258,7 +1258,7 @@ async function startInterviewSession() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/session/${currentSessionId}/start`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/start`,
 
                 {
 
@@ -1383,7 +1383,7 @@ async function pauseInterviewSession() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/session/${currentSessionId}/pause`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/pause`,
 
                 {
 
@@ -1513,7 +1513,7 @@ async function resumeInterviewSession() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/session/${currentSessionId}/resume`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/resume`,
 
                 {
 
@@ -1628,7 +1628,7 @@ async function endInterviewSession() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/session/${currentSessionId}/end`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/end`,
 
                 {
 
@@ -1774,7 +1774,7 @@ async function submitAnswer() {
     try {
 
         const response = await fetch(
-            `http://localhost:5000/api/interview/session/${currentSessionId}/answer`,
+            `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/answer`,
             {
                 method: "POST",
 
@@ -1823,7 +1823,7 @@ try {
 
     const analysisResponse =
         await fetch(
-            "http://localhost:5000/api/ai/analyze-communication",
+            "https://smarthire-backend-eow3.onrender.com/api/ai/analyze-communication",
             {
 
                 method: "POST",
@@ -3346,7 +3346,7 @@ async function uploadRecording() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/recording`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/recording`,
 
                 {
 
@@ -3600,7 +3600,7 @@ async function saveSessionDetails() {
         const response =
             await fetch(
 
-                `http://localhost:5000/api/interview/session/${currentSessionId}/details`,
+                `https://smarthire-backend-eow3.onrender.com/api/interview/session/${currentSessionId}/details`,
 
                 {
 
@@ -4708,7 +4708,7 @@ async function saveEmotionAnalysisToDatabase() {
         const response =
             await fetch(
 
-                "http://localhost:5000/api/ai/save-behavior-analysis",
+                "https://smarthire-backend-eow3.onrender.com/api/ai/save-behavior-analysis",
 
                 {
 
@@ -6003,7 +6003,7 @@ async function loadLatestInterviewPerformance() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/ai/latest-interview-performance",
+            "https://smarthire-backend-eow3.onrender.com/api/ai/latest-interview-performance",
             {
                 method: "GET",
                 headers: {
@@ -6201,7 +6201,7 @@ async function loadCandidateRanking() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/ai/candidate-ranking",
+            "https://smarthire-backend-eow3.onrender.com/api/ai/candidate-ranking",
             {
                 method: "GET",
                 headers: {
@@ -6434,7 +6434,7 @@ if (!sessionId) {
         }
 
         const response = await fetch(
-            `http://localhost:5000/api/ai/skill-wise-analytics?sessionId=${sessionId}`,
+            `https://smarthire-backend-eow3.onrender.com/api/ai/skill-wise-analytics?sessionId=${sessionId}`,
             {
                 method: "GET",
                 headers: {
@@ -6898,7 +6898,7 @@ async function createInterviewReminder() {
 
         const response =
             await fetch(
-                "http://localhost:5000/api/ai/interview-reminder",
+                "https://smarthire-backend-eow3.onrender.com/api/ai/interview-reminder",
                 {
                     method: "POST",
 
@@ -7051,7 +7051,7 @@ async function loadInterviewHistory() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/interview/candidate/interview-history",
+            "https://smarthire-backend-eow3.onrender.com/api/interview/candidate/interview-history",
             {
                 method: "GET",
                 headers: {
@@ -7204,7 +7204,7 @@ async function loadPerformanceTrends() {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/interview/candidate/performance-trends",
+            "https://smarthire-backend-eow3.onrender.com/api/interview/candidate/performance-trends",
             {
                 method: "GET",
                 headers: {
