@@ -1,5 +1,1445 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Dashboard</title><link rel="stylesheet" href="dashboard.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></head><body>
-<nav class="navbar"><div class="logo"><i class="fa-solid fa-user-shield"></i> SmartHire AI</div><a class="btn" href="login.html">Logout</a></nav>
-<div class="container"><aside class="profile"><i class="fa-solid fa-user-shield profileicon"></i><h2 id="greeting"></h2><h3>Admin Dashboard</h3><p>Demo User</p></aside>
-<main class="content"><h1>Admin Dashboard</h1><div class="stats"><div class="stat"><h2>150</h2><p>Users</p></div><div class="stat"><h2>15</h2><p>Recruiters</p></div><div class="stat"><h2>900</h2><p>AI Calls</p></div><div class="stat"><h2>Live</h2><p>Activity</p></div></div><div class="cards"><div class="card"><i class="fa-solid fa-users-gear"></i><h3>Manage Users</h3><p>User management</p><button class="btn">Open</button></div><div class="card"><i class="fa-solid fa-user-gear"></i><h3>Recruiters</h3><p>Recruiter management</p><button class="btn">Open</button></div><div class="card"><i class="fa-solid fa-gear"></i><h3>Settings</h3><p>Platform settings</p><button class="btn">Open</button></div><div class="card"><i class="fa-solid fa-brain"></i><h3>AI Config</h3><p>AI configuration</p><button class="btn">Open</button></div><div class="card"><i class="fa-solid fa-chart-pie"></i><h3>Analytics</h3><p>Platform analytics</p><button class="btn">Open</button></div><div class="card"><i class="fa-solid fa-shield-halved"></i><h3>Logs</h3><p>System activity</p><button class="btn">Open</button></div></div></main></div>
-<script src="script.js"></script></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width,initial-scale=1"
+    >
+
+    <title>Admin Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="dashboard.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+</head>
+
+<body>
+
+    <!-- =========================
+         NAVBAR
+    ========================== -->
+
+    <nav class="navbar">
+
+        <div class="logo">
+            <i class="fa-solid fa-user-shield"></i>
+            SmartHire AI
+        </div>
+
+        <a
+            class="btn"
+            href="login.html"
+        >
+            Logout
+        </a>
+
+    </nav>
+
+
+    <!-- =========================
+         MAIN CONTAINER
+    ========================== -->
+
+    <div class="container">
+
+
+        <!-- =========================
+             ADMIN PROFILE
+        ========================== -->
+
+        <aside class="profile">
+
+            <i
+                class="fa-solid fa-user-shield profileicon"
+            ></i>
+
+            <h2 id="greeting"></h2>
+
+            <h3>
+                Admin Dashboard
+            </h3>
+
+            <p>
+                Demo User
+            </p>
+
+        </aside>
+
+
+        <!-- =========================
+             ADMIN CONTENT
+        ========================== -->
+
+        <main class="content">
+
+            <h1>
+                Admin Dashboard
+            </h1>
+
+
+            <!-- =========================
+                 STATISTICS
+            ========================== -->
+
+            <div class="stats">
+
+                <div class="stat">
+
+                    <h2 id="totalUsers">
+                        0
+                    </h2>
+
+                    <p>
+                        Users
+                    </p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h2 id="totalRecruiters">
+                        0
+                    </h2>
+
+                    <p>
+                        Recruiters
+                    </p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h2 id="totalAICalls">
+                        0
+                    </h2>
+
+                    <p>
+                        AI Calls
+                    </p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h2 id="activityStatus">
+                        Live
+                    </h2>
+
+                    <p>
+                        Activity
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 ADMIN CARDS
+            ========================== -->
+
+            <div class="cards">
+
+
+                <!-- MANAGE USERS -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-users-gear"
+                    ></i>
+
+                    <h3>
+                        Manage Users
+                    </h3>
+
+                    <p>
+                        User management
+                    </p>
+
+                    <button
+                        class="btn"
+                        onclick="openManageUsers()"
+                    >
+                        👥 Manage Users
+                    </button>
+
+                </div>
+                <div class="card">
+    <i class="fa-solid fa-video"></i>
+    <h3>Interview Activity</h3>
+    <p>Monitor interview sessions and activity.</p>
+
+    <button class="btn" onclick="openInterviewActivity()">
+        🎤 View Activity
+    </button>
+</div>
+
+
+                <!-- RECRUITERS -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-user-gear"
+                    ></i>
+
+                    <h3>
+                        Recruiters
+                    </h3>
+
+                    <p>
+                        Recruiter management
+                    </p>
+                    <button class="btn" onclick="openRecruiterManagement()">
+    👔 Manage Recruiters
+</button>
+
+                   <div
+    id="recruiterManagementSection"
+    class="card"
+    style="margin-top:30px; display:none;"
+>
+    <h2>👔 Recruiter Management</h2>
+    <p>View and manage registered recruiters.</p>
+
+    <div id="recruiterStatus" style="margin-top:20px;">
+        ⏳ Loading recruiters...
+    </div>
+
+    <div id="recruiterContainer" style="margin-top:20px;"></div>
+</div>
+
+                </div>
+<div class="card">
+    <i class="fa-solid fa-brain"></i>
+    <h3>AI Performance</h3>
+    <p>Monitor AI interview analysis and scoring performance.</p>
+
+    <button class="btn" onclick="openAIPerformance()">
+        🧠 View AI Performance
+    </button>
+</div>
+         <div
+    id="aiPerformanceSection"
+    class="card"
+    style="margin-top:30px; display:none;"
+>
+    <h2>🧠 AI Performance Monitoring</h2>
+    <p>Monitor real AI analysis and interview scoring data.</p>
+
+    <div id="aiPerformanceStatus" style="margin-top:20px;">
+        ⏳ Loading AI performance...
+    </div>
+
+    <div
+        id="aiPerformanceContainer"
+        style="
+            margin-top:20px;
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:15px;
+        "
+    ></div>
+</div>
+<div class="card">
+    <i class="fa-solid fa-heart-pulse"></i>
+    <h3>System Health</h3>
+    <p>Monitor server, database and platform activity.</p>
+
+    <button class="btn" onclick="openSystemHealth()">
+        🖥️ View System Health
+    </button>
+</div>
+<div
+    id="systemHealthSection"
+    class="card"
+    style="margin-top:30px; display:none;"
+>
+    <h2>🖥️ System Activity / Health Report</h2>
+    <p>Real-time system information from the backend and PostgreSQL database.</p>
+
+    <div id="systemHealthStatus" style="margin-top:20px;">
+        ⏳ Loading system health...
+    </div>
+
+    <div
+        id="systemHealthContainer"
+        style="
+            margin-top:20px;
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:15px;
+        "
+    ></div>
+</div>
+<div class="card">
+    <i class="fa-solid fa-chart-pie"></i>
+    <h3>Platform Usage</h3>
+    <p>View real platform usage and activity analytics.</p>
+
+    <button class="btn" onclick="openPlatformUsage()">
+        📊 View Usage Analytics
+    </button>
+</div>
+<div
+    id="platformUsageSection"
+    class="card"
+    style="margin-top:30px; display:none;"
+>
+    <h2>📊 Platform Usage Analytics</h2>
+    <p>Real platform usage statistics from PostgreSQL.</p>
+
+    <div id="platformUsageStatus" style="margin-top:20px;">
+        ⏳ Loading platform usage...
+    </div>
+
+    <div
+        id="platformUsageContainer"
+        style="
+            margin-top:20px;
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:15px;
+        "
+    ></div>
+</div>
+
+                <!-- SETTINGS -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-gear"
+                    ></i>
+
+                    <h3>
+                        Settings
+                    </h3>
+
+                    <p>
+                        Platform settings
+                    </p>
+
+                    <button
+                        class="btn"
+                    >
+                        Open
+                    </button>
+
+                </div>
+
+
+                <!-- AI CONFIG -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-brain"
+                    ></i>
+
+                    <h3>
+                        AI Config
+                    </h3>
+
+                    <p>
+                        AI configuration
+                    </p>
+
+                    <button
+                        class="btn"
+                    >
+                        Open
+                    </button>
+
+                </div>
+
+
+                <!-- ANALYTICS -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-chart-pie"
+                    ></i>
+
+                    <h3>
+                        Analytics
+                    </h3>
+
+                    <p>
+                        Platform analytics
+                    </p>
+
+                    <button
+                        class="btn"
+                    >
+                        Open
+                    </button>
+
+                </div>
+
+
+                <!-- LOGS -->
+
+                <div class="card">
+
+                    <i
+                        class="fa-solid fa-shield-halved"
+                    ></i>
+
+                    <h3>
+                        Logs
+                    </h3>
+
+                    <p>
+                        System activity
+                    </p>
+
+                    <button
+                        class="btn"
+                    >
+                        Open
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 MANAGE USERS SECTION
+            ========================== -->
+
+            <div
+                id="manageUsersSection"
+                class="card"
+                style="margin-top:30px; display:none;"
+            >
+
+                <h2>
+                    👥 Manage Users
+                </h2>
+
+                <p>
+                    View and manage registered users.
+                </p>
+
+
+                <div
+                    id="usersStatus"
+                    style="margin-top:20px;"
+                >
+                    ⏳ Loading users...
+                </div>
+
+
+                <div
+                    id="usersContainer"
+                    style="margin-top:20px;"
+                ></div>
+
+            </div>
+
+
+        </main>
+
+    </div>
+
+
+    <!-- =========================
+         MAIN SCRIPT
+    ========================== -->
+
+    <script src="script.js"></script>
+
+
+    <!-- =========================
+         ADMIN MANAGE USERS
+         JAVASCRIPT
+    ========================== -->
+
+    <script>
+
+        function openManageUsers() {
+
+            const section =
+                document.getElementById(
+                    "manageUsersSection"
+                );
+
+            if (!section) {
+                return;
+            }
+
+            section.style.display = "block";
+
+            section.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+
+            loadAdminUsers();
+
+        }
+
+
+        async function loadAdminUsers() {
+
+            const token =
+                localStorage.getItem("token");
+
+            const status =
+                document.getElementById(
+                    "usersStatus"
+                );
+
+            const container =
+                document.getElementById(
+                    "usersContainer"
+                );
+
+
+            if (!token) {
+
+                status.innerHTML =
+                    "❌ Please login again.";
+
+                return;
+
+            }
+
+
+            try {
+
+                status.innerHTML =
+                    "⏳ Loading real users from database...";
+
+
+                const response =
+                    await fetch(
+                        "http://localhost:5000/api/user/admin/users",
+                        {
+                            method: "GET",
+
+                            headers: {
+                                "Authorization":
+                                    `Bearer ${token}`
+                            }
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok || !data.success) {
+
+                    status.innerHTML =
+                        `❌ ${data.message || "Failed to load users."}`;
+
+                    return;
+
+                }
+
+
+                const users =
+                    data.users || [];
+
+
+                if (users.length === 0) {
+
+                    status.innerHTML =
+                        "ℹ️ No users found.";
+
+                    container.innerHTML = "";
+
+                    return;
+
+                }
+
+
+                status.innerHTML =
+                    `✅ ${users.length} real users found.`;
+
+
+                container.innerHTML = users.map(
+                    user => `
+
+                        <div
+                            style="
+                                padding:15px;
+                                margin-bottom:12px;
+                                border:1px solid #ddd;
+                                border-radius:10px;
+                            "
+                        >
+
+                            <h3>
+                                ${user.name || "No Name"}
+                            </h3>
+
+                            <p>
+                                📧 ${user.email || "No Email"}
+                            </p>
+
+                            <p>
+                                🛡️ Role:
+                                ${user.role || "N/A"}
+                            </p>
+
+                            <p>
+                                🔑 Provider:
+                                ${user.provider || "N/A"}
+                            </p>
+
+                            <p>
+                                📅 Created:
+                                ${
+                                    user.created_at
+                                        ? new Date(
+                                            user.created_at
+                                        ).toLocaleString()
+                                        : "N/A"
+                                }
+                            </p>
+
+                            <button
+                                class="btn"
+                                onclick="deleteAdminUser(${user.id})"
+                            >
+                                🗑️ Delete User
+                            </button>
+
+                        </div>
+
+                    `
+                ).join("");
+
+
+                // Update real statistics
+
+                document.getElementById(
+                    "totalUsers"
+                ).innerText =
+                    users.length;
+
+
+                document.getElementById(
+                    "totalRecruiters"
+                ).innerText =
+                    users.filter(
+                        user =>
+                            user.role === "recruiter"
+                    ).length;
+
+
+            } catch (error) {
+
+                console.error(
+                    "Admin Users Error:",
+                    error
+                );
+
+                status.innerHTML =
+                    "❌ Unable to connect to server.";
+
+            }
+
+        }
+
+
+        async function deleteAdminUser(userId) {
+
+            const token =
+                localStorage.getItem("token");
+
+
+            if (!token) {
+
+                alert(
+                    "Please login again."
+                );
+
+                return;
+
+            }
+
+
+            const confirmed =
+                confirm(
+                    "Are you sure you want to delete this user?"
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `http://localhost:5000/api/user/admin/users/${userId}`,
+                        {
+                            method: "DELETE",
+
+                            headers: {
+                                "Authorization":
+                                    `Bearer ${token}`
+                            }
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok || !data.success) {
+
+                    alert(
+                        data.message ||
+                        "Failed to delete user."
+                    );
+
+                    return;
+
+                }
+
+
+                alert(
+                    "✅ User deleted successfully."
+                );
+
+
+                loadAdminUsers();
+
+
+            } catch (error) {
+
+                console.error(
+                    "Delete User Error:",
+                    error
+                );
+
+                alert(
+                    "❌ Unable to delete user."
+                );
+
+            }
+
+        }
+
+    </script>
+<div
+    id="interviewActivitySection"
+    class="card"
+    style="margin-top:30px; display:none;"
+>
+    <h2>🎤 Interview Activity Monitoring</h2>
+    <p>Monitor real interview activity from the database.</p>
+
+    <div id="interviewActivitySummary" style="margin-top:20px;"></div>
+
+    <div id="interviewActivityStatus" style="margin-top:20px;">
+        ⏳ Loading interview activity...
+    </div>
+
+    <div id="interviewActivityContainer" style="margin-top:20px;"></div>
+</div>
+
+<script>
+async function openInterviewActivity() {
+
+    const section =
+        document.getElementById("interviewActivitySection");
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadInterviewActivity();
+}
+
+
+async function loadInterviewActivity() {
+
+    const token =
+        localStorage.getItem("token");
+
+    const status =
+        document.getElementById("interviewActivityStatus");
+
+    const summary =
+        document.getElementById("interviewActivitySummary");
+
+    const container =
+        document.getElementById("interviewActivityContainer");
+
+    if (!token) {
+        status.innerHTML =
+            "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/interview/admin/interview-activity",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization":
+                        `Bearer ${token}`
+                }
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok || !data.success) {
+            status.innerHTML =
+                `❌ ${data.message || "Failed to load interview activity."}`;
+            return;
+        }
+
+        const s = data.summary || {};
+
+        summary.innerHTML = `
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                gap:15px;
+            ">
+                <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                    <h3>${s.total_interviews || 0}</h3>
+                    <p>Total Interviews</p>
+                </div>
+
+                <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                    <h3>${s.completed_interviews || 0}</h3>
+                    <p>Completed</p>
+                </div>
+
+                <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                    <h3>${s.active_interviews || 0}</h3>
+                    <p>Active</p>
+                </div>
+
+                <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                    <h3>${s.paused_interviews || 0}</h3>
+                    <p>Paused</p>
+                </div>
+            </div>
+        `;
+
+        const activities =
+            data.activities || [];
+
+        status.innerHTML =
+            `✅ ${activities.length} interview activities found.`;
+
+        if (activities.length === 0) {
+            container.innerHTML =
+                "<p>ℹ️ No interview activity found.</p>";
+            return;
+        }
+
+        container.innerHTML =
+            activities.map(activity => `
+                <div style="
+                    padding:15px;
+                    margin-bottom:12px;
+                    border:1px solid #ddd;
+                    border-radius:10px;
+                ">
+                    <h3>
+                        ${activity.candidate_name || "Unknown Candidate"}
+                    </h3>
+
+                    <p>
+                        📧 ${activity.candidate_email || "N/A"}
+                    </p>
+
+                    <p>
+                        🎯 Status:
+                        <strong>
+                            ${activity.status || "N/A"}
+                        </strong>
+                    </p>
+
+                    <p>
+                        🆔 Session:
+                        ${activity.session_id || "N/A"}
+                    </p>
+
+                    <p>
+                        📝 Questions:
+                        ${activity.questions_attempted || 0}
+                    </p>
+
+                    <p>
+                        ⏱ Duration:
+                        ${activity.duration || 0}
+                    </p>
+
+                    <p>
+                        🕐 Started:
+                        ${
+                            activity.start_time
+                                ? new Date(activity.start_time).toLocaleString()
+                                : "N/A"
+                        }
+                    </p>
+
+                    <p>
+                        🏁 Ended:
+                        ${
+                            activity.end_time
+                                ? new Date(activity.end_time).toLocaleString()
+                                : "N/A"
+                        }
+                    </p>
+                </div>
+            `).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Interview Activity Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Unable to connect to server.";
+    }
+}
+async function openRecruiterManagement() {
+
+    const section =
+        document.getElementById("recruiterManagementSection");
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadRecruiters();
+}
+
+
+async function loadRecruiters() {
+
+    const token =
+        localStorage.getItem("token");
+
+    const status =
+        document.getElementById("recruiterStatus");
+
+    const container =
+        document.getElementById("recruiterContainer");
+
+    if (!token) {
+        status.innerHTML = "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        status.innerHTML =
+            "⏳ Loading real recruiters from database...";
+
+        const response = await fetch(
+            "http://localhost:5000/api/user/admin/users",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            status.innerHTML =
+                `❌ ${data.message || "Failed to load recruiters."}`;
+            return;
+        }
+
+        const recruiters =
+            (data.users || []).filter(
+                user =>
+                    String(user.role || "")
+                        .trim()
+                        .toUpperCase() === "RECRUITER"
+            );
+
+        status.innerHTML =
+            `✅ ${recruiters.length} recruiters found.`;
+
+        if (recruiters.length === 0) {
+            container.innerHTML =
+                "<p>ℹ️ No recruiters found.</p>";
+            return;
+        }
+
+        container.innerHTML =
+            recruiters.map(recruiter => `
+                <div style="
+                    padding:15px;
+                    margin-bottom:12px;
+                    border:1px solid #ddd;
+                    border-radius:10px;
+                ">
+                    <h3>${recruiter.name || "No Name"}</h3>
+
+                    <p>📧 ${recruiter.email || "No Email"}</p>
+
+                    <p>🛡️ Role:
+                        ${recruiter.role || "N/A"}
+                    </p>
+
+                    <p>🔑 Provider:
+                        ${recruiter.provider || "N/A"}
+                    </p>
+
+                    <p>📅 Created:
+                        ${
+                            recruiter.created_at
+                                ? new Date(
+                                    recruiter.created_at
+                                  ).toLocaleString()
+                                : "N/A"
+                        }
+                    </p>
+
+                    <button
+                        class="btn"
+                        onclick="deleteAdminUser(${recruiter.id})"
+                    >
+                        🗑️ Delete Recruiter
+                    </button>
+                </div>
+            `).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Recruiter Management Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Unable to connect to server.";
+    }
+}
+</script>
+<script>
+async function openAIPerformance() {
+
+    const section =
+        document.getElementById("aiPerformanceSection");
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadAIPerformance();
+}
+
+
+async function loadAIPerformance() {
+
+    const token =
+        localStorage.getItem("token");
+
+    const status =
+        document.getElementById("aiPerformanceStatus");
+
+    const container =
+        document.getElementById("aiPerformanceContainer");
+
+    if (!token) {
+        status.innerHTML = "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        status.innerHTML =
+            "⏳ Loading real AI performance data...";
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/admin/ai-performance",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            status.innerHTML =
+                `❌ ${data.message || "Failed to load AI performance."}`;
+            return;
+        }
+
+        const p = data.performance || {};
+
+        status.innerHTML =
+            "✅ AI performance data loaded from database.";
+
+        container.innerHTML = `
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.total_analyses || 0}</h3>
+                <p>Total AI Analyses</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_overall_score || 0}%</h3>
+                <p>Average Overall Score</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_technical_score || 0}%</h3>
+                <p>Technical Score</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_communication_score || 0}%</h3>
+                <p>Communication Score</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_confidence_score || 0}%</h3>
+                <p>Confidence Score</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_professionalism_score || 0}%</h3>
+                <p>Professionalism Score</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.excellent_count || 0}</h3>
+                <p>Excellent</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.good_count || 0}</h3>
+                <p>Good</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.average_count || 0}</h3>
+                <p>Average</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.needs_improvement_count || 0}</h3>
+                <p>Needs Improvement</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${p.poor_count || 0}</h3>
+                <p>Poor</p>
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "AI Performance Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Unable to connect to server.";
+    }
+}
+</script>
+<script>
+async function openSystemHealth() {
+
+    const section =
+        document.getElementById("systemHealthSection");
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadSystemHealth();
+}
+
+
+async function loadSystemHealth() {
+
+    const token =
+        localStorage.getItem("token");
+
+    const status =
+        document.getElementById("systemHealthStatus");
+
+    const container =
+        document.getElementById("systemHealthContainer");
+
+    if (!token) {
+        status.innerHTML = "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        status.innerHTML =
+            "⏳ Checking real system health...";
+
+        const response = await fetch(
+            "http://localhost:5000/api/user/admin/system-health",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            status.innerHTML =
+                `❌ ${data.message || "System health check failed."}`;
+            return;
+        }
+
+        const h = data.health || {};
+        const users = h.users || {};
+        const interviews = h.interviews || {};
+        const ai = h.ai || {};
+
+        status.innerHTML =
+            "✅ System is healthy and database is connected.";
+
+        container.innerHTML = `
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>🟢 ${h.server || "Unknown"}</h3>
+                <p>Server Status</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>🟢 ${h.database || "Unknown"}</h3>
+                <p>Database Status</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_users || 0}</h3>
+                <p>Total Users</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_recruiters || 0}</h3>
+                <p>Recruiters</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_candidates || 0}</h3>
+                <p>Candidates</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.total_sessions || 0}</h3>
+                <p>Total Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.completed_sessions || 0}</h3>
+                <p>Completed Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.active_sessions || 0}</h3>
+                <p>Active Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${ai.total_ai_analyses || 0}</h3>
+                <p>AI Analyses</p>
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "System Health Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Unable to connect to server.";
+    }
+}
+</script>
+<script>
+async function openPlatformUsage() {
+
+    const section =
+        document.getElementById("platformUsageSection");
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadPlatformUsage();
+}
+
+
+async function loadPlatformUsage() {
+
+    const token =
+        localStorage.getItem("token");
+
+    const status =
+        document.getElementById("platformUsageStatus");
+
+    const container =
+        document.getElementById("platformUsageContainer");
+
+    if (!token) {
+        status.innerHTML = "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        status.innerHTML =
+            "⏳ Loading real platform usage data...";
+
+        const response = await fetch(
+            "http://localhost:5000/api/user/admin/platform-usage",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            status.innerHTML =
+                `❌ ${data.message || "Failed to load platform usage."}`;
+            return;
+        }
+
+        const a = data.analytics || {};
+        const users = a.users || {};
+        const interviews = a.interviews || {};
+        const ai = a.ai || {};
+        const templates = a.templates || {};
+
+        status.innerHTML =
+            "✅ Platform usage data loaded from database.";
+
+        container.innerHTML = `
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_users || 0}</h3>
+                <p>Total Users</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_recruiters || 0}</h3>
+                <p>Recruiters</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_candidates || 0}</h3>
+                <p>Candidates</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${users.total_admins || 0}</h3>
+                <p>Admins</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.total_interviews || 0}</h3>
+                <p>Total Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.completed_interviews || 0}</h3>
+                <p>Completed Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.active_interviews || 0}</h3>
+                <p>Active Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${interviews.paused_interviews || 0}</h3>
+                <p>Paused Interviews</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${ai.total_ai_analyses || 0}</h3>
+                <p>AI Analyses</p>
+            </div>
+
+            <div style="padding:15px;border:1px solid #ddd;border-radius:10px;">
+                <h3>${templates.total_templates || 0}</h3>
+                <p>Interview Templates</p>
+            </div>
+
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Platform Usage Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Unable to connect to server.";
+    }
+}
+</script>
+</body>
+</html>

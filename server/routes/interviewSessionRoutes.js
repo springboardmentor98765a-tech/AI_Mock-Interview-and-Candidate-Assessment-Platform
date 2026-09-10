@@ -11,7 +11,10 @@ import {
     uploadInterviewRecording,
     streamRecruiterRecording,
     getRecruiterRecordings,
-    getRecruiterRecording
+    getRecruiterRecording,
+    getCandidateInterviewHistory,
+    getCandidatePerformanceTrends,
+    getAdminInterviewActivity
 } from "../controllers/interviewSessionController.js";
 
 import {
@@ -151,5 +154,35 @@ router.get(
     "/recruiter/recordings/:id",
     verifyToken,
     getRecruiterRecording
+);
+// ============================================
+// MODULE 10 - CANDIDATE INTERVIEW HISTORY
+// ============================================
+
+router.get(
+    "/candidate/interview-history",
+    verifyToken,
+    getCandidateInterviewHistory
+);
+
+
+// ============================================
+// MODULE 10 - CANDIDATE PERFORMANCE TRENDS
+// ============================================
+
+router.get(
+    "/candidate/performance-trends",
+    verifyToken,
+    getCandidatePerformanceTrends
+);
+// ============================================================
+// ADMIN - INTERVIEW ACTIVITY MONITORING
+// ============================================================
+
+router.get(
+    "/admin/interview-activity",
+    verifyToken,
+    authorizeRoles("ADMIN"),
+    getAdminInterviewActivity
 );
 export default router;

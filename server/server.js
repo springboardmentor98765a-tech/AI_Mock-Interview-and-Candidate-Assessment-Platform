@@ -25,13 +25,15 @@ app.use(
         saveUninitialized: false
     })
 );
-app.use("/api/user", userRoutes);
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// User Routes
+app.use("/api/user", userRoutes);
 
 //Routes
 app.use("/api/auth", authRoutes);

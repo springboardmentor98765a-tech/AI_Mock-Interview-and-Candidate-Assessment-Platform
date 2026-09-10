@@ -108,11 +108,23 @@
 
                         <i class="fa-solid fa-chart-line"></i>
 
-                        Analytics
+                        Performance Trends
 
                     </a>
 
                 </li>
+                <li>
+    <a href="#skillWiseAnalytics">
+        <i class="fa-solid fa-chart-simple"></i>
+        Skill Analytics
+    </a>
+</li>
+<li>
+    <a href="#interviewHistory">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        Interview History
+    </a>
+</li>
 
             </ul>
 
@@ -152,11 +164,42 @@
 
             <div class="top-right">
 
-                <div class="notification">
+                <div class="notification" onclick="showSessionAlert()">
 
-                    <i class="fa-solid fa-bell"></i>
+                <i class="fa-solid fa-bell"></i>
 
                 </div>
+                <!-- ==========================================
+     MODULE 9 - SESSION ALERT
+========================================== -->
+
+<div
+    id="sessionAlert"
+    style="
+        display:none;
+        position:fixed;
+        top:80px;
+        right:30px;
+        z-index:9999;
+        padding:15px 20px;
+        border-radius:10px;
+        background:#ffffff;
+        box-shadow:0 5px 20px rgba(0,0,0,0.2);
+        min-width:280px;
+    "
+>
+    <strong id="sessionAlertTitle">
+        🔔 Session Alert
+    </strong>
+
+    <p
+        id="sessionAlertMessage"
+        style="margin:8px 0 0;"
+    >
+        Interview session alert.
+    </p>
+
+</div>
 
                 <button
                     class="btn"
@@ -525,12 +568,95 @@
         Camera and microphone are not started.
     </p>
 
+    <!-- LIVE AI WEBCAM -->
+<div class="ai-webcam-container">
+
     <video
         id="webcamPreview"
         autoplay
         muted
         playsinline>
     </video>
+
+    <canvas id="eyeTrackingCanvas"></canvas>
+
+    <!-- Live AI information shown on webcam -->
+    <div class="live-ai-overlay">
+
+        <div class="live-ai-title">
+            🧠 SmartHire AI
+        </div>
+
+        <div id="liveEmotion">
+            😊 Emotion: Waiting...
+        </div>
+
+        <div id="liveConfidence">
+            📊 Confidence: 0%
+        </div>
+
+        <div id="liveEyeContact">
+            👁 Eye Contact: 0%
+        </div>
+
+        <div id="liveAttention">
+            🎯 Attention: 0%
+        </div>
+
+    </div>
+
+</div>
+<!-- ==========================================
+     AI EMOTION DETECTION
+========================================== -->
+
+<div class="emotion-card">
+
+    <h3>🧠 AI Emotion Detection</h3>
+
+    <p id="emotionStatus">
+        ⚪ Emotion detection stopped.
+    </p>
+
+    <div class="emotion-box">
+
+        <small>Current Emotion</small>
+
+        <h2 id="currentEmotion">
+            Waiting...
+        </h2>
+
+    </div>
+
+    <div class="emotion-box">
+
+        <small>Confidence</small>
+
+        <h2 id="emotionConfidence">
+            0%
+        </h2>
+
+    </div>
+
+    <button
+        class="btn"
+        onclick="startEmotionAI()">
+
+        🧠 Start Emotion AI
+
+    </button>
+
+    <button
+        class="btn"
+        onclick="stopEmotionAI()">
+
+        ⏹ Stop Emotion AI
+
+    </button>
+
+    <div id="emotionProbabilities"></div>
+
+</div>
 
     <div class="recording-controls">
 
@@ -569,16 +695,176 @@
     <br><br>
 
     <div id="interviewOutput"></div>
+    <!-- ==========================================
+     FINAL AI BEHAVIOR ANALYSIS
+========================================== -->
+
+<div
+    id="emotionAnalysisOutput"
+    style="margin-top:30px;">
+</div>
+<!-- ===========================================
+     MODULE 7 - AI INTERVIEW PERFORMANCE
+=========================================== -->
+
+<div class="card" id="module7Results">
+
+    <i class="fa-solid fa-chart-pie"></i>
+
+    <h2>📊 AI Interview Performance</h2>
+
+    <p>
+        Your latest AI-powered interview assessment
+    </p>
+
+    <br>
+
+    <!-- Main Scores -->
+
+    <div class="analysis-grid">
+
+        <div class="analysis-box">
+            <h3>🎯 Overall Score</h3>
+            <h2 id="dashboardOverallScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>💻 Technical Relevance</h3>
+            <h2 id="dashboardTechnicalScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>🗣️ Communication</h3>
+            <h2 id="dashboardCommunicationScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>😎 Confidence</h3>
+            <h2 id="dashboardConfidenceScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>👔 Professionalism</h3>
+            <h2 id="dashboardProfessionalismScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>⭐ Performance Rating</h3>
+            <h2 id="dashboardPerformanceRating">--</h2>
+        </div>
+
+    </div>
+
+    <br>
+
+    <!-- Strengths -->
+
+    <div class="summary-box">
+
+        <h3>💪 Strengths</h3>
+
+        <div id="dashboardStrengths">
+            <p>No assessment available yet.</p>
+        </div>
+
+    </div>
+
+    <br>
+
+    <!-- Weaknesses -->
+
+    <div class="summary-box">
+
+        <h3>⚠️ Areas to Improve</h3>
+
+        <div id="dashboardWeaknesses">
+            <p>No assessment available yet.</p>
+        </div>
+
+    </div>
+
+    <br>
+
+    <!-- Improvement Suggestions -->
+
+    <div class="summary-box">
+
+        <h3>💡 Improvement Suggestions</h3>
+
+        <div id="dashboardImprovements">
+            <p>No assessment available yet.</p>
+        </div>
+
+    </div>
+
+    <br>
+
+    <div id="dashboardAnalysisStatus">
+        ⏳ Loading latest interview assessment...
+    </div>
+
+</div>
     <!-- ===========================================
      Analytics
 =========================================== -->
 </div>
 
+<!-- =========================
+     MODULE 10 - PERFORMANCE TRENDS
+========================= -->
+
 <div class="card" id="analytics">
 
     <i class="fa-solid fa-chart-line"></i>
 
-    <h2>Performance Analytics</h2>
+    <h2>📈 Performance Trends</h2>
+
+    <p>
+        Track your interview performance across completed interviews.
+    </p>
+
+    <br>
+
+    <div id="performanceTrendsStatus">
+        ⏳ Loading performance trends...
+    </div>
+
+    <div
+        id="performanceTrendsContainer"
+        style="margin-top:20px;"
+    >
+    </div>
+
+</div>
+
+
+<!-- =========================
+     MODULE 10 - INTERVIEW HISTORY
+========================= -->
+
+<div class="card" id="interviewHistory">
+
+    <i class="fa-solid fa-clock-rotate-left"></i>
+
+    <h2>🕒 Interview History</h2>
+
+    <p>
+        View your previous interview sessions and performance scores.
+    </p>
+
+    <br>
+
+    <div id="interviewHistoryStatus">
+        ⏳ Loading interview history...
+    </div>
+
+    <div
+        id="interviewHistoryContainer"
+        style="margin-top:20px;"
+    >
+    </div>
+
+</div>
 
     <br>
 
@@ -629,7 +915,143 @@
     </div>
 
 </div>
+<!-- ==========================================
+     MODULE 8 - SKILL-WISE ANALYTICS
+========================================== -->
 
+<div class="card" id="skillWiseAnalytics">
+
+    <i class="fa-solid fa-chart-simple"></i>
+
+    <h2>🧠 Skill-wise Analytics</h2>
+
+    <p>
+        AI analysis of your performance across interview skills.
+    </p>
+
+    <br>
+
+    <button
+        class="btn"
+        onclick="loadSkillWiseAnalytics()">
+        📊 View Skill Analytics
+    </button>
+
+    <div
+        id="skillWiseAnalyticsOutput"
+        style="margin-top:25px;">
+    </div>
+
+</div>
+<!-- ==========================================
+     MODULE 9 - PERFORMANCE SUMMARY
+========================================== -->
+
+<div class="card" id="performanceSummary">
+
+    <i class="fa-solid fa-chart-pie"></i>
+
+    <h2>📊 Performance Summary</h2>
+
+    <p>
+        Summary of your latest completed AI interview.
+    </p>
+
+    <br>
+
+    <div class="analysis-grid">
+
+        <div class="analysis-box">
+            <h3>🎯 Overall Performance</h3>
+            <h2 id="summaryOverallScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>💻 Technical</h3>
+            <h2 id="summaryTechnicalScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>🗣️ Communication</h3>
+            <h2 id="summaryCommunicationScore">--%</h2>
+        </div>
+
+        <div class="analysis-box">
+            <h3>😎 Confidence</h3>
+            <h2 id="summaryConfidenceScore">--%</h2>
+        </div>
+
+    </div>
+
+    <br>
+
+    <div class="summary-box">
+
+        <h3>⭐ Performance Rating</h3>
+
+        <h2 id="summaryPerformanceRating">
+            --
+        </h2>
+
+    </div>
+
+    <br>
+
+    <div id="performanceSummaryStatus">
+        ⚪ Complete an interview to view your performance summary.
+    </div>
+
+</div>
+<!-- ==========================================
+     MODULE 9 - INTERVIEW REMINDER
+========================================== -->
+
+<div class="card" id="interviewReminder">
+
+    <i class="fa-solid fa-calendar-check"></i>
+
+    <h2>🔔 Interview Reminder</h2>
+
+    <p>
+        Set a reminder for your upcoming interview.
+    </p>
+
+    <br>
+
+    <label>
+        Interview Date
+    </label>
+
+    <input
+        type="date"
+        id="interviewDate">
+
+    <br><br>
+
+    <label>
+        Interview Time
+    </label>
+
+    <input
+        type="time"
+        id="interviewTime">
+
+    <br><br>
+
+    <button
+        class="btn"
+        onclick="createInterviewReminder()">
+
+        🔔 Set Interview Reminder
+
+    </button>
+
+    <div
+        id="interviewReminderStatus"
+        style="margin-top:20px;">
+    </div>
+
+</div>
 <!-- ===========================================
      Reports
 =========================================== -->
@@ -647,96 +1069,47 @@
     </p>
 
     <br>
-
-    <button class="btn">
-
-        Download Resume Report
-
-    </button>
+<button
+    class="btn"
+    onclick="downloadResumeReport()">
+    Download Resume Report
+</button>
 
     <br><br>
 
-    <button class="btn">
-
-        Download Interview Report
-
-    </button>
+    <button
+    class="btn"
+    onclick="downloadInterviewReport()">
+    Download Interview Report
+</button>
 
 </div>
 
 <!-- ===========================================
-     History
+     MODULE 10 - INTERVIEW HISTORY
 =========================================== -->
 
-<div class="card">
+<div class="card" id="interviewHistory">
 
     <i class="fa-solid fa-clock-rotate-left"></i>
 
-    <h2>Recent Activity</h2>
+    <h2>📋 Interview History</h2>
+
+    <p>
+        View your previous AI interview performance.
+    </p>
 
     <br>
 
-    <div class="timeline">
+    <div id="interviewHistoryOutput">
 
-        <div class="timeline-item">
-
-            <div class="timeline-icon">
-
-                <i class="fa-solid fa-file"></i>
-
-            </div>
-
-            <div class="timeline-text">
-
-                <h4>Resume Uploaded</h4>
-
-                <span>Today</span>
-
-            </div>
-
-        </div>
-
-        <div class="timeline-item">
-
-            <div class="timeline-icon">
-
-                <i class="fa-solid fa-brain"></i>
-
-            </div>
-
-            <div class="timeline-text">
-
-                <h4>AI Resume Analysis</h4>
-
-                <span>Today</span>
-
-            </div>
-
-        </div>
-
-        <div class="timeline-item">
-
-            <div class="timeline-icon">
-
-                <i class="fa-solid fa-comments"></i>
-
-            </div>
-
-            <div class="timeline-text">
-
-                <h4>Interview Generated</h4>
-
-                <span>Today</span>
-
-            </div>
-
-        </div>
+        <p>
+            ⏳ Loading interview history...
+        </p>
 
     </div>
 
 </div>
-
-
 
 <!-- ===========================================
      Quick Tips
@@ -767,7 +1140,8 @@
 </div>
 
 </div>
-
+<!-- MediaPipe Face Mesh for Eye/Iris Tracking -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="script.js"></script>
 
 </body>

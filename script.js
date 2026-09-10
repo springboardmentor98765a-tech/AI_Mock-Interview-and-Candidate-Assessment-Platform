@@ -389,6 +389,15 @@ let mediaStream = null;
 let mediaRecorder = null;
 
 let recordedChunks = [];
+// ============================================
+// MODULE 5 - SPEECH TO TEXT
+// ============================================
+
+let speechRecognition = null;
+let isSpeechRecognitionActive = false;
+let speechTranscript = "";
+let speechStartTime = null;
+let speechEndTime = null;
 
 
 // ============================================
@@ -841,7 +850,14 @@ async function generateInterview() {
         // ========================================
 
         currentSessionId =
-            sessionData.session.id;
+    sessionData.session.id;
+
+localStorage.setItem(
+    "sessionId",
+    currentSessionId
+);
+
+resetEmotionHistory();
 
 
         sessionStatus =
@@ -991,6 +1007,11 @@ async function createInterviewSession() {
         currentSessionId =
             data.sessionId ||
             data.session?.id;
+
+            localStorage.setItem(
+    "sessionId",
+    currentSessionId
+);
 
 
         sessionStatus =
@@ -1791,18 +1812,115 @@ async function submitAnswer() {
 
         questionsCompleted++;
 
-        updateQuestionsCompleted();
+updateQuestionsCompleted();
 
-        // ========================================
-        // SUCCESS ALERT
-        // ========================================
+
+// ========================================
+// MODULE 5 - COMMUNICATION ANALYSIS
+// ========================================
+
+try {
+
+    const analysisResponse =
+        await fetch(
+            "http://localhost:5000/api/ai/analyze-communication",
+            {
+
+                method: "POST",
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Authorization":
+                        `Bearer ${token}`
+
+                },
+
+                body: JSON.stringify({
+
+                    answerId:
+                        data.answer.id,
+
+                    sessionId:
+                        currentSessionId,
+
+                    transcript:
+                        answer
+
+                })
+
+            }
+        );
+
+
+    const analysisData =
+        await analysisResponse.json();
+
+
+    console.log(
+        "COMMUNICATION ANALYSIS:",
+        analysisData
+    );
+
+
+    if (
+        !analysisResponse.ok ||
+        !analysisData.success
+    ) {
+
+        console.error(
+            "Communication analysis failed:",
+            analysisData
+        );
 
         alert(
-            "✅ Answer Submitted Successfully!\n\n" +
-            "Question " +
-            questionNumber +
-            " has been saved."
+            "✅ Answer saved successfully!\n\n" +
+            "⚠️ Communication analysis could not be completed."
         );
+
+        return;
+
+    }
+
+
+    const analysis =
+        analysisData.analysis;
+
+
+    // ========================================
+    // DISPLAY RESULTS
+    // ========================================
+
+    displayCommunicationAnalysis(
+        analysis
+    );
+
+
+    alert(
+        "✅ Answer Submitted Successfully!\n\n" +
+        "Question " +
+        questionNumber +
+        " has been saved.\n\n" +
+        "📝 Grammar analysis completed!\n" +
+        "🚫 Filler-word analysis completed!"
+    );
+
+}
+catch (analysisError) {
+
+    console.error(
+        "Communication Analysis Error:",
+        analysisError
+    );
+
+    alert(
+        "✅ Answer saved successfully!\n\n" +
+        "⚠️ Communication analysis failed."
+    );
+
+}
 
     }
     catch (error) {
@@ -1817,6 +1935,116 @@ async function submitAnswer() {
             "Please check whether the backend server is running."
         );
     }
+}
+// ============================================
+// MODULE 5 - DISPLAY COMMUNICATION ANALYSIS
+// ============================================
+
+function displayCommunicationAnalysis(
+    analysis
+) {
+
+    if (!analysis) {
+        return;
+    }
+
+
+    const container =
+        document.getElementById(
+            "questionContainer"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const existing =
+        document.getElementById(
+            "communicationAnalysis"
+        );
+
+
+    if (existing) {
+        existing.remove();
+    }
+
+
+    const fillerWords =
+        analysis.filler_words
+            ? analysis.filler_words
+            : "None detected";
+
+
+    const analysisHTML = `
+
+        <div
+            id="communicationAnalysis"
+            style="
+                margin-top:20px;
+                padding:20px;
+                border-radius:15px;
+                background:#111827;
+                border:1px solid rgba(255,255,255,.10);
+            "
+        >
+
+            <h3>
+                📊 Communication Analysis
+            </h3>
+
+
+            <div style="
+                margin-top:15px;
+                line-height:1.8;
+            ">
+
+                <p>
+                    ✍️ <strong>Grammar Score:</strong>
+                    ${analysis.grammar_score || 0}%
+                </p>
+
+                <p>
+                    🚫 <strong>Filler Words:</strong>
+                    ${analysis.filler_word_count || 0}
+                </p>
+
+                <p>
+                    🔎 <strong>Detected:</strong>
+                    ${fillerWords}
+                </p>
+
+                <p>
+                    💬 <strong>Grammar Feedback:</strong><br>
+                    ${analysis.grammar_feedback || "No feedback available."}
+                </p>
+
+                <p>
+                    🗣️ <strong>Communication Feedback:</strong><br>
+                    ${analysis.communication_feedback || "No feedback available."}
+                </p>
+                <p>
+    ⚡ <strong>Speech Pace:</strong>
+    ${analysis.speech_rate || 0} WPM
+</p>
+
+<p>
+    📈 <strong>Pace Category:</strong>
+    ${analysis.speech_rate_category || "NORMAL"}
+</p>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    container.insertAdjacentHTML(
+        "beforeend",
+        analysisHTML
+    );
 }
 // ============================================
 // SHOW CURRENT QUESTION
@@ -1969,7 +2197,52 @@ function showQuestion() {
                 "
 
             ></textarea>
+<div
+    style="
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-top:12px;
+        align-items:center;
+    "
+>
 
+    <button
+        type="button"
+        class="btn"
+        onclick="startSpeechToText()"
+    >
+        🎤 Start Speaking
+    </button>
+
+    <button
+        type="button"
+        class="btn"
+        onclick="stopSpeechToText()"
+    >
+        ⏹️ Stop Speaking
+    </button>
+
+    <button
+        type="button"
+        class="btn"
+        onclick="clearSpeechTranscript()"
+    >
+        🗑️ Clear Transcript
+    </button>
+
+</div>
+
+<p
+    id="speechStatus"
+    style="
+        margin-top:10px;
+        color:#94a3b8;
+        font-size:14px;
+    "
+>
+    🎤 Speech-to-Text ready
+</p>
 
             <div class="question-navigation">
 
@@ -2023,7 +2296,291 @@ function showQuestion() {
     startQuestionTimer();
 
 }
+// ============================================
+// MODULE 5 - REAL-TIME SPEECH TO TEXT
+// ============================================
 
+function initializeSpeechRecognition() {
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        console.warn("Speech Recognition is not supported.");
+        return false;
+    }
+
+    speechRecognition = new SpeechRecognition();
+
+    speechRecognition.continuous = true;
+    speechRecognition.interimResults = true;
+    speechRecognition.lang = "en-US";
+
+    speechRecognition.onstart = () => {
+
+        isSpeechRecognitionActive = true;
+        speechStartTime = Date.now();
+
+        updateSpeechStatus(
+            "🎤 Listening... Start speaking"
+        );
+    };
+
+    speechRecognition.onresult = (event) => {
+
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (
+            let i = event.resultIndex;
+            i < event.results.length;
+            i++
+        ) {
+
+            const transcript =
+                event.results[i][0].transcript;
+
+            if (event.results[i].isFinal) {
+
+                finalTranscript += transcript + " ";
+
+            } else {
+
+                interimTranscript += transcript;
+
+            }
+        }
+
+        if (finalTranscript) {
+
+            speechTranscript += finalTranscript;
+
+        }
+
+        const answerBox =
+            document.getElementById(
+                "candidateAnswer"
+            );
+
+        if (!answerBox) {
+            return;
+        }
+
+        answerBox.value =
+            speechTranscript +
+            interimTranscript;
+
+        answerBox.scrollTop =
+            answerBox.scrollHeight;
+    };
+
+    speechRecognition.onerror = (event) => {
+
+        console.error(
+            "Speech Recognition Error:",
+            event.error
+        );
+
+        if (event.error === "not-allowed") {
+
+            updateSpeechStatus(
+                "❌ Microphone permission denied."
+            );
+
+        } else {
+
+            updateSpeechStatus(
+                "❌ Speech recognition error: " +
+                event.error
+            );
+
+        }
+    };
+
+    speechRecognition.onend = () => {
+
+        isSpeechRecognitionActive = false;
+        speechEndTime = Date.now();
+
+        updateSpeechStatus(
+            "⏹️ Speech recognition stopped."
+        );
+    };
+
+    return true;
+}
+
+
+// ============================================
+// START SPEECH RECOGNITION
+// ============================================
+
+function startSpeechToText() {
+
+    if (
+        sessionStatus !== "STARTED" &&
+        sessionStatus !== "RESUMED"
+    ) {
+
+        alert(
+            "▶ Please start or resume the interview first."
+        );
+
+        return;
+    }
+
+    const answerBox =
+        document.getElementById(
+            "candidateAnswer"
+        );
+
+    if (!answerBox) {
+
+        alert(
+            "❌ Answer box not found."
+        );
+
+        return;
+    }
+
+    if (
+        !window.SpeechRecognition &&
+        !window.webkitSpeechRecognition
+    ) {
+
+        alert(
+            "❌ Speech-to-Text is not supported in this browser.\n\nPlease use Google Chrome or Microsoft Edge."
+        );
+
+        return;
+    }
+
+    if (!speechRecognition) {
+
+        if (!initializeSpeechRecognition()) {
+
+            alert(
+                "❌ Unable to initialize Speech-to-Text."
+            );
+
+            return;
+        }
+    }
+
+    if (isSpeechRecognitionActive) {
+
+        alert(
+            "🎤 Speech recognition is already running."
+        );
+
+        return;
+    }
+
+    speechTranscript =
+        answerBox.value.trim();
+
+    if (speechTranscript) {
+
+        speechTranscript += " ";
+
+    }
+
+    try {
+
+        speechRecognition.start();
+
+    } catch (error) {
+
+        console.error(
+            "Speech Start Error:",
+            error
+        );
+
+        alert(
+            "❌ Unable to start Speech-to-Text."
+        );
+    }
+}
+
+
+// ============================================
+// STOP SPEECH RECOGNITION
+// ============================================
+
+function stopSpeechToText() {
+
+    if (
+        !speechRecognition ||
+        !isSpeechRecognitionActive
+    ) {
+
+        updateSpeechStatus(
+            "⏹️ Speech recognition is not running."
+        );
+
+        return;
+    }
+
+    try {
+
+        speechRecognition.stop();
+
+    } catch (error) {
+
+        console.error(
+            "Speech Stop Error:",
+            error
+        );
+
+    }
+
+}
+
+
+// ============================================
+// CLEAR TRANSCRIPT
+// ============================================
+
+function clearSpeechTranscript() {
+
+    const answerBox =
+        document.getElementById(
+            "candidateAnswer"
+        );
+
+    if (answerBox) {
+
+        answerBox.value = "";
+
+    }
+
+    speechTranscript = "";
+
+    updateSpeechStatus(
+        "📝 Transcript cleared."
+    );
+}
+
+
+// ============================================
+// UPDATE SPEECH STATUS
+// ============================================
+
+function updateSpeechStatus(message) {
+
+    const status =
+        document.getElementById(
+            "speechStatus"
+        );
+
+    if (status) {
+
+        status.innerText = message;
+
+    }
+
+}
 
 // ============================================
 // QUESTION TIMER
@@ -2523,7 +3080,7 @@ function startRecording() {
     // ========================================
 
     mediaRecorder.onstop = () => {
-
+        displayEmotionAnalysis();
         console.log(
     "✅ Recording saved:",
     data.recording
@@ -2572,6 +3129,12 @@ saveSessionDetails();
     // ========================================
 
     mediaRecorder.start(1000);
+    showSessionAlert(
+    "🎥 Interview Started",
+    "Your interview recording session has started."
+);
+    startEmotionAI();
+    startEyeTracking();
 
 
     const status =
@@ -2622,7 +3185,13 @@ function stopRecording() {
 
 
     mediaRecorder.stop();
-
+    showSessionAlert(
+    "✅ Interview Session Completed",
+    "Your interview recording session has ended."
+);
+    stopEmotionAI();
+    stopEyeTracking();
+   console.log("🛑 Recording stop requested.");
 
     const status =
         document.getElementById(
@@ -3386,3 +3955,3409 @@ function logout() {
     window.location.href = "login.html";
 
 }
+// ============================================================
+// SMART HIRE AI - LIVE EMOTION DETECTION
+// ============================================================
+
+let emotionInterval = null;
+let emotionCanvas = null;
+let emotionRunning = false;
+
+
+// START EMOTION AI
+async function startEmotionAI() {
+
+    if (emotionRunning) {
+        return;
+    }
+
+    const video =
+        document.getElementById("webcamPreview");
+
+    if (!video) {
+        alert("Webcam not found!");
+        return;
+    }
+
+    if (!video.srcObject) {
+        alert("Please enable Camera & Microphone first!");
+        return;
+    }
+
+    emotionCanvas =
+        document.createElement("canvas");
+
+    emotionCanvas.width = 320;
+    emotionCanvas.height = 240;
+
+    emotionRunning = true;
+
+    const status =
+        document.getElementById("emotionStatus");
+
+    if (status) {
+        status.innerText =
+            "🟢 Emotion detection running...";
+    }
+
+    console.log("🧠 Emotion AI started");
+
+    emotionInterval =
+        setInterval(
+            captureAndPredictEmotion,
+            1000
+        );
+
+    captureAndPredictEmotion();
+}
+
+
+// CAPTURE WEBCAM FRAME
+async function captureAndPredictEmotion() {
+
+    if (!emotionRunning) {
+        return;
+    }
+
+    const video =
+        document.getElementById("webcamPreview");
+
+    if (!video || video.readyState < 2) {
+        return;
+    }
+
+    try {
+
+        const ctx =
+            emotionCanvas.getContext("2d");
+
+        ctx.drawImage(
+            video,
+            0,
+            0,
+            320,
+            240
+        );
+
+        const blob =
+            await new Promise(resolve => {
+
+                emotionCanvas.toBlob(
+                    resolve,
+                    "image/jpeg",
+                    0.75
+                );
+
+            });
+
+        if (!blob) {
+            return;
+        }
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "image",
+            blob,
+            "webcam.jpg"
+        );
+
+
+        // SEND IMAGE TO PYTHON API
+        const response =
+            await fetch(
+                "http://127.0.0.1:5001/predict",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+        console.log(
+            "Emotion API Response:",
+            data
+        );
+
+
+        if (!data.success) {
+            console.error(data);
+            return;
+        }
+
+
+        // UPDATE UI
+        updateEmotionUI(data);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Emotion detection error:",
+            error
+        );
+
+    }
+}
+
+
+// UPDATE EMOTION DISPLAY
+function updateEmotionUI(data) {
+    saveEmotionReading(data);
+    const emotion =
+        document.getElementById(
+            "currentEmotion"
+        );
+
+    const confidence =
+        document.getElementById(
+            "emotionConfidence"
+        );
+
+
+    if (emotion) {
+
+        emotion.innerText =
+            data.emotion;
+    }
+
+
+    if (confidence) {
+
+        confidence.innerText =
+            data.confidence + "%";
+    }
+
+
+    // SHOW ALL EMOTIONS
+    const probabilities =
+        document.getElementById(
+            "emotionProbabilities"
+        );
+
+
+    if (
+        probabilities &&
+        data.emotions
+    ) {
+
+        probabilities.innerHTML =
+            Object.entries(data.emotions)
+                .map(
+                    ([emotion, value]) => `
+                        <div>
+                            ${emotion} :
+                            ${value}%
+                        </div>
+                    `
+                )
+                .join("");
+    }
+}
+
+
+// STOP EMOTION AI
+function stopEmotionAI() {
+
+    emotionRunning = false;
+
+    if (emotionInterval) {
+
+        clearInterval(
+            emotionInterval
+        );
+
+        emotionInterval = null;
+    }
+
+
+    const status =
+        document.getElementById(
+            "emotionStatus"
+        );
+
+    if (status) {
+
+        status.innerText =
+            "⚪ Emotion detection stopped.";
+    }
+
+    console.log(
+        "🛑 Emotion AI stopped"
+    );
+}
+// ============================================================
+// SMART HIRE AI - INTERVIEW EMOTION ANALYTICS
+// ============================================================
+
+let emotionHistory = [];
+let emotionAnalysis = null;
+
+
+// ============================================================
+// RESET EMOTION DATA FOR NEW INTERVIEW
+// ============================================================
+
+function resetEmotionHistory() {
+
+    emotionHistory = [];
+    emotionAnalysis = null;
+
+    console.log("🧠 Emotion history reset");
+}
+
+
+// ============================================================
+// SAVE EVERY EMOTION READING
+// ============================================================
+
+function saveEmotionReading(data) {
+
+    if (!data || !data.success) {
+        return;
+    }
+
+    emotionHistory.push({
+        time: new Date().toISOString(),
+
+        emotion: data.emotion,
+
+        confidence:
+            Number(data.confidence) || 0,
+
+        emotions: {
+            ...(data.emotions || {})
+        }
+    });
+
+    console.log(
+        "📊 Emotion reading saved:",
+        data.emotion,
+        data.confidence + "%"
+    );
+}
+
+
+// ============================================================
+// CALCULATE FINAL BEHAVIOR ANALYSIS
+// ============================================================
+
+function calculateEmotionAnalysis() {
+    const eyeAttention = calculateEyeAttentionScores();
+    if (emotionHistory.length === 0) {
+
+        return {
+            totalReadings: 0,
+            dominantEmotion: "No data",
+            dominantPercentage: 0,
+            averageConfidence: 0,
+            engagementScore: 0,
+            positiveScore: 0,
+            neutralScore: 0,
+            stressScore: 0
+        };
+    }
+
+
+    // --------------------------------------------------------
+    // Count emotions
+    // --------------------------------------------------------
+
+    const emotionCounts = {};
+
+    emotionHistory.forEach(item => {
+
+        emotionCounts[item.emotion] =
+            (emotionCounts[item.emotion] || 0) + 1;
+
+    });
+
+
+    // --------------------------------------------------------
+    // Dominant emotion
+    // --------------------------------------------------------
+
+    let dominantEmotion = "Unknown";
+    let highestCount = 0;
+
+    Object.entries(emotionCounts)
+        .forEach(([emotion, count]) => {
+
+            if (count > highestCount) {
+
+                highestCount = count;
+                dominantEmotion = emotion;
+            }
+
+        });
+
+
+    const dominantPercentage =
+        (
+            highestCount /
+            emotionHistory.length
+        ) * 100;
+
+
+    // --------------------------------------------------------
+    // Average confidence
+    // --------------------------------------------------------
+
+    const averageConfidence =
+        emotionHistory.reduce(
+            (sum, item) =>
+                sum + item.confidence,
+            0
+        ) / emotionHistory.length;
+
+
+    // --------------------------------------------------------
+    // Emotion categories
+    // --------------------------------------------------------
+
+    let positiveCount = 0;
+    let neutralCount = 0;
+    let stressCount = 0;
+
+
+    emotionHistory.forEach(item => {
+
+        const emotion =
+            item.emotion.toLowerCase();
+
+
+        if (
+            emotion === "happiness"
+        ) {
+
+            positiveCount++;
+        }
+
+
+        if (
+            emotion === "neutral"
+        ) {
+
+            neutralCount++;
+        }
+
+
+        if (
+            emotion === "fear" ||
+            emotion === "anger" ||
+            emotion === "disgust" ||
+            emotion === "sadness"
+        ) {
+
+            stressCount++;
+        }
+
+    });
+
+
+    // --------------------------------------------------------
+    // Scores
+    // --------------------------------------------------------
+
+    const positiveScore =
+        Math.round(
+            (
+                positiveCount /
+                emotionHistory.length
+            ) * 100
+        );
+
+
+    const neutralScore =
+        Math.round(
+            (
+                neutralCount /
+                emotionHistory.length
+            ) * 100
+        );
+
+
+    const stressScore =
+        Math.round(
+            (
+                stressCount /
+                emotionHistory.length
+            ) * 100
+        );
+
+
+    // --------------------------------------------------------
+    // Engagement score
+    //
+    // Higher positive + neutral presence
+    // Lower stress presence
+    // --------------------------------------------------------
+
+    const engagementScore =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Math.round(
+                    (
+                        positiveScore * 0.55 +
+                        neutralScore * 0.30 +
+                        (100 - stressScore) * 0.15
+                    )
+                )
+            )
+        );
+
+
+    return {
+    totalReadings:
+        emotionHistory.length,
+
+    dominantEmotion,
+
+    dominantPercentage:
+        Math.round(
+            dominantPercentage * 100
+        ) / 100,
+
+    averageConfidence:
+        Math.round(
+            averageConfidence * 100
+        ) / 100,
+
+    engagementScore,
+
+    positiveScore,
+
+    neutralScore,
+
+    stressScore,
+
+    eyeContactScore:
+        eyeAttention.eyeContactScore,
+
+    attentionScore:
+        eyeAttention.attentionScore
+};
+}
+
+
+// ============================================================
+// DISPLAY FINAL BEHAVIOR REPORT
+// ============================================================
+
+function displayEmotionAnalysis() {
+
+    emotionAnalysis =
+        calculateEmotionAnalysis();
+
+
+    const output =
+        document.getElementById(
+            "emotionAnalysisOutput"
+        );
+
+
+    if (!output) {
+
+        console.error(
+            "emotionAnalysisOutput not found"
+        );
+
+        return;
+    }
+
+
+    output.innerHTML = `
+
+        <div class="emotion-report">
+
+            <h2>
+                🧠 AI Behavioral Analysis
+            </h2>
+
+            <p class="analysis-subtitle">
+                Based on live facial-emotion observations
+                collected during the interview.
+            </p>
+
+
+           <div class="emotion-stats">
+
+    <!-- EXISTING CARDS -->
+
+    <div class="emotion-stat">
+
+        <span>
+            🎯 Dominant Emotion
+        </span>
+
+        <strong>
+            ${emotionAnalysis.dominantEmotion}
+        </strong>
+
+    </div>
+
+
+    <div class="emotion-stat">
+
+        <span>
+            📊 Dominant Percentage
+        </span>
+
+        <strong>
+            ${emotionAnalysis.dominantPercentage}%
+        </strong>
+
+    </div>
+
+
+    <div class="emotion-stat">
+
+        <span>
+            🧠 Average Confidence
+        </span>
+
+        <strong>
+            ${emotionAnalysis.averageConfidence}%
+        </strong>
+
+    </div>
+
+
+    <div class="emotion-stat">
+
+        <span>
+            🎯 Engagement Score
+        </span>
+
+        <strong>
+            ${emotionAnalysis.engagementScore}%
+        </strong>
+
+    </div>
+
+
+    <!-- ⭐ ADD THESE -->
+
+    <div class="emotion-stat">
+
+        <span>
+            👁️ Eye Contact
+        </span>
+
+        <strong>
+            ${emotionAnalysis.eyeContactScore}%
+        </strong>
+
+    </div>
+
+
+    <div class="emotion-stat">
+
+        <span>
+            🎯 Attention
+        </span>
+
+        <strong>
+            ${emotionAnalysis.attentionScore}%
+        </strong>
+
+    </div>
+
+</div>
+
+
+            <div class="emotion-breakdown">
+
+                <h3>
+                    Emotion Breakdown
+                </h3>
+
+
+                <p>
+                    😊 Positive:
+                    <strong>
+                        ${emotionAnalysis.positiveScore}%
+                    </strong>
+                </p>
+
+
+                <p>
+                    😐 Neutral:
+                    <strong>
+                        ${emotionAnalysis.neutralScore}%
+                    </strong>
+                </p>
+
+
+                <p>
+                    ⚠️ Stress Indicators:
+                    <strong>
+                        ${emotionAnalysis.stressScore}%
+                    </strong>
+                </p>
+                <p>
+    👁️ Eye Contact:
+    <strong>
+        ${emotionAnalysis.eyeContactScore}%
+    </strong>
+</p>
+
+<p>
+    🎯 Attention:
+    <strong>
+        ${emotionAnalysis.attentionScore}%
+    </strong>
+</p>
+
+
+                <p>
+                    📸 Total AI Readings:
+                    <strong>
+                        ${emotionAnalysis.totalReadings}
+                    </strong>
+                </p>
+
+            </div>
+
+
+            <div class="analysis-message">
+
+                ${
+                    emotionAnalysis.engagementScore >= 75
+
+                    ?
+
+                    "🟢 Strong engagement detected during the interview."
+
+                    :
+
+                    emotionAnalysis.engagementScore >= 50
+
+                    ?
+
+                    "🟡 Moderate engagement detected during the interview."
+
+                    :
+
+                    "🟠 The candidate showed variable engagement during the interview."
+                }
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    console.log(
+        "FINAL EMOTION ANALYSIS:",
+        emotionAnalysis
+    );
+    saveEmotionAnalysisToDatabase();
+
+}
+// ============================================================
+// SAVE FINAL EMOTION ANALYSIS TO DATABASE
+// ============================================================
+
+async function saveEmotionAnalysisToDatabase() {
+
+    if (!currentSessionId) {
+
+        console.error(
+            "❌ Cannot save analysis: session ID missing"
+        );
+
+        return;
+
+    }
+
+
+    if (!emotionAnalysis) {
+
+        emotionAnalysis =
+            calculateEmotionAnalysis();
+
+    }
+
+
+    const token =
+        localStorage.getItem("token");
+
+
+    if (!token) {
+
+        console.error(
+            "❌ Cannot save analysis: token missing"
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+
+                "http://localhost:5000/api/ai/save-behavior-analysis",
+
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+
+                    },
+
+                    body:
+                    
+    JSON.stringify({
+
+        sessionId:
+            currentSessionId,
+
+        engagementScore:
+            emotionAnalysis.engagementScore,
+
+        positiveScore:
+            emotionAnalysis.positiveScore,
+
+        neutralScore:
+            emotionAnalysis.neutralScore,
+
+        stressScore:
+            emotionAnalysis.stressScore,
+
+        dominantEmotion:
+            emotionAnalysis.dominantEmotion,
+
+        dominantPercentage:
+            emotionAnalysis.dominantPercentage,
+
+        averageConfidence:
+            emotionAnalysis.averageConfidence,
+
+        totalReadings:
+            emotionAnalysis.totalReadings,
+
+        // Module 6 → Module 7
+        eyeContactScore:
+            emotionAnalysis.eyeContactScore,
+
+        attentionScore:
+            emotionAnalysis.attentionScore,
+
+        // Technical score will be generated separately
+        domainScore:
+            0
+
+    })
+
+                }
+
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            console.error(
+                "❌ Failed to save behavior analysis:",
+                data
+            );
+
+            return;
+
+        }
+
+
+        console.log(
+            "✅ Behavior analysis saved to PostgreSQL",
+            data.analysis
+        );
+        // Refresh dashboard with the newly completed interview result
+await loadLatestInterviewPerformance();
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Behavior analysis database error:",
+            error
+        );
+
+    }
+
+}
+
+// Analyze the webcam image using face position.
+// This is a practical camera-facing estimate, not medical-grade gaze tracking.
+
+
+// ============================================================
+// MODULE 6 - REAL EYE CONTACT / IRIS TRACKING
+// MediaPipe Face Mesh
+// ============================================================
+
+let faceMesh = null;
+let eyeTrackingRunning = false;
+
+let attentionHistory = [];
+let eyeContactHistory = [];
+
+
+// MediaPipe eye landmark indexes
+const LEFT_EYE = {
+    outer: 33,
+    inner: 133,
+    top: 159,
+    bottom: 145,
+    iris: [468, 469, 470, 471, 472]
+};
+
+const RIGHT_EYE = {
+    outer: 263,
+    inner: 362,
+    top: 386,
+    bottom: 374,
+    iris: [473, 474, 475, 476, 477]
+};
+
+
+// ------------------------------------------------------------
+// Calculate distance
+// ------------------------------------------------------------
+
+function landmarkDistance(a, b) {
+
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+
+    return Math.sqrt(
+        dx * dx + dy * dy
+    );
+}
+
+
+// ------------------------------------------------------------
+// Calculate iris center
+// ------------------------------------------------------------
+
+function getIrisCenter(landmarks, indexes) {
+
+    let x = 0;
+    let y = 0;
+
+    indexes.forEach(index => {
+
+        x += landmarks[index].x;
+        y += landmarks[index].y;
+
+    });
+
+    return {
+        x: x / indexes.length,
+        y: y / indexes.length
+    };
+}
+
+
+// ------------------------------------------------------------
+// Calculate eye gaze position
+// ------------------------------------------------------------
+
+function getEyeGaze(
+    landmarks,
+    eye
+) {
+
+    const outer =
+        landmarks[eye.outer];
+
+    const inner =
+        landmarks[eye.inner];
+
+    const top =
+        landmarks[eye.top];
+
+    const bottom =
+        landmarks[eye.bottom];
+
+    const iris =
+        getIrisCenter(
+            landmarks,
+            eye.iris
+        );
+
+
+    // Eye horizontal center
+    const eyeCenterX =
+        (outer.x + inner.x) / 2;
+
+
+    // Eye vertical center
+    const eyeCenterY =
+        (top.y + bottom.y) / 2;
+
+
+    // Eye dimensions
+    const eyeWidth =
+        landmarkDistance(
+            outer,
+            inner
+        );
+
+    const eyeHeight =
+        landmarkDistance(
+            top,
+            bottom
+        );
+
+
+    if (
+        eyeWidth === 0 ||
+        eyeHeight === 0
+    ) {
+
+        return null;
+    }
+
+
+    // Normalize iris position
+    const horizontal =
+        (
+            iris.x -
+            eyeCenterX
+        ) / eyeWidth;
+
+
+    const vertical =
+        (
+            iris.y -
+            eyeCenterY
+        ) / eyeHeight;
+
+
+    return {
+        horizontal,
+        vertical
+    };
+}
+
+
+// ------------------------------------------------------------
+// Analyze whether candidate is looking toward camera
+// ------------------------------------------------------------
+
+function analyzeEyeContact(
+    landmarks
+) {
+
+    const left =
+        getEyeGaze(
+            landmarks,
+            LEFT_EYE
+        );
+
+    const right =
+        getEyeGaze(
+            landmarks,
+            RIGHT_EYE
+        );
+
+
+    if (!left || !right) {
+
+        return {
+            eyeContact: false,
+            attention: false
+        };
+    }
+
+
+    const horizontal =
+        (
+            Math.abs(left.horizontal) +
+            Math.abs(right.horizontal)
+        ) / 2;
+
+
+    const vertical =
+        (
+            Math.abs(left.vertical) +
+            Math.abs(right.vertical)
+        ) / 2;
+
+
+    /*
+       Looking at camera:
+       iris should remain reasonably close
+       to the eye center.
+
+       These thresholds can be adjusted later.
+    */
+
+    const lookingHorizontal =
+        horizontal < 0.22;
+
+    const lookingVertical =
+        vertical < 0.25;
+
+
+    const eyeContact =
+        lookingHorizontal &&
+        lookingVertical;
+
+
+    return {
+
+        eyeContact,
+
+        attention: eyeContact
+
+    };
+}
+
+
+// ------------------------------------------------------------
+// MediaPipe result
+// ------------------------------------------------------------
+
+function onFaceMeshResults(results) {
+
+    if (!eyeTrackingRunning) {
+        return;
+    }
+
+
+    if (
+        !results.multiFaceLandmarks ||
+        results.multiFaceLandmarks.length === 0
+    ) {
+
+        attentionHistory.push(0);
+        eyeContactHistory.push(0);
+
+        return;
+    }
+
+
+    const landmarks =
+        results.multiFaceLandmarks[0];
+
+
+    const result =
+        analyzeEyeContact(
+            landmarks
+        );
+
+
+    eyeContactHistory.push(
+        result.eyeContact ? 1 : 0
+    );
+
+
+    attentionHistory.push(
+        result.attention ? 1 : 0
+    );
+
+
+    // Keep arrays from becoming huge
+    if (eyeContactHistory.length > 3000) {
+        eyeContactHistory.shift();
+    }
+
+    if (attentionHistory.length > 3000) {
+        attentionHistory.shift();
+    }
+}
+
+
+// ------------------------------------------------------------
+// Initialize MediaPipe
+// ------------------------------------------------------------
+
+async function initializeEyeTracking() {
+
+    if (typeof FaceMesh === "undefined") {
+
+        console.error(
+            "MediaPipe Face Mesh was not loaded."
+        );
+
+        return false;
+    }
+
+
+    faceMesh =
+        new FaceMesh({
+
+            locateFile: (file) => {
+
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+
+            }
+
+        });
+
+
+    faceMesh.setOptions({
+
+        maxNumFaces: 1,
+
+        refineLandmarks: true,
+
+        minDetectionConfidence: 0.5,
+
+        minTrackingConfidence: 0.5
+
+    });
+
+
+    faceMesh.onResults(
+        onFaceMeshResults
+    );
+
+
+    console.log(
+        "✅ Real eye tracking initialized"
+    );
+
+
+    return true;
+}
+
+
+// ------------------------------------------------------------
+// Start eye tracking
+// ------------------------------------------------------------
+
+async function startEyeTracking() {
+
+    resetEyeTracking();
+
+
+    const initialized =
+        await initializeEyeTracking();
+
+
+    if (!initialized) {
+        return;
+    }
+
+
+    eyeTrackingRunning = true;
+
+
+    const video =
+        document.getElementById(
+            "webcamPreview"
+        );
+
+
+    if (!video) {
+
+        console.error(
+            "❌ webcamPreview video element not found"
+        );
+
+        return;
+    }
+
+
+    if (
+        window.eyeTrackingInterval
+    ) {
+
+        clearInterval(
+            window.eyeTrackingInterval
+        );
+
+    }
+
+
+    window.eyeTrackingInterval =
+        setInterval(
+            async () => {
+
+                if (
+                    !eyeTrackingRunning ||
+                    !faceMesh ||
+                    video.readyState < 2
+                ) {
+
+                    return;
+                }
+
+
+                try {
+
+                    await faceMesh.send({
+                        image: video
+                    });
+
+                } catch (error) {
+
+                    console.error(
+                        "Eye tracking error:",
+                        error
+                    );
+
+                }
+
+            },
+            150
+        );
+
+
+    console.log(
+        "👁️ REAL eye-contact tracking started"
+    );
+}
+
+
+// ------------------------------------------------------------
+// Stop eye tracking
+// ------------------------------------------------------------
+
+function stopEyeTracking() {
+
+    eyeTrackingRunning = false;
+
+
+    if (
+        window.eyeTrackingInterval
+    ) {
+
+        clearInterval(
+            window.eyeTrackingInterval
+        );
+
+        window.eyeTrackingInterval =
+            null;
+
+    }
+
+
+    console.log(
+        "👁️ REAL eye-contact tracking stopped"
+    );
+}
+
+
+// ------------------------------------------------------------
+// Reset tracking
+// ------------------------------------------------------------
+
+function resetEyeTracking() {
+
+    attentionHistory = [];
+
+    eyeContactHistory = [];
+
+}
+
+
+// ------------------------------------------------------------
+// Calculate final scores
+// ------------------------------------------------------------
+
+function calculateEyeAttentionScores() {
+
+    const eyeTotal =
+        eyeContactHistory.length;
+
+
+    const attentionTotal =
+        attentionHistory.length;
+
+
+    if (
+        eyeTotal === 0 ||
+        attentionTotal === 0
+    ) {
+
+        return {
+
+            eyeContactScore: 0,
+
+            attentionScore: 0
+
+        };
+
+    }
+
+
+    const eyeContactFrames =
+        eyeContactHistory.filter(
+            value => value === 1
+        ).length;
+
+
+    const attentionFrames =
+        attentionHistory.filter(
+            value => value === 1
+        ).length;
+
+
+    const eyeContactScore =
+        Math.round(
+            (
+                eyeContactFrames /
+                eyeTotal
+            ) * 100
+        );
+
+
+    const attentionScore =
+        Math.round(
+            (
+                attentionFrames /
+                attentionTotal
+            ) * 100
+        );
+
+
+    return {
+
+        eyeContactScore,
+
+        attentionScore
+
+    };
+
+}
+
+// Calculate final scores
+function calculateEyeAttentionScores() {
+
+    const total =
+        attentionHistory.length;
+
+    if (!total) {
+
+        return {
+            eyeContactScore: 0,
+            attentionScore: 0
+        };
+    }
+
+    const attentiveFrames =
+        attentionHistory.filter(
+            x => x === 1
+        ).length;
+
+    const score =
+        Math.round(
+            (attentiveFrames / total) * 100
+        );
+
+    return {
+
+        eyeContactScore: score,
+
+        attentionScore: score
+
+    };
+}
+// ============================================================
+// MODULE 6 - LIVE WEBCAM AI OVERLAY
+// Face + Eye Contact + Attention
+// ============================================================
+
+let liveFaceMesh = null;
+let liveTrackingActive = false;
+let liveLastEyeContact = 0;
+let liveLastAttention = 0;
+
+
+// ------------------------------------------------------------
+// GET WEBCAM ELEMENTS
+// ------------------------------------------------------------
+
+const liveVideo = document.getElementById("webcamPreview");
+const liveCanvas = document.getElementById("eyeTrackingCanvas");
+
+const liveCtx = liveCanvas
+    ? liveCanvas.getContext("2d")
+    : null;
+
+
+// ------------------------------------------------------------
+// UPDATE LIVE AI TEXT
+// ------------------------------------------------------------
+
+function updateLiveAIOverlay() {
+
+    // Existing emotion values from your working AI system
+    const emotionElement =
+        document.getElementById("currentEmotion");
+
+    const confidenceElement =
+        document.getElementById("emotionConfidence");
+
+    const liveEmotion =
+        document.getElementById("liveEmotion");
+
+    const liveConfidence =
+        document.getElementById("liveConfidence");
+
+    const liveEyeContact =
+        document.getElementById("liveEyeContact");
+
+    const liveAttention =
+        document.getElementById("liveAttention");
+
+
+    // Emotion
+    if (emotionElement && liveEmotion) {
+
+        let emotion =
+            emotionElement.innerText.trim();
+
+        if (
+            emotion &&
+            emotion !== "Waiting..." &&
+            emotion !== "Waiting"
+        ) {
+            liveEmotion.innerText =
+                "😊 Emotion: " + emotion;
+        }
+    }
+
+
+    // Confidence
+    if (confidenceElement && liveConfidence) {
+
+        let confidence =
+            confidenceElement.innerText.trim();
+
+        if (confidence) {
+
+            liveConfidence.innerText =
+                "📊 Confidence: " + confidence;
+        }
+    }
+
+
+    // Eye contact
+    if (liveEyeContact) {
+
+        liveEyeContact.innerText =
+            "👁 Eye Contact: " +
+            Math.round(liveLastEyeContact) +
+            "%";
+    }
+
+
+    // Attention
+    if (liveAttention) {
+
+        liveAttention.innerText =
+            "🎯 Attention: " +
+            Math.round(liveLastAttention) +
+            "%";
+    }
+}
+
+
+// ------------------------------------------------------------
+// RESIZE CANVAS
+// ------------------------------------------------------------
+
+function resizeLiveCanvas() {
+
+    if (!liveVideo || !liveCanvas) return;
+
+    if (liveVideo.videoWidth === 0) return;
+
+    liveCanvas.width =
+        liveVideo.videoWidth;
+
+    liveCanvas.height =
+        liveVideo.videoHeight;
+}
+
+
+// ------------------------------------------------------------
+// MEDIAPIPE FACE MESH RESULT
+// ------------------------------------------------------------
+
+function handleLiveFaceResults(results) {
+
+    if (!liveCanvas || !liveCtx || !liveVideo) {
+        return;
+    }
+
+    resizeLiveCanvas();
+
+    liveCtx.clearRect(
+        0,
+        0,
+        liveCanvas.width,
+        liveCanvas.height
+    );
+
+
+    // No face
+    if (
+        !results.multiFaceLandmarks ||
+        results.multiFaceLandmarks.length === 0
+    ) {
+
+        liveLastEyeContact = 0;
+        liveLastAttention = 0;
+
+        updateLiveAIOverlay();
+
+        return;
+    }
+
+
+    const landmarks =
+        results.multiFaceLandmarks[0];
+
+
+    // --------------------------------------------------------
+    // FACE BOUNDING BOX
+    // --------------------------------------------------------
+
+    let minX = 1;
+    let minY = 1;
+    let maxX = 0;
+    let maxY = 0;
+
+    landmarks.forEach(point => {
+
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+
+    });
+
+
+    const boxX =
+        minX * liveCanvas.width;
+
+    const boxY =
+        minY * liveCanvas.height;
+
+    const boxWidth =
+        (maxX - minX) * liveCanvas.width;
+
+    const boxHeight =
+        (maxY - minY) * liveCanvas.height;
+
+
+    // Green face box
+    liveCtx.strokeStyle = "#00ff66";
+    liveCtx.lineWidth = 3;
+
+    liveCtx.strokeRect(
+        boxX,
+        boxY,
+        boxWidth,
+        boxHeight
+    );
+
+
+    // --------------------------------------------------------
+    // FACE CONFIDENCE LABEL
+    // --------------------------------------------------------
+
+    liveCtx.fillStyle = "#00ff66";
+    liveCtx.font = "bold 18px Arial";
+
+    liveCtx.fillText(
+        "Face detected",
+        boxX,
+        Math.max(25, boxY - 8)
+    );
+
+
+    // --------------------------------------------------------
+    // EYE / IRIS TRACKING
+    // MediaPipe Face Mesh iris landmarks
+    // --------------------------------------------------------
+
+    const leftIris = [468, 469, 470, 471, 472];
+    const rightIris = [473, 474, 475, 476, 477];
+
+
+    function getCenter(indices) {
+
+        let x = 0;
+        let y = 0;
+
+        indices.forEach(index => {
+
+            if (landmarks[index]) {
+
+                x += landmarks[index].x;
+                y += landmarks[index].y;
+            }
+        });
+
+        return {
+            x: x / indices.length,
+            y: y / indices.length
+        };
+    }
+
+
+    const leftCenter =
+        getCenter(leftIris);
+
+    const rightCenter =
+        getCenter(rightIris);
+
+
+    // --------------------------------------------------------
+    // DRAW IRIS POINTS
+    // --------------------------------------------------------
+
+    function drawIris(point) {
+
+        const x =
+            point.x * liveCanvas.width;
+
+        const y =
+            point.y * liveCanvas.height;
+
+        liveCtx.beginPath();
+
+        liveCtx.arc(
+            x,
+            y,
+            5,
+            0,
+            Math.PI * 2
+        );
+
+        liveCtx.fillStyle = "#00ffff";
+
+        liveCtx.fill();
+    }
+
+
+    drawIris(leftCenter);
+    drawIris(rightCenter);
+
+
+    // --------------------------------------------------------
+    // ESTIMATE EYE CONTACT
+    // --------------------------------------------------------
+
+    const faceCenterX =
+        (minX + maxX) / 2;
+
+    const faceCenterY =
+        (minY + maxY) / 2;
+
+
+    const irisCenterX =
+        (leftCenter.x + rightCenter.x) / 2;
+
+    const irisCenterY =
+        (leftCenter.y + rightCenter.y) / 2;
+
+
+    const horizontalDifference =
+        Math.abs(irisCenterX - faceCenterX);
+
+    const verticalDifference =
+        Math.abs(irisCenterY - faceCenterY);
+
+
+    /*
+       Camera-facing estimate:
+
+       Smaller difference =
+       candidate looking toward camera.
+    */
+
+    let eyeScore = 100;
+
+    eyeScore -=
+        horizontalDifference * 500;
+
+    eyeScore -=
+        verticalDifference * 250;
+
+
+    eyeScore =
+        Math.max(
+            0,
+            Math.min(100, eyeScore)
+        );
+
+
+    liveLastEyeContact =
+        eyeScore;
+
+
+    // --------------------------------------------------------
+    // ATTENTION SCORE
+    // --------------------------------------------------------
+
+    let attentionScore =
+        eyeScore;
+
+
+    // Face size also contributes slightly
+    const faceArea =
+        boxWidth * boxHeight;
+
+
+    if (faceArea > 0.08) {
+
+        attentionScore += 5;
+    }
+
+
+    attentionScore =
+        Math.max(
+            0,
+            Math.min(100, attentionScore)
+        );
+
+
+    liveLastAttention =
+        attentionScore;
+
+
+    // --------------------------------------------------------
+    // LIVE STATUS ON WEBCAM
+    // --------------------------------------------------------
+
+    liveCtx.font =
+        "bold 16px Arial";
+
+    liveCtx.fillStyle =
+        "#00ffff";
+
+
+    liveCtx.fillText(
+        "Eye Contact: " +
+        Math.round(liveLastEyeContact) +
+        "%",
+        boxX,
+        boxY + boxHeight + 25
+    );
+
+
+    liveCtx.fillText(
+        "Attention: " +
+        Math.round(liveLastAttention) +
+        "%",
+        boxX,
+        boxY + boxHeight + 48
+    );
+
+
+    updateLiveAIOverlay();
+}
+
+
+// ------------------------------------------------------------
+// INITIALIZE MEDIAPIPE
+// ------------------------------------------------------------
+
+async function initializeLiveFaceMesh() {
+
+    if (liveFaceMesh) {
+        return;
+    }
+
+
+    if (
+        typeof FaceMesh ===
+        "undefined"
+    ) {
+
+        console.error(
+            "MediaPipe Face Mesh is not loaded."
+        );
+
+        return;
+    }
+
+
+    liveFaceMesh =
+        new FaceMesh({
+
+            locateFile: (file) => {
+
+                return (
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/" +
+                    file
+                );
+            }
+
+        });
+
+
+    liveFaceMesh.setOptions({
+
+        maxNumFaces: 1,
+
+        refineLandmarks: true,
+
+        minDetectionConfidence: 0.5,
+
+        minTrackingConfidence: 0.5
+
+    });
+
+
+    liveFaceMesh.onResults(
+        handleLiveFaceResults
+    );
+
+
+    console.log(
+        "✅ Live Face Mesh initialized"
+    );
+}
+
+
+// ------------------------------------------------------------
+// PROCESS WEBCAM FRAMES
+// ------------------------------------------------------------
+
+async function processLiveFaceFrame() {
+
+    if (!liveTrackingActive) {
+        return;
+    }
+
+
+    if (!liveVideo) {
+        return;
+    }
+
+
+    if (
+        liveVideo.readyState >= 2 &&
+        liveVideo.videoWidth > 0
+    ) {
+
+        try {
+
+            await liveFaceMesh.send({
+                image: liveVideo
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Live Face Mesh error:",
+                error
+            );
+        }
+    }
+
+
+    requestAnimationFrame(
+        processLiveFaceFrame
+    );
+}
+
+
+// ------------------------------------------------------------
+// START LIVE TRACKING
+// ------------------------------------------------------------
+
+async function startLiveWebcamAI() {
+
+    if (!liveVideo) {
+        console.error(
+            "webcamPreview not found"
+        );
+
+        return;
+    }
+
+
+    await initializeLiveFaceMesh();
+
+
+    liveTrackingActive = true;
+
+
+    processLiveFaceFrame();
+
+
+    updateLiveAIOverlay();
+
+
+    console.log(
+        "🟢 Live webcam AI tracking started"
+    );
+}
+
+
+// ------------------------------------------------------------
+// STOP LIVE TRACKING
+// ------------------------------------------------------------
+
+function stopLiveWebcamAI() {
+
+    liveTrackingActive = false;
+
+
+    if (liveCtx && liveCanvas) {
+
+        liveCtx.clearRect(
+            0,
+            0,
+            liveCanvas.width,
+            liveCanvas.height
+        );
+    }
+
+
+    liveLastEyeContact = 0;
+    liveLastAttention = 0;
+
+
+    console.log(
+        "⏹ Live webcam AI tracking stopped"
+    );
+}
+
+
+// ------------------------------------------------------------
+// AUTOMATICALLY START WHEN CAMERA STARTS
+// ------------------------------------------------------------
+
+if (liveVideo) {
+
+    liveVideo.addEventListener(
+        "loadedmetadata",
+        () => {
+
+            resizeLiveCanvas();
+
+        }
+    );
+
+
+    liveVideo.addEventListener(
+        "playing",
+        () => {
+
+            if (!liveTrackingActive) {
+
+                startLiveWebcamAI();
+            }
+
+        }
+    );
+}
+
+
+// ------------------------------------------------------------
+// KEEP EMOTION VALUES SYNCHRONIZED
+// ------------------------------------------------------------
+
+setInterval(
+    updateLiveAIOverlay,
+    500
+);
+// ============================================================
+// MODULE 7 - LOAD LATEST INTERVIEW PERFORMANCE
+// ============================================================
+
+async function loadLatestInterviewPerformance() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        console.log("No authentication token found.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/latest-interview-performance",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+
+            document.getElementById(
+                "dashboardAnalysisStatus"
+            ).innerText =
+                "⚪ No interview assessment available yet.";
+
+            return;
+        }
+
+        const analysis = data.analysis;
+
+        // Scores
+        document.getElementById(
+            "dashboardOverallScore"
+        ).innerText =
+            `${Number(analysis.overall_score || 0).toFixed(1)}%`;
+
+        document.getElementById(
+            "dashboardTechnicalScore"
+        ).innerText =
+            `${Number(analysis.technical_relevance_score || 0).toFixed(1)}%`;
+
+        document.getElementById(
+            "dashboardCommunicationScore"
+        ).innerText =
+            `${Number(analysis.communication_score || 0).toFixed(1)}%`;
+
+        document.getElementById(
+            "dashboardConfidenceScore"
+        ).innerText =
+            `${Number(analysis.confidence_score || 0).toFixed(1)}%`;
+
+        document.getElementById(
+            "dashboardProfessionalismScore"
+        ).innerText =
+            `${Number(analysis.professionalism_score || 0).toFixed(1)}%`;
+
+        // Rating
+        document.getElementById(
+            "dashboardPerformanceRating"
+        ).innerText =
+            analysis.performance_rating || "--";
+        // ==========================================
+// MODULE 9 - PERFORMANCE SUMMARY
+// ==========================================
+
+document.getElementById(
+    "summaryOverallScore"
+).innerText =
+    `${Number(analysis.overall_score || 0).toFixed(1)}%`;
+
+document.getElementById(
+    "summaryTechnicalScore"
+).innerText =
+    `${Number(
+        analysis.technical_relevance_score || 0
+    ).toFixed(1)}%`;
+
+document.getElementById(
+    "summaryCommunicationScore"
+).innerText =
+    `${Number(
+        analysis.communication_score || 0
+    ).toFixed(1)}%`;
+
+document.getElementById(
+    "summaryConfidenceScore"
+).innerText =
+    `${Number(
+        analysis.confidence_score || 0
+    ).toFixed(1)}%`;
+
+document.getElementById(
+    "summaryPerformanceRating"
+).innerText =
+    analysis.performance_rating || "--";
+
+document.getElementById(
+    "performanceSummaryStatus"
+).innerText =
+    "✅ Latest interview performance summary loaded.";
+
+        // Strengths
+        displayDashboardList(
+            "dashboardStrengths",
+            analysis.strengths
+        );
+
+        // Weaknesses
+        displayDashboardList(
+            "dashboardWeaknesses",
+            analysis.weaknesses
+        );
+
+        // Improvements
+        displayDashboardList(
+            "dashboardImprovements",
+            analysis.improvement_suggestions
+        );
+
+        document.getElementById(
+            "dashboardAnalysisStatus"
+        ).innerText =
+            "✅ Latest interview assessment loaded successfully.";
+
+    }
+    catch (error) {
+
+        console.error(
+            "Load Interview Performance Error:",
+            error
+        );
+
+        document.getElementById(
+            "dashboardAnalysisStatus"
+        ).innerText =
+            "❌ Failed to load interview assessment.";
+    }
+}
+
+
+// Display array data inside dashboard boxes
+function displayDashboardList(elementId, items) {
+
+    const container =
+        document.getElementById(elementId);
+
+    if (!container) return;
+
+    if (!items) {
+
+        container.innerHTML =
+            "<p>No data available.</p>";
+
+        return;
+    }
+
+    if (!Array.isArray(items)) {
+
+        container.innerHTML =
+            `<p>${items}</p>`;
+
+        return;
+    }
+
+    if (items.length === 0) {
+
+        container.innerHTML =
+            "<p>No data available.</p>";
+
+        return;
+    }
+
+    container.innerHTML =
+        `<ul>
+            ${items.map(item =>
+                `<li>${item}</li>`
+            ).join("")}
+        </ul>`;
+}
+
+
+// Module 7 performance is loaded only after a new interview
+// is completed and its analysis is saved.
+// ============================================================
+// MODULE 8 - CANDIDATE RANKING DASHBOARD
+// ============================================================
+
+async function loadCandidateRanking() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login first");
+        return;
+    }
+
+    const output =
+        document.getElementById("candidateRankingOutput");
+
+    output.innerHTML =
+        "<p>⏳ Loading candidate rankings...</p>";
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/candidate-ranking",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+
+            output.innerHTML =
+                `<p style="color:red;">
+                    ❌ ${data.message}
+                </p>`;
+
+            return;
+        }
+
+        if (
+            !data.rankings ||
+            data.rankings.length === 0
+        ) {
+
+            output.innerHTML =
+                "<p>No candidate ranking data available.</p>";
+
+            return;
+        }
+
+        let html = `
+            <div style="overflow-x:auto;">
+
+                <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                    margin-top:15px;
+                ">
+
+                    <thead>
+                        <tr>
+                            <th style="padding:12px;">Rank</th>
+                            <th style="padding:12px;">Candidate</th>
+                            <th style="padding:12px;">Interviews</th>
+                            <th style="padding:12px;">Overall</th>
+                            <th style="padding:12px;">Technical</th>
+                            <th style="padding:12px;">Communication</th>
+                            <th style="padding:12px;">Confidence</th>
+                            <th style="padding:12px;">Professionalism</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+        `;
+
+        data.rankings.forEach(candidate => {
+
+            html += `
+                <tr style="
+                    border-top:1px solid #ddd;
+                ">
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                        font-weight:bold;
+                    ">
+                        ${candidate.rank}
+                    </td>
+
+                    <td style="padding:12px;">
+                        <strong>
+                            ${candidate.name}
+                        </strong>
+                        <br>
+                        <small>
+                            ${candidate.email}
+                        </small>
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${candidate.interviewCount}
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                        font-weight:bold;
+                    ">
+                        ${candidate.overallScore}%
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${candidate.technicalScore}%
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${candidate.communicationScore}%
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${candidate.confidenceScore}%
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${candidate.professionalismScore}%
+                    </td>
+
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+
+        // Top candidate
+        if (data.topCandidate) {
+
+            html = `
+                <div style="
+                    padding:18px;
+                    margin-bottom:20px;
+                    border-radius:10px;
+                    background:rgba(255,193,7,0.12);
+                ">
+
+                    <h3>
+                        🥇 Top Candidate
+                    </h3>
+
+                    <p>
+                        <strong>
+                            ${data.topCandidate.name}
+                        </strong>
+                    </p>
+
+                    <p>
+                        Overall Score:
+                        <strong>
+                            ${data.topCandidate.overallScore}%
+                        </strong>
+                    </p>
+
+                </div>
+            ` + html;
+        }
+
+        output.innerHTML = html;
+
+    }
+    catch (error) {
+
+        console.error(
+            "Candidate Ranking Error:",
+            error
+        );
+
+        output.innerHTML =
+            `<p style="color:red;">
+                ❌ Failed to load candidate rankings.
+            </p>`;
+    }
+}
+// ============================================================
+// MODULE 8 - SKILL-WISE ANALYTICS DASHBOARD
+// ============================================================
+
+async function loadSkillWiseAnalytics() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login first");
+        return;
+    }
+
+    const output =
+        document.getElementById(
+            "skillWiseAnalyticsOutput"
+        );
+
+    output.innerHTML =
+        "<p>⏳ Loading skill-wise analytics...</p>";
+
+    try {
+
+        // Get current interview session
+const sessionId =
+    currentSessionId;
+
+if (!sessionId) {
+
+    output.innerHTML =
+        `<p style="color:red;">
+            ❌ No interview session found.
+        </p>`;
+
+    return;
+}
+
+        if (!sessionId) {
+
+            output.innerHTML =
+                `<p style="color:red;">
+                    ❌ No interview session found.
+                </p>`;
+
+            return;
+        }
+
+        const response = await fetch(
+            `http://localhost:5000/api/ai/skill-wise-analytics?sessionId=${sessionId}`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!data.success) {
+
+            output.innerHTML =
+                `<p style="color:red;">
+                    ❌ ${data.message}
+                </p>`;
+
+            return;
+        }
+
+        if (
+            !data.skillAnalytics ||
+            data.skillAnalytics.length === 0
+        ) {
+
+            output.innerHTML =
+                `<p>
+                    No skill analytics available.
+                </p>`;
+
+            return;
+        }
+
+        let html = `
+            <div style="overflow-x:auto;">
+
+                <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                    margin-top:15px;
+                ">
+
+                    <thead>
+                        <tr>
+
+                            <th style="padding:12px;">
+                                Skill
+                            </th>
+
+                            <th style="padding:12px;">
+                                Category
+                            </th>
+
+                            <th style="padding:12px;">
+                                Questions
+                            </th>
+
+                            <th style="padding:12px;">
+                                Score
+                            </th>
+
+                        </tr>
+                    </thead>
+
+                    <tbody>
+        `;
+
+        data.skillAnalytics.forEach(item => {
+
+            html += `
+                <tr style="
+                    border-top:1px solid #ddd;
+                ">
+
+                    <td style="
+                        padding:12px;
+                        font-weight:bold;
+                    ">
+                        ${item.skill}
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                    ">
+                        ${item.category}
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                    ">
+                        ${item.questions}
+                    </td>
+
+                    <td style="
+                        padding:12px;
+                        text-align:center;
+                        font-weight:bold;
+                    ">
+                        ${item.score}%
+                    </td>
+
+                </tr>
+            `;
+
+        });
+
+        html += `
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+
+        // Strongest and weakest skills
+        if (
+            data.strongestSkill ||
+            data.weakestSkill
+        ) {
+
+            html = `
+                <div style="
+                    display:grid;
+                    grid-template-columns:
+                        repeat(auto-fit,minmax(200px,1fr));
+                    gap:15px;
+                    margin-bottom:20px;
+                ">
+
+                    ${
+                        data.strongestSkill
+                        ? `
+                        <div style="
+                            padding:18px;
+                            border-radius:10px;
+                            background:rgba(40,167,69,0.12);
+                        ">
+
+                            <h3>
+                                💪 Strongest Skill
+                            </h3>
+
+                            <p>
+                                <strong>
+                                    ${data.strongestSkill.skill}
+                                </strong>
+                            </p>
+
+                            <p>
+                                Score:
+                                <strong>
+                                    ${data.strongestSkill.score}%
+                                </strong>
+                            </p>
+
+                        </div>
+                        `
+                        : ""
+                    }
+
+                    ${
+                        data.weakestSkill
+                        ? `
+                        <div style="
+                            padding:18px;
+                            border-radius:10px;
+                            background:rgba(220,53,69,0.12);
+                        ">
+
+                            <h3>
+                                📚 Skill to Improve
+                            </h3>
+
+                            <p>
+                                <strong>
+                                    ${data.weakestSkill.skill}
+                                </strong>
+                            </p>
+
+                            <p>
+                                Score:
+                                <strong>
+                                    ${data.weakestSkill.score}%
+                                </strong>
+                            </p>
+
+                        </div>
+                        `
+                        : ""
+                    }
+
+                </div>
+            ` + html;
+        }
+
+        output.innerHTML = html;
+
+    }
+    catch (error) {
+
+        console.error(
+            "Skill-wise Analytics Error:",
+            error
+        );
+
+        output.innerHTML =
+            `<p style="color:red;">
+                ❌ Failed to load skill-wise analytics.
+            </p>`;
+    }
+}
+// ============================================================
+// MODULE 9 - DOWNLOADABLE REPORTS
+// ============================================================
+
+// Download Resume Report
+function downloadResumeReport() {
+
+    const report = `
+========================================
+          SMART HIRE AI
+          RESUME REPORT
+========================================
+
+Candidate: ${document.getElementById("greeting")?.innerText || "Candidate"}
+
+Resume Analysis
+----------------------------------------
+
+Skills:
+${document.getElementById("skillsOutput")?.innerText || "No resume analysis available."}
+
+Experience:
+${document.getElementById("experienceOutput")?.innerText || "No experience information available."}
+
+Technologies:
+${document.getElementById("technologyOutput")?.innerText || "No technology information available."}
+
+Education:
+${document.getElementById("educationOutput")?.innerText || "No education information available."}
+
+Resume Summary:
+${document.getElementById("summaryOutput")?.innerText || "No resume summary available."}
+
+========================================
+Generated by SmartHire AI
+========================================
+`;
+
+    downloadTextFile(
+        report,
+        "SmartHire_Resume_Report.txt"
+    );
+}
+
+
+// Download Interview Report
+function downloadInterviewReport() {
+
+    const overall =
+        document.getElementById("dashboardOverallScore")?.innerText || "--";
+
+    const technical =
+        document.getElementById("dashboardTechnicalScore")?.innerText || "--";
+
+    const communication =
+        document.getElementById("dashboardCommunicationScore")?.innerText || "--";
+
+    const confidence =
+        document.getElementById("dashboardConfidenceScore")?.innerText || "--";
+
+    const professionalism =
+        document.getElementById("dashboardProfessionalismScore")?.innerText || "--";
+
+    const rating =
+        document.getElementById("dashboardPerformanceRating")?.innerText || "--";
+
+    const strengths =
+        document.getElementById("dashboardStrengths")?.innerText ||
+        "No assessment available.";
+
+    const weaknesses =
+        document.getElementById("dashboardWeaknesses")?.innerText ||
+        "No assessment available.";
+
+    const improvements =
+        document.getElementById("dashboardImprovements")?.innerText ||
+        "No improvement suggestions available.";
+
+    const report = `
+========================================
+          SMART HIRE AI
+        INTERVIEW REPORT
+========================================
+
+Candidate: ${document.getElementById("greeting")?.innerText || "Candidate"}
+
+INTERVIEW PERFORMANCE
+----------------------------------------
+
+Overall Score:
+${overall}
+
+Technical Relevance:
+${technical}
+
+Communication:
+${communication}
+
+Confidence:
+${confidence}
+
+Professionalism:
+${professionalism}
+
+Performance Rating:
+${rating}
+
+
+STRENGTHS
+----------------------------------------
+${strengths}
+
+
+AREAS TO IMPROVE
+----------------------------------------
+${weaknesses}
+
+
+IMPROVEMENT SUGGESTIONS
+----------------------------------------
+${improvements}
+
+
+========================================
+Generated by SmartHire AI
+========================================
+`;
+
+    downloadTextFile(
+        report,
+        "SmartHire_Interview_Report.txt"
+    );
+}
+
+
+// Common download function
+function downloadTextFile(content, filename) {
+
+    const blob =
+        new Blob(
+            [content],
+            {
+                type: "text/plain"
+            }
+        );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+}
+// ============================================================
+// MODULE 9 - SESSION ALERTS
+// ============================================================
+
+function showSessionAlert(
+    title = "🔔 Session Alert",
+    message = "Interview session alert."
+) {
+
+    const alertBox =
+        document.getElementById("sessionAlert");
+
+    const alertTitle =
+        document.getElementById("sessionAlertTitle");
+
+    const alertMessage =
+        document.getElementById("sessionAlertMessage");
+
+    if (!alertBox) return;
+
+    alertTitle.innerText = title;
+    alertMessage.innerText = message;
+
+    alertBox.style.display = "block";
+
+    // Automatically hide after 4 seconds
+    setTimeout(() => {
+
+        alertBox.style.display = "none";
+
+    }, 4000);
+}
+// ============================================================
+// MODULE 9 - INTERVIEW REMINDER API
+// ============================================================
+
+async function createInterviewReminder() {
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+
+        alert("Please login first.");
+        return;
+
+    }
+
+    const interviewDate =
+        document.getElementById(
+            "interviewDate"
+        ).value;
+
+    const interviewTime =
+        document.getElementById(
+            "interviewTime"
+        ).value;
+
+    const status =
+        document.getElementById(
+            "interviewReminderStatus"
+        );
+
+    // --------------------------------------------------------
+    // VALIDATION
+    // --------------------------------------------------------
+
+    if (!interviewDate || !interviewTime) {
+
+        status.innerHTML =
+            `<p style="color:red;">
+                ❌ Please select interview date and time.
+            </p>`;
+
+        return;
+
+    }
+
+    status.innerHTML =
+        `<p>
+            ⏳ Creating interview reminder...
+        </p>`;
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:5000/api/ai/interview-reminder",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${token}`
+                    },
+
+                    body: JSON.stringify({
+                        interviewDate,
+                        interviewTime
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!data.success) {
+
+            status.innerHTML =
+                `<p style="color:red;">
+                    ❌ ${data.message}
+                </p>`;
+
+            return;
+
+        }
+
+        status.innerHTML =
+            `<p style="color:green;">
+                ✅ Interview reminder created successfully.
+                <br>
+                📅 Date: ${interviewDate}
+                <br>
+                ⏰ Time: ${interviewTime}
+            </p>`;
+            // ========================================================
+// Schedule reminder 30 minutes before interview
+// ========================================================
+
+const interviewDateTime =
+    new Date(
+        `${interviewDate}T${interviewTime}`
+    );
+
+const reminderTime =
+    interviewDateTime.getTime()
+    - (30 * 60 * 1000);
+
+const currentTime =
+    Date.now();
+
+const delay =
+    reminderTime - currentTime;
+
+if (delay > 0) {
+
+    // Ask browser permission for notification
+    if (
+        "Notification" in window &&
+        Notification.permission === "default"
+    ) {
+        await Notification.requestPermission();
+    }
+
+    setTimeout(() => {
+
+        if (
+            "Notification" in window &&
+            Notification.permission === "granted"
+        ) {
+
+            new Notification(
+                "🔔 SmartHire AI Interview Reminder",
+                {
+                    body:
+                        `Your interview starts in 30 minutes at ${interviewTime}.`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/1827/1827392.png"
+                }
+            );
+
+        } else {
+
+            alert(
+                `🔔 SmartHire AI Interview Reminder\n\n` +
+                `Your interview starts in 30 minutes at ${interviewTime}.`
+            );
+
+        }
+
+    }, delay);
+
+    status.innerHTML +=
+        `<p style="color:#8b5cf6;">
+            🔔 Reminder scheduled for 30 minutes before your interview.
+        </p>`;
+
+}
+else {
+
+    status.innerHTML +=
+        `<p style="color:#f59e0b;">
+            ⚠️ Interview time is too close to schedule a 30-minute reminder.
+        </p>`;
+
+}
+
+    }
+    catch (error) {
+
+        console.error(
+            "Interview Reminder Error:",
+            error
+        );
+
+        status.innerHTML =
+            `<p style="color:red;">
+                ❌ Failed to connect to reminder API.
+            </p>`;
+
+    }
+
+}
+// ============================================================
+// MODULE 10 - LOAD INTERVIEW HISTORY
+// ============================================================
+
+async function loadInterviewHistory() {
+
+    const token = localStorage.getItem("token");
+
+    const status =
+        document.getElementById("interviewHistoryStatus");
+
+    const container =
+        document.getElementById("interviewHistoryContainer");
+
+    if (!status || !container) return;
+
+    if (!token) {
+        status.innerHTML =
+            "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/interview/candidate/interview-history",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            status.innerHTML =
+                `❌ ${data.message || "Unable to load interview history."}`;
+
+            return;
+        }
+
+        if (!data.history || data.history.length === 0) {
+
+            status.innerHTML =
+                "ℹ️ No completed interviews found.";
+
+            container.innerHTML = "";
+
+            return;
+        }
+
+        status.innerHTML =
+            "✅ Interview history loaded.";
+
+        container.innerHTML = "";
+
+        data.history.forEach((interview, index) => {
+
+            const card = document.createElement("div");
+
+            card.style.cssText = `
+                padding:20px;
+                margin-bottom:15px;
+                border-radius:10px;
+                background:#f8fafc;
+                border:1px solid #e5e7eb;
+            `;
+
+            const date = interview.start_time
+                ? new Date(interview.start_time)
+                    .toLocaleString()
+                : "N/A";
+
+            const duration = interview.duration
+                ? `${Math.round(interview.duration / 60)} min`
+                : "N/A";
+
+            const overallScore =
+                interview.overall_score !== null &&
+                interview.overall_score !== undefined
+                    ? `${Number(interview.overall_score).toFixed(1)}%`
+                    : "--";
+
+            card.innerHTML = `
+                <h3>
+                    🎤 Interview ${data.history.length - index}
+                </h3>
+
+                <p>
+                    📅 <strong>Date:</strong> ${date}
+                </p>
+
+                <p>
+                    ⏱️ <strong>Duration:</strong> ${duration}
+                </p>
+
+                <p>
+                    📝 <strong>Questions Attempted:</strong>
+                    ${interview.questions_attempted || 0}
+                </p>
+
+                <p>
+                    🎯 <strong>Overall Score:</strong>
+                    ${overallScore}
+                </p>
+
+                <p>
+                    💻 <strong>Technical:</strong>
+                    ${interview.technical_relevance_score != null
+                        ? Number(interview.technical_relevance_score).toFixed(1) + "%"
+                        : "--"}
+                </p>
+
+                <p>
+                    🗣️ <strong>Communication:</strong>
+                    ${interview.communication_score != null
+                        ? Number(interview.communication_score).toFixed(1) + "%"
+                        : "--"}
+                </p>
+
+                <p>
+                    😎 <strong>Confidence:</strong>
+                    ${interview.confidence_score != null
+                        ? Number(interview.confidence_score).toFixed(1) + "%"
+                        : "--"}
+                </p>
+
+                <p>
+                    ⭐ <strong>Rating:</strong>
+                    ${interview.performance_rating || "Not analyzed"}
+                </p>
+            `;
+
+            container.appendChild(card);
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Interview History Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Failed to connect to the server.";
+    }
+}
+
+
+// ============================================================
+// MODULE 10 - LOAD PERFORMANCE TRENDS
+// ============================================================
+
+async function loadPerformanceTrends() {
+
+    const token = localStorage.getItem("token");
+
+    const status =
+        document.getElementById("performanceTrendsStatus");
+
+    const container =
+        document.getElementById("performanceTrendsContainer");
+
+    if (!status || !container) return;
+
+    if (!token) {
+        status.innerHTML =
+            "❌ Please login again.";
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/interview/candidate/performance-trends",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            status.innerHTML =
+                `❌ ${data.message || "Unable to load performance trends."}`;
+
+            return;
+        }
+
+        if (!data.trends || data.trends.length === 0) {
+
+            status.innerHTML =
+                "ℹ️ Complete an interview to see your performance trends.";
+
+            container.innerHTML = "";
+
+            return;
+        }
+
+        status.innerHTML =
+            "✅ Performance trends loaded.";
+
+        container.innerHTML = "";
+
+        data.trends.forEach((trend, index) => {
+
+            const date = trend.analyzed_at
+                ? new Date(trend.analyzed_at)
+                    .toLocaleDateString()
+                : `Interview ${index + 1}`;
+
+            const overall =
+                Number(trend.overall_score || 0);
+
+            const technical =
+                Number(trend.technical_relevance_score || 0);
+
+            const communication =
+                Number(trend.communication_score || 0);
+
+            const confidence =
+                Number(trend.confidence_score || 0);
+
+            const professionalism =
+                Number(trend.professionalism_score || 0);
+
+            const card = document.createElement("div");
+
+            card.style.cssText = `
+                margin-bottom:18px;
+                padding:18px;
+                border-radius:10px;
+                background:#f8fafc;
+                border:1px solid #e5e7eb;
+            `;
+
+            card.innerHTML = `
+                <h3>
+                    📅 ${date}
+                </h3>
+
+                <p>
+                    🎯 Overall Performance:
+                    <strong>${overall.toFixed(1)}%</strong>
+                </p>
+
+                <div style="
+                    margin:10px 0;
+                    height:10px;
+                    background:#e5e7eb;
+                    border-radius:10px;
+                    overflow:hidden;
+                ">
+                    <div style="
+                        width:${Math.min(overall, 100)}%;
+                        height:100%;
+                        background:#2563eb;
+                    "></div>
+                </div>
+
+                <div class="analysis-grid">
+
+                    <div class="analysis-box">
+                        💻 Technical
+                        <strong>
+                            ${technical.toFixed(1)}%
+                        </strong>
+                    </div>
+
+                    <div class="analysis-box">
+                        🗣️ Communication
+                        <strong>
+                            ${communication.toFixed(1)}%
+                        </strong>
+                    </div>
+
+                    <div class="analysis-box">
+                        😎 Confidence
+                        <strong>
+                            ${confidence.toFixed(1)}%
+                        </strong>
+                    </div>
+
+                    <div class="analysis-box">
+                        👔 Professionalism
+                        <strong>
+                            ${professionalism.toFixed(1)}%
+                        </strong>
+                    </div>
+
+                </div>
+
+                <p style="margin-top:12px;">
+                    ⭐ Rating:
+                    <strong>
+                        ${trend.performance_rating || "--"}
+                    </strong>
+                </p>
+            `;
+
+            container.appendChild(card);
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Performance Trends Error:",
+            error
+        );
+
+        status.innerHTML =
+            "❌ Failed to connect to the server.";
+    }
+}
+
+
+// ============================================================
+// MODULE 10 - LOAD CANDIDATE ANALYTICS
+// ============================================================
+
+window.addEventListener("load", () => {
+
+    loadInterviewHistory();
+    loadPerformanceTrends();
+
+});

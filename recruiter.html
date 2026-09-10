@@ -176,48 +176,33 @@
              STATISTICS
         ========================== -->
 
-        <div class="stats">
+        <!-- =========================
+     STATISTICS
+========================= -->
 
+<div class="stats">
 
-            <div class="stat">
+    <div class="stat">
+        <h2 id="totalCandidates">0</h2>
+        <p>Candidates</p>
+    </div>
 
-                <h2>
-                    32
-                </h2>
+    <div class="stat">
+        <h2 id="totalInterviews">0</h2>
+        <p>Interviews</p>
+    </div>
 
-                <p>
-                    Candidates
-                </p>
+    <div class="stat">
+        <h2 id="totalShortlisted">0</h2>
+        <p>Shortlisted</p>
+    </div>
 
-            </div>
+    <div class="stat">
+        <h2 id="totalTemplates">0</h2>
+        <p>Templates</p>
+    </div>
 
-
-            <div class="stat">
-
-                <h2>
-                    12
-                </h2>
-
-                <p>
-                    Interviews
-                </p>
-
-            </div>
-
-
-            <div class="stat">
-
-                <h2>
-                    8
-                </h2>
-
-                <p>
-                    Shortlisted
-                </p>
-
-            </div>
-
-
+</div>
             <div class="stat">
 
                 <h2>
@@ -256,9 +241,12 @@
                     View candidates
                 </p>
 
-                <button class="btn">
-                    Open
-                </button>
+                    <button
+    class="btn"
+    onclick="loadCandidatePerformanceOverview()"
+>
+    📊 View Candidates
+</button>
 
             </div>
 
@@ -278,10 +266,9 @@
                     Candidate analytics
                 </p>
 
-                <button class="btn">
-                    Open
-                </button>
-
+          <button class="btn" onclick="loadRecruiterAnalytics()">
+    📊 View Analytics
+</button>
             </div>
 
 
@@ -300,33 +287,24 @@
                     Compare profiles
                 </p>
 
-                <button class="btn">
-                    Open
-                </button>
+             <button class="btn" onclick="compareCandidates()">
+    ⚖️ Compare Candidates
+</button>
 
             </div>
 
 
 
             <div class="card">
+    <i class="fa-solid fa-file-lines"></i>
+    <h2>📄 Interview Templates</h2>
+    <p>Create and manage reusable interview question templates.</p>
+    <br>
 
-                <i
-                    class="fa-solid fa-file"
-                ></i>
-
-                <h3>
-                    Templates
-                </h3>
-
-                <p>
-                    Interview templates
-                </p>
-
-                <button class="btn">
-                    Open
-                </button>
-
-            </div>
+    <button class="btn" onclick="openInterviewTemplates()">
+        📄 Manage Templates
+    </button>
+</div>
 
 
 
@@ -373,15 +351,94 @@
                     Generate reports
                 </p>
 
-                <button class="btn">
-                    Open
-                </button>
-
-            </div>
+               <button
+    class="btn"
+    onclick="generateRecruiterReport()"
+>
+    📄 Generate Report
+</button>
 
 
         </div>
+        <!-- =========================
+                CANDIDATE RANKING
+        ========================== -->
+<div class="card" id="candidateRanking">
 
+    <i class="fa-solid fa-ranking-star"></i>
+
+    <h2>🏆 Candidate Ranking</h2>
+
+    <p>
+        AI-based ranking of candidates using interview performance.
+    </p>
+
+    <br>
+
+    <button
+        class="btn"
+        onclick="loadCandidateRanking()">
+        📊 View Candidate Ranking
+    </button>
+
+    <div
+        id="candidateRankingOutput"
+        style="margin-top:25px;">
+    </div>
+
+</div>
+<!-- ============================================================
+     MODULE 10 - INTERVIEW TEMPLATES
+     ============================================================ -->
+
+<div id="interviewTemplatesSection"
+     class="card"
+     style="margin-top:30px; display:none;">
+
+    <h2>📄 Interview Templates</h2>
+    <p>Create a reusable template for your interviews.</p>
+
+    <div style="margin-top:20px;">
+
+        <input
+            type="text"
+            id="templateTitle"
+            placeholder="Template Title"
+            style="width:100%; padding:12px; margin-bottom:12px;"
+        >
+
+        <input
+            type="text"
+            id="templateJobRole"
+            placeholder="Job Role"
+            style="width:100%; padding:12px; margin-bottom:12px;"
+        >
+
+        <textarea
+            id="templateDescription"
+            placeholder="Template Description"
+            rows="3"
+            style="width:100%; padding:12px; margin-bottom:12px;"
+        ></textarea>
+
+        <textarea
+            id="templateQuestions"
+            placeholder="Enter one interview question per line"
+            rows="7"
+            style="width:100%; padding:12px; margin-bottom:12px;"
+        ></textarea>
+
+        <button class="btn" onclick="createInterviewTemplate()">
+            ➕ Create Template
+        </button>
+
+    </div>
+
+    <div id="templatesList"
+         style="margin-top:30px;">
+    </div>
+
+</div>
 
 
         <!-- =========================
@@ -929,8 +986,1089 @@ window.addEventListener(
     }
 );
 
+// ============================================
+// RECRUITER CANDIDATE PERFORMANCE OVERVIEW
+// ============================================
+
+async function loadCandidatePerformanceOverview() {
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login again.");
+        return;
+    }
+
+    let section =
+        document.getElementById(
+            "candidatePerformanceOverview"
+        );
+
+    // Create section if it does not exist
+    if (!section) {
+
+        section =
+            document.createElement("section");
+
+        section.id =
+            "candidatePerformanceOverview";
+
+        section.className =
+            "recordings-section";
+
+        document
+            .querySelector(".cards")
+            .after(section);
+    }
+
+    section.innerHTML = `
+        <h2>
+            <i class="fa-solid fa-chart-line"></i>
+            Candidate Performance Overview
+        </h2>
+
+        <div class="loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Loading candidate performance...
+        </div>
+    `;
+
+    section.style.display = "block";
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:5000/api/ai/candidate-performance-overview",
+                {
+                    method: "GET",
+
+                    headers: {
+                        Authorization:
+                            `Bearer ${token}`
+                    }
+                }
+            );
+
+        const data =
+            await response.json();
+
+        console.log(
+            "Candidate Performance Overview:",
+            data
+        );
+
+        if (
+            !response.ok ||
+            !data.success
+        ) {
+            throw new Error(
+                data.message ||
+                "Unable to load candidate performance"
+            );
+        }
+
+        if (
+            !data.candidates ||
+            data.candidates.length === 0
+        ) {
+
+            section.innerHTML = `
+                <h2>
+                    <i class="fa-solid fa-chart-line"></i>
+                    Candidate Performance Overview
+                </h2>
+
+                <div class="no-recordings">
+                    <h3>
+                        No Candidate Data
+                    </h3>
+
+                    <p>
+                        No completed interview assessments
+                        are available yet.
+                    </p>
+                </div>
+            `;
+
+            return;
+        }
+
+        let html = `
+            <h2>
+                <i class="fa-solid fa-chart-line"></i>
+                Candidate Performance Overview
+            </h2>
+
+            <p>
+                View overall interview performance
+                of candidates.
+            </p>
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                repeat(auto-fit, minmax(280px, 1fr));
+                gap:20px;
+                margin-top:25px;
+            ">
+        `;
+
+        data.candidates.forEach(
+            candidate => {
+
+                html += `
+                    <div class="recording-card">
+
+                        <h3>
+                            👤 ${candidate.name || "Unknown"}
+                        </h3>
+
+                        <p>
+                            📧 ${candidate.email || "N/A"}
+                        </p>
+
+                        <hr style="
+                            margin:15px 0;
+                            border:none;
+                            border-top:1px solid #ddd;
+                        ">
+
+                        <div class="recording-info">
+
+                            <div>
+                                <strong>
+                                    🏆 Overall
+                                </strong>
+                                <span>
+                                    ${candidate.overallScore}%
+                                </span>
+                            </div>
+
+                            <div>
+                                <strong>
+                                    💻 Technical
+                                </strong>
+                                <span>
+                                    ${candidate.technicalScore}%
+                                </span>
+                            </div>
+
+                            <div>
+                                <strong>
+                                    🗣️ Communication
+                                </strong>
+                                <span>
+                                    ${candidate.communicationScore}%
+                                </span>
+                            </div>
+
+                            <div>
+                                <strong>
+                                    😎 Confidence
+                                </strong>
+                                <span>
+                                    ${candidate.confidenceScore}%
+                                </span>
+                            </div>
+
+                            <div>
+                                <strong>
+                                    👔 Professionalism
+                                </strong>
+                                <span>
+                                    ${candidate.professionalismScore}%
+                                </span>
+                            </div>
+
+                            <div>
+                                <strong>
+                                    📝 Interviews
+                                </strong>
+                                <span>
+                                    ${candidate.interviewCount}
+                                </span>
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+            }
+        );
+
+        html += `
+            </div>
+        `;
+
+        section.innerHTML = html;
+
+        section.scrollIntoView({
+            behavior: "smooth"
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Candidate performance error:",
+            error
+        );
+
+        section.innerHTML = `
+            <h2>
+                <i class="fa-solid fa-chart-line"></i>
+                Candidate Performance Overview
+            </h2>
+
+            <div class="error-message">
+                ❌ ${
+                    error.message ||
+                    "Failed to load candidate performance"
+                }
+            </div>
+        `;
+    }
+}
+// ============================================================
+// MODULE 10 - DYNAMIC RECRUITER DASHBOARD STATISTICS
+// ============================================================
+
+async function loadRecruiterDashboardStats() {
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    try {
+        const response = await fetch(
+            "http://localhost:5000/api/ai/candidate-performance-overview",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error("Failed to load dashboard statistics");
+            return;
+        }
+
+        const candidates = data.candidates || [];
+
+        // Total Candidates
+        document.getElementById("totalCandidates").innerText =
+            candidates.length;
+
+        // Total Interviews
+        const totalInterviews = candidates.reduce(
+            (sum, candidate) =>
+                sum + Number(candidate.interviewCount || 0),
+            0
+        );
+
+        document.getElementById("totalInterviews").innerText =
+            totalInterviews;
+
+        // Shortlisted Candidates
+        // Candidates with overall score >= 75
+        const shortlisted = candidates.filter(
+            candidate =>
+                Number(candidate.overallScore || 0) >= 75
+        ).length;
+
+        document.getElementById("totalShortlisted").innerText =
+            shortlisted;
+
+        // Templates
+        // No template backend/table exists yet
+        document.getElementById("totalTemplates").innerText = "5";
+
+    } catch (error) {
+        console.error("Dashboard statistics error:", error);
+    }
+}
 
 
+// Load statistics when recruiter dashboard opens
+window.addEventListener("load", () => {
+    loadRecruiterDashboardStats();
+});
+// ============================================================
+// MODULE 10 - RECRUITER ANALYTICS
+// ============================================================
+
+async function loadRecruiterAnalytics() {
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    try {
+        const response = await fetch(
+            "http://localhost:5000/api/ai/candidate-performance-overview",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            alert("Failed to load recruiter analytics.");
+            return;
+        }
+
+        const candidates = data.candidates || [];
+
+        if (candidates.length === 0) {
+            alert("No candidate performance data available yet.");
+            return;
+        }
+
+        const average = (field) => {
+            const values = candidates.map(
+                candidate => Number(candidate[field] || 0)
+            );
+
+            return Math.round(
+                values.reduce((sum, value) => sum + value, 0) /
+                values.length
+            );
+        };
+
+        const averageOverall = average("overallScore");
+        const averageTechnical = average("technicalScore");
+        const averageCommunication = average("communicationScore");
+        const averageConfidence = average("confidenceScore");
+        const averageProfessionalism = average("professionalismScore");
+
+        const topCandidate = [...candidates].sort(
+            (a, b) =>
+                Number(b.overallScore || 0) -
+                Number(a.overallScore || 0)
+        )[0];
+
+        const oldAnalytics =
+            document.getElementById("recruiterAnalytics");
+
+        if (oldAnalytics) {
+            oldAnalytics.remove();
+        }
+
+        const analyticsSection = document.createElement("div");
+
+        analyticsSection.id = "recruiterAnalytics";
+        analyticsSection.className = "card";
+        analyticsSection.style.marginTop = "30px";
+
+        analyticsSection.innerHTML = `
+            <h2>📊 Recruiter Analytics</h2>
+            <p>Overall performance analysis of candidates.</p>
+
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+                gap:15px;
+                margin-top:20px;
+            ">
+
+                <div class="stat">
+                    <h2>${candidates.length}</h2>
+                    <p>Total Candidates</p>
+                </div>
+
+                <div class="stat">
+                    <h2>${averageOverall}%</h2>
+                    <p>Average Overall Score</p>
+                </div>
+
+                <div class="stat">
+                    <h2>${averageTechnical}%</h2>
+                    <p>Average Technical</p>
+                </div>
+
+                <div class="stat">
+                    <h2>${averageCommunication}%</h2>
+                    <p>Average Communication</p>
+                </div>
+
+                <div class="stat">
+                    <h2>${averageConfidence}%</h2>
+                    <p>Average Confidence</p>
+                </div>
+
+                <div class="stat">
+                    <h2>${averageProfessionalism}%</h2>
+                    <p>Average Professionalism</p>
+                </div>
+
+            </div>
+
+            <div style="
+                margin-top:25px;
+                padding:20px;
+                border-radius:10px;
+                background:#f5f5f5;
+            ">
+                <h3>🏆 Top Candidate</h3>
+                <p>
+                    <strong>${topCandidate.name}</strong>
+                </p>
+                <p>
+                    Overall Score:
+                    <strong>${Number(topCandidate.overallScore || 0)}%</strong>
+                </p>
+                <p>
+                    Technical:
+                    ${Number(topCandidate.technicalScore || 0)}%
+                </p>
+                <p>
+                    Communication:
+                    ${Number(topCandidate.communicationScore || 0)}%
+                </p>
+            </div>
+        `;
+
+        const cardsContainer = document.querySelector(".cards");
+
+        if (cardsContainer) {
+            cardsContainer.parentNode.insertBefore(
+                analyticsSection,
+                cardsContainer.nextSibling
+            );
+        }
+
+        analyticsSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    } catch (error) {
+        console.error("Recruiter Analytics Error:", error);
+        alert("Unable to load recruiter analytics.");
+    }
+}
+// ============================================================
+// MODULE 10 - COMPARE CANDIDATES
+// ============================================================
+
+async function compareCandidates() {
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    try {
+        const response = await fetch(
+            "http://localhost:5000/api/ai/candidate-performance-overview",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            alert("Failed to load candidate data.");
+            return;
+        }
+
+        const candidates = data.candidates || [];
+
+        if (candidates.length < 2) {
+            alert("At least 2 candidates are required for comparison.");
+            return;
+        }
+
+        const oldComparison =
+            document.getElementById("candidateComparison");
+
+        if (oldComparison) {
+            oldComparison.remove();
+        }
+
+        const comparisonSection = document.createElement("div");
+
+        comparisonSection.id = "candidateComparison";
+        comparisonSection.className = "card";
+        comparisonSection.style.marginTop = "30px";
+
+        comparisonSection.innerHTML = `
+            <h2>⚖️ Compare Candidates</h2>
+            <p>Select two candidates to compare their performance.</p>
+
+            <div style="
+                display:flex;
+                gap:15px;
+                flex-wrap:wrap;
+                margin-top:20px;
+            ">
+
+                <select id="candidateOne"
+                    style="padding:10px; border-radius:8px; min-width:220px;">
+                    <option value="">Select Candidate 1</option>
+                    ${candidates.map(candidate => `
+                        <option value="${candidate.candidateId}">
+                            ${candidate.name}
+                        </option>
+                    `).join("")}
+                </select>
+
+                <select id="candidateTwo"
+                    style="padding:10px; border-radius:8px; min-width:220px;">
+                    <option value="">Select Candidate 2</option>
+                    ${candidates.map(candidate => `
+                        <option value="${candidate.candidateId}">
+                            ${candidate.name}
+                        </option>
+                    `).join("")}
+                </select>
+
+                <button class="btn" onclick="showCandidateComparison()">
+                    Compare
+                </button>
+
+            </div>
+
+            <div id="comparisonResult" style="margin-top:25px;"></div>
+        `;
+
+        const cardsContainer = document.querySelector(".cards");
+
+        if (cardsContainer) {
+            cardsContainer.parentNode.insertBefore(
+                comparisonSection,
+                cardsContainer.nextSibling
+            );
+        }
+
+        comparisonSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+        // Store candidates for comparison
+        window.recruiterCandidates = candidates;
+
+    } catch (error) {
+        console.error("Compare Candidates Error:", error);
+        alert("Unable to load candidate comparison.");
+    }
+}
+
+
+function showCandidateComparison() {
+
+    const candidateOneId =
+        document.getElementById("candidateOne").value;
+
+    const candidateTwoId =
+        document.getElementById("candidateTwo").value;
+
+    if (!candidateOneId || !candidateTwoId) {
+        alert("Please select both candidates.");
+        return;
+    }
+
+    if (candidateOneId === candidateTwoId) {
+        alert("Please select two different candidates.");
+        return;
+    }
+
+    const candidates = window.recruiterCandidates || [];
+
+    const candidateOne = candidates.find(
+        candidate =>
+            String(candidate.candidateId) === String(candidateOneId)
+    );
+
+    const candidateTwo = candidates.find(
+        candidate =>
+            String(candidate.candidateId) === String(candidateTwoId)
+    );
+
+    if (!candidateOne || !candidateTwo) {
+        alert("Candidate information not found.");
+        return;
+    }
+
+    const metrics = [
+        ["Overall Score", "overallScore"],
+        ["Technical Score", "technicalScore"],
+        ["Communication", "communicationScore"],
+        ["Confidence", "confidenceScore"],
+        ["Professionalism", "professionalismScore"]
+    ];
+
+    const result =
+        document.getElementById("comparisonResult");
+
+    result.innerHTML = `
+        <h3>📊 Performance Comparison</h3>
+
+        <div style="overflow-x:auto; margin-top:15px;">
+
+            <table style="
+                width:100%;
+                border-collapse:collapse;
+                text-align:center;
+            ">
+
+                <thead>
+                    <tr>
+                        <th style="padding:12px;">Metric</th>
+                        <th style="padding:12px;">
+                            ${candidateOne.name}
+                        </th>
+                        <th style="padding:12px;">
+                            ${candidateTwo.name}
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    ${metrics.map(metric => `
+                        <tr>
+                            <td style="padding:12px;">
+                                <strong>${metric[0]}</strong>
+                            </td>
+
+                            <td style="padding:12px;">
+                                ${Number(candidateOne[metric[1]] || 0)}%
+                            </td>
+
+                            <td style="padding:12px;">
+                                ${Number(candidateTwo[metric[1]] || 0)}%
+                            </td>
+                        </tr>
+                    `).join("")}
+
+                </tbody>
+
+            </table>
+
+        </div>
+    `;
+}
+// ============================================================
+// MODULE 10 - INTERVIEW TEMPLATES
+// ============================================================
+
+async function openInterviewTemplates() {
+
+    const section =
+        document.getElementById("interviewTemplatesSection");
+
+    if (!section) return;
+
+    section.style.display = "block";
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    await loadInterviewTemplates();
+}
+
+
+// CREATE INTERVIEW TEMPLATE
+async function createInterviewTemplate() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login again.");
+        return;
+    }
+
+    const title =
+        document.getElementById("templateTitle").value.trim();
+
+    const jobRole =
+        document.getElementById("templateJobRole").value.trim();
+
+    const description =
+        document.getElementById("templateDescription").value.trim();
+
+    const questionsText =
+        document.getElementById("templateQuestions").value.trim();
+
+    if (!title || !jobRole) {
+        alert("Please enter Template Title and Job Role.");
+        return;
+    }
+
+    const questions = questionsText
+        ? questionsText
+            .split("\n")
+            .map(question => question.trim())
+            .filter(Boolean)
+        : [];
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/interview-templates",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+
+                body: JSON.stringify({
+                    title,
+                    jobRole,
+                    description,
+                    questions
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            alert(
+                data.message ||
+                "Failed to create interview template."
+            );
+            return;
+        }
+
+        alert("✅ Interview template created successfully!");
+
+        // Clear form
+        document.getElementById("templateTitle").value = "";
+        document.getElementById("templateJobRole").value = "";
+        document.getElementById("templateDescription").value = "";
+        document.getElementById("templateQuestions").value = "";
+
+        // Reload templates
+        await loadInterviewTemplates();
+
+        // Update top Templates count
+        document.getElementById("totalTemplates").innerText =
+            data.template ? "1" : "0";
+
+    } catch (error) {
+
+        console.error(
+            "Create Interview Template Error:",
+            error
+        );
+
+        alert("❌ Unable to connect to the server.");
+    }
+}
+
+
+// LOAD INTERVIEW TEMPLATES
+async function loadInterviewTemplates() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    const container =
+        document.getElementById("templatesList");
+
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="loading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Loading templates...
+        </div>
+    `;
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/interview-templates",
+            {
+                method: "GET",
+
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            container.innerHTML = `
+                <div class="error-message">
+                    ❌ ${
+                        data.message ||
+                        "Unable to load templates."
+                    }
+                </div>
+            `;
+            return;
+        }
+
+        if (!data.templates || data.templates.length === 0) {
+
+            container.innerHTML = `
+                <div class="no-recordings">
+                    <h3>📄 No Interview Templates</h3>
+                    <p>Create your first interview template above.</p>
+                </div>
+            `;
+
+            document.getElementById("totalTemplates").innerText = "0";
+
+            return;
+        }
+
+        document.getElementById("totalTemplates").innerText =
+            data.templates.length;
+
+        container.innerHTML = `
+            <h3>📋 Your Interview Templates</h3>
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(280px, 1fr));
+                gap:20px;
+                margin-top:20px;
+            ">
+                ${data.templates.map(template => `
+
+                    <div class="recording-card">
+
+                        <h3>
+                            📄 ${template.title}
+                        </h3>
+
+                        <p>
+                            <strong>Job Role:</strong>
+                            ${template.job_role}
+                        </p>
+
+                        <p>
+                            ${
+                                template.description ||
+                                "No description provided."
+                            }
+                        </p>
+
+                        <hr style="
+                            margin:15px 0;
+                            border:none;
+                            border-top:1px solid #ddd;
+                        ">
+
+                        <h4>📝 Questions</h4>
+
+                        <ol>
+                            ${
+                                Array.isArray(template.questions)
+                                    ? template.questions
+                                        .map(question =>
+                                            `<li>${question}</li>`
+                                        )
+                                        .join("")
+                                    : ""
+                            }
+                        </ol>
+
+                    </div>
+
+                `).join("")}
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Load Interview Templates Error:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="error-message">
+                ❌ Failed to connect to the server.
+            </div>
+        `;
+    }
+}
+// ============================================================
+// MODULE 10 - RECRUITER REPORT
+// ============================================================
+
+async function generateRecruiterReport() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please login again.");
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:5000/api/ai/candidate-performance-overview",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            alert(
+                data.message ||
+                "Failed to generate recruiter report."
+            );
+            return;
+        }
+
+        const candidates = data.candidates || [];
+
+        if (candidates.length === 0) {
+            alert("No candidate performance data available.");
+            return;
+        }
+
+        const average = (field) => {
+
+            const values = candidates.map(
+                candidate => Number(candidate[field] || 0)
+            );
+
+            return Math.round(
+                values.reduce(
+                    (sum, value) => sum + value,
+                    0
+                ) / values.length
+            );
+        };
+
+        const totalInterviews = candidates.reduce(
+            (sum, candidate) =>
+                sum + Number(candidate.interviewCount || 0),
+            0
+        );
+
+        const shortlisted = candidates.filter(
+            candidate =>
+                Number(candidate.overallScore || 0) >= 75
+        ).length;
+
+        const topCandidate = [...candidates].sort(
+            (a, b) =>
+                Number(b.overallScore || 0) -
+                Number(a.overallScore || 0)
+        )[0];
+
+        const reportDate =
+            new Date().toLocaleString();
+
+        let report = "";
+
+        report += "SMART HIRE AI - RECRUITER REPORT\n";
+        report += "====================================\n\n";
+
+        report += `Generated: ${reportDate}\n\n`;
+
+        report += "SUMMARY\n";
+        report += "-------\n";
+        report += `Total Candidates: ${candidates.length}\n`;
+        report += `Total Interviews: ${totalInterviews}\n`;
+        report += `Shortlisted Candidates: ${shortlisted}\n\n`;
+
+        report += "AVERAGE PERFORMANCE\n";
+        report += "-------------------\n";
+        report += `Overall Score: ${average("overallScore")}%\n`;
+        report += `Technical Score: ${average("technicalScore")}%\n`;
+        report += `Communication Score: ${average("communicationScore")}%\n`;
+        report += `Confidence Score: ${average("confidenceScore")}%\n`;
+        report += `Professionalism Score: ${average("professionalismScore")}%\n\n`;
+
+        report += "TOP CANDIDATE\n";
+        report += "-------------\n";
+        report += `Name: ${topCandidate.name || "Unknown"}\n`;
+        report += `Email: ${topCandidate.email || "N/A"}\n`;
+        report += `Overall Score: ${Number(topCandidate.overallScore || 0)}%\n`;
+        report += `Technical Score: ${Number(topCandidate.technicalScore || 0)}%\n`;
+        report += `Communication Score: ${Number(topCandidate.communicationScore || 0)}%\n`;
+        report += `Confidence Score: ${Number(topCandidate.confidenceScore || 0)}%\n`;
+        report += `Professionalism Score: ${Number(topCandidate.professionalismScore || 0)}%\n\n`;
+
+        report += "CANDIDATE PERFORMANCE\n";
+        report += "---------------------\n\n";
+
+        candidates.forEach((candidate, index) => {
+
+            report += `${index + 1}. ${candidate.name || "Unknown"}\n`;
+            report += `   Email: ${candidate.email || "N/A"}\n`;
+            report += `   Interviews: ${candidate.interviewCount || 0}\n`;
+            report += `   Overall: ${candidate.overallScore || 0}%\n`;
+            report += `   Technical: ${candidate.technicalScore || 0}%\n`;
+            report += `   Communication: ${candidate.communicationScore || 0}%\n`;
+            report += `   Confidence: ${candidate.confidenceScore || 0}%\n`;
+            report += `   Professionalism: ${candidate.professionalismScore || 0}%\n\n`;
+
+        });
+
+        report += "====================================\n";
+        report += "Generated by SmartHire AI\n";
+
+        const blob = new Blob(
+            [report],
+            { type: "text/plain" }
+        );
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+        link.download =
+            "SmartHire_Recruiter_Report.txt";
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        alert("✅ Recruiter report generated successfully!");
+
+    } catch (error) {
+
+        console.error(
+            "Recruiter Report Error:",
+            error
+        );
+
+        alert(
+            "❌ Unable to generate recruiter report."
+        );
+    }
+}
 // ============================================
 // LOGOUT
 // ============================================
@@ -950,6 +2088,8 @@ function logout() {
         "login.html";
 
 }
+
+
 
 
 </script>

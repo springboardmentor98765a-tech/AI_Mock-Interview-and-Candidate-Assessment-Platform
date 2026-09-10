@@ -34,15 +34,32 @@ export const verifyToken = (req, res, next) => {
         });
     }
 };
-
 // =========================
 // Role-Based Access Control
 // =========================
 export const authorizeRoles = (...allowedRoles) => {
     return (req, res, next) => {
 
-        // Check if user role is allowed
-        if (!allowedRoles.includes(req.user.role)) {
+        const userRole =
+            String(req.user.role || "")
+                .trim()
+                .toUpperCase();
+
+        const roles =
+            allowedRoles.map(role =>
+                String(role)
+                    .trim()
+                    .toUpperCase()
+            );
+
+        console.log(
+            "RBAC:",
+            userRole,
+            "Allowed:",
+            roles
+        );
+
+        if (!roles.includes(userRole)) {
             return res.status(403).json({
                 success: false,
                 message: "Access Forbidden. You do not have permission."

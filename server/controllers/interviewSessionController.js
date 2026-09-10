@@ -1158,3 +1158,159 @@ export const streamRecruiterRecording = async (req, res) => {
     }
 
 };
+// ============================================================
+// MODULE 10 - CANDIDATE INTERVIEW HISTORY
+// ============================================================
+
+export const getCandidateInterviewHistory = async (req, res) => {
+    try {
+        const candidateId = req.user.id;
+
+        const result = await pool.query(
+            `
+            SELECT
+                s.id AS session_id,
+                s.interview_id,
+                s.status,
+                s.start_time,
+                s.end_time,
+                s.duration,
+                s.questions_attempted,
+
+                uba.overall_score,
+                uba.technical_relevance_score,
+                uba.communication_score,
+                uba.confidence_score,
+                uba.professionalism_score,
+                uba.performance_rating
+
+            FROM "InterviewSession" s
+
+            LEFT JOIN "InterviewBehaviorAnalysis" uba
+                ON uba.session_id = s.id
+                AND uba.candidate_id = s.candidate_id
+
+            WHERE s.candidate_id = $1
+
+            ORDER BY s.start_time DESC
+            `,
+            [candidateId]
+        );
+
+        res.status(200).json({
+            success: true,
+            history: result.rows
+        });
+
+    } catch (error) {
+        console.error(
+            "Candidate Interview History Error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to load interview history",
+            error: error.message
+        });
+    }
+};
+
+
+// ============================================================
+// MODULE 10 - CANDIDATE PERFORMANCE TRENDS
+// ============================================================
+
+export const getCandidatePerformanceTrends = async (req, res) => {
+    try {
+        const candidateId = req.user.id;
+
+        const result = await pool.query(
+            `
+            SELECT
+                uba.session_id,
+                uba.overall_score,
+                uba.technical_relevance_score,
+                uba.communication_score,
+                uba.confidence_score,
+                uba.professionalism_score,
+                uba.performance_rating,
+                uba.analyzed_at
+
+            FROM "InterviewBehaviorAnalysis" uba
+
+            WHERE uba.candidate_id = $1
+
+            ORDER BY uba.analyzed_at ASC
+            `,
+            [candidateId]
+        );
+
+        res.status(200).json({
+            success: true,
+            trends: result.rows
+        });
+
+    } catch (error) {
+        console.error(
+            "Candidate Performance Trends Error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to load performance trends",
+            error: error.message
+        });
+    }
+};
+// ============================================================
+// ADMIN - INTERVIEW ACTIVITY MONITORING
+// ============================================================
+export const getAdminInterviewActivity = async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                s.id AS session_id,
+                s.candidate_id,
+                u.name AS candidate_name,
+                u.email AS candidate_email,
+                s.interview_id,
+                s.status,
+                s.start_time,
+                s.end_time,
+                s.duration,
+                s.questions_attempted
+            FROM "InterviewSession" s
+            LEFT JOIN users u
+                ON u.id::text = s.candidate_id::text
+            ORDER BY s.start_time DESC NULLS LAST
+        `);
+
+        const summary = await pool.query(`
+            SELECT
+                COUNT(*) AS total_interviews,
+                COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_interviews,
+                COUNT(*) FILTER (
+                    WHERE status IN ('STARTED', 'RESUMED')
+                ) AS active_interviews,
+                COUNT(*) FILTER (WHERE status = 'PAUSED') AS paused_interviews
+            FROM "InterviewSession"
+        `);
+
+        res.status(200).json({
+            success: true,
+            summary: summary.rows[0],
+            activities: result.rows
+        });
+
+    } catch (error) {
+        console.error("Admin Interview Activity Error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to load interview activity",
+            error: error.message
+        });
+    }
+};
