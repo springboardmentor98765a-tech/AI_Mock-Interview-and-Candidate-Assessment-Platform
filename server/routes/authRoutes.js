@@ -55,7 +55,7 @@ router.get(
         if (req.user.role === "USER") {
 
             return res.redirect(
-                `http://127.0.0.1:5500/candidate.html?token=${token}`
+                `https://frontend-ruby-kappa-81.vercel.app/candidate.html?token=${token}`
             );
 
         }
@@ -63,7 +63,7 @@ router.get(
         if (req.user.role === "RECRUITER") {
 
             return res.redirect(
-                `http://127.0.0.1:5500/recruiter.html?token=${token}`
+                `https://frontend-ruby-kappa-81.vercel.app/recruiter.html?token=${token}`
             );
 
         }
@@ -71,13 +71,13 @@ router.get(
         if (req.user.role === "ADMIN") {
 
             return res.redirect(
-                `http://127.0.0.1:5500/admin.html?token=${token}`
+                `https://frontend-ruby-kappa-81.vercel.app/admin.html?token=${token}`
             );
 
         }
 
         res.redirect(
-            `http://127.0.0.1:5500/login.html`
+            `https://frontend-ruby-kappa-81.vercel.app/login.html`
         );
 
     }
