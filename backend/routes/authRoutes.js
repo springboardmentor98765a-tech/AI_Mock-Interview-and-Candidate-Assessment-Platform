@@ -21,8 +21,8 @@ router.post(
     body('role')
       .optional()
       .customSanitizer(v => (v ? v.toUpperCase() : v))
-      .isIn(['ADMIN', 'RECRUITER', 'USER'])
-      .withMessage('Invalid role — must be ADMIN, RECRUITER, or USER'),
+      .isIn(['USER', 'RECRUITER'])
+      .withMessage('Public registration only permits USER or RECRUITER roles'),
   ],
   validate,
   register

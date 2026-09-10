@@ -58,6 +58,11 @@ async function initDatabase() {
         ALTER COLUMN provider SET DEFAULT 'LOCAL'
     `)
 
+    // Idempotent: add is_active for admin user-status management
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true
+    `)
+
     await client.query(`
       DO $$
       BEGIN

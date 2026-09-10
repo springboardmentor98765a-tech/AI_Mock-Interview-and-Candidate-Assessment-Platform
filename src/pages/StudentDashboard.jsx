@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import interviewApi from '../services/interviewApi'
 import recordingApi from '../services/recordingApi'
+import analyticsApi from '../services/analyticsApi'
 import {
   FileText, Calendar, Award, TrendingUp,
   BarChart3, Activity, Upload, Play, Download,
@@ -15,23 +16,15 @@ import {
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 
+// upcomingInterviews: placeholder UI (scheduling feature not yet implemented)
 const upcomingInterviews = [
   { role: 'Frontend Developer', company: 'TechCorp',    date: 'Jul 30, 2025', time: '10:00 AM', mode: 'Video Call',  status: 'Scheduled', statusColor: 'blue'   },
   { role: 'React Developer',    company: 'StartupXYZ',  date: 'Aug 3, 2025',  time: '2:00 PM',  mode: 'In-Person',   status: 'Confirmed', statusColor: 'green'  },
   { role: 'Full Stack Dev',     company: 'InnovateCo',  date: 'Aug 7, 2025',  time: '11:00 AM', mode: 'Video Call',  status: 'Pending',   statusColor: 'orange' },
   { role: 'React Native Dev',   company: 'MobileFirst', date: 'Aug 12, 2025', time: '3:00 PM',  mode: 'Phone',       status: 'Scheduled', statusColor: 'blue'   },
 ]
-
-const skills = [
-  { name: 'React.js',     match: 92 },
-  { name: 'JavaScript',   match: 88 },
-  { name: 'Node.js',      match: 75 },
-  { name: 'Python',       match: 65 },
-  { name: 'SQL',          match: 80 },
-  { name: 'TypeScript',   match: 58 },
-  { name: 'Docker',       match: 42 },
-  { name: 'AWS',          match: 35 },
-]
+// NOTE: The old hardcoded `skills` array with fake percentages has been removed.
+// Resume skills are now loaded from /api/analytics/candidate (resumeSkills).
 
 function Toast({ msg, onClose }) {
   return (
@@ -83,6 +76,11 @@ function StudentDashboard() {
   const [detailLoading, setDetailLoading]       = useState(false)
   const [detailData, setDetailData]             = useState(null)
 
+  // Module 8: real analytics from /api/analytics/candidate
+  const [analytics, setAnalytics]               = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsError, setAnalyticsError]     = useState('')
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
   const handleSectionChange = (section) => setActiveSection(section)
   const displayName = user?.name ? user.name.split(' ')[0] : 'there'
@@ -91,10 +89,12 @@ function StudentDashboard() {
     let isCancelled = false
     async function loadInterviewData() {
       setInterviewHistoryLoading(true)
+      setAnalyticsLoading(true)
       try {
-        const [histRes, statsRes] = await Promise.allSettled([
+        const [histRes, statsRes, analyticsRes] = await Promise.allSettled([
           interviewApi.getHistory(),
           interviewApi.getStats(),
+          analyticsApi.getCandidateAnalytics(),
         ])
         if (!isCancelled) {
           if (histRes.status === 'fulfilled' && histRes.value?.history) {
@@ -103,11 +103,19 @@ function StudentDashboard() {
           if (statsRes.status === 'fulfilled' && statsRes.value?.stats) {
             setInterviewStats(statsRes.value.stats)
           }
+          if (analyticsRes.status === 'fulfilled' && analyticsRes.value?.success) {
+            setAnalytics(analyticsRes.value)
+          } else if (analyticsRes.status === 'rejected') {
+            setAnalyticsError(analyticsRes.reason?.message || 'Analytics unavailable')
+          }
         }
       } catch (err) {
-        console.error('Failed to load candidate interview history:', err)
+        console.error('Failed to load candidate dashboard data:', err)
       } finally {
-        if (!isCancelled) setInterviewHistoryLoading(false)
+        if (!isCancelled) {
+          setInterviewHistoryLoading(false)
+          setAnalyticsLoading(false)
+        }
       }
     }
     loadInterviewData()
@@ -138,60 +146,287 @@ function StudentDashboard() {
     e.target.value = ''
   }
 
-  // Performance data computed from real interview history
+  // Module 8: real chronological trend data from analytics API (canonical 0–100, no /10)
   const performanceData = useMemo(() => {
+    if (analytics?.trends && analytics.trends.length > 0) {
+      return analytics.trends.map(t => ({
+        interview: `Int ${t.interviewIndex}`,
+        score: t.overallScore ?? null,
+        communication: t.communication ?? null,
+        confidence: t.confidence ?? null,
+        technicalRelevance: t.technicalRelevance ?? null,
+        professionalism: t.professionalism ?? null,
+        role: t.role,
+        date: t.completedAt ? new Date(t.completedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '',
+        performanceRating: t.performanceRating,
+      }))
+    }
+    // Fallback: derive from history if analytics not yet loaded (avoids blank flash)
     if (interviewHistory.length === 0) return []
-    return [...interviewHistory].reverse().map((iv, i) => ({
+    return [...interviewHistory].slice().reverse().map((iv, i) => ({
       interview: `Int ${i + 1}`,
-      score: iv.score != null ? Number((iv.score / 10).toFixed(1)) : 0,
-      rawScore: iv.score || 0,
+      score: iv.score ?? null,          // canonical 0–100, no division
+      communication: null,
+      confidence: null,
+      technicalRelevance: null,
+      professionalism: null,
       role: iv.selected_role,
       date: iv.completed_at ? new Date(iv.completed_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '',
+      performanceRating: iv.performance_rating || null,
     }))
-  }, [interviewHistory])
+  }, [analytics, interviewHistory])
 
-  // Feedback scores from latest interview
+  // Module 8: Module 7 category averages from analytics for the radar and feedback grid
+  // These are canonical 0–100 scores — NOT legacy /10 values.
   const latestInterview = interviewHistory[0] || null
+
+  // Canonical Module 7 category scores (from analytics averages, or latest interview M7)
+  const m7CategoryAverages = analytics?.categoryAverages || null
+
+  // For the AI Feedback section: use latest interview module7_scores for single-interview detail
   const feedbackScores = useMemo(() => {
-    if (!latestInterview) {
+    const cat = latestInterview?.category_scores || {}
+    const m7s = cat.module7_scores || null
+    if (!latestInterview || !m7s) {
+      // No data — return null-safe empty set with labels only
       return [
-        { label: 'Technical',       score: 0 },
-        { label: 'Communication',   score: 0 },
-        { label: 'Problem Solving', score: 0 },
-        { label: 'Confidence',      score: 0 },
-        { label: 'Grammar',         score: 0 },
-        { label: 'Overall',         score: 0 },
+        { label: 'Communication',      score: null, pct: '30%' },
+        { label: 'Confidence',         score: null, pct: '25%' },
+        { label: 'Tech. Relevance',    score: null, pct: '30%' },
+        { label: 'Professionalism',    score: null, pct: '15%' },
+        { label: 'Overall',            score: null, pct: ''    },
       ]
     }
-    const cat = latestInterview.category_scores || {}
-    const overall = latestInterview.score != null ? Number((latestInterview.score / 10).toFixed(1)) : 0
     return [
-      { label: 'Technical',       score: cat.technical ? Number((cat.technical / 10).toFixed(1)) : overall },
-      { label: 'Communication',   score: cat.communication ? Number((cat.communication / 10).toFixed(1)) : overall },
-      { label: 'Problem Solving', score: cat.problem_solving ? Number((cat.problem_solving / 10).toFixed(1)) : overall },
-      { label: 'Confidence',      score: cat.confidence ? Number((cat.confidence / 10).toFixed(1)) : overall },
-      { label: 'Grammar',         score: cat.grammar ? Number((cat.grammar / 10).toFixed(1)) : overall },
-      { label: 'Overall',         score: overall },
+      { label: 'Communication',      score: m7s.communication?.score      ?? null, pct: '30%' },
+      { label: 'Confidence',         score: m7s.confidence?.score         ?? null, pct: '25%' },
+      { label: 'Tech. Relevance',    score: m7s.technicalRelevance?.score ?? null, pct: '30%' },
+      { label: 'Professionalism',    score: m7s.professionalism?.score    ?? null, pct: '15%' },
+      { label: 'Overall',            score: m7s.overallScore              ?? latestInterview.score ?? null, pct: '' },
     ]
   }, [latestInterview])
 
+  // Radar: Module 7 categories using analytics AVERAGES (across all interviews) when available,
+  // else falls back to latest interview M7 scores. All values are 0-100.
   const radarData = useMemo(() => {
-    return feedbackScores.filter(f => f.label !== 'Overall').map(f => ({
-      skill: f.label,
-      score: Math.round(f.score * 10),
-    }))
-  }, [feedbackScores])
+    const src = m7CategoryAverages || {
+      communication:      feedbackScores.find(f => f.label === 'Communication')?.score,
+      confidence:         feedbackScores.find(f => f.label === 'Confidence')?.score,
+      technicalRelevance: feedbackScores.find(f => f.label === 'Tech. Relevance')?.score,
+      professionalism:    feedbackScores.find(f => f.label === 'Professionalism')?.score,
+    }
+    return [
+      { skill: 'Communication',   score: src.communication      ?? 0 },
+      { skill: 'Confidence',      score: src.confidence         ?? 0 },
+      { skill: 'Technical',       score: src.technicalRelevance ?? 0 },
+      { skill: 'Professionalism', score: src.professionalism    ?? 0 },
+    ]
+  }, [m7CategoryAverages, feedbackScores])
 
+  // ── Improvement progress helpers ─────────────────────────────────────────
+  // Render a delta value as a human-readable signed string, null-safe
+  const fmtDelta = (delta) => {
+    if (delta === null || delta === undefined) return '—'
+    const n = Number(delta)
+    if (!isFinite(n)) return '—'
+    if (n > 0) return `+${n}`
+    return String(n)   // includes the minus sign
+  }
+
+  const directionIcon = (dir) => {
+    if (dir === 'improving') return '↑'
+    if (dir === 'declining') return '↓'
+    if (dir === 'stable')    return '→'
+    return '?'
+  }
+
+  const directionColor = (dir) => {
+    if (dir === 'improving') return '#10b981'
+    if (dir === 'declining') return '#ef4444'
+    return 'var(--text-muted)'
+  }
+
+  // ── Candidate Performance Report (Req 8a) ─────────────────────────────────
+  // Includes interview history, Module 7 scores, structured AI feedback, and
+  // longitudinal improvement progress. No fabricated data.
   const handleDownloadReport = () => {
-    const scoresStr = performanceData.length > 0
-      ? performanceData.map(d => `${d.interview} (${d.role}): ${d.score}/10`).join('\n')
-      : 'No completed interviews yet.'
-    const text = `PERFORMANCE REPORT\n\nCandidate: ${user?.name || 'Candidate'}\nGenerated: ${new Date().toLocaleDateString()}\n\nInterview History:\n${scoresStr}\n\nLatest AI Feedback:\n${feedbackScores.map(f => `${f.label}: ${f.score}/10`).join('\n')}\n\nAverage Score: ${interviewStats?.avgScore ? `${(interviewStats.avgScore / 10).toFixed(1)}/10` : '—'}\nHighest Score: ${interviewStats?.highestScore ? `${(interviewStats.highestScore / 10).toFixed(1)}/10` : '—'}\nCompleted Interviews: ${interviewHistory.length}\n\nAI Summary:\n${latestInterview?.overall_feedback || 'Complete mock interviews to receive comprehensive AI recommendations.'}`
+    const s = analytics?.summary
+    const hist = analytics?.trends || []
+    const ip = analytics?.improvementProgress
+
+    // Interview history lines
+    const histLines = hist.length > 0
+      ? hist.map(t => {
+          const date = t.completedAt ? new Date(t.completedAt).toLocaleDateString('en-IN') : '—'
+          const score = t.overallScore != null ? `${t.overallScore}/100` : '—'
+          return `  Interview ${t.interviewIndex} — ${t.role} (${date}): ${score}`
+        }).join('\n')
+      : '  No completed scored interviews yet.'
+
+    // Latest M7 category scores from feedbackScores
+    const catLines = feedbackScores
+      .filter(f => f.label !== 'Overall')
+      .map(f => `  ${f.label}${f.pct ? ` (${f.pct})` : ''}: ${f.score != null ? `${f.score}/100` : '—'}`)
+      .join('\n')
+    const overallLine = `  Overall: ${feedbackScores.find(f => f.label === 'Overall')?.score ?? s?.latestScore ?? '—'}/100`
+
+    // Structured M7 feedback from latest interview
+    const m7fb = latestInterview?.category_scores?.module7_feedback || null
+    const fbSection = (() => {
+      if (!m7fb) return '  Not available for this interview.'
+      const lines = []
+      if (Array.isArray(m7fb.strengths) && m7fb.strengths.length > 0) {
+        lines.push('  Strengths:')
+        m7fb.strengths.forEach(s => lines.push(`    • ${s}`))
+      }
+      if (Array.isArray(m7fb.weaknesses) && m7fb.weaknesses.length > 0) {
+        lines.push('  Weaknesses / Areas for Improvement:')
+        m7fb.weaknesses.forEach(w => lines.push(`    • ${w}`))
+      }
+      if (Array.isArray(m7fb.improvementSuggestions) && m7fb.improvementSuggestions.length > 0) {
+        lines.push('  Improvement Suggestions:')
+        m7fb.improvementSuggestions.forEach((sug, i) => lines.push(`    ${i + 1}. ${sug}`))
+      }
+      if (Array.isArray(m7fb.practiceRecommendations) && m7fb.practiceRecommendations.length > 0) {
+        lines.push('  Practice Recommendations:')
+        m7fb.practiceRecommendations.forEach(r => lines.push(`    • ${r}`))
+      }
+      if (Array.isArray(m7fb.learningResources) && m7fb.learningResources.length > 0) {
+        lines.push('  Learning Resources:')
+        m7fb.learningResources.forEach(r => {
+          lines.push(`    • ${r.topic || '—'} [${r.resourceType || '—'}]${r.reason ? ` — ${r.reason}` : ''}`)
+        })
+      }
+      return lines.length > 0 ? lines.join('\n') : '  Not available for this interview.'
+    })()
+
+    // Improvement progress section
+    const progressSection = (() => {
+      if (!ip) return '  Not available.'
+      if (ip.status === 'no_data' || ip.status === 'insufficient_history') {
+        return `  Insufficient interview history to measure progress. (${ip.message || 'Complete more scored interviews.'})` 
+      }
+      if (ip.status !== 'tracked') return '  Not available.'
+      const o = ip.overall
+      const c = ip.categories
+      const safe = (dim) => dim?.delta != null ? `${dim.delta > 0 ? '+' : ''}${dim.delta}` : '—'
+      const dir  = (dim) => dim?.direction ? ` (${dim.direction})` : ''
+      return [
+        `  Overall: ${safe(o)}${dir(o)}`,
+        `  Communication:      ${safe(c.communication)}${dir(c.communication)}`,
+        `  Confidence:         ${safe(c.confidence)}${dir(c.confidence)}`,
+        `  Technical Relevance:${safe(c.technicalRelevance)}${dir(c.technicalRelevance)}`,
+        `  Professionalism:    ${safe(c.professionalism)}${dir(c.professionalism)}`,
+        `  Interviews analysed: ${ip.interviewsAnalysed}`,
+      ].join('\n')
+    })()
+
+    const text = [
+      'CANDIDATE PERFORMANCE REPORT',
+      `Candidate: ${user?.name || 'Candidate'}`,
+      user?.email ? `Email: ${user.email}` : '',
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'INTERVIEW SUMMARY',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      `  Total Completed: ${s?.totalInterviews ?? interviewHistory.length}`,
+      `  Average Score:   ${s?.averageScore   != null ? `${s.averageScore}/100` : '—'}`,
+      `  Highest Score:   ${s?.highestScore   != null ? `${s.highestScore}/100` : '—'}`,
+      `  Latest Score:    ${s?.latestScore    != null ? `${s.latestScore}/100`  : '—'}`,
+      '',
+      'Interview History:',
+      histLines,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'MODULE 7 AI ASSESSMENT (Latest Interview)',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      catLines,
+      overallLine,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'AI FEEDBACK (Latest Interview)',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      fbSection,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'IMPROVEMENT PROGRESS (Across All Interviews)',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      progressSection,
+    ].filter(l => l !== '').join('\n')
+
     const blob = new Blob([text], { type: 'text/plain' })
     const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a'); a.href = url; a.download = 'performance_report.txt'; a.click()
-    URL.revokeObjectURL(url); showToast('Report downloaded')
+    const a    = document.createElement('a'); a.href = url; a.download = 'candidate_performance_report.txt'; a.click()
+    URL.revokeObjectURL(url); showToast('Performance report downloaded')
   }
+
+  // ── Resume Skill Gap Analysis Report (Req 8b) ─────────────────────────────
+  // Produces a genuine resume/skill analysis report, distinct from the
+  // performance report. Uses only actual stored resume analysis data.
+  const handleDownloadSkillGapReport = () => {
+    const rs = analytics?.resumeSkills
+
+    if (!rs) {
+      showToast('No resume analysis found. Upload and analyze your resume first.')
+      return
+    }
+
+    const allSkills = [
+      ...(Array.isArray(rs.skills)       ? rs.skills       : []),
+      ...(Array.isArray(rs.technologies) ? rs.technologies : []),
+    ].filter(Boolean)
+
+    const skillLines = allSkills.length > 0
+      ? allSkills.map(sk => `  • ${typeof sk === 'string' ? sk : JSON.stringify(sk)}`).join('\n')
+      : '  No skills detected in resume.'
+
+    const atsLine = rs.atsScore != null
+      ? `Resume Score (ATS): ${rs.atsScore}/100`
+      : 'Resume Score (ATS): Not available'
+
+    const analyzedLine = rs.analyzedAt
+      ? `Resume analyzed: ${new Date(rs.analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`
+      : ''
+
+    // Gap analysis: no job-specific skill set is stored in the current schema.
+    // We truthfully report this and do NOT invent gaps.
+    const gapSection = [
+      '  Target-role skill comparison is unavailable because no job-specific',
+      '  skill requirements are associated with this resume in the current system.',
+      '  To enable gap analysis: attach a target job description when analyzing your resume.',
+    ].join('\n')
+
+    const text = [
+      'RESUME SKILL ANALYSIS REPORT',
+      `Candidate: ${user?.name || 'Candidate'}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      analyzedLine,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'RESUME OVERVIEW',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      atsLine,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'DETECTED SKILLS & TECHNOLOGIES',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      skillLines,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'SKILL GAP ANALYSIS',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      gapSection,
+      '',
+      'Note: Skills above are resume-declared and not interview performance percentages.',
+    ].filter(l => l !== undefined).join('\n')
+
+    const blob = new Blob([text], { type: 'text/plain' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a'); a.href = url; a.download = 'resume_skill_analysis.txt'; a.click()
+    URL.revokeObjectURL(url); showToast('Resume skill analysis downloaded')
+  }
+
 
   const sidebarLinks = [
     {
@@ -209,6 +444,7 @@ function StudentDashboard() {
         { icon: <Calendar size={18} />, label: 'Upcoming',      section: 'upcoming'      },
         { icon: <Video size={18} />,    label: 'Mock Interview', onClick: () => navigate('/mock-interview') },
         { icon: <Brain size={18} />,    label: 'AI Feedback',   section: 'ai-feedback'  },
+        { icon: <TrendingUp size={18} />, label: 'Progress',    section: 'improvement-progress' },
       ],
     },
     {
@@ -221,17 +457,18 @@ function StudentDashboard() {
     },
   ]
 
-  const avgVal = interviewStats?.avgScore ? `${(interviewStats.avgScore / 10).toFixed(1)}/10` : (interviewHistory.length > 0 ? `${(interviewHistory.reduce((a,c) => a + (c.score||0), 0) / (interviewHistory.length * 10)).toFixed(1)}/10` : '—')
-  const highVal = interviewStats?.highestScore ? `${(interviewStats.highestScore / 10).toFixed(1)}/10` : (interviewHistory.length > 0 ? `${(Math.max(...interviewHistory.map(c => c.score||0)) / 10).toFixed(1)}/10` : '—')
-  const countVal = String(interviewStats?.completedInterviews ?? interviewHistory.length)
+  // Module 8: canonical 0-100 stats — no /10 division
+  const avgVal   = analytics?.summary?.averageScore  != null ? `${analytics.summary.averageScore}/100`  : (interviewStats?.avgScore  != null ? `${interviewStats.avgScore}/100`  : '—')
+  const highVal  = analytics?.summary?.highestScore  != null ? `${analytics.summary.highestScore}/100`  : (interviewStats?.highestScore != null ? `${interviewStats.highestScore}/100` : '—')
+  const countVal = String(analytics?.summary?.totalInterviews ?? interviewStats?.completedInterviews ?? interviewHistory.length)
 
   const statsRow = (
     <div className="stats-row" style={{ marginBottom: 20 }}>
       {[
-        { title: 'Average Score',    value: avgVal,   trend: interviewHistory.length > 0 ? 'AI Evaluated' : 'No data', icon: <Star size={22} />,     color: 'purple' },
-        { title: 'Highest Score',    value: highVal,  trend: interviewHistory.length > 0 ? 'Personal Best' : 'No data', icon: <Award size={22} />,    color: 'green'  },
-        { title: 'Total Interviews', value: countVal, trend: `${countVal} completed`, icon: <Calendar size={22} />, color: 'blue'   },
-        { title: 'Status',           value: interviewHistory.length > 0 ? 'Active' : 'Ready', trend: 'Mock Prep',       icon: <Zap size={22} />,      color: 'orange' },
+        { title: 'Average Score',    value: analyticsLoading ? '…' : avgVal,   trend: analytics?.summary?.totalInterviews > 0 ? 'AI Evaluated' : 'No data', icon: <Star size={22} />,     color: 'purple' },
+        { title: 'Highest Score',    value: analyticsLoading ? '…' : highVal,  trend: analytics?.summary?.totalInterviews > 0 ? 'Personal Best' : 'No data', icon: <Award size={22} />,    color: 'green'  },
+        { title: 'Total Interviews', value: analyticsLoading ? '…' : countVal, trend: `${countVal} completed`, icon: <Calendar size={22} />, color: 'blue'   },
+        { title: 'Status',           value: interviewHistory.length > 0 ? 'Active' : 'Ready', trend: 'Mock Prep', icon: <Zap size={22} />, color: 'orange' },
       ].map((stat, i) => (
         <motion.div className="stat-card" key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
           <div className={`stat-icon ${stat.color}`}>{stat.icon}</div>
@@ -369,12 +606,15 @@ function StudentDashboard() {
               </motion.div>
 
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-                <div className="card-header"><h2>AI Feedback Summary</h2></div>
+                <div className="card-header"><h2>Module 7 AI Feedback Summary</h2></div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-                  {feedbackScores.map((item, i) => (
+                  {feedbackScores.filter(f => f.label !== 'Overall').map((item, i) => (
                     <div key={i} style={{ textAlign: 'center', padding: '12px 8px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: item.score >= 8 ? 'var(--success)' : item.score >= 7 ? 'var(--warning)' : 'var(--danger)' }}>{item.score > 0 ? item.score : '—'}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: item.score != null && item.score >= 80 ? 'var(--success)' : item.score != null && item.score >= 60 ? 'var(--warning)' : item.score != null ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        {item.score != null ? `${item.score}` : '—'}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
+                      {item.pct && <div style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.7 }}>{item.pct}</div>}
                     </div>
                   ))}
                 </div>
@@ -428,27 +668,64 @@ function StudentDashboard() {
             {statsRow}
             <div className="dashboard-grid">
               <motion.div className="card full-width" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="card-header"><h2>Performance Over Time</h2><span className="badge blue">All Interviews</span></div>
-                {performanceData.length === 0 ? (
+                <div className="card-header">
+                  <h2>Performance Over Time</h2>
+                  <span className="badge blue">All Interviews · 0–100 scale</span>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading analytics…</div>
+                ) : analyticsError ? (
+                  <div style={{ padding: 20, color: '#ef4444', fontSize: 13 }}>Could not load analytics: {analyticsError}</div>
+                ) : performanceData.length === 0 ? (
                   <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
                     No interview data yet. Take a mock interview to see your progress curve.
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={performanceData}>
-                      <defs>
-                        <linearGradient id="scoreGrad2" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="interview" tick={{ fontSize: 12 }} />
-                      <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2.5} fill="url(#scoreGrad2)" dot={{ fill: '#6366f1', r: 5 }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <AreaChart data={performanceData}>
+                        <defs>
+                          <linearGradient id="scoreGrad2" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="interview" tick={{ fontSize: 12 }} />
+                        {/* Canonical 0–100 axis — no /10 division */}
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickCount={6} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                          formatter={(val, name) => [val != null ? `${val}/100` : '—', name]}
+                          labelFormatter={(label, payload) => {
+                            const p = payload?.[0]?.payload
+                            return p ? `${label}${p.role ? ` · ${p.role}` : ''}${p.date ? ` (${p.date})` : ''}` : label
+                          }}
+                        />
+                        <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2.5} fill="url(#scoreGrad2)" dot={{ fill: '#6366f1', r: 5 }} name="Overall" />
+                        {/* Category trends when data is available from analytics API */}
+                        {performanceData.some(d => d.communication != null) && (
+                          <Area type="monotone" dataKey="communication" stroke="#10b981" strokeWidth={1.5} fill="url(#commGrad)" dot={{ fill: '#10b981', r: 3 }} name="Communication" strokeDasharray="4 2" />
+                        )}
+                        {performanceData.some(d => d.confidence != null) && (
+                          <Area type="monotone" dataKey="confidence" stroke="#f59e0b" strokeWidth={1.5} fill="none" dot={{ fill: '#f59e0b', r: 3 }} name="Confidence" strokeDasharray="4 2" />
+                        )}
+                        {performanceData.some(d => d.technicalRelevance != null) && (
+                          <Area type="monotone" dataKey="technicalRelevance" stroke="#0ea5e9" strokeWidth={1.5} fill="none" dot={{ fill: '#0ea5e9', r: 3 }} name="Technical" strokeDasharray="4 2" />
+                        )}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', padding: '4px 0 8px', fontSize: 11, color: 'var(--text-muted)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2, display: 'inline-block' }} /> Overall</span>
+                      {performanceData.some(d => d.communication != null) && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2, display: 'inline-block' }} /> Communication</span>}
+                      {performanceData.some(d => d.confidence != null) && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 3, background: '#f59e0b', borderRadius: 2, display: 'inline-block' }} /> Confidence</span>}
+                      {performanceData.some(d => d.technicalRelevance != null) && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 3, background: '#0ea5e9', borderRadius: 2, display: 'inline-block' }} /> Technical</span>}
+                    </div>
+                  </>
                 )}
               </motion.div>
 
@@ -477,16 +754,23 @@ function StudentDashboard() {
               </motion.div>
 
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                <div className="card-header"><h2>Skill Radar</h2></div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Competency Radar</h2>
+                  <span className="badge purple" style={{ fontSize: 10 }}>{m7CategoryAverages ? 'All-interview avg' : 'Latest interview'}</span>
+                </div>
+                {radarData.every(d => d.score === 0) ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Complete interviews to populate competency radar.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Module 7 Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(val) => [`${val}/100`]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
             </div>
           </>
@@ -499,31 +783,55 @@ function StudentDashboard() {
             <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="card-header"><h2>My Reports</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { title: 'AI Performance Evaluation', desc: 'Full interview history, questions, answers, and scores', date: latestInterview ? new Date(latestInterview.completed_at).toLocaleDateString('en-IN') : 'Recent', type: 'TXT' },
-                  { title: 'Resume Skill Gap Analysis',    desc: 'Skill match scores and role recommendations', date: 'Active', type: 'TXT' },
-                ].map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FileText size={20} color="#6366f1" />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{r.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{r.desc}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{r.date} · {r.type}</div>
-                      </div>
+                {/* Performance Report */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={20} color="#6366f1" />
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-outline btn-sm" onClick={() => { if (latestInterview) openInterviewDetail(latestInterview.id); else showToast('No interview reports yet') }}><Eye size={13} /> View</button>
-                      <button className="btn btn-primary btn-sm" onClick={handleDownloadReport}><Download size={13} /> Download</button>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>AI Performance Evaluation</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Full interview history, Module 7 scores, AI feedback, and improvement progress</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {latestInterview ? new Date(latestInterview.completed_at).toLocaleDateString('en-IN') : 'No interviews yet'} · TXT
+                      </div>
                     </div>
                   </div>
-                ))}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => { if (latestInterview) openInterviewDetail(latestInterview.id); else showToast('No interview reports yet') }}><Eye size={13} /> View</button>
+                    <button className="btn btn-primary btn-sm" onClick={handleDownloadReport}><Download size={13} /> Download</button>
+                  </div>
+                </div>
+
+                {/* Resume Skill Gap Analysis Report */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 8, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={20} color="#10b981" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>Resume Skill Analysis</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Detected skills and technologies from your CV analysis</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {analytics?.resumeSkills?.analyzedAt
+                          ? new Date(analytics.resumeSkills.analyzedAt).toLocaleDateString('en-IN')
+                          : 'Upload resume to enable'} · TXT
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => handleSectionChange('skills')}><Eye size={13} /> View Skills</button>
+                    <button className="btn btn-primary btn-sm"
+                      onClick={handleDownloadSkillGapReport}
+                      style={{ background: '#10b981', borderColor: '#10b981' }}
+                    ><Download size={13} /> Download</button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </>
         )
+
 
       case 'upcoming':
         return (
@@ -566,14 +874,20 @@ function StudentDashboard() {
             {statsRow}
             <div className="dashboard-grid">
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="card-header"><h2>AI Feedback Scores</h2><span className="badge green">{latestInterview ? 'Latest Interview' : 'Practice Ready'}</span></div>
+                <div className="card-header">
+                  <h2>Module 7 AI Assessment</h2>
+                  <span className="badge green">{latestInterview ? 'Latest Interview' : 'Practice Ready'}</span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-                  {feedbackScores.map((item, i) => (
+                  {feedbackScores.filter(f => f.label !== 'Overall').map((item, i) => (
                     <div key={i} style={{ textAlign: 'center', padding: '16px 8px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: item.score >= 8 ? 'var(--success)' : item.score >= 7 ? 'var(--warning)' : 'var(--danger)' }}>{item.score > 0 ? item.score : '—'}</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: item.score != null && item.score >= 80 ? 'var(--success)' : item.score != null && item.score >= 60 ? 'var(--warning)' : item.score != null ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        {item.score != null ? item.score : '—'}
+                      </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{item.label}</div>
+                      {item.pct && <div style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.7 }}>{item.pct}</div>}
                       <div className="progress-bar-container" style={{ marginTop: 8 }}>
-                        <div className="progress-bar-fill" style={{ width: `${item.score * 10}%`, background: item.score >= 8 ? '#10b981' : item.score >= 7 ? '#f59e0b' : '#ef4444' }} />
+                        <div className="progress-bar-fill" style={{ width: `${item.score ?? 0}%`, background: item.score != null && item.score >= 80 ? '#10b981' : item.score != null && item.score >= 60 ? '#f59e0b' : '#ef4444' }} />
                       </div>
                     </div>
                   ))}
@@ -587,81 +901,384 @@ function StudentDashboard() {
                 <Link to="/mock-interview" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Play size={16} /> Practice Now</Link>
               </motion.div>
 
+              {/* ── Module 8: Predicted Weak Areas — history-based, deterministic ── */}
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <div className="card-header"><h2>Improvement Areas</h2></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {latestInterview && Array.isArray(latestInterview.weaknesses) && latestInterview.weaknesses.length > 0 ? (
-                    latestInterview.weaknesses.map((item, i) => (
-                      <div key={i} style={{ padding: 14, background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>Key Area #{i + 1}</span>
-                          <span className="badge orange" style={{ fontSize: 11 }}>Improvement</span>
-                        </div>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{item}</p>
-                      </div>
-                    ))
-                  ) : (
-                    [
-                      { area: 'Communication',    tip: 'Practice speaking clearly and concisely. Structure answers with context, action, and results.', priority: 'High',   color: 'red'    },
-                      { area: 'Confidence',       tip: 'Maintain steady pacing and avoid filler phrases. Real-time mock sessions build confidence.',   priority: 'High',   color: 'orange' },
-                      { area: 'Technical Detail', tip: 'Provide concrete examples and trade-offs when discussing architectures and algorithms.',        priority: 'Medium', color: 'blue'   },
-                    ].map((item, i) => (
-                      <div key={i} style={{ padding: 14, background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{item.area}</span>
-                          <span className={`badge ${item.color}`} style={{ fontSize: 11 }}>{item.priority}</span>
-                        </div>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{item.tip}</p>
-                      </div>
-                    ))
+                <div className="card-header">
+                  <div>
+                    <h2>Predicted Weak Areas</h2>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Based on your interview history · Not per-interview feedback</p>
+                  </div>
+                  {analytics?.weakAreaPrediction?.metadata && (
+                    <span className="badge blue" style={{ fontSize: 10, whiteSpace: 'nowrap' }}>
+                      {analytics.weakAreaPrediction.metadata.interviewsAnalysed} interview{analytics.weakAreaPrediction.metadata.interviewsAnalysed !== 1 ? 's' : ''} analysed
+                    </span>
                   )}
                 </div>
+
+                {analyticsLoading ? (
+                  <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Analysing your interview history…</div>
+                ) : !analytics?.weakAreaPrediction ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    No interview history available for weak-area prediction yet.
+                  </div>
+                ) : analytics.weakAreaPrediction.status === 'no_data' ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    No completed interview history available for weak-area prediction.
+                  </div>
+                ) : analytics.weakAreaPrediction.status === 'insufficient_history' ? (
+                  <div style={{ padding: 20, textAlign: 'center' }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>More data needed</div>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      More interview history is needed to identify persistent weak areas. Complete additional mock interviews to enable prediction.
+                    </p>
+                  </div>
+                ) : analytics.weakAreaPrediction.status === 'no_persistent_weakness' ? (
+                  <div style={{ padding: 20, textAlign: 'center' }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>🎯</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--success)', marginBottom: 6 }}>No persistent weak areas detected</div>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      {analytics.weakAreaPrediction.message || 'Keep up the strong performance across all competency areas!'}
+                    </p>
+                  </div>
+                ) : (
+                  /* status === 'predicted' — show weak area cards */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {analytics.weakAreaPrediction.weakAreas.map((wa, i) => {
+                      const riskColor = wa.riskLevel === 'High' ? '#ef4444' : wa.riskLevel === 'Medium' ? '#f59e0b' : '#6366f1'
+                      const riskBadge = wa.riskLevel === 'High' ? 'red' : wa.riskLevel === 'Medium' ? 'orange' : 'purple'
+                      const trendIcon  = wa.trend === 'improving' ? '↗' : wa.trend === 'declining' ? '↘' : wa.trend === 'stable' ? '→' : '?'
+                      const trendColor = wa.trend === 'improving' ? 'var(--success)' : wa.trend === 'declining' ? 'var(--danger)' : 'var(--text-muted)'
+                      return (
+                        <div key={i} style={{ padding: 16, background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: `1px solid ${wa.riskLevel === 'High' ? 'rgba(239,68,68,0.2)' : 'var(--border)'}` }}>
+                          {/* Header row */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <span style={{ fontWeight: 700, fontSize: 15 }}>{wa.area}</span>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {wa.trend !== 'insufficient_data' && (
+                                <span style={{ fontSize: 13, color: trendColor, fontWeight: 600 }} title={`Trend: ${wa.trend}`}>{trendIcon} {wa.trend}</span>
+                              )}
+                              <span className={`badge ${riskBadge}`} style={{ fontSize: 11 }}>{wa.riskLevel} Risk</span>
+                            </div>
+                          </div>
+
+                          {/* Score metrics */}
+                          <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 12 }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Avg: </span>
+                              <span style={{ fontWeight: 700, color: riskColor }}>{wa.averageScore}/100</span>
+                            </div>
+                            <div style={{ fontSize: 12 }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Recent: </span>
+                              <span style={{ fontWeight: 600 }}>{wa.recentScore}/100</span>
+                            </div>
+                            <div style={{ fontSize: 12 }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Low in: </span>
+                              <span style={{ fontWeight: 600 }}>{wa.lowScoreCount}/{wa.sampleSize} sessions</span>
+                            </div>
+                          </div>
+
+                          {/* Risk indicator bar */}
+                          <div className="progress-bar-container" style={{ marginBottom: 10 }}>
+                            <div className="progress-bar-fill" style={{ width: `${wa.riskIndicator}%`, background: riskColor, opacity: 0.85 }} />
+                          </div>
+
+                          {/* Reason */}
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10, fontStyle: 'italic' }}>
+                            {wa.reason}
+                          </p>
+
+                          {/* Targeted recommendations */}
+                          {wa.recommendations && wa.recommendations.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Targeted tips</div>
+                              <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {wa.recommendations.map((rec, j) => (
+                                  <li key={j} style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Disclaimer */}
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '8px 12px', background: 'rgba(99,102,241,0.05)', borderRadius: 6, borderLeft: '3px solid rgba(99,102,241,0.3)' }}>
+                      Risk level is a deterministic metric derived from your score history. It is not a statistically calibrated probability.
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </div>
           </>
         )
 
       case 'skills':
+        // Module 8: real resume skills from analytics API + Module 7 competency analytics
         return (
           <>
             {statsRow}
             <div className="dashboard-grid">
+              {/* ── Module 7 Competency Analytics (real aggregated data) ── */}
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="card-header"><h2>Skill Breakdown</h2><span className="badge blue">All Skills</span></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {skills.map((skill, i) => (
-                    <div key={i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>{skill.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: getBarColor(skill.match) }}>{skill.match}%</span>
-                          <span className={`badge ${skill.match >= 80 ? 'green' : skill.match >= 60 ? 'blue' : 'orange'}`} style={{ fontSize: 11 }}>
-                            {skill.match >= 80 ? 'Expert' : skill.match >= 60 ? 'Proficient' : 'Learning'}
+                <div className="card-header">
+                  <h2>Competency Analytics</h2>
+                  <span className="badge blue" style={{ fontSize: 10 }}>Module 7 · All Interviews</span>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
+                ) : m7CategoryAverages ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {[
+                      { label: 'Communication',      score: m7CategoryAverages.communication,      pct: '30%', color: '#6366f1' },
+                      { label: 'Technical Relevance',score: m7CategoryAverages.technicalRelevance,  pct: '30%', color: '#0ea5e9' },
+                      { label: 'Confidence',         score: m7CategoryAverages.confidence,          pct: '25%', color: '#10b981' },
+                      { label: 'Professionalism',    score: m7CategoryAverages.professionalism,     pct: '15%', color: '#f59e0b' },
+                    ].map((cat, i) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 14, fontWeight: 500 }}>
+                            {cat.label} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cat.pct}</span>
                           </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {cat.score != null ? (
+                              <>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: getBarColor(cat.score) }}>{cat.score}/100</span>
+                                <span className={`badge ${cat.score >= 80 ? 'green' : cat.score >= 60 ? 'blue' : 'orange'}`} style={{ fontSize: 11 }}>
+                                  {cat.score >= 80 ? 'Strong' : cat.score >= 60 ? 'Developing' : 'Needs Work'}
+                                </span>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="progress-bar-container">
+                          <div className="progress-bar-fill" style={{ width: `${cat.score ?? 0}%`, background: cat.color }} />
                         </div>
                       </div>
-                      <div className="progress-bar-container">
-                        <div className="progress-bar-fill" style={{ width: `${skill.match}%`, background: getBarColor(skill.match) }}></div>
-                      </div>
+                    ))}
+                    <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border-light)', paddingTop: 10 }}>
+                      These are your average Module 7 competency scores across all completed interviews.
+                      Weights: Communication 30% · Technical 30% · Confidence 25% · Professionalism 15%.
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    Complete AI mock interviews to see competency analytics.
+                  </div>
+                )}
               </motion.div>
+
+              {/* ── Competency Radar ── */}
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <div className="card-header"><h2>Skill Radar</h2></div>
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Radar name="Your Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Competency Radar</h2>
+                  <span className="badge purple" style={{ fontSize: 10 }}>{m7CategoryAverages ? 'All-interview avg' : 'Latest interview'}</span>
+                </div>
+                {radarData.every(d => d.score === 0) ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Complete interviews to populate radar.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Your Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(val) => [`${val}/100`]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                )}
+              </motion.div>
+
+              {/* ── Resume-Derived Skills (real data, no fake percentages) ── */}
+              <motion.div className="card full-width" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                <div className="card-header">
+                  <h2>Resume Skills</h2>
+                  <span className="badge gray" style={{ fontSize: 10 }}>From your CV analysis</span>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading resume data…</div>
+                ) : analytics?.resumeSkills ? (() => {
+                  const rs = analytics.resumeSkills
+                  const allSkills = [
+                    ...(Array.isArray(rs.skills) ? rs.skills : []),
+                    ...(Array.isArray(rs.technologies) ? rs.technologies : []),
+                  ].filter(Boolean)
+                  return (
+                    <div>
+                      {rs.atsScore != null && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'var(--success-bg)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.2)', marginBottom: 14, fontSize: 13 }}>
+                          <CheckCircle size={14} color="var(--success)" />
+                          <span>ATS Resume Score: <strong style={{ color: 'var(--success)' }}>{rs.atsScore}/100</strong></span>
+                        </div>
+                      )}
+                      {allSkills.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {allSkills.map((sk, i) => (
+                            <span key={i} style={{ padding: '4px 12px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 20, fontSize: 13, color: 'var(--text-primary)' }}>
+                              {typeof sk === 'string' ? sk : JSON.stringify(sk)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No skills found in resume analysis.</div>
+                      )}
+                      {rs.analyzedAt && (
+                        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+                          From resume analyzed {new Date(rs.analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.
+                          <span style={{ marginLeft: 6 }}>These are resume-declared skills, not interview performance percentages.</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })() : (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    No resume skill data available. Upload and analyze your resume to see skills here.
+                  </div>
+                )}
               </motion.div>
             </div>
           </>
         )
+
+      case 'improvement-progress': {
+        // Module 8 Req 7 — Longitudinal Improvement Progress
+        const ip = analytics?.improvementProgress
+        const CATS = [
+          { key: 'communication',      label: 'Communication',      color: '#6366f1', pct: '30%' },
+          { key: 'confidence',         label: 'Confidence',         color: '#10b981', pct: '25%' },
+          { key: 'technicalRelevance', label: 'Technical Relevance',color: '#0ea5e9', pct: '30%' },
+          { key: 'professionalism',    label: 'Professionalism',    color: '#f59e0b', pct: '15%' },
+        ]
+
+        // Helper: render a single metric card
+        const MetricCard = ({ label, dim, subtitle }) => {
+          const isTracked = dim?.status === 'tracked'
+          const dir    = isTracked ? dim.direction : null
+          const icon   = directionIcon(dir)
+          const color  = directionColor(dir)
+          const delta  = isTracked ? fmtDelta(dim.delta) : null
+          return (
+            <div style={{ padding: '16px 18px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{label}</div>
+                  {subtitle && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{subtitle}</div>}
+                </div>
+                {isTracked && (
+                  <span className={`badge ${dir === 'improving' ? 'green' : dir === 'declining' ? 'red' : 'gray'}`} style={{ fontSize: 11 }}>
+                    {dir}
+                  </span>
+                )}
+              </div>
+              {isTracked ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 26, fontWeight: 900, color, lineHeight: 1 }}>{icon} {delta}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>points</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    Earlier avg: <strong>{dim.earlierAverage}/100</strong> → Later avg: <strong style={{ color }}>{dim.laterAverage}/100</strong>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', marginTop: 4 }}>
+                    <div style={{ height: '100%', width: `${dim.laterAverage ?? 0}%`, background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  {dim?.validCount === 1
+                    ? `Only 1 scored interview — needs 1 more to track progress.`
+                    : 'No scored data for this competency yet.'}
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <>
+            {statsRow}
+            <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="card-header">
+                <div>
+                  <h2>Improvement Progress</h2>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>How your measurable performance changed across interviews — not per-interview feedback</p>
+                </div>
+                {ip?.status === 'tracked' && (
+                  <span className="badge blue" style={{ fontSize: 10, whiteSpace: 'nowrap' }}>
+                    {ip.interviewsAnalysed} interview{ip.interviewsAnalysed !== 1 ? 's' : ''} analysed
+                  </span>
+                )}
+              </div>
+
+              {analyticsLoading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Analysing your interview history…</div>
+              ) : !ip ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No interview history available yet.</div>
+              ) : ip.status === 'no_data' ? (
+                <div style={{ padding: 30, textAlign: 'center' }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>No interviews yet</div>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>{ip.message}</p>
+                  <Link to="/mock-interview" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Play size={16} /> Start Mock Interview</Link>
+                </div>
+              ) : ip.status === 'insufficient_history' ? (
+                <div style={{ padding: 30, textAlign: 'center' }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Need one more interview</div>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
+                    {ip.message}
+                  </p>
+                  {ip.overall?.earlierAverage != null && (
+                    <div style={{ display: 'inline-block', padding: '10px 20px', background: 'rgba(99,102,241,0.06)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.15)', marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Your first interview score</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--primary)' }}>{ip.overall.earlierAverage}/100</div>
+                    </div>
+                  )}
+                  <br />
+                  <Link to="/mock-interview" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Play size={16} /> Practice Now</Link>
+                </div>
+              ) : (
+                /* status === 'tracked' */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Summary banner */}
+                  {ip.summary && (
+                    <div style={{ padding: '12px 16px', background: ip.overall.direction === 'improving' ? 'var(--success-bg)' : ip.overall.direction === 'declining' ? 'rgba(239,68,68,0.06)' : 'var(--bg-primary)', borderRadius: 8, border: `1px solid ${ip.overall.direction === 'improving' ? 'rgba(16,185,129,0.2)' : ip.overall.direction === 'declining' ? 'rgba(239,68,68,0.2)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20, fontWeight: 900, color: directionColor(ip.overall.direction) }}>
+                        {directionIcon(ip.overall.direction)}
+                      </span>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{ip.summary}</span>
+                    </div>
+                  )}
+
+                  {/* Overall metric card */}
+                  <MetricCard label="Overall Score" dim={ip.overall} subtitle="Weighted: Comm 30% · Tech 30% · Conf 25% · Prof 15%" />
+
+                  {/* Category metric cards — 2-column grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {CATS.map(cat => (
+                      <MetricCard key={cat.key} label={cat.label} dim={ip.categories[cat.key]} subtitle={cat.pct + ' weight'} />
+                    ))}
+                  </div>
+
+                  {/* Disclaimer note */}
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '8px 12px', background: 'rgba(99,102,241,0.04)', borderRadius: 6, borderLeft: '3px solid rgba(99,102,241,0.25)', lineHeight: 1.5 }}>
+                    Progress is calculated by comparing your earlier interview scores with your later scores.
+                    A difference of more than 5 points is classified as improving or declining.
+                    Progress indicators reflect measured score changes — not predicted outcomes.
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button className="btn btn-outline btn-sm" onClick={handleDownloadReport}><Download size={13} /> Download Full Report</button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )
+      }
 
       default: return null
     }

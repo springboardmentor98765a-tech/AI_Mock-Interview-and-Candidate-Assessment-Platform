@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import recordingApi from '../services/recordingApi'
 import cvApi        from '../services/cvApi'
+import analyticsApi from '../services/analyticsApi'
+import { computeShortlistInsight, getInsightStatusColor, getInsightBadgeClass } from '../services/shortlistInsight'
 import {
   Users, Briefcase, FileText, Calendar, Video, Download,
   Eye, Star, Award, TrendingUp, TrendingDown, BarChart3,
   Activity, Search, ChevronUp, ChevronDown, MessageSquare,
-  X, CheckCircle, Send, Plus, Brain, Zap, Target
+  X, CheckCircle, Send, Plus, Brain, Zap, Target, GitCompare, Lightbulb
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -51,29 +53,8 @@ const ASSESSMENTS = [
   { candidate: 'Pooja Mehta',  type: 'Aptitude',        score: 62, duration: '30 min', date: 'Jul 19, 2025', status: 'Completed' },
 ]
 
-const skillsData = [
-  { skill: 'Technical',        A: 85, B: 72 },
-  { skill: 'Communication',   A: 78, B: 68 },
-  { skill: 'Problem Solving', A: 90, B: 75 },
-  { skill: 'Leadership',      A: 65, B: 80 },
-  { skill: 'Teamwork',        A: 82, B: 78 },
-  { skill: 'Creativity',      A: 70, B: 85 },
-]
-
-const interviewData = [
-  { week: 'Week 1', completed: 12, scheduled: 18 },
-  { week: 'Week 2', completed: 15, scheduled: 14 },
-  { week: 'Week 3', completed: 18, scheduled: 20 },
-  { week: 'Week 4', completed: 22, scheduled: 16 },
-]
-
-const scoreDistribution = [
-  { range: '90–100', count: 2 },
-  { range: '80–89',  count: 3 },
-  { range: '70–79',  count: 4 },
-  { range: '60–69',  count: 2 },
-  { range: '<60',    count: 1 },
-]
+// skillsData and scoreDistribution are computed inside the component via useMemo
+// from real analytics API data — the module-scope mock arrays were removed.
 
 function RecBadge({ rec }) {
   const map = { 'Highly Recommended': 'green', 'Recommended': 'blue', 'Needs Review': 'orange', 'Not Recommended': 'red', 'Consider': 'orange' }
@@ -587,6 +568,10 @@ function RecruiterDashboard() {
   const [msgText, setMsgText] = useState('')
   const PAGE_SIZE = 5
 
+  // Req 11 — Candidate comparison: Set of interviewId strings
+  const [compareSet, setCompareSet] = useState(new Set())
+  const MAX_COMPARE = 4
+
   // Live AI interview results from backend
   const [aiResults, setAiResults]       = useState([])
   const [aiResultsLoading, setAiResultsLoading] = useState(false)
@@ -601,18 +586,35 @@ function RecruiterDashboard() {
   const [cvError,   setCvError]   = useState('')
   const [cvTriggerBusy, setCvTriggerBusy] = useState(false)
 
+  // Module 8: recruiter analytics from /api/analytics/recruiter
+  const [analytics,        setAnalytics]        = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     async function loadResults() {
       setAiResultsLoading(true)
+      setAnalyticsLoading(true)
       setAiResultsError('')
       try {
-        const data = await recordingApi.getResults()
-        if (!cancelled) setAiResults(data.results || [])
+        const [resultsRes, analyticsRes] = await Promise.allSettled([
+          recordingApi.getResults(),
+          analyticsApi.getRecruiterAnalytics(),
+        ])
+        if (!cancelled) {
+          if (resultsRes.status === 'fulfilled') setAiResults(resultsRes.value.results || [])
+          else setAiResultsError(resultsRes.reason?.message || 'Failed to load')
+          if (analyticsRes.status === 'fulfilled' && analyticsRes.value?.success) {
+            setAnalytics(analyticsRes.value)
+          }
+        }
       } catch (e) {
         if (!cancelled) setAiResultsError(e.message)
       } finally {
-        if (!cancelled) setAiResultsLoading(false)
+        if (!cancelled) {
+          setAiResultsLoading(false)
+          setAnalyticsLoading(false)
+        }
       }
     }
     loadResults()
@@ -665,37 +667,77 @@ function RecruiterDashboard() {
     }
   }
 
-  // Real candidates mapped from actual AI interview database results
+  // Real candidates: use analytics candidateRankings (merit-based) when available,
+  // otherwise fall back to aiResults in received order.
   const realCandidates = useMemo(() => {
+    // Prefer analytics candidateRankings which provides proper merit-based rank
+    if (analytics?.candidateRankings && analytics.candidateRankings.length > 0) {
+      return analytics.candidateRankings.map(r => {
+        // Backend analytics returns overallScore; fall back to score for compatibility
+        const score = r.overallScore ?? r.score
+        const rec = r.hireRecommendation || (
+          score >= 85 ? 'Highly Recommended' :
+          score >= 70 ? 'Recommended' :
+          score >= 50 ? 'Needs Review' : 'Not Recommended'
+        )
+        return {
+          id:               r.interviewId,
+          interviewId:      r.interviewId,
+          rank:             r.rank,           // merit-based rank from backend
+          name:             r.candidateName || 'Candidate',
+          email:            r.candidateEmail || '—',
+          role:             r.role || 'General',
+          interviewType:    r.interviewType || 'Mixed',
+          difficulty:       r.difficulty || 'Medium',
+          // Authentic score columns: interview score is the real AI score
+          interviewScore:   score != null ? Number(score) : null,
+          // resumeScore: only available if backend provides it explicitly
+          resumeScore:      r.resumeScore != null ? Number(r.resumeScore) : null,
+          finalScore:       score != null ? Number(score) : 0,
+          performanceRating: r.performanceRating || null,
+          rec,
+          date:             r.completedAt ? new Date(r.completedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+          duration:         r.duration || 0,
+          questionsAnswered: r.questionsAnswered || 0,
+          recordingCount:   0,
+          recordingId:      null,
+          overallFeedback:  r.overallFeedback,
+          strengths:        r.strengths,
+          weaknesses:       r.weaknesses,
+          categoryScores:   r.categoryScores,
+        }
+      })
+    }
+    // Fallback: map from aiResults (no merit rank guaranteed, but preserves UI)
     return (aiResults || []).map((r, i) => {
       const score = r.score != null ? Number(r.score) : 0
       const rec = r.hire_recommendation || (score >= 85 ? 'Highly Recommended' : score >= 70 ? 'Recommended' : score >= 50 ? 'Needs Review' : 'Not Recommended')
       return {
-        id:                r.interview_id,
-        interviewId:       r.interview_id,
-        rank:              i + 1,
-        name:              r.candidate_name || 'Candidate',
-        email:             r.candidate_email || '—',
-        role:              r.role || 'General',
-        interviewType:     r.interview_type || 'Mixed',
-        difficulty:        r.difficulty || 'Medium',
-        resumeScore:       score,
-        interviewScore:    score,
-        aiScore:           score,
-        finalScore:        score,
-        rec:               rec,
-        date:              r.completed_at ? new Date(r.completed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-        duration:          r.duration || 0,
+        id:               r.interview_id,
+        interviewId:      r.interview_id,
+        rank:             i + 1,   // position-based fallback
+        name:             r.candidate_name || 'Candidate',
+        email:            r.candidate_email || '—',
+        role:             r.role || 'General',
+        interviewType:    r.interview_type || 'Mixed',
+        difficulty:       r.difficulty || 'Medium',
+        interviewScore:   score,
+        resumeScore:      null,   // not available in fallback path
+        finalScore:       score,
+        performanceRating: null,
+        rec,
+        date:             r.completed_at ? new Date(r.completed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+        duration:         r.duration || 0,
         questionsAnswered: r.questions_answered || 0,
-        recordingCount:    Number(r.recording_count) || 0,
-        recordingId:       r.recording_id,
-        overallFeedback:   r.overall_feedback,
-        strengths:         r.strengths,
-        weaknesses:        r.weaknesses,
-        categoryScores:    r.category_scores,
+        recordingCount:   Number(r.recording_count) || 0,
+        recordingId:      r.recording_id,
+        overallFeedback:  r.overall_feedback,
+        strengths:        r.strengths,
+        weaknesses:       r.weaknesses,
+        categoryScores:   r.category_scores,
       }
     })
-  }, [aiResults])
+  }, [analytics, aiResults])
 
   const totalCandidatesCount = useMemo(() => {
     return new Set(aiResults.map(r => r.candidate_email || r.candidate_name)).size
@@ -725,33 +767,64 @@ function RecruiterDashboard() {
     }))
   }, [aiResults])
 
+  // Module 8: M7 canonical category radar for Top Candidate vs Average
+  // Top candidate = rank 1 from merit-based analytics ranking (NOT aiResults[0])
   const skillsData = useMemo(() => {
-    const categories = ['Technical', 'Communication', 'Problem Solving', 'Confidence', 'Grammar']
-    if (aiResults.length === 0) {
-      return categories.map(cat => ({ skill: cat, A: 0, B: 0 }))
-    }
-    const catSums = { technical: 0, communication: 0, problem_solving: 0, confidence: 0, grammar: 0 }
-    let count = 0
-    const topCandidate = aiResults[0]
-    aiResults.forEach(r => {
-      if (r.category_scores && typeof r.category_scores === 'object') {
-        count++
-        catSums.technical += Number(r.category_scores.technical) || Number(r.score) || 0
-        catSums.communication += Number(r.category_scores.communication) || Number(r.score) || 0
-        catSums.problem_solving += Number(r.category_scores.problem_solving) || Number(r.score) || 0
-        catSums.confidence += Number(r.category_scores.confidence) || Number(r.score) || 0
-        catSums.grammar += Number(r.category_scores.grammar) || Number(r.score) || 0
-      }
-    })
-    const div = count || 1
-    return [
-      { skill: 'Technical', A: Number(topCandidate?.category_scores?.technical) || Number(topCandidate?.score) || 0, B: Math.round(catSums.technical / div) },
-      { skill: 'Communication', A: Number(topCandidate?.category_scores?.communication) || Number(topCandidate?.score) || 0, B: Math.round(catSums.communication / div) },
-      { skill: 'Problem Solving', A: Number(topCandidate?.category_scores?.problem_solving) || Number(topCandidate?.score) || 0, B: Math.round(catSums.problem_solving / div) },
-      { skill: 'Confidence', A: Number(topCandidate?.category_scores?.confidence) || Number(topCandidate?.score) || 0, B: Math.round(catSums.confidence / div) },
-      { skill: 'Grammar', A: Number(topCandidate?.category_scores?.grammar) || Number(topCandidate?.score) || 0, B: Math.round(catSums.grammar / div) },
+    const M7_CATS = [
+      { key: 'communication',      label: 'Communication'  },
+      { key: 'confidence',         label: 'Confidence'     },
+      { key: 'technicalRelevance', label: 'Technical'      },
+      { key: 'professionalism',    label: 'Professional'   },
     ]
-  }, [aiResults])
+
+    // Category averages from analytics API
+    const catAvgs = analytics?.categoryAverages || null
+
+    // Top candidate = rank 1 from realCandidates (merit-ranked when analytics loaded)
+    const topCandidate = realCandidates.find(c => c.rank === 1) || realCandidates[0] || null
+
+    // Analytics candidateRankings exposes M7 scores as flat top-level properties
+    // (communication, confidence, technicalRelevance, professionalism).
+    // The categoryScores field (from aiResults fallback) uses a different nested shape.
+    // We try the flat analytics properties first, then fall back to the nested path,
+    // then fall back to the candidate's overall finalScore if nothing else is available.
+    const topRaw = analytics?.candidateRankings?.find(r => r.rank === 1) ||
+                   analytics?.candidateRankings?.[0] || null
+
+    return M7_CATS.map(cat => {
+      const avgVal = catAvgs?.[cat.key] ?? 0
+      let topVal = 0
+
+      if (topRaw && topRaw[cat.key] != null) {
+        // Flat M7 property from analytics candidateRankings (preferred path)
+        topVal = Number(topRaw[cat.key]) || 0
+      } else if (topCandidate?.categoryScores?.module7_scores) {
+        // Nested M7 structure from aiResults path: { communication: { score: N }, ... }
+        const m7 = topCandidate.categoryScores.module7_scores
+        topVal = m7[cat.key]?.score ?? m7[cat.key] ?? 0
+      } else if (topCandidate?.categoryScores) {
+        // Legacy flat categoryScores (pre-M7 interviews)
+        const legacyKeyMap = { communication: 'communication', confidence: 'confidence', technicalRelevance: 'technical', professionalism: 'professionalism' }
+        topVal = Number(topCandidate.categoryScores[legacyKeyMap[cat.key]]) || 0
+      }
+      // Final fallback: if still 0, use the candidate's overall finalScore as a proxy
+      if (topVal === 0 && topCandidate?.finalScore) topVal = topCandidate.finalScore
+
+      return { skill: cat.label, A: Number(topVal) || 0, B: Math.round(avgVal) }
+    })
+  }, [analytics, realCandidates])
+
+  // Module 8: real weekly trend from analytics API
+  const weeklyTrendData = useMemo(() => {
+    if (analytics?.weeklyTrend && analytics.weeklyTrend.length > 0) {
+      return analytics.weeklyTrend.map(w => ({
+        week: w.weekLabel || w.week,
+        completed: w.completed || 0,
+      }))
+    }
+    // If analytics not loaded yet, return empty (no fake data)
+    return []
+  }, [analytics])
 
   const scoreDistribution = useMemo(() => {
     const bins = { '90–100': 0, '80–89': 0, '70–79': 0, '60–69': 0, '<60': 0 }
@@ -767,7 +840,31 @@ function RecruiterDashboard() {
   }, [aiResults])
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
-  const handleSectionChange = (section) => { setActiveSection(section); setSearch(''); setPage(1) }
+  const handleSectionChange = (section) => {
+    setActiveSection(section)
+    setSearch('')
+    setPage(1)
+    // Clear comparison selection when leaving ranking-related sections
+    if (!['candidates', 'ai-ranking', 'compare'].includes(section)) {
+      setCompareSet(new Set())
+    }
+  }
+
+  // Req 11 — toggle compare selection
+  const handleToggleCompare = useCallback((interviewId) => {
+    setCompareSet(prev => {
+      const next = new Set(prev)
+      if (next.has(interviewId)) {
+        next.delete(interviewId)
+      } else if (next.size >= MAX_COMPARE) {
+        showToast(`Maximum ${MAX_COMPARE} candidates can be compared at once`)
+        return prev
+      } else {
+        next.add(interviewId)
+      }
+      return next
+    })
+  }, [MAX_COMPARE]) // eslint-disable-line react-hooks/exhaustive-deps
   const setSchField = (f) => (e) => setScheduleForm(p => ({ ...p, [f]: e.target.value }))
 
   const handleExport = () => {
@@ -785,11 +882,74 @@ function RecruiterDashboard() {
   }
 
   const handleDownloadReport = (c) => {
-    const text = `AI INTERVIEW EVALUATION REPORT\n\nCandidate: ${c.name}\nEmail: ${c.email}\nRole: ${c.role}\nInterview Date: ${c.date}\nOverall AI Score: ${c.finalScore}/100\nHiring Recommendation: ${c.rec}\n\nAI Summary:\n${c.overallFeedback || 'Assessment completed successfully.'}\n\nStrengths:\n${Array.isArray(c.strengths) ? c.strengths.map(s => `• ${s}`).join('\n') : '• Solid technical fundamentals'}\n\nAreas for Improvement:\n${Array.isArray(c.weaknesses) ? c.weaknesses.map(w => `• ${w}`).join('\n') : '• None noted'}`
+    // Safe score display — never output undefined/null/NaN in the report
+    const safeScore = (v, label) => v != null && isFinite(Number(v)) ? `${Math.round(Number(v))}/100` : 'Not available'
+    const safeList  = (arr, label) => {
+      if (!Array.isArray(arr) || arr.length === 0) return `  (${label} not available)`
+      return arr.map(s => `• ${s}`).join('\n')
+    }
+
+    // Module 7 category scores (from the analytics ranking shape)
+    const cats = [
+      c.communication      != null ? `  Communication:       ${Math.round(Number(c.communication))}/100 (30%)` : null,
+      c.confidence         != null ? `  Confidence:          ${Math.round(Number(c.confidence))}/100 (25%)` : null,
+      c.technicalRelevance != null ? `  Technical Relevance: ${Math.round(Number(c.technicalRelevance))}/100 (30%)` : null,
+      c.professionalism    != null ? `  Professionalism:     ${Math.round(Number(c.professionalism))}/100 (15%)` : null,
+    ].filter(Boolean)
+
+    const categorySection = cats.length > 0
+      ? `\nModule 7 Category Breakdown:\n${cats.join('\n')}`
+      : '\nModule 7 Category Breakdown:\n  Not available (legacy interview or scores not yet computed)'
+
+    const resumeSection = c.resumeScore != null
+      ? `\nResume / ATS Score: ${Math.round(Number(c.resumeScore))}/100`
+      : '\nResume / ATS Score: Not available'
+
+    const ratingSection = c.performanceRating
+      ? `\nPerformance Rating: ${c.performanceRating}`
+      : ''
+
+    const summarySection = c.overallFeedback
+      ? `\nAI Evaluation Summary:\n${c.overallFeedback}`
+      : '\nAI Evaluation Summary:\n  Not available'
+
+    const strengthsSection = `\nStrengths:\n${safeList(c.strengths, 'AI-identified strengths')}`
+    const weaknessSection  = `\nAreas for Improvement:\n${safeList(c.weaknesses, 'AI-identified areas')}`
+
+    const text = [
+      'AI INTERVIEW EVALUATION REPORT',
+      '================================',
+      '',
+      `Candidate:          ${c.name || '—'}`,
+      `Email:              ${c.email || '—'}`,
+      `Role:               ${c.role || '—'}`,
+      `Interview Date:     ${c.date || '—'}`,
+      `Interview Type:     ${c.interviewType || '—'}`,
+      `Difficulty:         ${c.difficulty || '—'}`,
+      '',
+      `Overall AI Score:   ${safeScore(c.interviewScore)}`,
+      `Hire Recommendation: ${c.rec || '—'}`,
+      ratingSection,
+      resumeSection,
+      categorySection,
+      summarySection,
+      strengthsSection,
+      weaknessSection,
+      '',
+      `Questions: ${c.questionsAnswered ?? '—'}/${c.questionCount ?? '—'} answered`,
+      `Duration:  ${c.duration ? `${Math.floor(c.duration / 60)}m ${c.duration % 60}s` : '—'}`,
+      '',
+      `Report generated: ${new Date().toLocaleString('en-IN')}`,
+    ].join('\n')
+
     const blob = new Blob([text], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `${c.name.replace(/\s+/g, '_')}_ai_report.txt`; a.click()
-    URL.revokeObjectURL(url); showToast(`Report downloaded for ${c.name}`)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(c.name || 'candidate').replace(/\s+/g, '_')}_ai_report.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(`Report downloaded for ${c.name || 'candidate'}`)
   }
 
   const handleSort = (field) => {
@@ -834,15 +994,18 @@ function RecruiterDashboard() {
     {
       title: 'AI Tools',
       items: [
-        { icon: <Award size={18} />, label: 'AI Ranking',    section: 'ai-ranking'   },
-        { icon: <Video size={18} />, label: 'AI Results',    section: 'ai-results'   },
-        { icon: <Video size={18} />, label: 'Mock Interview', onClick: () => navigate('/mock-interview') },
-        { icon: <Star size={18} />,  label: 'Assessments',   section: 'assessments'  },
+        { icon: <Award size={18} />,      label: 'AI Ranking',    section: 'ai-ranking'   },
+        { icon: <Video size={18} />,      label: 'AI Results',    section: 'ai-results'   },
+        { icon: <Video size={18} />,      label: 'Mock Interview', onClick: () => navigate('/mock-interview') },
+        { icon: <Star size={18} />,       label: 'Assessments',   section: 'assessments'  },
+        { icon: <GitCompare size={18} />, label: 'Compare',        section: 'compare',
+          badge: compareSet.size >= 2 ? String(compareSet.size) : undefined },
+        { icon: <Lightbulb size={18} />,  label: 'Shortlist Insights', section: 'shortlist' },
       ],
     },
   ]
 
-  const renderRankingTable = () => (
+  const renderRankingTable = (showCompare = false) => (
     <>
       <div className="table-search-wrapper">
         <div style={{ position: 'relative' }}>
@@ -850,35 +1013,60 @@ function RecruiterDashboard() {
           <input className="table-search-bar" style={{ paddingLeft: 32 }} placeholder="Search candidates..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {analytics?.candidateRankings ? (
+            <span className="badge green" style={{ fontSize: 10 }}>Merit-ranked</span>
+          ) : (
+            <span className="badge orange" style={{ fontSize: 10 }}>Position order</span>
+          )}
           <span className="badge purple">{filtered.length} candidates</span>
+          {showCompare && compareSet.size >= 2 && (
+            <button className="btn btn-primary btn-sm" onClick={() => handleSectionChange('compare')}>
+              <GitCompare size={13} /> Compare ({compareSet.size})
+            </button>
+          )}
+          {showCompare && compareSet.size > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={() => setCompareSet(new Set())}>
+              <X size={13} /> Clear
+            </button>
+          )}
           <button className="btn btn-outline btn-sm" onClick={handleExport}><Download size={13} /> Export CSV</button>
         </div>
       </div>
       <div className="table-responsive">
         <table className="data-table">
           <thead><tr>
+            {showCompare && <th style={{ width: 36 }}>Cmp</th>}
             <th>Rank</th>
             <th className="sortable-th" onClick={() => handleSort('name')}><div className="th-inner">Candidate <SortIcon field="name" /></div></th>
             <th>Role</th>
-            <th className="sortable-th" onClick={() => handleSort('resumeScore')}><div className="th-inner">Resume <SortIcon field="resumeScore" /></div></th>
-            <th className="sortable-th" onClick={() => handleSort('interviewScore')}><div className="th-inner">Interview <SortIcon field="interviewScore" /></div></th>
-            <th className="sortable-th" onClick={() => handleSort('aiScore')}><div className="th-inner">AI Score <SortIcon field="aiScore" /></div></th>
-            <th className="sortable-th" onClick={() => handleSort('finalScore')}><div className="th-inner">Final <SortIcon field="finalScore" /></div></th>
+            <th className="sortable-th" onClick={() => handleSort('interviewScore')}><div className="th-inner">AI Score <SortIcon field="interviewScore" /></div></th>
+            <th>Resume Score</th>
             <th className="sortable-th" onClick={() => handleSort('rec')}><div className="th-inner">Recommendation <SortIcon field="rec" /></div></th>
             <th>Actions</th>
           </tr></thead>
           <tbody>
             {paginated.length === 0
-              ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No candidates found</td></tr>
+              ? <tr><td colSpan={showCompare ? 8 : 7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No candidates found</td></tr>
               : paginated.map((c, i) => (
-                <tr key={i}>
+                <tr key={c.interviewId || i} style={compareSet.has(c.interviewId) ? { background: 'rgba(99,102,241,0.07)' } : undefined}>
+                  {showCompare && (
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={compareSet.has(c.interviewId)}
+                        onChange={() => handleToggleCompare(c.interviewId)}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                        aria-label={`Select ${c.name} for comparison`}
+                      />
+                    </td>
+                  )}
                   <td><RankMedal rank={c.rank} /></td>
-                  <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{c.name.charAt(0)}</div><span style={{ fontWeight: 500 }}>{c.name}</span></div></td>
+                  <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{c.name.charAt(0)}</div><div><span style={{ fontWeight: 500 }}>{c.name}</span>{c.performanceRating && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{c.performanceRating}</div>}</div></div></td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{c.role}</td>
-                  <td><ScoreCell score={c.resumeScore} /></td>
-                  <td><ScoreCell score={c.interviewScore} /></td>
-                  <td><ScoreCell score={c.aiScore} /></td>
-                  <td><span style={{ fontWeight: 800, fontSize: 15, color: c.finalScore >= 85 ? '#10b981' : c.finalScore >= 70 ? '#f59e0b' : '#ef4444' }}>{c.finalScore.toFixed(1)}</span></td>
+                  {/* AI/Interview Score: the real Module 7 overall score — not a copy of another column */}
+                  <td><span style={{ fontWeight: 800, fontSize: 15, color: c.interviewScore != null && c.interviewScore >= 85 ? '#10b981' : c.interviewScore != null && c.interviewScore >= 70 ? '#f59e0b' : '#ef4444' }}>{c.interviewScore != null ? c.interviewScore : '—'}</span></td>
+                  {/* Resume Score: only if backend provided it; null → '—' (no duplication) */}
+                  <td><span style={{ fontWeight: 600, fontSize: 13, color: c.resumeScore != null ? 'var(--text-primary)' : 'var(--text-muted)' }}>{c.resumeScore != null ? c.resumeScore : '—'}</span></td>
                   <td><RecBadge rec={c.rec} /></td>
                   <td>
                     <div className="table-actions">
@@ -1019,31 +1207,50 @@ function RecruiterDashboard() {
             </div>
             <div className="dashboard-grid">
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                <div className="card-header"><h2>Candidate Skills Radar</h2><div style={{ display: 'flex', gap: 8 }}><span className="badge purple">Top Candidate</span><span className="badge blue">Average</span></div></div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <RadarChart data={skillsData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                    <Radar name="Average"       dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Competency Radar</h2>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span className="badge purple">Top Candidate</span>
+                    <span className="badge blue">Platform Avg</span>
+                  </div>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading analytics…</div>
+                ) : skillsData.every(d => d.A === 0 && d.B === 0) ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No interview data available.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart data={skillsData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                      <Radar name="Platform Avg"  dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(val) => [`${val}/100`]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
-                <div className="card-header"><h2>Weekly Interviews</h2><span className="badge green">↑ On Track</span></div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={interviewData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
-                    <Line type="monotone" dataKey="scheduled" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} name="Scheduled" strokeDasharray="5 5" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Weekly Interviews</h2>
+                  <span className="badge green">{analyticsLoading ? '…' : weeklyTrendData.length > 0 ? 'Real data' : 'No data'}</span>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
+                ) : weeklyTrendData.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No interview history available yet.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={weeklyTrendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                      <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.49 }}>
                 <div className="card-header"><h2>Recent Activity</h2></div>
@@ -1068,7 +1275,7 @@ function RecruiterDashboard() {
             </div>
             <motion.div className="card" style={{ marginTop: 20 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }}>
               <div className="card-header"><h2>AI Applicant Ranking</h2></div>
-              {renderRankingTable()}
+              {renderRankingTable(true)}
             </motion.div>
           </>
         )
@@ -1087,40 +1294,64 @@ function RecruiterDashboard() {
               ))}
             </div>
             <div className="dashboard-grid">
+              {/* Module 8: Competency Radar using canonical M7 categories */}
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="card-header"><h2>Candidate Skills Radar</h2><div style={{ display: 'flex', gap: 8 }}><span className="badge purple">Top Candidate</span><span className="badge blue">Average</span></div></div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <RadarChart data={skillsData}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                    <Radar name="Average"       dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Competency Radar</h2>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span className="badge purple">Top Candidate</span>
+                    <span className="badge blue">Platform Avg</span>
+                  </div>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
+                ) : skillsData.every(d => d.A === 0 && d.B === 0) ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No interview data available.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart data={skillsData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Top Candidate" dataKey="A" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                      <Radar name="Platform Avg"  dataKey="B" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.12} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(val) => [`${val}/100`]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
+              {/* Module 8: Real weekly trend — completed interviews only (no fake scheduled line) */}
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <div className="card-header"><h2>Weekly Interview Trend</h2></div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={interviewData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
-                    <Line type="monotone" dataKey="scheduled" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} name="Scheduled" strokeDasharray="5 5" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="card-header">
+                  <h2>Weekly Interview Trend</h2>
+                  <span className="badge {analyticsLoading ? 'gray' : weeklyTrendData.length > 0 ? 'green' : 'orange'}">
+                    {analyticsLoading ? 'Loading' : weeklyTrendData.length > 0 ? 'Completed' : 'No data'}
+                  </span>
+                </div>
+                {analyticsLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading analytics…</div>
+                ) : weeklyTrendData.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No interview history available.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={weeklyTrendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                      <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} name="Completed" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
+              {/* Score Distribution: sourced from realCandidates (real DB data) */}
               <motion.div className="card full-width" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 <div className="card-header"><h2>Score Distribution</h2><span className="badge gray">All Candidates</span></div>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={scoreDistribution} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} allowDecimals={false} />
                     <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                     <Bar dataKey="count" fill="#6366f1" radius={[4,4,0,0]} name="Candidates" />
                   </BarChart>
@@ -1170,7 +1401,7 @@ function RecruiterDashboard() {
         return (
           <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="card-header"><h2>AI Applicant Ranking</h2><span className="badge purple">Auto-ranked by AI</span></div>
-            {renderRankingTable()}
+            {renderRankingTable(true)}
           </motion.div>
         )
 
@@ -1256,7 +1487,7 @@ function RecruiterDashboard() {
             <div className="card-header">
               <div><h2>AI Applicant Ranking</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Automatically ranked by composite AI score</p></div>
             </div>
-            {renderRankingTable()}
+            {renderRankingTable(true)}
           </motion.div>
         )
 
@@ -1364,6 +1595,226 @@ function RecruiterDashboard() {
 
         )
       }
+
+    case 'compare': {
+      // Req 11 — Candidate Comparison
+      const compareList = realCandidates.filter(c => compareSet.has(c.interviewId))
+      if (compareList.length < 2) {
+        return (
+          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="card-header"><h2>Candidate Comparison</h2><span className="badge gray">Select candidates from ranking</span></div>
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <GitCompare size={40} style={{ color: 'var(--text-muted)', marginBottom: 16, display: 'block', margin: '0 auto 16px' }} />
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No candidates selected for comparison</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
+                Go to <strong>AI Ranking</strong> or <strong>Candidates</strong>, then check up to {MAX_COMPARE} candidates and click &ldquo;Compare&rdquo;.
+              </div>
+              <button className="btn btn-primary" onClick={() => handleSectionChange('ai-ranking')}>
+                <Award size={14} /> Go to AI Ranking
+              </button>
+            </div>
+          </motion.div>
+        )
+      }
+
+      // Score coloring helper — safe for null
+      const cmpColor = (v) => {
+        if (v == null) return 'var(--text-muted)'
+        return v >= 85 ? '#10b981' : v >= 70 ? '#f59e0b' : '#ef4444'
+      }
+      const cmpVal = (v, suffix = '') => v != null ? `${v}${suffix}` : '—'
+
+      // Highlight the best value in each metric row
+      const bestOf = (vals) => {
+        const nums = vals.map(v => v != null ? Number(v) : -Infinity)
+        const max  = Math.max(...nums)
+        if (!isFinite(max) || max < 0) return -1
+        return nums.indexOf(max)
+      }
+
+      const metrics = [
+        { label: 'Overall AI Score',      key: 'interviewScore',      suffix: '/100' },
+        { label: 'Resume / ATS Score',    key: 'resumeScore',          suffix: '/100' },
+        { label: 'Performance Rating',    key: 'performanceRating',    suffix: '',     isText: true },
+        { label: 'Communication (30%)',   key: 'communication',        suffix: '/100' },
+        { label: 'Confidence (25%)',      key: 'confidence',           suffix: '/100' },
+        { label: 'Technical (30%)',       key: 'technicalRelevance',   suffix: '/100' },
+        { label: 'Professionalism (15%)', key: 'professionalism',      suffix: '/100' },
+        { label: 'Hire Recommendation',   key: 'rec',                  suffix: '',     isText: true },
+        { label: 'Rank',                  key: 'rank',                 suffix: '',     lowerIsBetter: true },
+        { label: 'Interview Date',        key: 'date',                 suffix: '',     isText: true },
+      ]
+
+      const handleDownloadComparison = () => {
+        const header = ['Metric', ...compareList.map(c => c.name)].join(' | ')
+        const rows   = metrics.map(m => {
+          const vals = compareList.map(c => c[m.key] != null ? `${c[m.key]}${m.suffix}` : '—')
+          return [m.label, ...vals].join(' | ')
+        })
+        const text = ['CANDIDATE COMPARISON REPORT', '===========================', '', header, ...rows, '', `Generated: ${new Date().toLocaleString('en-IN')}`].join('\n')
+        const blob = new Blob([text], { type: 'text/plain' })
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href = url; a.download = 'candidate_comparison.txt'; a.click()
+        URL.revokeObjectURL(url); showToast('Comparison downloaded')
+      }
+
+      return (
+        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="card-header">
+            <div>
+              <h2>Candidate Comparison</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Side-by-side comparison of {compareList.length} selected candidates</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setCompareSet(new Set())}>
+                <X size={13} /> Clear Selection
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleDownloadComparison}>
+                <Download size={13} /> Download
+              </button>
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={{ minWidth: 480 }}>
+              <thead><tr>
+                <th style={{ width: 180, minWidth: 160 }}>Metric</th>
+                {compareList.map((c, i) => (
+                  <th key={c.interviewId || i} style={{ textAlign: 'center', minWidth: 130 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <div className="user-avatar" style={{ width: 32, height: 32, fontSize: 14 }}>{c.name.charAt(0)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.role}</div>
+                      <RankMedal rank={c.rank} />
+                    </div>
+                  </th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {metrics.map(m => {
+                  const vals = compareList.map(c => c[m.key])
+                  const bestIdx = m.isText ? -1 : bestOf(m.lowerIsBetter ? vals.map(v => v != null ? -Number(v) : null) : vals)
+                  return (
+                    <tr key={m.label}>
+                      <td style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', paddingLeft: 12 }}>{m.label}</td>
+                      {vals.map((v, i) => (
+                        <td key={i} style={{ textAlign: 'center' }}>
+                          <span style={{
+                            fontWeight: bestIdx === i ? 800 : 600,
+                            fontSize: !m.isText && v != null ? 14 : 13,
+                            color: m.isText ? 'var(--text-primary)' : cmpColor(v),
+                            textDecoration: bestIdx === i ? 'underline' : 'none',
+                          }}>
+                            {m.isText ? (v || '—') : cmpVal(v, m.suffix)}
+                          </span>
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: '12px 16px', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border-light)' }}>
+            Underlined values indicate the best result in each row. '—' indicates data not available.
+          </div>
+        </motion.div>
+      )
+    }
+
+    case 'shortlist': {
+      // Req 15 — Shortlisting Insights
+      const sortedForShortlist = [...realCandidates].sort((a, b) => {
+        const order = { strong: 0, consider: 1, review: 2, weak: 3, unknown: 4 }
+        const ia = computeShortlistInsight(a)
+        const ib = computeShortlistInsight(b)
+        const od = (order[ia.status] ?? 5) - (order[ib.status] ?? 5)
+        if (od !== 0) return od
+        return (b.interviewScore ?? -1) - (a.interviewScore ?? -1)
+      })
+
+      return (
+        <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="card-header">
+            <div>
+              <h2>Shortlisting Insights</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Deterministic AI-derived shortlisting analysis for each candidate</p>
+            </div>
+            <span className="badge blue">{sortedForShortlist.length} candidates</span>
+          </div>
+          {sortedForShortlist.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              No completed candidate interviews to analyse yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
+              {sortedForShortlist.map((c, i) => {
+                const insight = computeShortlistInsight(c)
+                const color   = getInsightStatusColor(insight.status)
+                const badgeCls = getInsightBadgeClass(insight.status)
+                return (
+                  <motion.div key={c.interviewId || i}
+                    initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                    style={{ display: 'flex', gap: 14, padding: '14px 16px', background: 'var(--bg-primary)', borderRadius: 10, border: `1px solid ${color}28`, alignItems: 'flex-start' }}
+                  >
+                    {/* Avatar + rank */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <div className="user-avatar" style={{ width: 40, height: 40, fontSize: 18 }}>{c.name.charAt(0)}</div>
+                      <RankMedal rank={c.rank} />
+                    </div>
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.role}</span>
+                        <span className={`badge ${badgeCls}`} style={{ fontSize: 11 }}>{insight.title}</span>
+                        {c.interviewScore != null && (
+                          <span style={{ fontSize: 13, fontWeight: 800, color }}>Score: {c.interviewScore}/100</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>{insight.summary}</div>
+                      {/* Top 2 reasons */}
+                      {insight.reasons.slice(0, 2).map((r, ri) => (
+                        <div key={ri} style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 4, marginBottom: 2 }}>
+                          <span style={{ color }}>›</span> {r}
+                        </div>
+                      ))}
+                      {/* Strengths chips */}
+                      {insight.strengths.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                          {insight.strengths.slice(0, 3).map((s, si) => (
+                            <span key={si} style={{ fontSize: 10, background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 12, padding: '2px 8px' }}>✓ {s}</span>
+                          ))}
+                        </div>
+                      )}
+                      {/* Concern chips */}
+                      {insight.concerns.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                          {insight.concerns.slice(0, 2).map((cc, ci) => (
+                            <span key={ci} style={{ fontSize: 10, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 12, padding: '2px 8px' }}>⚠ {cc}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Actions */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                      <button className="btn btn-outline btn-sm" style={{ fontSize: 11 }}
+                        onClick={() => setViewCandidate(c)}>
+                        <Eye size={12} /> Profile
+                      </button>
+                      <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
+                        onClick={() => handleDownloadReport(c)}>
+                        <Download size={12} /> Report
+                      </button>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
+      )
+    }
 
     default:
       return null
@@ -1521,25 +1972,125 @@ function RecruiterDashboard() {
       {/* Detail modal — always mounted so View works from any section (Reports, AI Results, etc.) */}
       {detailModal}
 
-      {viewCandidate && (
-        <Modal title="Candidate Profile" onClose={() => setViewCandidate(null)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700 }}>{viewCandidate.name.charAt(0)}</div>
-            <div><div style={{ fontWeight: 700, fontSize: 16 }}>{viewCandidate.name}</div><div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{viewCandidate.role}</div></div>
-            <div style={{ marginLeft: 'auto' }}><RankMedal rank={viewCandidate.rank} /></div>
-          </div>
-          {[['Resume Score', `${viewCandidate.resumeScore}/100`],['Interview Score', `${viewCandidate.interviewScore}/100`],['AI Score', `${viewCandidate.aiScore}/100`],['Final Score', `${viewCandidate.finalScore.toFixed(1)}/100`],['Recommendation', viewCandidate.rec],['Report Date', viewCandidate.date]].map(([k,v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
+      {viewCandidate && (() => {
+        // Compute shortlist insight once for this candidate
+        const insight = computeShortlistInsight(viewCandidate)
+        const insightColor = getInsightStatusColor(insight.status)
+        const insightBadge = getInsightBadgeClass(insight.status)
+
+        // Safe score row helper: never outputs undefined/null/NaN
+        const scoreRow = (label, value, note) => {
+          const display = value != null && isFinite(Number(value))
+            ? `${Math.round(Number(value))}/100`
+            : '—'
+          const color = value != null && isFinite(Number(value))
+            ? (Number(value) >= 85 ? '#10b981' : Number(value) >= 70 ? '#f59e0b' : '#ef4444')
+            : 'var(--text-muted)'
+          return (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <div>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
+                {note && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{note}</div>}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color }}>{display}</span>
             </div>
-          ))}
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setViewCandidate(null)}>Close</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { handleDownloadReport(viewCandidate); setViewCandidate(null) }}><Download size={14} /> Download Report</button>
+          )
+        }
+
+        const textRow = (label, value) => (
+          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{value || '—'}</span>
           </div>
-        </Modal>
-      )}
+        )
+
+        return (
+          <Modal title="Candidate Profile" onClose={() => setViewCandidate(null)}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700 }}>
+                {viewCandidate.name.charAt(0)}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{viewCandidate.name}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{viewCandidate.role}</div>
+                {viewCandidate.email && viewCandidate.email !== '—' && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{viewCandidate.email}</div>
+                )}
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                <RankMedal rank={viewCandidate.rank} />
+                {viewCandidate.performanceRating && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)', background: 'rgba(99,102,241,0.1)', borderRadius: 12, padding: '2px 8px' }}>
+                    {viewCandidate.performanceRating}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Shortlist Insight Banner */}
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, background: `${insightColor}12`, border: `1px solid ${insightColor}30` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Lightbulb size={13} style={{ color: insightColor }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: insightColor }}>{insight.title}</span>
+                <span className={`badge ${insightBadge}`} style={{ fontSize: 10, marginLeft: 'auto' }}>{insight.status}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{insight.summary}</div>
+            </div>
+
+            {/* Score rows — safe display only, no undefined/null/NaN */}
+            {scoreRow('Interview / AI Score', viewCandidate.interviewScore, 'Module 7 overall score')}
+            {scoreRow('Resume / ATS Score',   viewCandidate.resumeScore,   viewCandidate.resumeScore == null ? 'No resume linked to this interview' : null)}
+
+            {/* M7 category scores — only shown when available */}
+            {(viewCandidate.communication != null || viewCandidate.confidence != null ||
+              viewCandidate.technicalRelevance != null || viewCandidate.professionalism != null) && (
+              <div style={{ margin: '10px 0 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                Module 7 Category Scores
+              </div>
+            )}
+            {viewCandidate.communication      != null && scoreRow('Communication',       viewCandidate.communication,      '30% weight')}
+            {viewCandidate.confidence         != null && scoreRow('Confidence',           viewCandidate.confidence,         '25% weight')}
+            {viewCandidate.technicalRelevance != null && scoreRow('Technical Relevance',  viewCandidate.technicalRelevance, '30% weight')}
+            {viewCandidate.professionalism    != null && scoreRow('Professionalism',       viewCandidate.professionalism,    '15% weight')}
+
+            {/* Other info */}
+            <div style={{ margin: '10px 0 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              Interview Details
+            </div>
+            {textRow('Recommendation', viewCandidate.rec)}
+            {textRow('Interview Date', viewCandidate.date)}
+            {textRow('Interview Type', viewCandidate.interviewType)}
+            {textRow('Difficulty',     viewCandidate.difficulty)}
+
+            {/* Insight reasons */}
+            {insight.reasons.length > 0 && (
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Shortlist Analysis</div>
+                {insight.reasons.slice(0, 4).map((r, i) => (
+                  <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3, display: 'flex', gap: 4 }}>
+                    <span style={{ color: insightColor }}>›</span> {r}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setViewCandidate(null)}>Close</button>
+              {viewCandidate.interviewId && (
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setViewCandidate(null); openDetail(viewCandidate.interviewId) }}>
+                  <Eye size={14} /> Full Detail
+                </button>
+              )}
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { handleDownloadReport(viewCandidate); setViewCandidate(null) }}>
+                <Download size={14} /> Report
+              </button>
+            </div>
+          </Modal>
+        )
+      })()}
+
 
       {scheduleOpen && (
         <Modal title="Schedule Interview" onClose={() => setScheduleOpen(false)}>

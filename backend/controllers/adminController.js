@@ -1,0 +1,157 @@
+'use strict'
+
+/**
+ * adminController.js — Module 8: Admin Dashboard (Requirements 16–20)
+ *
+ * Thin HTTP controller layer. All business logic lives in adminService.js.
+ * All routes here are protected by authorize('ADMIN') in adminRoutes.js.
+ */
+
+const adminService = require('../services/adminService')
+
+/* ─── GET /api/admin/stats ───────────────────────────────────────────────── */
+async function getAdminStats(req, res) {
+  try {
+    const data = await adminService.getAdminStats()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getAdminStats]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load admin stats' })
+  }
+}
+
+/* ─── GET /api/admin/users ───────────────────────────────────────────────── */
+async function getUserList(req, res) {
+  try {
+    const {
+      page     = 1,
+      pageSize = 20,
+      role     = '',
+      status   = '',
+      search   = '',
+    } = req.query
+
+    const data = await adminService.getUserList({
+      page:     parseInt(page, 10)     || 1,
+      pageSize: parseInt(pageSize, 10) || 20,
+      role:     String(role   || ''),
+      status:   String(status || ''),
+      search:   String(search || ''),
+    })
+
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getUserList]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load user list' })
+  }
+}
+
+/* ─── PUT /api/admin/users/:id/role ─────────────────────────────────────── */
+async function updateUserRole(req, res) {
+  try {
+    const userId = parseInt(req.params.id, 10)
+    const { role } = req.body
+
+    if (!role || typeof role !== 'string') {
+      return res.status(400).json({ success: false, message: 'role is required' })
+    }
+
+    // Prevent admin from removing their own admin role accidentally
+    if (userId === req.user.id && role.toUpperCase() !== 'ADMIN') {
+      return res.status(400).json({ success: false, message: 'Cannot change your own admin role' })
+    }
+
+    const updated = await adminService.updateUserRole(userId, role.toUpperCase())
+    return res.status(200).json({ success: true, user: updated })
+  } catch (err) {
+    console.error('[adminController.updateUserRole]', err.message)
+    if (err.message === 'User not found') {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    if (err.message.startsWith('Invalid role')) {
+      return res.status(400).json({ success: false, message: err.message })
+    }
+    return res.status(500).json({ success: false, message: 'Failed to update user role' })
+  }
+}
+
+/* ─── PUT /api/admin/users/:id/status ───────────────────────────────────── */
+async function toggleUserStatus(req, res) {
+  try {
+    const userId = parseInt(req.params.id, 10)
+    const { active } = req.body
+
+    if (typeof active !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'active (boolean) is required' })
+    }
+
+    // Prevent admin from blocking themselves
+    if (userId === req.user.id && !active) {
+      return res.status(400).json({ success: false, message: 'Cannot block your own admin account' })
+    }
+
+    const updated = await adminService.toggleUserStatus(userId, active)
+    return res.status(200).json({ success: true, user: updated })
+  } catch (err) {
+    console.error('[adminController.toggleUserStatus]', err.message)
+    if (err.message === 'User not found') {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    return res.status(500).json({ success: false, message: 'Failed to update user status' })
+  }
+}
+
+/* ─── GET /api/admin/interviews/activity ────────────────────────────────── */
+async function getInterviewActivity(req, res) {
+  try {
+    const data = await adminService.getInterviewActivity()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getInterviewActivity]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load interview activity' })
+  }
+}
+
+/* ─── GET /api/admin/ai-monitoring ──────────────────────────────────────── */
+async function getAiMonitoring(req, res) {
+  try {
+    const data = await adminService.getAiMonitoring()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getAiMonitoring]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load AI monitoring data' })
+  }
+}
+
+/* ─── GET /api/admin/system-health ──────────────────────────────────────── */
+async function getSystemHealth(req, res) {
+  try {
+    const data = await adminService.getSystemHealth()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getSystemHealth]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load system health' })
+  }
+}
+
+/* ─── GET /api/admin/usage-analytics ────────────────────────────────────── */
+async function getUsageAnalytics(req, res) {
+  try {
+    const data = await adminService.getUsageAnalytics()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getUsageAnalytics]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load usage analytics' })
+  }
+}
+
+module.exports = {
+  getAdminStats,
+  getUserList,
+  updateUserRole,
+  toggleUserStatus,
+  getInterviewActivity,
+  getAiMonitoring,
+  getSystemHealth,
+  getUsageAnalytics,
+}
