@@ -186,7 +186,7 @@ async function uploadResume() {
     try {
 
         const response = await fetch(
-            "https://smarthire-backend-eow3.onrender.com/api/resume/upload",
+            "http://localhost:5000/api/resume/upload",
             {
 
                 method: "POST",
@@ -251,7 +251,7 @@ async function extractAISkills() {
     try {
 
         const response = await fetch(
-            "https://smarthire-backend-eow3.onrender.com/api/ai/extract-skills",
+            "http://localhost:5000/api/ai/extract-skills",
             {
                 method: "GET",
 
