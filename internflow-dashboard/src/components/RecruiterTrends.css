@@ -1,0 +1,314 @@
+/* RecruiterTrends.css */
+
+.recruiter-trends {
+  padding: 24px;
+}
+
+.trends-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trends-header h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.time-range-selector {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.time-range-selector button {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.time-range-selector button.active {
+  background: white;
+  color: #4f46e5;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.trend-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f3f4f6;
+}
+
+.trend-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.trend-card h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+/* Activity Chart */
+.activity-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 200px;
+  padding: 12px 0;
+  overflow-x: auto;
+}
+
+.activity-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 50px;
+  flex: 1;
+  height: 100%;
+}
+
+.activity-bar-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.activity-bar {
+  width: 32px;
+  min-height: 8px;
+  border-radius: 6px 6px 0 0;
+  position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.activity-bar:hover {
+  opacity: 0.8;
+}
+
+.activity-count {
+  position: absolute;
+  top: -20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.activity-date {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: 8px;
+  white-space: nowrap;
+}
+
+.activity-score {
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Top Performers List */
+.top-performers-trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.performer-trend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.performer-trend-item:hover {
+  background: #f3f4f6;
+}
+
+.performer-rank-trend {
+  font-size: 1.2rem;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.performer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.performer-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.performer-meta {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.performer-score-trend {
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Domain List */
+.domain-list, .type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.domain-item, .type-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.domain-name, .type-name {
+  min-width: 100px;
+  font-size: 0.85rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.domain-bar-container, .type-bar-container {
+  flex: 1;
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.domain-bar, .type-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.domain-stats, .type-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  justify-content: flex-end;
+  font-size: 0.85rem;
+}
+
+.domain-count, .type-count {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.no-data {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* States */
+.trends-loading, .trends-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.trends-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .trends-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .recruiter-trends {
+    padding: 16px;
+  }
+  
+  .trends-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .activity-chart {
+    height: 150px;
+  }
+  
+  .activity-bar {
+    width: 24px;
+  }
+}

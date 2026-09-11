@@ -1,0 +1,163 @@
+/* Webcam Recorder Styles - Hidden Mode */
+.webcam-recorder.hidden-mode {
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Permission Required Overlay */
+.webcam-permission-required {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.webcam-permission-required i {
+  font-size: 2.5rem;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.webcam-permission-required p {
+  color: #374151;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.webcam-permission-required .btn {
+  padding: 10px 24px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.webcam-permission-required .btn:hover {
+  background: #4338ca;
+  transform: scale(1.02);
+}
+
+.webcam-error-text {
+  margin-top: 12px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.webcam-error-text i {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Recording Status Bar */
+.recording-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.active {
+  background: #22c55e;
+  animation: pulse-dot 1.5s infinite;
+}
+
+.status-dot.inactive {
+  background: #6b7280;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.status-text {
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.recording-timer {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.webcam-video.hidden {
+  display: none;
+}
+
+/* Webcam Section in Interview */
+.webcam-section {
+  margin: 16px 0;
+  padding: 0;
+}
+
+.webcam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.webcam-header h4 {
+  margin: 0;
+  color: #1a1a2e;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.recording-status {
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 20px;
+}
+
+.recording-status.active {
+  background: #fee2e2;
+  color: #dc2626;
+  animation: pulse-status 1.5s infinite;
+}
+
+.recording-status.inactive {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

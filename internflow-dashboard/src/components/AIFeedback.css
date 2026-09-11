@@ -1,0 +1,157 @@
+/* AIFeedback.css - Scoped styles supporting both full and compact modes */
+
+/* =============================================
+   FULL MODE (default)
+   ============================================= */
+.ai-feedback {
+  margin-top: 16px;
+  padding: 20px 24px;
+  background: #f8f9fc;
+  border-radius: 12px;
+  border: 1px solid #e9ecf0;
+}
+
+.ai-feedback .feedback-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a2332;
+  margin: 0 0 4px 0;
+}
+
+.ai-feedback .feedback-subtitle {
+  font-size: 14px;
+  color: #6b7a8f;
+  margin: 0 0 16px 0;
+}
+
+.ai-feedback .feedback-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.ai-feedback .feedback-block {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 14px 16px;
+  border-left: 4px solid #d0d7e2;
+}
+
+.ai-feedback .feedback-block h5 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a2332;
+}
+
+.ai-feedback .feedback-block ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+  list-style-type: disc;
+}
+
+.ai-feedback .feedback-block li {
+  font-size: 13px;
+  color: #2c3e50;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.ai-feedback .feedback-block li:last-child {
+  margin-bottom: 0;
+}
+
+/* Color coding for each block type */
+.ai-feedback .strengths {
+  border-left-color: #28a745;
+}
+.ai-feedback .weaknesses {
+  border-left-color: #dc3545;
+}
+.ai-feedback .improvements {
+  border-left-color: #ffc107;
+}
+.ai-feedback .recommendations {
+  border-left-color: #17a2b8;
+}
+.ai-feedback .practice {
+  border-left-color: #6f42c1;
+}
+.ai-feedback .resources {
+  border-left-color: #fd7e14;
+}
+
+.ai-feedback .no-feedback-message {
+  font-size: 14px;
+  color: #6b7a8f;
+  margin: 0;
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* =============================================
+   COMPACT MODE - used in History modal
+   ============================================= */
+.ai-feedback.compact {
+  padding: 12px 16px;
+  margin-top: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.ai-feedback.compact .feedback-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 2px 0;
+}
+
+.ai-feedback.compact .feedback-subtitle {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.ai-feedback.compact .feedback-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ai-feedback.compact .feedback-block {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  border-left-width: 3px;
+}
+
+.ai-feedback.compact .feedback-block h5 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.ai-feedback.compact .feedback-block ul {
+  padding-left: 14px;
+}
+
+.ai-feedback.compact .feedback-block li {
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.ai-feedback.compact .no-feedback-message {
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media (max-width: 600px) {
+  .ai-feedback .feedback-grid {
+    grid-template-columns: 1fr;
+  }
+  .ai-feedback.compact .feedback-grid {
+    grid-template-columns: 1fr;
+  }
+}

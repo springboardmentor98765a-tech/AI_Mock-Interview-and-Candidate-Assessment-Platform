@@ -1,0 +1,350 @@
+/* CandidateComparison.css */
+
+.comparison-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.comparison-modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 1200px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+}
+
+.comparison-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.comparison-header .close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.comparison-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.comparison-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.comparison-table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.comparison-table thead {
+  background: #f8fafc;
+}
+
+.comparison-table th {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+}
+
+.comparison-table .metric-column {
+  text-align: left;
+  min-width: 180px;
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comparison-table .candidate-column {
+  min-width: 180px;
+}
+
+.candidate-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.candidate-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.candidate-info {
+  text-align: center;
+}
+
+.candidate-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.candidate-email {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.comparison-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.comparison-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.section-row td {
+  background: #f1f5f9;
+  padding: 10px 16px;
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+.metric-label {
+  padding: 14px 16px;
+  color: #4b5563;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.metric-value {
+  padding: 14px 16px;
+  text-align: center;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.value-with-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.winner-badge {
+  font-size: 1rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.rating-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rating-badge.rating-excellent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.rating-badge.rating-good {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.rating-badge.rating-average {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.rating-badge.rating-needs-improvement {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.skill-value-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.skill-bar-container {
+  width: 100%;
+  max-width: 120px;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.skill-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.skill-value-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+/* Verdict */
+.comparison-verdict {
+  margin-top: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 12px;
+  border: 1px solid #fbbf24;
+}
+
+.comparison-verdict h3 {
+  margin: 0 0 16px 0;
+  color: #92400e;
+  font-size: 1.1rem;
+}
+
+.winner-announcement {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.winner-trophy {
+  font-size: 2.5rem;
+  animation: rotate 3s infinite;
+}
+
+@keyframes rotate {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.winner-text {
+  font-size: 1rem;
+  color: #78350f;
+}
+
+/* States */
+.comparison-loading,
+.comparison-error {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.comparison-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.comparison-error i {
+  font-size: 2.5rem;
+  color: #ef4444;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.comparison-error p {
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .comparison-modal {
+    max-height: 95vh;
+  }
+  
+  .comparison-body {
+    padding: 16px;
+  }
+  
+  .comparison-table {
+    min-width: 600px;
+  }
+  
+  .candidate-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+}

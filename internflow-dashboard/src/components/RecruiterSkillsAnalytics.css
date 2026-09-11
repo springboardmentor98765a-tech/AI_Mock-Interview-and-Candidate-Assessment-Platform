@@ -1,0 +1,301 @@
+/* RecruiterSkillsAnalytics.css */
+
+.recruiter-skills-analytics {
+  padding: 24px;
+}
+
+.analytics-header {
+  margin-bottom: 24px;
+}
+
+.analytics-header h3 {
+  margin: 0 0 4px 0;
+  color: #1f2937;
+}
+
+.analytics-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* Overall Skills Grid */
+.overall-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.overall-skill-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f3f4f6;
+  transition: all 0.3s ease;
+}
+
+.overall-skill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.skill-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.skill-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-card-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.skill-card-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.skill-progress-bar {
+  height: 4px;
+  background: #f3f4f6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.skill-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* Top Performers */
+.top-performers-section {
+  margin-bottom: 32px;
+}
+
+.top-performers-section h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+}
+
+.top-performers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.top-performer-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f3f4f6;
+}
+
+.top-performer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 12px;
+}
+
+.skill-icon-small {
+  font-size: 1.1rem;
+}
+
+.skill-name-small {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.top-performer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.performer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.85rem;
+}
+
+.performer-rank {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.performer-name {
+  flex: 1;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.performer-score {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Candidates Skills Table */
+.candidates-skills-table-section h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+}
+
+.table-wrapper {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f3f4f6;
+  overflow-x: auto;
+}
+
+.skills-comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.skills-comparison-table thead {
+  background: #f8fafc;
+}
+
+.skills-comparison-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.skills-comparison-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9rem;
+}
+
+.skills-comparison-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.rank-cell {
+  color: #9ca3af;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.candidate-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.candidate-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.candidate-name-sm {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.85rem;
+}
+
+.candidate-email-sm {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.avg-score {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* States */
+.skills-loading,
+.skills-error,
+.skills-empty {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.skills-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.skills-error i,
+.skills-empty i {
+  font-size: 2.5rem;
+  color: #d1d5db;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.skills-error p,
+.skills-empty p {
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .recruiter-skills-analytics {
+    padding: 16px;
+  }
+  
+  .overall-skills-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .top-performers-grid {
+    grid-template-columns: 1fr;
+  }
+}

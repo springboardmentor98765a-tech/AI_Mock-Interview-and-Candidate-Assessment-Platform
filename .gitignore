@@ -1,0 +1,14 @@
+ml_env/
+**/ml_env/
+node_modules/
+backend/node_modules/
+internflow-dashboard/node_modules/
+backend/uploads/
+datasets/
+*.webm
+*.mp4
+*.pkl
+*.h5
+*.backup
+backend/.env
+internflow-dashboard/.env

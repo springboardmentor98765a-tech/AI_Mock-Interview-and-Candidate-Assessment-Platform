@@ -1,0 +1,25 @@
+{
+  "accuracy": 0.9705882352941176,
+  "classes": [
+    "Confident",
+    "Low",
+    "Neutral"
+  ],
+  "features": [
+    "eye_shoulder_y_ratio",
+    "shoulder_y_diff",
+    "wrist_distance_x",
+    "wrist_shoulder_ratio",
+    "nose_eye_center_offset_x",
+    "shoulder_span",
+    "hip_shoulder_y_diff",
+    "body_lean_x",
+    "shoulder_center_x",
+    "hip_center_x",
+    "spine_angle",
+    "eye_distance",
+    "head_tilt_angle",
+    "eye_distance_ratio",
+    "shoulder_slope"
+  ]
+}
