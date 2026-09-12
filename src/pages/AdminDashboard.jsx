@@ -6,7 +6,7 @@ import {
   Server, Database, Mail, Wrench, Brain, Cpu, BarChart3,
   TrendingUp, TrendingDown, Eye, Settings, Webhook, MapPin,
   ChevronUp, ChevronDown, Search, X, UserPlus, CheckCircle,
-  Ban, Lock, Key, AlertTriangle, Globe, Clock, RefreshCw,
+  Ban, Lock, Key, AlertTriangle, Globe, Clock, RefreshCw, Download, Send,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -23,6 +23,7 @@ import {
   fetchSystemHealth,
   fetchUsageAnalytics,
 } from '../services/adminApi'
+import reportApi from '../services/reportApi'
 
 /* ─── Small shared components (unchanged from original) ──────────────────── */
 
@@ -290,6 +291,13 @@ function AdminDashboard() {
   const [usageData, setUsageData]           = useState(null)
   const [usageLoading, setUsageLoading]     = useState(false)
   const [usageError, setUsageError]         = useState(null)
+
+  // Module 9 Chunk 4: report downloads + admin broadcast
+  const [adminReportDownloading, setAdminReportDownloading] = useState(null) // 'pdf' | 'csv' | null
+  const [broadcastForm,    setBroadcastForm]    = useState({ target: 'ALL_CANDIDATES', title: '', message: '' })
+  const [broadcastSending, setBroadcastSending] = useState(false)
+  const [broadcastError,   setBroadcastError]   = useState('')
+  const [broadcastSuccess, setBroadcastSuccess] = useState('')
 
   /* ── Fetch helpers ── */
 
@@ -811,38 +819,135 @@ function AdminDashboard() {
 
       case 'reports':
         return (
-          <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="card-header">
-              <div><h2>Assessment Reports</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>All generated candidate assessment reports (real data)</p></div>
-              <span className="badge gray">{stats?.reportsGenerated?.toLocaleString() ?? '…'} reports</span>
-            </div>
-            {activityLoading
-              ? <Skeleton height={200} />
-              : activityError
-                ? <ErrorBanner msg={activityError} onRetry={loadActivity} />
-                : (
-                  <div className="table-responsive">
-                    <table className="data-table">
-                      <thead><tr>
-                        <th>Candidate</th><th>Role</th><th>Score</th><th>Recommendation</th><th>Completed</th>
-                      </tr></thead>
-                      <tbody>
-                        {(activity?.recentActivity || []).length === 0
-                          ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No completed reports yet</td></tr>
-                          : (activity?.recentActivity || []).map((r, i) => (
-                            <tr key={i}>
-                              <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{r.candidateName?.charAt(0) || '?'}</div><span style={{ fontWeight: 500 }}>{r.candidateName}</span></div></td>
-                              <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{r.role}</td>
-                              <td><span style={{ fontWeight: 700, color: r.score >= 85 ? '#10b981' : r.score >= 70 ? '#f59e0b' : '#ef4444' }}>{r.score != null ? r.score : '—'}</span></td>
-                              <td>{r.recommendation ? <StatusBadge status={r.recommendation === 'Highly Recommended' ? 'Active' : r.recommendation === 'Not Recommended' ? 'Blocked' : 'Pending'} /> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
-                              <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.timeAgo}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+          <>
+            {/* ── System Report Downloads ── */}
+            <motion.div className="card" style={{ marginBottom: 20 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="card-header">
+                <div><h2>System Reports</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Download platform-wide reports generated from real data</p></div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
+                {[
+                  { label: 'Platform System Report', desc: 'User counts, interview activity, AI usage, system health', fmt: 'pdf' },
+                  { label: 'Platform System Report', desc: 'CSV export — suitable for spreadsheet analysis', fmt: 'csv' },
+                ].map(({ label, desc, fmt }) => (
+                  <div key={fmt} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Download size={18} color="#6366f1" />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{label} ({fmt.toUpperCase()})</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{desc}</div>
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={adminReportDownloading === fmt}
+                      onClick={async () => {
+                        setAdminReportDownloading(fmt)
+                        try {
+                          await reportApi.downloadAdminReport(fmt)
+                          showToast(`${fmt.toUpperCase()} report downloaded`)
+                        } catch (e) {
+                          showToast('Download failed: ' + (e.message || 'Error'))
+                        } finally {
+                          setAdminReportDownloading(null)
+                        }
+                      }}
+                    >
+                      <Download size={13} /> {adminReportDownloading === fmt ? 'Downloading…' : `Download ${fmt.toUpperCase()}`}
+                    </button>
                   </div>
-                )}
-          </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* ── Broadcast Notification ── */}
+            <motion.div className="card" style={{ marginBottom: 20 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <div className="card-header">
+                <div><h2>Broadcast Notification</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Send an in-app notification to all users of a target group</p></div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-field">
+                  <label>Target Group</label>
+                  <select value={broadcastForm.target} onChange={e => setBroadcastForm(p => ({ ...p, target: e.target.value }))}>
+                    <option value="ALL_CANDIDATES">All Candidates</option>
+                    <option value="ALL_RECRUITERS">All Recruiters</option>
+                    <option value="ALL_USERS">All Users (Candidates + Recruiters + Admins)</option>
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>Title <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({broadcastForm.title.length}/120)</span></label>
+                  <input type="text" maxLength={120} placeholder="e.g. Platform maintenance scheduled" value={broadcastForm.title} onChange={e => setBroadcastForm(p => ({ ...p, title: e.target.value }))} />
+                </div>
+                <div className="form-field">
+                  <label>Message <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({broadcastForm.message.length}/600)</span></label>
+                  <textarea rows={3} maxLength={600} placeholder="Plain text only — no HTML" value={broadcastForm.message}
+                    onChange={e => setBroadcastForm(p => ({ ...p, message: e.target.value }))}
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 14, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                {broadcastError && <div style={{ fontSize: 13, color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>{broadcastError}</div>}
+                {broadcastSuccess && <div style={{ fontSize: 13, color: '#10b981', padding: '8px 12px', background: 'rgba(16,185,129,0.08)', borderRadius: 6 }}>{broadcastSuccess}</div>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn btn-primary"
+                    disabled={broadcastSending || !broadcastForm.title.trim() || !broadcastForm.message.trim()}
+                    onClick={async () => {
+                      setBroadcastError('')
+                      setBroadcastSuccess('')
+                      setBroadcastSending(true)
+                      try {
+                        const res = await reportApi.broadcastNotification(broadcastForm)
+                        setBroadcastSuccess(`✓ Sent to ${res.totalSent} user(s) (target: ${res.target})`)
+                        setBroadcastForm(p => ({ ...p, title: '', message: '' }))
+                      } catch (e) {
+                        setBroadcastError(e.message || 'Broadcast failed')
+                      } finally {
+                        setBroadcastSending(false)
+                      }
+                    }}
+                  >
+                    <Send size={14} /> {broadcastSending ? 'Sending…' : 'Send Broadcast'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ── Recent Assessment Reports table (existing) ── */}
+            <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <div className="card-header">
+                <div><h2>Assessment Reports</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>All generated candidate assessment reports (real data)</p></div>
+                <span className="badge gray">{stats?.reportsGenerated?.toLocaleString() ?? '…'} reports</span>
+              </div>
+              {activityLoading
+                ? <Skeleton height={200} />
+                : activityError
+                  ? <ErrorBanner msg={activityError} onRetry={loadActivity} />
+                  : (
+                    <div className="table-responsive">
+                      <table className="data-table">
+                        <thead><tr>
+                          <th>Candidate</th><th>Role</th><th>Score</th><th>Recommendation</th><th>Completed</th>
+                        </tr></thead>
+                        <tbody>
+                          {(activity?.recentActivity || []).length === 0
+                            ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No completed reports yet</td></tr>
+                            : (activity?.recentActivity || []).map((r, i) => (
+                              <tr key={i}>
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{r.candidateName?.charAt(0) || '?'}</div><span style={{ fontWeight: 500 }}>{r.candidateName}</span></div></td>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{r.role}</td>
+                                <td><span style={{ fontWeight: 700, color: r.score >= 85 ? '#10b981' : r.score >= 70 ? '#f59e0b' : '#ef4444' }}>{r.score != null ? r.score : '—'}</span></td>
+                                <td>{r.recommendation ? <StatusBadge status={r.recommendation === 'Highly Recommended' ? 'Active' : r.recommendation === 'Not Recommended' ? 'Blocked' : 'Pending'} /> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
+                                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.timeAgo}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+            </motion.div>
+          </>
         )
 
       case 'security':

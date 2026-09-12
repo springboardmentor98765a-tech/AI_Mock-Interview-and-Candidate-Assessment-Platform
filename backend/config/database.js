@@ -357,6 +357,74 @@ async function initDatabase() {
         ON interview_cv_analysis (status)
     `)
 
+    // ── Module 9: Notifications ───────────────────────────────────────────────
+    // Persistent in-app notification store.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type       VARCHAR(50)  NOT NULL,
+        title      VARCHAR(255) NOT NULL,
+        message    TEXT         NOT NULL,
+        data       JSONB        NOT NULL DEFAULT '{}'::jsonb,
+        is_read    BOOLEAN      NOT NULL DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    // Indexes for the notification feed queries
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_read
+        ON notifications (user_id, is_read)
+    `)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_created
+        ON notifications (created_at DESC)
+    `)
+
+    // Notification preference columns on users (idempotent)
+    await client.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS notif_email_enabled     BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS notif_reminders_enabled BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS notif_reports_enabled   BOOLEAN NOT NULL DEFAULT true
+    `)
+
+    // ── Module 9 Chunk 2: Scheduled Interviews ────────────────────────────────
+    // Platform scheduling appointments — separate from the immediate AI interview
+    // generation flow (POST /api/interviews/generate).
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS scheduled_interviews (
+        id                  SERIAL PRIMARY KEY,
+        recruiter_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        candidate_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role                VARCHAR(255) NOT NULL,
+        scheduled_at        TIMESTAMP WITH TIME ZONE NOT NULL,
+        duration_minutes    INTEGER NOT NULL DEFAULT 45,
+        interview_type      VARCHAR(50) NOT NULL DEFAULT 'Video Call',
+        status              VARCHAR(30) NOT NULL DEFAULT 'scheduled',
+        reminder_sent_24h   BOOLEAN NOT NULL DEFAULT false,
+        reminder_sent_1h    BOOLEAN NOT NULL DEFAULT false,
+        notes               TEXT,
+        created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_sched_candidate
+        ON scheduled_interviews (candidate_id, scheduled_at)
+    `)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_sched_recruiter
+        ON scheduled_interviews (recruiter_id, scheduled_at)
+    `)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_sched_status_at
+        ON scheduled_interviews (status, scheduled_at)
+    `)
+
+
     await client.query('COMMIT')
     console.log('Database initialized — all tables ready')
   } catch (err) {

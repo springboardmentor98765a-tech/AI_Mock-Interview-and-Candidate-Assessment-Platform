@@ -4,6 +4,8 @@ import DashboardLayout from '../components/DashboardLayout'
 import recordingApi from '../services/recordingApi'
 import cvApi        from '../services/cvApi'
 import analyticsApi from '../services/analyticsApi'
+import scheduleApi  from '../services/scheduleApi'
+import reportApi    from '../services/reportApi'
 import { computeShortlistInsight, getInsightStatusColor, getInsightBadgeClass } from '../services/shortlistInsight'
 import {
   Users, Briefcase, FileText, Calendar, Video, Download,
@@ -18,23 +20,9 @@ import {
   Tooltip, Legend, BarChart, Bar
 } from 'recharts'
 
-const ALL_CANDIDATES = [
-  { rank: 1, name: 'Arjun Reddy',  role: 'Frontend Developer', resumeScore: 92, interviewScore: 88, aiScore: 95, finalScore: 91.7, rec: 'Highly Recommended', date: 'Jul 25, 2025' },
-  { rank: 2, name: 'Kavya Nair',   role: 'Data Analyst',       resumeScore: 88, interviewScore: 85, aiScore: 90, finalScore: 87.7, rec: 'Highly Recommended', date: 'Jul 24, 2025' },
-  { rank: 3, name: 'Rohan Joshi',  role: 'Backend Developer',  resumeScore: 85, interviewScore: 82, aiScore: 84, finalScore: 83.7, rec: 'Recommended',        date: 'Jul 23, 2025' },
-  { rank: 4, name: 'Meera Iyer',   role: 'UI/UX Designer',     resumeScore: 78, interviewScore: 75, aiScore: 72, finalScore: 75.0, rec: 'Recommended',        date: 'Jul 22, 2025' },
-  { rank: 5, name: 'Sanjay Das',   role: 'DevOps Engineer',    resumeScore: 70, interviewScore: 68, aiScore: 65, finalScore: 67.7, rec: 'Needs Review',       date: 'Jul 21, 2025' },
-  { rank: 6, name: 'Pooja Mehta',  role: 'QA Engineer',        resumeScore: 62, interviewScore: 58, aiScore: 55, finalScore: 58.3, rec: 'Not Recommended',    date: 'Jul 20, 2025' },
-  { rank: 7, name: 'Kiran Rao',    role: 'Data Engineer',      resumeScore: 74, interviewScore: 70, aiScore: 68, finalScore: 70.7, rec: 'Needs Review',       date: 'Jul 19, 2025' },
-]
+// ALL_CANDIDATES removed — realCandidates is derived from live analytics API data.
 
-const SCHEDULED_INTERVIEWS = [
-  { candidate: 'Arjun Reddy',  role: 'Frontend Developer', date: 'Jul 30, 2025', time: '10:00 AM', type: 'Video Call',  status: 'Confirmed' },
-  { candidate: 'Kavya Nair',   role: 'Data Analyst',       date: 'Aug 1, 2025',  time: '2:00 PM',  type: 'Video Call',  status: 'Confirmed' },
-  { candidate: 'Rohan Joshi',  role: 'Backend Developer',  date: 'Aug 3, 2025',  time: '11:00 AM', type: 'In-Person',   status: 'Pending'   },
-  { candidate: 'Meera Iyer',   role: 'UI/UX Designer',     date: 'Aug 5, 2025',  time: '3:00 PM',  type: 'Phone',       status: 'Scheduled' },
-  { candidate: 'Sanjay Das',   role: 'DevOps Engineer',    date: 'Aug 7, 2025',  time: '9:00 AM',  type: 'Video Call',  status: 'Pending'   },
-]
+// SCHEDULED_INTERVIEWS: replaced with real API data — see schedules state below.
 
 const JOB_POSTINGS = [
   { id: 'JOB-001', title: 'Frontend Developer',  dept: 'Engineering',  applicants: 24, status: 'Active',   posted: 'Jul 15, 2025', deadline: 'Aug 15, 2025' },
@@ -44,14 +32,7 @@ const JOB_POSTINGS = [
   { id: 'JOB-005', title: 'DevOps Engineer',      dept: 'Operations',   applicants: 9,  status: 'Active',   posted: 'Jul 22, 2025', deadline: 'Aug 22, 2025' },
 ]
 
-const ASSESSMENTS = [
-  { candidate: 'Arjun Reddy',  type: 'Technical',      score: 92, duration: '45 min', date: 'Jul 24, 2025', status: 'Completed' },
-  { candidate: 'Kavya Nair',   type: 'Aptitude',        score: 88, duration: '30 min', date: 'Jul 23, 2025', status: 'Completed' },
-  { candidate: 'Rohan Joshi',  type: 'Technical',      score: 85, duration: '45 min', date: 'Jul 22, 2025', status: 'Completed' },
-  { candidate: 'Meera Iyer',   type: 'Design Review',  score: 78, duration: '60 min', date: 'Jul 21, 2025', status: 'Completed' },
-  { candidate: 'Sanjay Das',   type: 'Technical',      score: 70, duration: '45 min', date: 'Jul 20, 2025', status: 'In Review' },
-  { candidate: 'Pooja Mehta',  type: 'Aptitude',        score: 62, duration: '30 min', date: 'Jul 19, 2025', status: 'Completed' },
-]
+// ASSESSMENTS removed — assessments section renders from realCandidates (live API data).
 
 // skillsData and scoreDistribution are computed inside the component via useMemo
 // from real analytics API data — the module-scope mock arrays were removed.
@@ -564,7 +545,7 @@ function RecruiterDashboard() {
   const [viewCandidate, setViewCandidate]   = useState(null)
   const [scheduleOpen, setScheduleOpen]     = useState(false)
   const [messageCandidate, setMessageCandidate] = useState(null)
-  const [scheduleForm, setScheduleForm] = useState({ candidate: '', date: '', time: '', type: 'Video Call', notes: '' })
+  const [scheduleForm, setScheduleForm] = useState({ candidateId: '', role: '', date: '', time: '', type: 'Video Call', notes: '', duration: '45' })
   const [msgText, setMsgText] = useState('')
   const PAGE_SIZE = 5
 
@@ -586,6 +567,19 @@ function RecruiterDashboard() {
   const [cvError,   setCvError]   = useState('')
   const [cvTriggerBusy, setCvTriggerBusy] = useState(false)
 
+  // Module 9 Chunk 2: real scheduled interviews
+  const [schedules,          setSchedules]         = useState([])
+  const [schedulesLoading,   setSchedulesLoading]  = useState(false)
+  const [scheduleSubmitting, setScheduleSubmitting] = useState(false)
+  const [scheduleFormError,  setScheduleFormError]  = useState('')
+  const [cancellingId,       setCancellingId]       = useState(null)
+
+  // Module 9 Chunk 3: reschedule modal
+  const [rescheduleTarget,    setRescheduleTarget]    = useState(null)   // schedule row object
+  const [rescheduleForm,      setRescheduleForm]      = useState({ date: '', time: '' })
+  const [rescheduleError,     setRescheduleError]     = useState('')
+  const [rescheduleSubmitting,setRescheduleSubmitting] = useState(false)
+
   // Module 8: recruiter analytics from /api/analytics/recruiter
   const [analytics,        setAnalytics]        = useState(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
@@ -597,15 +591,19 @@ function RecruiterDashboard() {
       setAnalyticsLoading(true)
       setAiResultsError('')
       try {
-        const [resultsRes, analyticsRes] = await Promise.allSettled([
+        const [resultsRes, analyticsRes, schedulesRes] = await Promise.allSettled([
           recordingApi.getResults(),
           analyticsApi.getRecruiterAnalytics(),
+          scheduleApi.getSchedules({ limit: 200 }),
         ])
         if (!cancelled) {
           if (resultsRes.status === 'fulfilled') setAiResults(resultsRes.value.results || [])
           else setAiResultsError(resultsRes.reason?.message || 'Failed to load')
           if (analyticsRes.status === 'fulfilled' && analyticsRes.value?.success) {
             setAnalytics(analyticsRes.value)
+          }
+          if (schedulesRes.status === 'fulfilled' && Array.isArray(schedulesRes.value?.schedules)) {
+            setSchedules(schedulesRes.value.schedules)
           }
         }
       } catch (e) {
@@ -683,6 +681,8 @@ function RecruiterDashboard() {
         return {
           id:               r.interviewId,
           interviewId:      r.interviewId,
+          // userId = candidate's user account ID — required for PDF/CSV report download API
+          userId:           r.candidateId,
           rank:             r.rank,           // merit-based rank from backend
           name:             r.candidateName || 'Candidate',
           email:            r.candidateEmail || '—',
@@ -715,6 +715,8 @@ function RecruiterDashboard() {
       return {
         id:               r.interview_id,
         interviewId:      r.interview_id,
+        // userId = candidate's user account ID — required for PDF/CSV report download API
+        userId:           r.user_id ?? r.candidate_id,
         rank:             i + 1,   // position-based fallback
         name:             r.candidate_name || 'Candidate',
         email:            r.candidate_email || '—',
@@ -867,6 +869,98 @@ function RecruiterDashboard() {
   }, [MAX_COMPARE]) // eslint-disable-line react-hooks/exhaustive-deps
   const setSchField = (f) => (e) => setScheduleForm(p => ({ ...p, [f]: e.target.value }))
 
+  // Module 9 Chunk 2: Submit schedule to API
+  const handleScheduleSubmit = async () => {
+    setScheduleFormError('')
+    const { candidateId, role: jobRole, date, time, type, notes, duration } = scheduleForm
+    if (!candidateId) return setScheduleFormError('Please select a candidate')
+    if (!jobRole.trim()) return setScheduleFormError('Role is required')
+    if (!date) return setScheduleFormError('Date is required')
+    if (!time) return setScheduleFormError('Time is required')
+
+    // Combine date + time into a UTC-safe ISO string
+    const scheduledAt = new Date(`${date}T${time}:00`).toISOString()
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      return setScheduleFormError('Scheduled time must be in the future')
+    }
+
+    setScheduleSubmitting(true)
+    try {
+      const res = await scheduleApi.createSchedule({
+        candidateId: parseInt(candidateId),
+        role:            jobRole.trim(),
+        scheduledAt,
+        durationMinutes: parseInt(duration) || 45,
+        interviewType:   type,
+        notes:           notes || null,
+      })
+      // Refresh schedule list
+      const fresh = await scheduleApi.getSchedules({ limit: 200 })
+      if (Array.isArray(fresh.schedules)) setSchedules(fresh.schedules)
+      setScheduleOpen(false)
+      setScheduleForm({ candidateId: '', role: '', date: '', time: '', type: 'Video Call', notes: '', duration: '45' })
+      showToast(`Interview scheduled for ${res.schedule?.role || 'candidate'}`)
+    } catch (err) {
+      setScheduleFormError(err.message || 'Failed to schedule interview')
+    } finally {
+      setScheduleSubmitting(false)
+    }
+  }
+
+  // Module 9 Chunk 2: Cancel a schedule
+  const handleCancelSchedule = async (scheduleId) => {
+    if (!window.confirm('Cancel this scheduled interview?')) return
+    setCancellingId(scheduleId)
+    try {
+      await scheduleApi.cancelSchedule(scheduleId)
+      setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status: 'cancelled' } : s))
+      showToast('Interview cancelled')
+    } catch (err) {
+      showToast('Cancel failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  // Module 9 Chunk 3: Open reschedule modal
+  const openReschedule = (iv) => {
+    // Pre-fill with existing date/time in local-input-friendly format
+    const dt = iv.scheduled_at ? new Date(iv.scheduled_at) : null
+    const pad = (n) => String(n).padStart(2, '0')
+    const date = dt ? `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}` : ''
+    const time = dt ? `${pad(dt.getHours())}:${pad(dt.getMinutes())}` : ''
+    setRescheduleForm({ date, time })
+    setRescheduleError('')
+    setRescheduleTarget(iv)
+  }
+
+  // Module 9 Chunk 3: Submit reschedule PATCH
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleTarget) return
+    setRescheduleError('')
+    const { date, time } = rescheduleForm
+    if (!date) return setRescheduleError('Date is required')
+    if (!time) return setRescheduleError('Time is required')
+
+    const scheduledAt = new Date(`${date}T${time}:00`).toISOString()
+    if (new Date(scheduledAt).getTime() <= Date.now()) {
+      return setRescheduleError('New scheduled time must be in the future')
+    }
+
+    setRescheduleSubmitting(true)
+    try {
+      const res = await scheduleApi.rescheduleInterview(rescheduleTarget.id, { scheduledAt })
+      // Optimistic update of the list
+      setSchedules(prev => prev.map(s => s.id === rescheduleTarget.id ? { ...s, ...res.schedule } : s))
+      setRescheduleTarget(null)
+      showToast(`Interview rescheduled to ${new Date(scheduledAt).toLocaleString()}`)
+    } catch (err) {
+      setRescheduleError(err.message || 'Failed to reschedule')
+    } finally {
+      setRescheduleSubmitting(false)
+    }
+  }
+
   const handleExport = () => {
     if (realCandidates.length === 0) {
       showToast('No interview candidates to export')
@@ -950,6 +1044,33 @@ function RecruiterDashboard() {
     a.click()
     URL.revokeObjectURL(url)
     showToast(`Report downloaded for ${c.name || 'candidate'}`)
+  }
+
+  // Module 9 Chunk 4: Backend PDF/CSV report for a specific candidate
+  const [reportDownloading, setReportDownloading] = useState(null) // candidateId or null
+
+  const handleDownloadCandidatePdf = async (candidateId, name) => {
+    setReportDownloading(candidateId)
+    try {
+      await reportApi.downloadCandidateReport(candidateId, 'pdf')
+      showToast(`PDF report downloaded for ${name || 'candidate'}`)
+    } catch (err) {
+      showToast('PDF download failed: ' + (err.message || 'Error'))
+    } finally {
+      setReportDownloading(null)
+    }
+  }
+
+  const handleDownloadCandidateCsv = async (candidateId, name) => {
+    setReportDownloading(candidateId)
+    try {
+      await reportApi.downloadCandidateReport(candidateId, 'csv')
+      showToast(`CSV report downloaded for ${name || 'candidate'}`)
+    } catch (err) {
+      showToast('CSV download failed: ' + (err.message || 'Error'))
+    } finally {
+      setReportDownloading(null)
+    }
   }
 
   const handleSort = (field) => {
@@ -1386,7 +1507,14 @@ function RecruiterDashboard() {
                       <td>
                         <div className="table-actions">
                           <button className="btn btn-outline btn-sm" onClick={() => openDetail(c.interviewId)}><Eye size={13} /> View</button>
-                          <button className="btn btn-primary btn-sm" onClick={() => handleDownloadReport(c)}><Download size={13} /> Download</button>
+                          <button className="btn btn-outline btn-sm" title="Download PDF report"
+                            disabled={reportDownloading === c.userId}
+                            onClick={() => handleDownloadCandidatePdf(c.userId, c.name)}
+                          ><Download size={13} /> PDF</button>
+                          <button className="btn btn-outline btn-sm" title="Download CSV report"
+                            disabled={reportDownloading === c.userId}
+                            onClick={() => handleDownloadCandidateCsv(c.userId, c.name)}
+                          ><Download size={13} /> CSV</button>
                         </div>
                       </td>
                     </tr>
@@ -1410,36 +1538,63 @@ function RecruiterDashboard() {
           <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="card-header">
               <div><h2>Interview Schedule</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Upcoming and scheduled candidate sessions</p></div>
-              <button className="btn btn-primary btn-sm" onClick={() => setScheduleOpen(true)}><Plus size={14} /> Schedule New</button>
+              <button className="btn btn-primary btn-sm" onClick={() => { setScheduleFormError(''); setScheduleOpen(true) }}><Plus size={14} /> Schedule New</button>
             </div>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead><tr>
-                  <th>Candidate</th><th>Role</th><th>Date</th><th>Time</th><th>Type</th><th>Status</th><th>Actions</th>
-                </tr></thead>
-                <tbody>
-                  {SCHEDULED_INTERVIEWS.map((iv, i) => (
-                    <tr key={i}>
-                      <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{iv.candidate.charAt(0)}</div><span style={{ fontWeight: 500 }}>{iv.candidate}</span></div></td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{iv.role}</td>
-                      <td style={{ fontSize: 13 }}>{iv.date}</td>
-                      <td style={{ fontSize: 13 }}>{iv.time}</td>
-                      <td><span className="badge gray" style={{ fontSize: 11 }}>{iv.type}</span></td>
-                      <td><span className={`badge ${iv.status === 'Confirmed' ? 'green' : iv.status === 'Pending' ? 'orange' : 'blue'}`}>{iv.status}</span></td>
-                      <td>
-                        <div className="table-actions">
-                          <button className="btn btn-outline btn-sm" onClick={() => showToast(`Interview details: ${iv.candidate} on ${iv.date} at ${iv.time}`)}><Eye size={13} /> View</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => {
-                            const c = realCandidates.find(x => x.name === iv.candidate) || { name: iv.candidate, role: iv.role }
-                            setMessageCandidate(c)
-                          }}><MessageSquare size={13} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+            {schedulesLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading schedules…</div>
+            ) : schedules.filter(s => s.status !== 'cancelled').length === 0 ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                No interviews scheduled yet. Use "Schedule New" to add one.
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead><tr>
+                    <th>Candidate</th><th>Role</th><th>Date &amp; Time</th><th>Type</th><th>Duration</th><th>Status</th><th>Actions</th>
+                  </tr></thead>
+                  <tbody>
+                    {schedules.filter(s => s.status !== 'cancelled').map((iv) => {
+                      const dt = iv.scheduled_at ? new Date(iv.scheduled_at) : null
+                      const dateStr = dt ? dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+                      const timeStr = dt ? dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'
+                      const statusColor = iv.status === 'confirmed' ? 'green' : iv.status === 'cancelled' ? 'red' : iv.status === 'scheduled' ? 'blue' : 'orange'
+                      const candidateName = iv.candidate_name || '—'
+                      return (
+                        <tr key={iv.id}>
+                          <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div className="user-avatar">{candidateName.charAt(0)}</div><span style={{ fontWeight: 500 }}>{candidateName}</span></div></td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{iv.role}</td>
+                          <td style={{ fontSize: 13 }}>{dateStr}<br /><span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{timeStr}</span></td>
+                          <td><span className="badge gray" style={{ fontSize: 11 }}>{iv.interview_type}</span></td>
+                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{iv.duration_minutes} min</td>
+                          <td><span className={`badge ${statusColor}`}>{iv.status}</span></td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                className="btn btn-outline btn-sm"
+                                disabled={cancellingId === iv.id || iv.status === 'cancelled' || iv.status === 'completed' || rescheduleSubmitting}
+                                onClick={() => openReschedule(iv)}
+                                title="Reschedule"
+                              >
+                                Reschedule
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                style={{ color: '#ef4444', borderColor: '#ef4444' }}
+                                disabled={cancellingId === iv.id || iv.status === 'cancelled' || iv.status === 'completed'}
+                                onClick={() => handleCancelSchedule(iv.id)}
+                              >
+                                {cancellingId === iv.id ? 'Cancelling…' : 'Cancel'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </motion.div>
         )
 
@@ -2093,20 +2248,52 @@ function RecruiterDashboard() {
 
 
       {scheduleOpen && (
-        <Modal title="Schedule Interview" onClose={() => setScheduleOpen(false)}>
+        <Modal title="Schedule Interview" onClose={() => { setScheduleOpen(false); setScheduleFormError('') }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="form-field"><label>Candidate Name</label><input type="text" placeholder="Enter candidate name" value={scheduleForm.candidate} onChange={setSchField('candidate')} /></div>
-            <div className="form-field"><label>Date</label><input type="date" value={scheduleForm.date} onChange={setSchField('date')} /></div>
-            <div className="form-field"><label>Time</label><input type="time" value={scheduleForm.time} onChange={setSchField('time')} /></div>
-            <div className="form-field"><label>Interview Type</label>
-              <select value={scheduleForm.type} onChange={setSchField('type')}><option>Video Call</option><option>In-Person</option><option>Phone</option></select>
+
+            {/* Candidate selector — uses real candidates with interview data */}
+            <div className="form-field">
+              <label>Candidate</label>
+              <select
+                value={scheduleForm.candidateId || ''}
+                onChange={e => setScheduleForm(p => ({ ...p, candidateId: e.target.value }))}
+              >
+                <option value="">Select a candidate…</option>
+                {realCandidates.map(c => (
+                  <option key={c.interviewId || c.id} value={c.interviewId || c.id}>
+                    {c.name} {c.role ? `— ${c.role}` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="form-field"><label>Notes</label><input type="text" placeholder="Optional notes..." value={scheduleForm.notes} onChange={setSchField('notes')} /></div>
+
+            <div className="form-field"><label>Role / Position</label><input type="text" placeholder="e.g. Frontend Developer" value={scheduleForm.role || ''} onChange={setSchField('role')} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-field"><label>Date</label><input type="date" value={scheduleForm.date} onChange={setSchField('date')} /></div>
+              <div className="form-field"><label>Time</label><input type="time" value={scheduleForm.time} onChange={setSchField('time')} /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-field"><label>Interview Type</label>
+                <select value={scheduleForm.type} onChange={setSchField('type')}>
+                  <option>Video Call</option><option>In-Person</option><option>Phone</option><option>Technical</option><option>HR Round</option>
+                </select>
+              </div>
+              <div className="form-field"><label>Duration (minutes)</label>
+                <input type="number" min="5" max="480" value={scheduleForm.duration || '45'} onChange={setSchField('duration')} />
+              </div>
+            </div>
+            <div className="form-field"><label>Notes (optional)</label><input type="text" placeholder="Optional notes…" value={scheduleForm.notes} onChange={setSchField('notes')} /></div>
+
+            {scheduleFormError && (
+              <div style={{ fontSize: 13, color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>
+                {scheduleFormError}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
-            <button className="btn btn-outline" onClick={() => setScheduleOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={() => { setScheduleOpen(false); showToast(`Interview scheduled for ${scheduleForm.candidate || 'candidate'} on ${scheduleForm.date || 'selected date'}`) }}>
-              <Calendar size={14} /> Schedule
+            <button className="btn btn-outline" disabled={scheduleSubmitting} onClick={() => { setScheduleOpen(false); setScheduleFormError('') }}>Cancel</button>
+            <button className="btn btn-primary" disabled={scheduleSubmitting} onClick={handleScheduleSubmit}>
+              <Calendar size={14} /> {scheduleSubmitting ? 'Scheduling…' : 'Schedule'}
             </button>
           </div>
         </Modal>
@@ -2123,6 +2310,57 @@ function RecruiterDashboard() {
             <button className="btn btn-outline" onClick={() => setMessageCandidate(null)}>Cancel</button>
             <button className="btn btn-primary" disabled={!msgText.trim()} onClick={() => { setMessageCandidate(null); setMsgText(''); showToast(`Message sent to ${messageCandidate.name}`) }}>
               <Send size={14} /> Send
+            </button>
+          </div>
+        </Modal>
+      )}
+      {rescheduleTarget && (
+        <Modal
+          title={`Reschedule: ${rescheduleTarget.role}`}
+          onClose={() => { setRescheduleTarget(null); setRescheduleError('') }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border-light)' }}>
+              <strong>{rescheduleTarget.candidate_name || 'Candidate'}</strong> — {rescheduleTarget.interview_type} · {rescheduleTarget.duration_minutes} min
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-field">
+                <label>New Date</label>
+                <input
+                  type="date"
+                  value={rescheduleForm.date}
+                  onChange={e => setRescheduleForm(p => ({ ...p, date: e.target.value }))}
+                />
+              </div>
+              <div className="form-field">
+                <label>New Time</label>
+                <input
+                  type="time"
+                  value={rescheduleForm.time}
+                  onChange={e => setRescheduleForm(p => ({ ...p, time: e.target.value }))}
+                />
+              </div>
+            </div>
+            {rescheduleError && (
+              <div style={{ fontSize: 13, color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>
+                {rescheduleError}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button
+              className="btn btn-outline"
+              disabled={rescheduleSubmitting}
+              onClick={() => { setRescheduleTarget(null); setRescheduleError('') }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={rescheduleSubmitting}
+              onClick={handleRescheduleSubmit}
+            >
+              <Calendar size={14} /> {rescheduleSubmitting ? 'Rescheduling…' : 'Confirm Reschedule'}
             </button>
           </div>
         </Modal>

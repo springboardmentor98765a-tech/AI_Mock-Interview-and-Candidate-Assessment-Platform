@@ -7,7 +7,9 @@
  * All routes here are protected by authorize('ADMIN') in adminRoutes.js.
  */
 
-const adminService = require('../services/adminService')
+const adminService       = require('../services/adminService')
+const notificationService = require('../services/notificationService')
+const { pool }            = require('../config/database')
 
 /* ─── GET /api/admin/stats ───────────────────────────────────────────────── */
 async function getAdminStats(req, res) {
@@ -145,6 +147,92 @@ async function getUsageAnalytics(req, res) {
   }
 }
 
+/* ─── POST /api/admin/notifications ─────────────────────────────────────── */
+
+/**
+ * Broadcasts an in-app notification to all users of a given target role.
+ * Supported targets: ALL_CANDIDATES, ALL_RECRUITERS, ALL_USERS
+ *
+ * Security:
+ *  - ADMIN only (enforced in route middleware)
+ *  - title ≤ 120 chars, message ≤ 600 chars
+ *  - target must be one of the allowed enum values
+ *  - HTML stripped from title/message (plain text only)
+ *  - Batched in pages of 100 to avoid large memory allocation
+ *  - Idempotent per send (no deduplication needed — this is an explicit admin action)
+ */
+const ALLOWED_TARGETS = new Set(['ALL_CANDIDATES', 'ALL_RECRUITERS', 'ALL_USERS'])
+
+function stripHtml(str) {
+  return String(str || '').replace(/<[^>]*>/g, '').trim()
+}
+
+async function broadcastNotification(req, res) {
+  try {
+    const { title: rawTitle, message: rawMessage, target } = req.body
+
+    const title   = stripHtml(rawTitle)
+    const message = stripHtml(rawMessage)
+
+    if (!title || title.length > 120) {
+      return res.status(400).json({ success: false, message: 'title must be 1–120 characters (plain text)' })
+    }
+    if (!message || message.length > 600) {
+      return res.status(400).json({ success: false, message: 'message must be 1–600 characters (plain text)' })
+    }
+    if (!target || !ALLOWED_TARGETS.has(String(target).toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `target must be one of: ${[...ALLOWED_TARGETS].join(', ')}`,
+      })
+    }
+
+    const resolvedTarget = String(target).toUpperCase()
+
+    // Determine which role(s) to notify
+    const roleFilter = {
+      ALL_CANDIDATES: ['USER'],
+      ALL_RECRUITERS: ['RECRUITER'],
+      ALL_USERS:      ['USER', 'RECRUITER', 'ADMIN'],
+    }[resolvedTarget]
+
+    // Paginated fetch: 100 users per batch
+    const PAGE_SIZE = 100
+    let offset      = 0
+    let totalSent   = 0
+    let batch
+
+    do {
+      batch = await pool.query(
+        `SELECT id FROM users
+         WHERE role = ANY($1::text[]) AND active = true
+         ORDER BY id
+         LIMIT $2 OFFSET $3`,
+        [roleFilter, PAGE_SIZE, offset]
+      )
+
+      for (const row of batch.rows) {
+        await notificationService.createNotification({
+          userId:  row.id,
+          type:    'ADMIN_BROADCAST',
+          title,
+          message,
+          data:    { broadcastBy: req.user.id, target: resolvedTarget },
+        }).catch(e => console.warn(`[adminController] broadcast notif user=${row.id} failed:`, e.message))
+        totalSent++
+      }
+
+      offset += PAGE_SIZE
+    } while (batch.rows.length === PAGE_SIZE)
+
+    console.info(`[adminController] Broadcast "${title}" → target=${resolvedTarget}, sent=${totalSent}`)
+    return res.status(200).json({ success: true, totalSent, target: resolvedTarget })
+  } catch (err) {
+    console.error('[adminController.broadcastNotification]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to broadcast notification' })
+  }
+}
+
 module.exports = {
   getAdminStats,
   getUserList,
@@ -154,4 +242,5 @@ module.exports = {
   getAiMonitoring,
   getSystemHealth,
   getUsageAnalytics,
+  broadcastNotification,
 }

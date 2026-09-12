@@ -10,6 +10,7 @@ const interviewGenerator = require('../services/interviewGenerator')
 const speechAnalysis     = require('../services/speechAnalysisService')
 const scoringEngine      = require('../services/scoringEngine')
 const feedbackService    = require('../services/feedbackService')
+const notificationService = require('../services/notificationService')
 
 
 /* ─── POST /api/interviews/recommend-roles ─────────────────────────────── */
@@ -715,7 +716,23 @@ async function complete(req, res) {
       console.warn('[InterviewBrain] complete hook failed (non-fatal):', brainErr.message)
     }
 
-    // ────────────────────────────────────────────────────────────────────────
+    // ── Module 9 Chunk 4: Session lifecycle notification ─────────────────────
+    // Fires after the transaction is committed (idempotent: the DB guard at line ~400
+    // returns early for already-completed interviews without re-running this block).
+    notificationService.createNotification({
+      userId:  req.user.id,
+      type:    'INTERVIEW_COMPLETED',
+      title:   'Interview completed',
+      message: `Your ${interview.selected_role} interview has been scored. Overall score: ${evaluation.overall_score ?? 'N/A'}/100.`,
+      data: {
+        interviewId,
+        role:         interview.selected_role,
+        overallScore: evaluation.overall_score ?? null,
+        rating:       evaluation.performanceRating ?? null,
+      },
+    }).catch(e => console.warn('[interviewController] completion notification failed (non-fatal):', e.message))
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     return res.status(200).json({
       success: true,

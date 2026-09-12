@@ -4,6 +4,8 @@ import DashboardLayout from '../components/DashboardLayout'
 import interviewApi from '../services/interviewApi'
 import recordingApi from '../services/recordingApi'
 import analyticsApi from '../services/analyticsApi'
+import scheduleApi  from '../services/scheduleApi'
+import reportApi    from '../services/reportApi'
 import {
   FileText, Calendar, Award, TrendingUp,
   BarChart3, Activity, Upload, Play, Download,
@@ -16,13 +18,6 @@ import {
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 
-// upcomingInterviews: placeholder UI (scheduling feature not yet implemented)
-const upcomingInterviews = [
-  { role: 'Frontend Developer', company: 'TechCorp',    date: 'Jul 30, 2025', time: '10:00 AM', mode: 'Video Call',  status: 'Scheduled', statusColor: 'blue'   },
-  { role: 'React Developer',    company: 'StartupXYZ',  date: 'Aug 3, 2025',  time: '2:00 PM',  mode: 'In-Person',   status: 'Confirmed', statusColor: 'green'  },
-  { role: 'Full Stack Dev',     company: 'InnovateCo',  date: 'Aug 7, 2025',  time: '11:00 AM', mode: 'Video Call',  status: 'Pending',   statusColor: 'orange' },
-  { role: 'React Native Dev',   company: 'MobileFirst', date: 'Aug 12, 2025', time: '3:00 PM',  mode: 'Phone',       status: 'Scheduled', statusColor: 'blue'   },
-]
 // NOTE: The old hardcoded `skills` array with fake percentages has been removed.
 // Resume skills are now loaded from /api/analytics/candidate (resumeSkills).
 
@@ -81,6 +76,11 @@ function StudentDashboard() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsError, setAnalyticsError]     = useState('')
 
+  // Module 9 Chunk 2: real scheduled interviews from /api/schedules
+  const [schedules,        setSchedules]        = useState([])
+  const [schedulesLoading, setSchedulesLoading] = useState(false)
+  const [schedulesError,   setSchedulesError]   = useState('')
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
   const handleSectionChange = (section) => setActiveSection(section)
   const displayName = user?.name ? user.name.split(' ')[0] : 'there'
@@ -90,11 +90,13 @@ function StudentDashboard() {
     async function loadInterviewData() {
       setInterviewHistoryLoading(true)
       setAnalyticsLoading(true)
+      setSchedulesLoading(true)
       try {
-        const [histRes, statsRes, analyticsRes] = await Promise.allSettled([
+        const [histRes, statsRes, analyticsRes, schedRes] = await Promise.allSettled([
           interviewApi.getHistory(),
           interviewApi.getStats(),
           analyticsApi.getCandidateAnalytics(),
+          scheduleApi.getSchedules({ limit: 50 }),
         ])
         if (!isCancelled) {
           if (histRes.status === 'fulfilled' && histRes.value?.history) {
@@ -108,6 +110,11 @@ function StudentDashboard() {
           } else if (analyticsRes.status === 'rejected') {
             setAnalyticsError(analyticsRes.reason?.message || 'Analytics unavailable')
           }
+          if (schedRes.status === 'fulfilled' && Array.isArray(schedRes.value?.schedules)) {
+            setSchedules(schedRes.value.schedules)
+          } else if (schedRes.status === 'rejected') {
+            setSchedulesError(schedRes.reason?.message || 'Could not load schedules')
+          }
         }
       } catch (err) {
         console.error('Failed to load candidate dashboard data:', err)
@@ -115,6 +122,7 @@ function StudentDashboard() {
         if (!isCancelled) {
           setInterviewHistoryLoading(false)
           setAnalyticsLoading(false)
+          setSchedulesLoading(false)
         }
       }
     }
@@ -427,6 +435,32 @@ function StudentDashboard() {
     URL.revokeObjectURL(url); showToast('Resume skill analysis downloaded')
   }
 
+  // ── Module 9 Chunk 4: Backend PDF/CSV report downloads ────────────────────
+  const [reportDownloading, setReportDownloading] = useState(null) // 'pdf' | 'csv' | null
+
+  const handleDownloadPdf = async () => {
+    setReportDownloading('pdf')
+    try {
+      await reportApi.downloadOwnReport('pdf')
+      showToast('PDF report downloaded')
+    } catch (err) {
+      showToast('PDF download failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setReportDownloading(null)
+    }
+  }
+
+  const handleDownloadCsv = async () => {
+    setReportDownloading('csv')
+    try {
+      await reportApi.downloadOwnReport('csv')
+      showToast('CSV report downloaded')
+    } catch (err) {
+      showToast('CSV download failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setReportDownloading(null)
+    }
+  }
 
   const sidebarLinks = [
     {
@@ -582,18 +616,32 @@ function StudentDashboard() {
               <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
                 <div className="card-header"><h2>Upcoming Interviews</h2></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {upcomingInterviews.slice(0, 3).map((iv, i) => (
-                    <div key={i} style={{ padding: '12px 0', borderBottom: i < 2 ? '1px solid var(--border-light)' : 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{iv.role}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{iv.company}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{iv.date} · {iv.time} · {iv.mode}</div>
+                  {schedulesLoading ? (
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
+                  ) : schedulesError ? (
+                    <div style={{ padding: 12, color: '#ef4444', fontSize: 13 }}>{schedulesError}</div>
+                  ) : schedules.filter(s => s.status !== 'cancelled' && s.status !== 'completed').slice(0, 3).length === 0 ? (
+                    <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>No upcoming interviews scheduled.</div>
+                  ) : (
+                    schedules.filter(s => s.status !== 'cancelled' && s.status !== 'completed').slice(0, 3).map((iv, i, arr) => {
+                      const dt = iv.scheduled_at ? new Date(iv.scheduled_at) : null
+                      const dateStr = dt ? dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '—'
+                      const timeStr = dt ? dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'
+                      const statusColor = iv.status === 'confirmed' ? 'green' : iv.status === 'scheduled' ? 'blue' : 'orange'
+                      return (
+                        <div key={iv.id} style={{ padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 14 }}>{iv.role}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{iv.interview_type}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{dateStr} · {timeStr} · {iv.duration_minutes}min</div>
+                            </div>
+                            <span className={`badge ${statusColor}`}>{iv.status}</span>
+                          </div>
                         </div>
-                        <span className={`badge ${iv.statusColor}`}>{iv.status}</span>
-                      </div>
-                    </div>
-                  ))}
+                      )
+                    })
+                  )}
                 </div>
               </motion.div>
 
@@ -803,6 +851,36 @@ function StudentDashboard() {
                   </div>
                 </div>
 
+                {/* Backend PDF / CSV Performance Report */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 8, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Download size={20} color="#6366f1" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>Performance Report (PDF / CSV)</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Full Module 7 scores, history, weak areas — server-generated</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>PDF · CSV</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      disabled={reportDownloading !== null}
+                      onClick={handleDownloadCsv}
+                    >
+                      <Download size={13} /> {reportDownloading === 'csv' ? 'Downloading…' : 'CSV'}
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={reportDownloading !== null}
+                      onClick={handleDownloadPdf}
+                    >
+                      <Download size={13} /> {reportDownloading === 'pdf' ? 'Downloading…' : 'PDF'}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Resume Skill Gap Analysis Report */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -838,29 +916,66 @@ function StudentDashboard() {
           <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="card-header">
               <div><h2>Upcoming Interviews</h2><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Your scheduled and confirmed interviews</p></div>
-              <span className="badge blue">{upcomingInterviews.length} interviews</span>
+              {!schedulesLoading && !schedulesError && (
+                <span className="badge blue">
+                  {schedules.filter(s => s.status !== 'cancelled' && s.status !== 'completed').length} interviews
+                </span>
+              )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {upcomingInterviews.map((iv, i) => (
-                <div key={i} style={{ padding: '20px 0', borderBottom: i < upcomingInterviews.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 16 }}>{iv.role}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>{iv.company}</div>
-                      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={13} /> {iv.date}</span>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>🕐 {iv.time}</span>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>📍 {iv.mode}</span>
+
+            {schedulesLoading && (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading interviews…</div>
+            )}
+
+            {!schedulesLoading && schedulesError && (
+              <div style={{ padding: 20, color: '#ef4444', fontSize: 13 }}>
+                Could not load schedules: {schedulesError}
+              </div>
+            )}
+
+            {!schedulesLoading && !schedulesError && schedules.filter(s => s.status !== 'cancelled' && s.status !== 'completed').length === 0 && (
+              <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                <Calendar size={32} style={{ color: 'var(--text-muted)', opacity: 0.4, marginBottom: 10 }} />
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No upcoming interviews scheduled yet.</p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Your recruiter will schedule interviews here when ready.</p>
+              </div>
+            )}
+
+            {!schedulesLoading && !schedulesError && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {schedules
+                  .filter(s => s.status !== 'cancelled' && s.status !== 'completed')
+                  .map((iv, i, arr) => {
+                    const dt = iv.scheduled_at ? new Date(iv.scheduled_at) : null
+                    const dateStr = dt ? dt.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—'
+                    const timeStr = dt ? dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'
+                    const statusColor = iv.status === 'confirmed' ? 'green' : iv.status === 'scheduled' ? 'blue' : 'orange'
+                    return (
+                      <div key={iv.id} style={{ padding: '20px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 16 }}>{iv.role}</div>
+                            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>{iv.interview_type}</div>
+                            <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={13} /> {dateStr}</span>
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>🕐 {timeStr}</span>
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>⏱ {iv.duration_minutes} min</span>
+                            </div>
+                            {iv.notes && (
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>Note: {iv.notes}</div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                            <span className={`badge ${statusColor}`}>{iv.status}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                      <span className={`badge ${iv.statusColor}`}>{iv.status}</span>
-                      <button className="btn btn-outline btn-sm" onClick={() => showToast(`Interview details: ${iv.role} at ${iv.company}`)}><Eye size={13} /> Details</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    )
+                  })
+                }
+              </div>
+            )}
+
             <div style={{ marginTop: 20, padding: 16, background: 'rgba(99,102,241,0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(99,102,241,0.2)' }}>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>Prepare for your upcoming interviews with an AI-powered mock session.</p>
               <Link to="/mock-interview" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Play size={16} /> Start Mock Interview</Link>

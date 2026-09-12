@@ -72,4 +72,22 @@ router.get('/system-health', ctrl.getSystemHealth)
 // Platform usage analytics (Req 20)
 router.get('/usage-analytics', ctrl.getUsageAnalytics)
 
+// Admin broadcast notification (Module 9 Chunk 4)
+router.post(
+  '/notifications',
+  [
+    body('title')
+      .isString().trim()
+      .isLength({ min: 1, max: 120 }).withMessage('title must be 1–120 characters'),
+    body('message')
+      .isString().trim()
+      .isLength({ min: 1, max: 600 }).withMessage('message must be 1–600 characters'),
+    body('target')
+      .isIn(['ALL_CANDIDATES', 'ALL_RECRUITERS', 'ALL_USERS'])
+      .withMessage('target must be ALL_CANDIDATES, ALL_RECRUITERS, or ALL_USERS'),
+  ],
+  validate,
+  ctrl.broadcastNotification
+)
+
 module.exports = router

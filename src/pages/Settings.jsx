@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Bell, Palette, Globe, Shield, Save, Moon, Sun, Monitor, Camera, LogOut } from 'lucide-react'
+import { User, Bell, Palette, Globe, Shield, Save, Moon, Sun, Monitor, LogOut } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import notificationApi from '../services/notificationApi'
 import '../styles/settings.css'
 
 function SettingsPage() {
@@ -16,9 +17,53 @@ function SettingsPage() {
   const [passMsg, setPassMsg]         = useState({ text: '', ok: true })
   const [saving, setSaving]           = useState(false)
 
+  // ── Notification preferences ─────────────────────────────────────────────
+  const [notifPrefs, setNotifPrefs]     = useState({ emailEnabled: true, remindersEnabled: true, reportsEnabled: true })
+  const [notifLoading, setNotifLoading] = useState(false)
+  const [notifMsg, setNotifMsg]         = useState({ text: '', ok: true })
+  const [notifSaving, setNotifSaving]   = useState(false)
+
   useEffect(() => {
     if (user) setProfileForm({ name: user.name || '', email: user.email || '' })
   }, [user])
+
+  // Load notification preferences when the notifications tab becomes active
+  const loadNotifPrefs = useCallback(async () => {
+    setNotifLoading(true)
+    setNotifMsg({ text: '', ok: true })
+    try {
+      const data = await notificationApi.getPreferences()
+      if (data.preferences) setNotifPrefs(data.preferences)
+    } catch (err) {
+      setNotifMsg({ text: err.message || 'Failed to load preferences.', ok: false })
+    } finally {
+      setNotifLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'notifications') loadNotifPrefs()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  const handleNotifToggle = async (key, value) => {
+    const prev = notifPrefs[key]
+    // Optimistic update
+    setNotifPrefs(p => ({ ...p, [key]: value }))
+    setNotifMsg({ text: '', ok: true })
+    setNotifSaving(true)
+    try {
+      const data = await notificationApi.updatePreferences({ [key]: value })
+      if (data.preferences) setNotifPrefs(data.preferences)
+      setNotifMsg({ text: 'Preferences saved.', ok: true })
+    } catch (err) {
+      // Rollback
+      setNotifPrefs(p => ({ ...p, [key]: prev }))
+      setNotifMsg({ text: err.message || 'Failed to save preferences.', ok: false })
+    } finally {
+      setNotifSaving(false)
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -211,25 +256,79 @@ function SettingsPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="settings-section">
                 <h2>Notification Preferences</h2>
-                <div className="toggle-list">
-                  {[
-                    { label: 'Email Notifications',  sub: 'Receive updates via email',             def: true  },
-                    { label: 'Interview Reminders',   sub: 'Get notified before scheduled interviews', def: true  },
-                    { label: 'Report Notifications',  sub: 'Notify when reports are ready',        def: true  },
-                    { label: 'Marketing Emails',      sub: 'Receive promotional updates',          def: false },
-                  ].map((item, i) => (
-                    <div key={i} className="toggle-item">
+
+                {notifMsg.text && (
+                  <div className={notifMsg.ok ? 'success-message' : 'error-message'} style={{ marginBottom: 16 }}>
+                    {notifMsg.text}
+                  </div>
+                )}
+
+                {notifLoading ? (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>Loading preferences…</div>
+                ) : (
+                  <div className="toggle-list">
+                    {/* Persisted preferences */}
+                    <div className="toggle-item">
                       <div>
-                        <h4>{item.label}</h4>
-                        <p>{item.sub}</p>
+                        <h4>Email Notifications</h4>
+                        <p>Receive updates via email</p>
                       </div>
                       <label className="toggle-switch">
-                        <input type="checkbox" defaultChecked={item.def} />
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.emailEnabled}
+                          disabled={notifSaving}
+                          onChange={e => handleNotifToggle('emailEnabled', e.target.checked)}
+                        />
                         <span className="toggle-slider"></span>
                       </label>
                     </div>
-                  ))}
-                </div>
+
+                    <div className="toggle-item">
+                      <div>
+                        <h4>Interview Reminders</h4>
+                        <p>Get notified before scheduled interviews</p>
+                      </div>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.remindersEnabled}
+                          disabled={notifSaving}
+                          onChange={e => handleNotifToggle('remindersEnabled', e.target.checked)}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                    </div>
+
+                    <div className="toggle-item">
+                      <div>
+                        <h4>Report Notifications</h4>
+                        <p>Notify when reports are ready</p>
+                      </div>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.reportsEnabled}
+                          disabled={notifSaving}
+                          onChange={e => handleNotifToggle('reportsEnabled', e.target.checked)}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                    </div>
+
+                    {/* Marketing Emails — UI only; not a persisted preference in this chunk */}
+                    <div className="toggle-item">
+                      <div>
+                        <h4>Marketing Emails</h4>
+                        <p>Receive promotional updates</p>
+                      </div>
+                      <label className="toggle-switch">
+                        <input type="checkbox" defaultChecked={false} />
+                        <span className="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

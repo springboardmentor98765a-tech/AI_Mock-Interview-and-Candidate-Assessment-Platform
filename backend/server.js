@@ -13,9 +13,13 @@ const ttsRoutes       = require('./routes/ttsRoutes')
 const sttRoutes       = require('./routes/sttRoutes')
 const cvRoutes        = require('./routes/cvRoutes')
 const analyticsRoutes = require('./routes/analyticsRoutes')
-const adminRoutes     = require('./routes/adminRoutes')
+const adminRoutes         = require('./routes/adminRoutes')
+const notificationRoutes  = require('./routes/notificationRoutes')
+const scheduleRoutes      = require('./routes/scheduleRoutes')
+const reportRoutes        = require('./routes/reportRoutes')
 const { errorHandler } = require('./middleware/errorHandler')
 const { testConnection, initDatabase } = require('./config/database')
+const reminderScheduler   = require('./services/reminderScheduler')
 
 const app  = express()
 const PORT = process.env.PORT || 5000
@@ -25,7 +29,7 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(cors({
   origin:      process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
-  methods:     ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
@@ -47,7 +51,10 @@ app.use('/api/interview',  ttsRoutes)
 app.use('/api/stt',        sttRoutes)
 app.use('/api/cv',         cvRoutes)
 app.use('/api/analytics',  analyticsRoutes)
-app.use('/api/admin',      adminRoutes)
+app.use('/api/admin',         adminRoutes)
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/schedules',     scheduleRoutes)
+app.use('/api/reports',       reportRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })
@@ -72,6 +79,12 @@ async function startServer() {
   try {
     await testConnection()
     await initDatabase()
+    // Start reminder worker after DB is ready. Non-fatal if it fails.
+    try {
+      reminderScheduler.start()
+    } catch (schedulerErr) {
+      console.error('Reminder scheduler failed to start:', schedulerErr.message)
+    }
     app.listen(PORT, () => {
       console.log(`HireAI backend running on http://localhost:${PORT}`)
     })
