@@ -35,6 +35,21 @@
       </div>
 
       <div class="nav-actions">
+        <div id="recruiter-notif-bell-wrapper" style="position: relative; display: inline-block; margin-right: 1rem; cursor: pointer;" onclick="toggleNotificationDropdown('RECRUITER')">
+          <i class="fa-solid fa-bell" style="font-size: 1.25rem; color: var(--text-main);"></i>
+          <span id="recruiter-notif-badge" style="position: absolute; top: -5px; right: -8px; background: #EF4444; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; display: none;">0</span>
+          
+          <div id="recruiter-notif-dropdown" style="display: none; position: absolute; right: 0; top: 35px; width: 320px; background: #1E293B; border: 1px solid #334155; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 1000; padding: 1rem; color: #F8FAFC; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+              <strong style="font-size: 0.9rem;"><i class="fa-solid fa-bell"></i> Notifications</strong>
+              <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); markAllNotificationsReadUI();" style="font-size: 0.75rem; padding: 2px 8px;">Mark All Read</button>
+            </div>
+            <div id="recruiter-notif-list" style="max-height: 250px; overflow-y: auto; font-size: 0.825rem;">
+              <div style="text-align: center; color: #94A3B8; padding: 1rem;">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
+
         <a href="login.html" class="btn btn-secondary btn-sm">
           <i class="fa-solid fa-right-to-bracket"></i> Login
         </a>

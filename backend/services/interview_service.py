@@ -1302,6 +1302,45 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
     except Exception as e:
         logger.error(f"Error generating candidate performance report for session #{session_rec.id}: {e}", exc_info=True)
 
+    # Dispatch completion notifications & emails
+    try:
+        from services.notification_service import create_notification
+        from services.email_service import send_evaluation_ready_email
+
+        cand = db.query(User).filter(User.id == session_rec.candidate_id).first()
+        domain_name = interview.domain if interview else "Mock Interview"
+
+        if cand:
+            create_notification(
+                db=db,
+                user_id=cand.id,
+                notification_type="REPORT_READY",
+                title="Interview Evaluation Ready",
+                message=f"Your evaluation report for '{domain_name}' is ready. Review your score breakdown and skill analytics.",
+                interview_id=session_rec.interview_id
+            )
+            create_notification(
+                db=db,
+                user_id=cand.id,
+                notification_type="CONSENT_REQUEST",
+                title="Score Sharing Preference",
+                message=f"Choose whether to share your '{domain_name}' interview performance scores with the recruiter.",
+                interview_id=session_rec.interview_id
+            )
+            send_evaluation_ready_email(cand.email, cand.name, domain_name)
+
+        if interview and interview.recruiter_id:
+            create_notification(
+                db=db,
+                user_id=interview.recruiter_id,
+                notification_type="COMPLETION",
+                title="Candidate Interview Completed",
+                message=f"Candidate {cand.name if cand else 'Candidate'} has completed the assigned interview for '{domain_name}'.",
+                interview_id=session_rec.interview_id
+            )
+    except Exception as notif_err:
+        logger.warning(f"Failed to dispatch completion notifications: {notif_err}")
+
     _log_audit_event(
         db=db,
         user_id=current_user.id,
@@ -1421,6 +1460,16 @@ def get_performance_report_service(current_user: User, target_id: int, db: Sessi
     if current_user.role == "CANDIDATE" and session.candidate_id != current_user.id:
         logger.error(f"[REPORT GENERATION FAILURE] User {current_user.id} not authorized for session {session.id}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to view this candidate performance report.")
+
+    if current_user.role == "RECRUITER":
+        from services.consent_service import check_recruiter_score_access
+        has_access = check_recruiter_score_access(db, current_user, session.interview_id)
+        if not has_access:
+            logger.warning(f"[REPORT ACCESS DENIED] Candidate score consent missing or revoked for interview #{session.interview_id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: Candidate has not granted score-sharing consent for this interview."
+            )
 
     # 3. Confirm session is terminal
     if session.status not in ["COMPLETED", "ENDED", "TERMINATED"]:
@@ -1605,6 +1654,18 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
             "created_at": ba.created_at.strftime("%Y-%m-%d %H:%M:%S") if ba.created_at else None
         }
 
+    dur_mins = (interview.duration_mins if interview and interview.duration_mins else 30)
+    dur_seconds = dur_mins * 60
+    rem_seconds = dur_seconds
+
+    if session_rec.started_at:
+        now_utc = datetime.datetime.utcnow()
+        elapsed = int((now_utc - session_rec.started_at).total_seconds())
+        rem_seconds = max(0, dur_seconds - elapsed)
+
+    if session_rec.status in ["COMPLETED", "ENDED", "TERMINATED"]:
+        rem_seconds = 0
+
     return {
         "success": True,
         "session": {
@@ -1621,6 +1682,9 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
             "score": session_rec.score or 0.0,
             "remarks": session_rec.remarks or "",
             "answers_json": session_rec.answers_json or [],
+            "duration_mins": dur_mins,
+            "duration_seconds": dur_seconds,
+            "remaining_seconds": rem_seconds,
             "created_at": session_rec.created_at.strftime("%Y-%m-%d %H:%M:%S") if session_rec.created_at else None
         },
 
@@ -1629,7 +1693,9 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
             "domain": interview.domain if interview else "",
             "interview_type": interview.interview_type if interview else "",
             "difficulty": interview.difficulty if interview else "",
-            "duration_mins": interview.duration_mins if interview else 30,
+            "duration_mins": dur_mins,
+            "duration_seconds": dur_seconds,
+            "remaining_seconds": rem_seconds,
             "questions_count": len(formatted_questions)
         },
         "questions": formatted_questions,

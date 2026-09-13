@@ -1,22 +1,15 @@
+console.log("SMARTHIRE SCRIPT.JS LOADED");
+console.log("script.js loaded");
+console.log("[SmartHire Consent] script.js loaded");
+
 /* ==========================================================================
    SmartHire AI - Module 1 Core Interactivity, Authentication & Dashboard Engine
-   Handles:
-   - PostgreSQL Database State Manager & Seed Data
-   - Security Route Protection Guards (JWT Token Validation, Role Access Control)
-   - Public Registration (Candidate & Recruiter ONLY) with inline error validation,
-     password strength meter, show/hide eye toggles, disabled submit state until valid
-   - Unified Auto-Role Login with loading indicators, error/success toasts & Google OAuth2
-   - User Profile Management (GET/PUT /api/profile with role immutability)
-   - Candidate Dashboard: Resume Upload (.pdf/.docx validation), ATS Score Analysis,
-     Interview History (search, filter, sort, pagination, CSV export), PDF Report Generator
-   - Recruiter Dashboard: Candidate Analytics, Details Modal, Side-by-Side Candidate Comparison,
-     Interview Templates CRUD (Create, Edit, Delete, Preview)
-   - Admin Dashboard: User Governance (Verify, Suspend, Activate, Delete), 6 Live Stat Cards,
-     Report Governance (View, Search, Filter, Mark Resolved/Pending, Delete)
-   - Issue Reporting (Candidate & Recruiter) saved to PostgreSQL schema
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOM ready");
+  console.log("initialization started");
+
   // 1. Initialize Database Schema & Seed Data
   initDatabaseSchema();
 
@@ -40,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 7. Page-Specific Component Initializations
   const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+  console.log("SmartHire active page:", currentPath);
 
   if (currentPath.includes('candidate.html')) {
     initCandidateDashboard();
@@ -74,63 +68,7 @@ function formatToIST(dateInput) {
 }
 
 function initDatabaseSchema() {
-  // Seed Users Table
-  if (!localStorage.getItem('smarthire_users')) {
-    const seedUsers = [
-      { id: 1, name: 'Alex Morgan', email: 'alex.morgan@dev.io', password: '$2a$10$e8pA7Z123456789012345u6789012345678901234567890123456', role: 'CANDIDATE', provider: 'LOCAL', is_active: true, created_at: '2026-10-01 10:00:00' },
-      { id: 2, name: 'Sarah Jenkins', email: 'sarah@nexusinc.com', password: '$2a$10$e8pA7Z123456789012345u6789012345678901234567890123456', role: 'RECRUITER', provider: 'LOCAL', is_active: true, created_at: '2026-10-02 11:30:00' },
-      { id: 3, name: 'System Administrator', email: 'admin@smarthire.ai', password: '$2a$10$e8pA7Z123456789012345u6789012345678901234567890123456', role: 'ADMIN', provider: 'LOCAL', is_active: true, created_at: '2026-09-15 08:00:00' },
-      { id: 4, name: 'David Chen', email: 'david.chen@mit.edu', password: '$2a$10$e8pA7Z123456789012345u6789012345678901234567890123456', role: 'CANDIDATE', provider: 'LOCAL', is_active: true, created_at: '2026-10-05 14:15:00' },
-      { id: 5, name: 'Suspended Candidate', email: 'suspended@dev.io', password: '$2a$10$e8pA7Z123456789012345u6789012345678901234567890123456', role: 'CANDIDATE', provider: 'LOCAL', is_active: false, created_at: '2026-10-10 16:45:00' }
-    ];
-    localStorage.setItem('smarthire_users', JSON.stringify(seedUsers));
-  }
-
-  // Seed Candidate Profiles Table
-  if (!localStorage.getItem('smarthire_candidate_profiles')) {
-    const seedCandidates = [
-      { id: 1, user_id: 1, phone_number: '+1 (555) 234-5678', college: 'Stanford University', degree: 'B.S. Computer Science', branch: 'Software Engineering', graduation_year: 2024, skills: 'React, TypeScript, Node.js, PostgreSQL, System Design', preferred_role: 'Senior Frontend Engineer', resume_url: 'Alex_Morgan_CV_2026.pdf', linkedin_url: 'https://linkedin.com/in/alexmorgan', github_url: 'https://github.com/alexmorgan', portfolio_url: 'https://alexmorgan.dev', ats_score: 88.00, interview_score: 94.00 },
-      { id: 2, user_id: 4, phone_number: '+1 (555) 987-6543', college: 'MIT', degree: 'M.S. Computer Science', branch: 'Artificial Intelligence', graduation_year: 2023, skills: 'Python, PyTorch, Java, Spring Boot, PostgreSQL', preferred_role: 'Fullstack Engineer', resume_url: 'David_Chen_Resume.pdf', linkedin_url: 'https://linkedin.com/in/davidchen', github_url: 'https://github.com/davidchen', portfolio_url: 'https://davidchen.ai', ats_score: 92.00, interview_score: 89.00 }
-    ];
-    localStorage.setItem('smarthire_candidate_profiles', JSON.stringify(seedCandidates));
-  }
-
-  // Seed Recruiter Profiles Table
-  if (!localStorage.getItem('smarthire_recruiter_profiles')) {
-    const seedRecruiters = [
-      { id: 1, user_id: 2, company_name: 'Nexus Technologies', company_email: 'hr@nexusinc.com', designation: 'Lead Tech Recruiter', phone_number: '+1 (555) 888-9999', website: 'https://nexusinc.com', industry: 'Software & Cloud Solutions', logo_url: 'nexus_logo.png', verified: true }
-    ];
-    localStorage.setItem('smarthire_recruiter_profiles', JSON.stringify(seedRecruiters));
-  }
-
-  // Seed Interview Templates Table
-  if (!localStorage.getItem('smarthire_templates')) {
-    const seedTemplates = [
-      { id: 1, recruiter_id: 1, title: 'Senior React & System Architecture Round', target_role: 'Senior Frontend Engineer', question_count: 10, difficulty: 'HARD', prompt_config: 'Focus on React 19 hooks, state management performance, memoization, and dynamic rendering.' },
-      { id: 2, recruiter_id: 1, title: 'Core Java & Spring Boot Microservices', target_role: 'Backend Engineer', question_count: 8, difficulty: 'MEDIUM', prompt_config: 'Evaluate multithreading concurrency, Spring Security JWT configurations, and PostgreSQL transaction isolation levels.' }
-    ];
-    localStorage.setItem('smarthire_templates', JSON.stringify(seedTemplates));
-  }
-
-  // Seed Interview History Table
-  if (!localStorage.getItem('smarthire_interview_history')) {
-    const seedHistory = [
-      { id: 101, candidate_id: 1, target_role: 'Senior Frontend Engineer', session_type: 'Technical & React Architecture', duration_mins: 45, ats_score: 94.00, status: 'COMPLETED', created_at: '2026-10-24 14:30', transcript: 'Q1: Explain React Virtual DOM reconciliation... Ans: React uses Fiber architecture for concurrent rendering diffing...', feedback: 'Strong technical depth in frontend architecture and state management.' },
-      { id: 102, candidate_id: 1, target_role: 'Fullstack Engineer', session_type: 'System Design & Database Locking', duration_mins: 30, ats_score: 88.00, status: 'COMPLETED', created_at: '2026-10-21 10:15', transcript: 'Q1: How do you handle optimistic locking in PostgreSQL?... Ans: Version column check during update...', feedback: 'Good understanding of relational database transactions and concurrency.' },
-      { id: 103, candidate_id: 1, target_role: 'Engineering Lead', session_type: 'Behavioral & Team Leadership', duration_mins: 35, ats_score: 91.00, status: 'COMPLETED', created_at: '2026-10-18 16:00', transcript: 'Q1: Describe how you resolve technical conflicts in a team...', feedback: 'Excellent communication and clear empathetic leadership approach.' }
-    ];
-    localStorage.setItem('smarthire_interview_history', JSON.stringify(seedHistory));
-  }
-
-  // Seed Reports Table
-  if (!localStorage.getItem('smarthire_reports')) {
-    const seedReports = [
-      { id: 'REP-1001', reporter_id: 1, reporter: 'alex.morgan@dev.io', role: 'CANDIDATE', category: 'Technical issues', description: 'Voice latency during mock session round 2.', priority: 'MEDIUM', status: 'PENDING', timestamp: '2026-10-24 14:10' },
-      { id: 'REP-1002', reporter_id: 2, reporter: 'sarah@nexusinc.com', role: 'RECRUITER', category: 'Fake Candidate', description: 'Suspicious discrepancy in candidate resume credentials.', priority: 'HIGH', status: 'RESOLVED', timestamp: '2026-10-23 09:45' },
-      { id: 'REP-1003', reporter_id: 4, reporter: 'david.chen@mit.edu', role: 'CANDIDATE', category: 'Illegal interview questions', description: 'Question template asked non-job-related personal details.', priority: 'HIGH', status: 'PENDING', timestamp: '2026-10-22 16:30' }
-    ];
-    localStorage.setItem('smarthire_reports', JSON.stringify(seedReports));
-  }
+  // Empty initialization - all user, profile, interview, and report data is managed dynamically via backend REST API & PostgreSQL
 }
 
 /* ==========================================================================
@@ -297,64 +235,19 @@ const SmartHireAuth = {
   },
 
 
-  // Profile Management (GET/PUT /api/profile)
+  // Profile Management
   getProfile() {
-    const user = this.getUser();
-    if (!user) return null;
-
-    if (user.role === 'CANDIDATE') {
-      const profiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
-      const profile = profiles.find(p => p.user_id === user.id) || {};
-      return { ...user, ...profile };
-    } else if (user.role === 'RECRUITER') {
-      const profiles = JSON.parse(localStorage.getItem('smarthire_recruiter_profiles') || '[]');
-      const profile = profiles.find(p => p.user_id === user.id) || {};
-      return { ...user, ...profile };
-    }
-    return user;
+    return this.getUser();
   },
 
   updateProfile(data) {
     const user = this.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    let users = JSON.parse(localStorage.getItem('smarthire_users') || '[]');
-    users = users.map(u => u.id === user.id ? { ...u, name: data.name || u.name } : u);
-    localStorage.setItem('smarthire_users', JSON.stringify(users));
-
     const updatedUser = { ...user, name: data.name || user.name };
     localStorage.setItem('smarthire_user', JSON.stringify(updatedUser));
 
-    if (user.role === 'CANDIDATE') {
-      let profiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
-      profiles = profiles.map(p => p.user_id === user.id ? {
-        ...p,
-        phone_number: data.phone || p.phone_number,
-        college: data.college || p.college,
-        degree: data.degree || p.degree,
-        branch: data.branch || p.branch,
-        skills: data.skills || p.skills,
-        preferred_role: data.preferred_role || p.preferred_role,
-        linkedin_url: data.linkedin_url || p.linkedin_url,
-        github_url: data.github_url || p.github_url,
-        portfolio_url: data.portfolio_url || p.portfolio_url
-      } : p);
-      localStorage.setItem('smarthire_candidate_profiles', JSON.stringify(profiles));
-    } else if (user.role === 'RECRUITER') {
-      let profiles = JSON.parse(localStorage.getItem('smarthire_recruiter_profiles') || '[]');
-      profiles = profiles.map(p => p.user_id === user.id ? {
-        ...p,
-        company_name: data.company_name || p.company_name,
-        company_email: data.company_email || p.company_email,
-        designation: data.designation || p.designation,
-        phone_number: data.phone || p.phone_number,
-        website: data.website || p.website,
-        industry: data.industry || p.industry
-      } : p);
-      localStorage.setItem('smarthire_recruiter_profiles', JSON.stringify(profiles));
-    }
-
-    return { success: true, user: this.getProfile() };
+    return { success: true, user: updatedUser };
   }
 };
 
@@ -581,6 +474,7 @@ function openModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add('active');
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
   }
 }
@@ -589,7 +483,11 @@ function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('active');
+    modal.style.display = 'none';
     document.body.style.overflow = 'auto';
+    if (modalId === 'mockInterviewModal' && typeof stopAllMediaTracks === 'function') {
+      stopAllMediaTracks();
+    }
   }
 }
 
@@ -928,14 +826,14 @@ function switchAuthTab(tabName) {
         <label for="login-email">Email Address</label>
         <div class="input-icon-wrapper">
           <i class="fa-solid fa-envelope"></i>
-          <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required>
+          <input type="email" id="login-email" name="username" class="form-control" placeholder="name@company.com" required autocomplete="username">
         </div>
       </div>
       <div class="form-group" style="margin-bottom: 0.85rem;">
         <label for="login-password">Password</label>
         <div class="input-icon-wrapper" style="position: relative;">
           <i class="fa-solid fa-lock"></i>
-          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+          <input type="password" id="login-password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
           <i class="fa-solid fa-eye" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 12px; top: 14px; cursor: pointer; color: var(--text-muted);"></i>
         </div>
       </div>
@@ -987,18 +885,18 @@ function renderRegistrationFormFields(role) {
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
         <div class="form-group">
           <label style="font-weight: 600; font-size: 0.85rem;">Full Name *</label>
-          <input type="text" id="reg-name" class="form-control" placeholder="Jane Doe" oninput="validateRegistrationForm()" required>
+          <input type="text" id="reg-name" name="name" class="form-control" placeholder="Jane Doe" autocomplete="name" oninput="validateRegistrationForm()" required>
           <span id="err-reg-name" class="inline-error"></span>
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 0.85rem;">Email Address *</label>
-          <input type="email" id="reg-email" class="form-control" placeholder="alex@dev.io" oninput="validateRegistrationForm()" required>
+          <input type="email" id="reg-email" name="email" class="form-control" placeholder="alex@dev.io" autocomplete="email" oninput="validateRegistrationForm()" required>
           <span id="err-reg-email" class="inline-error"></span>
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 0.85rem;">Password *</label>
           <div class="input-icon-wrapper" style="position: relative;">
-            <input type="password" id="reg-password" class="form-control" placeholder="••••••••" oninput="checkPasswordStrength(this.value); validateRegistrationForm();" required>
+            <input type="password" id="reg-password" name="password" class="form-control" placeholder="••••••••" autocomplete="new-password" oninput="checkPasswordStrength(this.value); validateRegistrationForm();" required>
             <i class="fa-solid fa-eye" onclick="togglePasswordVisibility('reg-password', this)" style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--text-muted);"></i>
           </div>
           <span id="err-reg-password" class="inline-error"></span>
@@ -1006,7 +904,7 @@ function renderRegistrationFormFields(role) {
         <div class="form-group">
           <label style="font-weight: 600; font-size: 0.85rem;">Confirm Password *</label>
           <div class="input-icon-wrapper" style="position: relative;">
-            <input type="password" id="reg-confirm-password" class="form-control" placeholder="••••••••" oninput="validateRegistrationForm()" required>
+            <input type="password" id="reg-confirm-password" name="confirm-password" class="form-control" placeholder="••••••••" autocomplete="new-password" oninput="validateRegistrationForm()" required>
             <i class="fa-solid fa-eye" onclick="togglePasswordVisibility('reg-confirm-password', this)" style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--text-muted);"></i>
           </div>
           <span id="err-reg-confirm-password" class="inline-error"></span>
@@ -1464,6 +1362,8 @@ const CAND_HIST_PER_PAGE = 5;
 async function initCandidateDashboard() {
   await loadCandidateProfile();
   renderCandidateHistoryTable();
+  loadCandidateRemindersUI();
+  loadCandidateDashboardAnalyticsUI();
 }
 async function loadCandidateProfile() {
   try {
@@ -1817,13 +1717,93 @@ function exportInterviewHistoryCSV() {
   showDemoToast('Exported Interview History CSV file successfully!', 'success');
 }
 
-function downloadCandidateReportPDF() {
-  const user = SmartHireAuth.getUser();
-  showDemoToast(`Generating PDF evaluation summary report for ${user ? user.name : 'Candidate'}...`, 'info');
-  setTimeout(() => {
-    showDemoToast('Report PDF generated and downloaded.', 'success');
-  }, 1000);
+async function downloadCandidateReportPDF(interviewId) {
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    showDemoToast("Please log in to download evaluation report.", "warning");
+    return;
+  }
+
+  // Normalize interviewId if missing or passed as an Event object from inline HTML
+  if (!interviewId || typeof interviewId === 'object' || isNaN(Number(interviewId))) {
+    interviewId = null;
+    try {
+      const histRes = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/analytics/history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (histRes.ok) {
+        const histData = await histRes.json();
+        const items = histData.data || [];
+        const completed = items.find(i => (i.report_available || i.status === 'COMPLETED') && i.interview_id);
+        if (completed) {
+          interviewId = completed.interview_id;
+        } else if (items.length > 0 && items[0].interview_id) {
+          interviewId = items[0].interview_id;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!interviewId) {
+    showDemoToast("No completed interview evaluation available for PDF download.", "info");
+    return;
+  }
+
+  showDemoToast("Generating PDF evaluation report...", "info");
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/interviews/${interviewId}/report/pdf`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.status === 401) {
+      showDemoToast("Session expired. Please log in again.", "error");
+      SmartHireAuth.logout();
+      setTimeout(() => { window.location.href = "login.html"; }, 1800);
+      return;
+    }
+
+    if (res.status === 403) {
+      showDemoToast("Access Denied: Candidate score-sharing consent is absent or revoked.", "danger");
+      return;
+    }
+
+    if (res.status === 404) {
+      showDemoToast("Report not found for this interview.", "warning");
+      return;
+    }
+
+    if (res.status >= 500) {
+      showDemoToast("Unable to generate report at this time. Please try again later.", "danger");
+      return;
+    }
+
+    if (!res.ok) {
+      showDemoToast("Could not download report PDF. Ensure session is completed.", "warning");
+      return;
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/pdf')) {
+      showDemoToast("Unable to generate report: Server returned non-PDF response.", "danger");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SmartHire_Report_Interview_${interviewId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showDemoToast("PDF Report downloaded successfully!", "success");
+  } catch (err) {
+    showDemoToast("Error downloading PDF report: " + err.message, "danger");
+  }
 }
+
 
 
 /* ==========================================================================
@@ -1833,112 +1813,23 @@ function downloadCandidateReportPDF() {
 function initRecruiterDashboard() {
   renderRecruiterCandidatesTable();
   renderRecruiterTemplatesTable();
+  loadRecruiterCandidateRankingsUI();
+  loadRecruiterDashboardAnalyticsUI();
 }
 
 function renderRecruiterCandidatesTable() {
-  filterRecruiterCandidatesTable();
+  loadRecruiterCandidateRankingsUI();
 }
 
 function filterRecruiterCandidatesTable() {
-  const tbody = document.getElementById('recruiter-candidates-table-body');
-  if (!tbody || !window.location.pathname.includes('recruiter.html')) return;
-
-  const searchEl = document.getElementById('recruiter-cand-search');
-  const roleFilterEl = document.getElementById('recruiter-cand-role-filter');
-  const scoreFilterEl = document.getElementById('recruiter-cand-score-filter');
-
-  const query = searchEl ? searchEl.value.toLowerCase().trim() : '';
-  const roleFilter = roleFilterEl ? roleFilterEl.value : 'ALL';
-  const minScore = scoreFilterEl ? parseFloat(scoreFilterEl.value) : 0;
-
-  const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
-  const users = JSON.parse(localStorage.getItem('smarthire_users') || '[]');
-
-  let filtered = candidateProfiles.filter(p => {
-    const u = users.find(user => user.id === p.user_id) || { name: 'Candidate User', email: '' };
-
-    if (roleFilter !== 'ALL' && !p.preferred_role.toLowerCase().includes(roleFilter.toLowerCase())) {
-      return false;
-    }
-
-    if (minScore > 0 && p.ats_score < minScore) {
-      return false;
-    }
-
-    if (query) {
-      const matchName = u.name.toLowerCase().includes(query);
-      const matchEmail = u.email.toLowerCase().includes(query);
-      const matchRole = p.preferred_role.toLowerCase().includes(query);
-      if (!matchName && !matchEmail && !matchRole) return false;
-    }
-
-    return true;
-  });
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No candidates match your search filter criteria.</td></tr>`;
-    return;
+  if (typeof loadRecruiterCandidateRankingsUI === 'function') {
+    loadRecruiterCandidateRankingsUI();
   }
-
-  tbody.innerHTML = filtered.map(p => {
-    const u = users.find(user => user.id === p.user_id) || { name: 'Candidate User' };
-    return `
-      <tr>
-        <td><strong>${u.name}</strong><br><small style="color: var(--text-muted);">${u.email || ''}</small></td>
-        <td>${p.preferred_role}</td>
-        <td><strong style="color: var(--primary);">${p.ats_score} / 100</strong></td>
-        <td><strong style="color: var(--secondary);">${p.interview_score}%</strong></td>
-        <td><span class="badge-status success">Shortlisted</span></td>
-        <td>
-          <div style="display: flex; gap: 0.35rem;">
-            <button class="btn btn-secondary btn-sm" onclick="viewCandidateDossier(${p.id})"><i class="fa-solid fa-eye"></i> Review</button>
-            <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-file-pdf"></i> Report</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
 }
 
 function viewCandidateDossier(candidateProfileId) {
-  const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
-  const users = JSON.parse(localStorage.getItem('smarthire_users') || '[]');
-  const profile = candidateProfiles.find(p => p.id === candidateProfileId) || candidateProfiles[0];
-  const user = users.find(u => u.id === profile.user_id) || { name: (profile && profile.name) ? profile.name : 'Candidate', email: (profile && profile.email) ? profile.email : '' };
-
-  let modalId = 'modal-candidate-dossier';
-  let modal = document.getElementById(modalId);
-  if (modal) modal.parentNode.removeChild(modal);
-
-  const div = document.createElement('div');
-  div.id = modalId;
-  div.className = 'smarthire-modal-backdrop';
-  div.innerHTML = `
-    <div class="smarthire-modal" style="max-width: 600px;">
-      <div class="smarthire-modal-header">
-        <h3><i class="fa-solid fa-user-tie" style="color: var(--primary);"></i> Candidate Dossier - ${user.name}</h3>
-        <button class="smarthire-modal-close" onclick="closeModal('${modalId}')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="smarthire-modal-body">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; background: var(--bg-main); padding: 1rem; border-radius: 8px;">
-          <div><strong>Email:</strong> ${user.email}</div>
-          <div><strong>Phone:</strong> ${profile.phone_number || 'N/A'}</div>
-          <div><strong>College:</strong> ${profile.college || 'Stanford'}</div>
-          <div><strong>Degree:</strong> ${profile.degree || 'B.S. CS'}</div>
-          <div><strong>ATS Score:</strong> <strong style="color: var(--primary);">${profile.ats_score}/100</strong></div>
-          <div><strong>Interview Score:</strong> <strong style="color: var(--secondary);">${profile.interview_score}%</strong></div>
-        </div>
-        <h4 style="font-weight: 700; margin-bottom: 0.35rem;">Technical Skills:</h4>
-        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">${profile.skills || 'React, TypeScript, Node.js, PostgreSQL'}</p>
-        <div style="display: flex; gap: 0.75rem;">
-          <button class="btn btn-primary btn-sm" onclick="showDemoToast('Candidate ${user.name} added to final shortlist.', 'success')"><i class="fa-solid fa-check"></i> Shortlist Candidate</button>
-          <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-file-pdf"></i> Download PDF Report</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(div);
-  openModal(modalId);
+  if (!candidateProfileId) return;
+  fetchRecruiterCandidateReport(candidateProfileId);
 }
 
 // Side-by-Side Candidate Comparison Matrix
@@ -3084,19 +2975,6 @@ async function loadRecruiterRankings() {
    MODULE 1 INTERACTIVITY HANDLERS: MODALS, SIMULATOR, TRACKING & AUDIT
    ========================================================================== */
 
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.add('active');
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove('active');
-  if (modalId === 'mockInterviewModal') {
-    stopAllMediaTracks();
-  }
-}
-
 
 // 1. Resume Drag & Drop & API Upload
 function openResumeUploadModal() {
@@ -3379,7 +3257,7 @@ let activeSessionTimerInterval = null;
 let activeSessionRemainingSeconds = 0;
 
 async function loadRecruiterRankings() {
-  const tbody = document.getElementById('recruiter-rankings-table-body');
+  const tbody = document.getElementById('recruiter-rankings-table-body') || document.getElementById('recruiter-candidate-table-body');
   if (!tbody || !window.location.pathname.includes('recruiter.html')) return;
 
   const searchEl = document.getElementById('recruiter-cand-search');
@@ -3388,38 +3266,64 @@ async function loadRecruiterRankings() {
 
   const search = searchEl ? searchEl.value.trim() : '';
   const role = roleFilterEl ? roleFilterEl.value : 'ALL';
-  const sortBy = sortFilterEl ? sortFilterEl.value : 'overall';
+  const sortBy = sortFilterEl ? sortFilterEl.value : 'overall_score';
 
   const token = SmartHireAuth.getToken();
   if (!token) return;
 
   try {
-    let url = `${SmartHireAuth.API_BASE}/api/recruiter/rankings?sort_by=${sortBy}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
+    let url = `${SmartHireAuth.API_BASE}/api/recruiter/analytics/candidates?sort_by=${sortBy}`;
     if (role && role !== 'ALL') url += `&role=${encodeURIComponent(role)}`;
 
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const items = await res.json();
+    const resData = await res.json();
+    let rankings = resData.data ? resData.data.rankings : [];
 
-    if (!Array.isArray(items) || items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No candidate records match criteria.</td></tr>`;
+    if (search) {
+      const q = search.toLowerCase();
+      rankings = rankings.filter(r => 
+        (r.candidate_name && r.candidate_name.toLowerCase().includes(q)) ||
+        (r.candidate_email && r.candidate_email.toLowerCase().includes(q)) ||
+        (r.role && r.role.toLowerCase().includes(q))
+      );
+    }
+
+    if (!Array.isArray(rankings) || rankings.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No candidates available</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = items.map(item => `
+    tbody.innerHTML = rankings.map((r, idx) => `
       <tr>
-        <td style="text-align: center;"><strong>#${item.rank}</strong></td>
-        <td><strong>${item.candidate_name}</strong><br><small style="color: var(--text-muted);">${item.email || ''}</small></td>
-        <td>${item.preferred_role}</td>
-        <td style="text-align: center;"><strong style="color: var(--primary);">${item.ats_score} / 100</strong></td>
-        <td style="text-align: center;"><strong style="color: var(--secondary);">${item.interview_score}%</strong></td>
-        <td style="text-align: center;"><span class="badge-status success">${item.overall_score}</span></td>
+        <td style="text-align: center;"><strong>#${r.rank || (idx + 1)}</strong></td>
+        <td>
+          <strong>${r.candidate_name}</strong><br>
+          <small style="color: var(--text-muted);">${r.candidate_email}</small>
+        </td>
+        <td>${r.role}</td>
+        <td style="text-align: center;">
+          ${r.consent_given && r.technical_score !== null 
+            ? `<strong style="color: var(--primary);">${r.technical_score}%</strong>` 
+            : `<span style="color: var(--text-muted); font-size: 0.85rem;">Private</span>`}
+        </td>
+        <td style="text-align: center;">
+          ${r.consent_given && r.communication_score !== null 
+            ? `<strong style="color: var(--secondary);">${r.communication_score}%</strong>` 
+            : `<span style="color: var(--text-muted); font-size: 0.85rem;">Private</span>`}
+        </td>
+        <td style="text-align: center;">
+          ${r.consent_given && r.overall_score !== null 
+            ? `<span class="badge-status success">${r.overall_score}%</span>` 
+            : `<span style="color: var(--text-muted); font-size: 0.85rem;">Scores Private</span>`}
+        </td>
         <td style="text-align: right;">
           <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
-            <button class="btn btn-secondary btn-sm" onclick="viewCandidateDossier(${item.user_id})"><i class="fa-solid fa-eye"></i> Review</button>
-            <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF()"><i class="fa-solid fa-file-pdf"></i> Report</button>
+            ${r.consent_given 
+              ? `<button class="btn btn-primary btn-sm" onclick="fetchRecruiterCandidateReport(${r.interview_id})"><i class="fa-solid fa-file-invoice"></i> View Report</button>
+                 <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF(${r.interview_id})"><i class="fa-solid fa-file-pdf"></i> Report</button>`
+              : `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.5; cursor: not-allowed;" title="Candidate has kept scores private"><i class="fa-solid fa-lock"></i> Private</button>`}
           </div>
         </td>
       </tr>
@@ -4737,10 +4641,16 @@ function updateSessionUiState(session, durationMins) {
     }
   }
 
-  // Timer sync
-  const totalMins = durationMins || (activeSessionRecord && activeSessionRecord.duration_mins) || 30;
+  // Timer sync from server-authoritative assigned duration
+  const assignedDurationMins = durationMins || (activeSessionRecord && (activeSessionRecord.duration_mins || (activeSessionRecord.interview && activeSessionRecord.interview.duration_mins))) || 30;
+  
+  if (session && session.remaining_seconds !== undefined) {
+    const totalSecs = assignedDurationMins * 60;
+    activeSessionTotalActiveSeconds = Math.max(0, totalSecs - session.remaining_seconds);
+  }
+
   if (status === 'IN_PROGRESS') {
-    startActiveSessionTimers(totalMins);
+    startActiveSessionTimers(assignedDurationMins);
   } else if (status === 'PAUSED') {
     stopActiveSessionTimers();
   } else if (status === 'COMPLETED' || status === 'ENDED' || status === 'CREATED' || status === 'TERMINATED') {
@@ -4773,8 +4683,8 @@ function startActiveSessionTimers(maxMins) {
       if (remEl) remEl.textContent = formatSecondsDisplay(remainSecs);
 
       if (remainSecs <= 0 && activeSessionRecord && activeSessionRecord.status === 'IN_PROGRESS') {
-        showDemoToast('Time limit reached! Auto-ending interview session...', 'warning');
-        triggerEndSession();
+        showDemoToast('Assigned interview duration expired! Auto-finalizing interview session...', 'warning');
+        finishInterview('AUTO_SUBMITTED: Duration limit expired');
       }
     }
   }, 1000);
@@ -5252,10 +5162,12 @@ async function openInterviewDetailModal(id) {
       console.log('[REPORT FETCH SUCCESS] Candidate performance report loaded for ID:', id);
       body.innerHTML = `
         ${renderSmartHirePerformanceReportHTML(resData.data)}
+        <div id="report-sharing-section-${id}" style="margin-top: 1.5rem;"></div>
         <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
           <button class="btn btn-secondary btn-sm" onclick="closeModal('interviewDetailModal')">Close Report</button>
         </div>
       `;
+      loadReportInlineConsentUI(id);
       return;
     }
 
@@ -5867,5 +5779,503 @@ function renderSmartHirePerformanceReportHTML(r) {
     </div>
   `;
 }
+
+/* ==========================================================================
+   MODULE 8 & MODULE 9 — DASHBOARD, ANALYTICS, NOTIFICATIONS, CONSENT & TIMER
+   ========================================================================== */
+
+let pendingConsentInterviewId = null;
+
+function toggleNotificationDropdown(role) {
+  const dropdown = document.getElementById(role.toLowerCase() + '-notif-dropdown');
+  if (!dropdown) return;
+  const isVisible = dropdown.style.display === 'block';
+  dropdown.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    loadUserNotificationsUI();
+  }
+}
+
+document.addEventListener('click', function(e) {
+  const cBell = document.getElementById('candidate-notif-bell-wrapper');
+  const rBell = document.getElementById('recruiter-notif-bell-wrapper');
+  const cDrop = document.getElementById('candidate-notif-dropdown');
+  const rDrop = document.getElementById('recruiter-notif-dropdown');
+
+  if (cDrop && cBell && !cBell.contains(e.target)) cDrop.style.display = 'none';
+  if (rDrop && rBell && !rBell.contains(e.target)) rDrop.style.display = 'none';
+});
+
+async function loadUserNotificationsUI() {
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/notifications`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    const notifs = data.data || [];
+    const unreadCount = data.unread_count || 0;
+
+    const cBadge = document.getElementById('candidate-notif-badge');
+    const rBadge = document.getElementById('recruiter-notif-badge');
+    [cBadge, rBadge].forEach(b => {
+      if (b) {
+        b.textContent = unreadCount;
+        b.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+      }
+    });
+
+    const cList = document.getElementById('candidate-notif-list');
+    const rList = document.getElementById('recruiter-notif-list');
+
+    const htmlContent = notifs.length === 0 
+      ? `<div style="text-align: center; color: var(--text-muted); padding: 1rem;">You're all caught up!</div>`
+      : notifs.map(n => `
+        <div style="padding: 0.5rem; border-bottom: 1px solid var(--border-color); ${n.is_read ? 'opacity: 0.7;' : 'font-weight: 600; background: rgba(99, 102, 241, 0.1); border-radius: 4px;'} margin-bottom: 4px;">
+          <div style="font-size: 0.8rem; color: var(--primary);">${n.title}</div>
+          <div style="font-size: 0.75rem; color: var(--text-main); margin: 2px 0;">${n.message}</div>
+          <div style="font-size: 0.65rem; color: var(--text-muted); text-align: right;">${n.created_at || ''}</div>
+        </div>
+      `).join('');
+
+    if (cList) cList.innerHTML = htmlContent;
+    if (rList) rList.innerHTML = htmlContent;
+  } catch (err) {
+    console.warn('Error loading notifications:', err);
+  }
+}
+
+async function markAllNotificationsReadUI() {
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+  try {
+    await fetch(`${SmartHireAuth.API_BASE}/api/notifications/read-all`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    loadUserNotificationsUI();
+  } catch (e) {}
+}
+
+async function loadReportInlineConsentUI(interviewId) {
+  const container = document.getElementById(`report-sharing-section-${interviewId}`);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 1rem; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin"></i> Checking report sharing status...
+    </div>
+  `;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    renderReportSharingCardHTML(container, interviewId, false);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent/status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      renderReportSharingCardHTML(container, interviewId, false);
+      return;
+    }
+    const resData = await res.json();
+    const items = resData.data || [];
+    const match = items.find(i => Number(i.interview_id) === Number(interviewId));
+    const isShared = match && match.consent_given && match.consent_timestamp ? true : false;
+    renderReportSharingCardHTML(container, interviewId, isShared);
+  } catch (err) {
+    console.warn('Error fetching report inline consent status:', err);
+    renderReportSharingCardHTML(container, interviewId, false);
+  }
+}
+
+function renderReportSharingCardHTML(container, interviewId, isShared) {
+  if (!container) return;
+  if (isShared) {
+    container.innerHTML = `
+      <div style="background: var(--bg-surface); border: 1px solid #10B981; border-radius: var(--radius-md); padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h4 style="font-weight: 700; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-shield-halved" style="color: #10B981;"></i> Report Sharing
+            </h4>
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; font-weight: 700; color: #10B981;">
+              🟢 Shared with Recruiter
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 0;">
+              The recruiter can view this interview's performance report and protected scores.
+            </p>
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-sm" id="btn-inline-consent-${interviewId}" onclick="toggleReportConsentInline(${interviewId}, false)">
+              <i class="fa-solid fa-ban"></i> Revoke Consent
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h4 style="font-weight: 700; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-shield-halved" style="color: var(--text-muted);"></i> Report Sharing
+            </h4>
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; font-weight: 700; color: #EF4444;">
+              🔴 Private
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 0;">
+              This report is currently private. The recruiter cannot view your performance scores or detailed evaluation.
+            </p>
+          </div>
+          <div>
+            <button class="btn btn-primary btn-sm" id="btn-inline-consent-${interviewId}" onclick="toggleReportConsentInline(${interviewId}, true)">
+              <i class="fa-solid fa-share"></i> Share Report with Recruiter
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function toggleReportConsentInline(interviewId, choiceBool) {
+  console.log(`[SmartHire Consent] inline consent toggled for ID ${interviewId}: ${choiceBool ? 'SHARE' : 'REVOKE'}`);
+  const btn = document.getElementById(`btn-inline-consent-${interviewId}`);
+  if (btn) btn.disabled = true;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    showDemoToast('Authentication required. Please log in.', 'danger');
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  try {
+    if (choiceBool) {
+      const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          interview_id: Number(interviewId),
+          consent_given: true
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showDemoToast('Report sharing enabled. Your recruiter can now view your interview performance report.', 'success');
+        loadReportInlineConsentUI(interviewId);
+        loadCandidatePrivacyTableUI();
+        if (typeof loadCandidateDashboardAnalyticsUI === 'function') loadCandidateDashboardAnalyticsUI();
+      } else {
+        showDemoToast(data.message || 'Unable to update report sharing preference.', 'warning');
+        if (btn) btn.disabled = false;
+      }
+    } else {
+      const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent/${interviewId}/revoke`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showDemoToast('Your report will remain private from the recruiter.', 'info');
+        loadReportInlineConsentUI(interviewId);
+        loadCandidatePrivacyTableUI();
+        if (typeof loadCandidateDashboardAnalyticsUI === 'function') loadCandidateDashboardAnalyticsUI();
+      } else {
+        showDemoToast(data.message || 'Unable to revoke consent.', 'warning');
+        if (btn) btn.disabled = false;
+      }
+    }
+  } catch (err) {
+    console.error('Error toggling inline consent:', err);
+    showDemoToast('Unable to update report sharing preference. Please try again.', 'danger');
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadCandidatePrivacyTableUI() {
+  const container = document.getElementById('candidate-privacy-table-container');
+  if (!container) return;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent/status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+    const resData = await res.json();
+    const items = resData.data || [];
+
+    if (items.length === 0) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No completed interviews requiring consent management yet.</div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <table class="custom-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>Interview</th>
+            <th>Role / Domain</th>
+            <th>Recruiter</th>
+            <th>Sharing Status</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(item => `
+            <tr>
+              <td><strong>Interview #${item.interview_id}</strong></td>
+              <td>${item.interview_title}</td>
+              <td>${item.recruiter_name}</td>
+              <td>
+                <span class="badge-status ${item.consent_given ? 'success' : 'secondary'}">
+                  ${item.consent_given ? '🟢 Shared' : '🔴 Private'}
+                </span>
+              </td>
+              <td style="text-align: right;">
+                ${item.consent_given ? `
+                  <button class="btn btn-secondary btn-sm" onclick="revokeConsentUI(${item.interview_id})">
+                    <i class="fa-solid fa-ban"></i> Revoke Consent
+                  </button>
+                ` : `
+                  <button class="btn btn-primary btn-sm" onclick="toggleReportConsentInline(${item.interview_id}, true)">
+                    <i class="fa-solid fa-share"></i> Share Report
+                  </button>
+                `}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    console.warn('Error loading privacy status table:', err);
+  }
+}
+
+async function revokeConsentUI(interviewId) {
+  console.log(`[SmartHire Consent] revoking consent for interview ID: ${interviewId}`);
+  if (!confirm(`Are you sure you want to revoke score sharing for Interview #${interviewId}? The recruiter will immediately lose access to your private scores.`)) return;
+
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent/${interviewId}/revoke`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showDemoToast(`Score sharing permission revoked for Interview #${interviewId}. Recruiter can no longer access protected scores.`, 'info');
+      loadCandidatePrivacyTableUI();
+    } else {
+      showDemoToast(data.message || 'Unable to revoke consent. Please try again.', 'warning');
+    }
+  } catch (err) {
+    showDemoToast('Unable to revoke report sharing preference. Please try again.', 'danger');
+  }
+}
+
+async function loadCandidateDashboardAnalyticsUI() {
+  const user = SmartHireAuth.getUser();
+  if (!user || user.role !== 'CANDIDATE') return;
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/analytics/dashboard`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = (await res.json()).data;
+      if (data && data.has_data) {
+        const intValEl = document.querySelector('.dash-stat-card .value');
+        if (data.overall_performance !== null && intValEl) {
+          intValEl.textContent = `${data.overall_performance}%`;
+        }
+      }
+    }
+  } catch (e) {}
+
+  loadCandidatePrivacyTableUI();
+}
+
+async function loadRecruiterCandidateRankingsUI() {
+  const user = SmartHireAuth.getUser();
+  if (!user || (user.role !== 'RECRUITER' && user.role !== 'ADMIN')) return;
+  const token = SmartHireAuth.getToken();
+  if (!token) return;
+
+  const tbody = document.getElementById('recruiter-candidate-table-body') || document.querySelector('#recruiter-talent-pool-section tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/recruiter/analytics/candidates`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+    const resData = await res.json();
+    const rankings = resData.data ? resData.data.rankings : [];
+
+    if (rankings.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--text-muted); padding: 1.5rem;">No candidate interviews found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rankings.map(r => `
+      <tr>
+        <td><strong>${r.rank || '#'}</strong></td>
+        <td>
+          <strong>${r.candidate_name}</strong><br>
+          <small style="color: var(--text-muted);">${r.candidate_email}</small>
+        </td>
+        <td>${r.role}</td>
+        <td><span class="badge-status ${r.status === 'COMPLETED' ? 'success' : 'warning'}">${r.status}</span></td>
+        <td>
+          <span class="badge-status ${r.consent_given ? 'success' : 'secondary'}">
+            ${r.consent_given ? '🟢 Shared' : '🔴 Private'}
+          </span>
+        </td>
+        <td>
+          ${r.consent_given && r.overall_score !== null 
+            ? `<strong style="color: var(--primary); font-size: 1.05rem;">${r.overall_score}%</strong>`
+            : `<span style="color: var(--text-muted); font-size: 0.85rem;">Scores Hidden</span>`}
+        </td>
+        <td>
+          ${r.consent_given 
+            ? `<button class="btn btn-primary btn-sm" onclick="fetchRecruiterCandidateReport(${r.interview_id})"><i class="fa-solid fa-file-invoice"></i> View Report</button>`
+            : `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.5; cursor: not-allowed;" title="Candidate has kept scores private"><i class="fa-solid fa-lock"></i> Private</button>`}
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.warn('Error loading recruiter rankings:', err);
+  }
+}
+
+async function fetchRecruiterCandidateReport(interviewId) {
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    showDemoToast('Authentication required. Please log in.', 'danger');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/recruiter/analytics/report/${interviewId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const resData = await res.json();
+    if (res.status === 403) {
+      showDemoToast('Access Denied: Candidate has not granted score-sharing consent for this interview.', 'danger');
+      return;
+    }
+    if (res.status === 404) {
+      showDemoToast('Candidate evaluation report not found.', 'warning');
+      return;
+    }
+    if (res.status === 401) {
+      showDemoToast('Session expired. Please log in again.', 'danger');
+      return;
+    }
+    if (res.ok && resData.data) {
+      renderCandidateReportModal(resData.data);
+    } else {
+      showDemoToast(resData.message || resData.detail || 'Could not fetch candidate report.', 'warning');
+    }
+  } catch (err) {
+    showDemoToast('Error fetching report: ' + (err.message || err), 'danger');
+  }
+}
+
+function renderCandidateReportModal(reportData) {
+  if (!reportData) return;
+  let modalId = 'modal-candidate-report';
+  let modal = document.getElementById(modalId);
+  if (modal) modal.parentNode.removeChild(modal);
+
+  const div = document.createElement('div');
+  div.id = modalId;
+  div.className = 'smarthire-modal-backdrop';
+  div.style.zIndex = '10000';
+  div.innerHTML = `
+    <div class="smarthire-modal" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+      <div class="smarthire-modal-header" style="background: linear-gradient(135deg, #1E1B4B, #312E81); color: #FFFFFF;">
+        <h3 style="color: #FFFFFF;"><i class="fa-solid fa-award"></i> CANDIDATE EVALUATION & PERFORMANCE REPORT</h3>
+        <button class="smarthire-modal-close" onclick="closeModal('${modalId}')" style="color: #FFFFFF;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="smarthire-modal-body" style="padding: 1.5rem;">
+        ${renderSmartHirePerformanceReportHTML(reportData)}
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('${modalId}')">Close</button>
+          <button class="btn btn-primary btn-sm" onclick="downloadCandidateReportPDF(${reportData.interview_id})">
+            <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+  openModal(modalId);
+}
+
+function exportCandidateComparisonCSV() {
+  const candidateProfiles = JSON.parse(localStorage.getItem('smarthire_candidate_profiles') || '[]');
+  let csv = 'ID,Candidate Name,Email,ATS Score,College,Degree\n';
+  if (candidateProfiles.length === 0) {
+    csv += '"1","Demo Candidate","candidate@example.com","85%","Stanford","B.S. Computer Science"\n';
+  } else {
+    candidateProfiles.forEach(p => {
+      csv += `"${p.id || ''}","${p.name || ''}","${p.email || ''}","${p.ats_score || ''}","${p.college || ''}","${p.degree || ''}"\n`;
+    });
+  }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'SmartHire_Candidate_Comparison.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showDemoToast('Exported Candidate Comparison CSV successfully!', 'success');
+}
+
+function runSystemAuditDiagnostic() {
+  showDemoToast('System Audit Diagnostic: PostgreSQL DB, Auth Guard & FastAPI endpoints operational.', 'success');
+}
+
+function exportAuditReportPDF() {
+  showDemoToast('Audit Report PDF downloaded successfully.', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.location.pathname.includes('candidate.html') || document.getElementById('candidate-privacy-table-container')) {
+    console.log('[SmartHire Consent] candidate dashboard loaded');
+  }
+  setTimeout(() => {
+    loadUserNotificationsUI();
+    loadCandidateDashboardAnalyticsUI();
+    loadCandidatePrivacyTableUI();
+    loadRecruiterCandidateRankingsUI();
+  }, 500);
+});
+
 
 

@@ -217,8 +217,8 @@ def get_candidate_profile_service(current_user: User, db: Session) -> CandidateP
     if not profile:
         profile = CandidateProfile(
             user_id=current_user.id,
-            ats_score=85.0,
-            interview_score=90.0,
+            ats_score=None,
+            interview_score=None,
             preferred_role="Software Engineer"
         )
         db.add(profile)
@@ -242,8 +242,8 @@ def get_candidate_profile_service(current_user: User, db: Session) -> CandidateP
         github=profile.github,
         portfolio=profile.portfolio,
         resume=profile.resume,
-        ats_score=profile.ats_score or 85.0,
-        interview_score=profile.interview_score or 90.0,
+        ats_score=profile.ats_score,
+        interview_score=profile.interview_score,
         profile_picture=profile.profile_picture,
         role=current_user.role,
         provider=current_user.provider
@@ -480,9 +480,9 @@ def get_candidate_progress_service(current_user: User, db: Session) -> dict:
     beh_sessions = [h.score for h in history if h.category == "Behavioral"]
 
     skill_breakdown = {
-        "Technical": round(sum(tech_sessions) / len(tech_sessions), 1) if tech_sessions else 75.0,
-        "HR": round(sum(hr_sessions) / len(hr_sessions), 1) if hr_sessions else 85.0,
-        "Behavioral": round(sum(beh_sessions) / len(beh_sessions), 1) if beh_sessions else 80.0
+        "Technical": round(sum(tech_sessions) / len(tech_sessions), 1) if tech_sessions else None,
+        "HR": round(sum(hr_sessions) / len(hr_sessions), 1) if hr_sessions else None,
+        "Behavioral": round(sum(beh_sessions) / len(beh_sessions), 1) if beh_sessions else None
     }
 
     timeline = [

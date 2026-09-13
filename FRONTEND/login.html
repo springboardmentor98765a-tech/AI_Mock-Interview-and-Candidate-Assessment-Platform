@@ -64,7 +64,7 @@
           <label for="login-email" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Email Address</label>
           <div class="input-icon-wrapper" style="position: relative;">
             <i class="fa-solid fa-envelope" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-            <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required autocomplete="off" style="padding-left: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
+            <input type="email" id="login-email" name="username" class="form-control" placeholder="name@company.com" required autocomplete="username" style="padding-left: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
           </div>
         </div>
 
@@ -72,7 +72,7 @@
           <label for="login-password" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Password</label>
           <div class="input-icon-wrapper" style="position: relative;">
             <i class="fa-solid fa-lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-            <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="off" style="padding-left: 2.75rem; padding-right: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
+            <input type="password" id="login-password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password" style="padding-left: 2.75rem; padding-right: 2.75rem; height: 48px; border-radius: 10px; font-size: 0.95rem;">
             <i class="fa-solid fa-eye" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);"></i>
           </div>
         </div>

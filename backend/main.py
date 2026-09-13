@@ -19,6 +19,8 @@ from models.user import User
 from models.candidate import CandidateProfile
 from models.recruiter import RecruiterProfile
 from models.interview import QuestionBank, Interview, InterviewQuestion, InterviewSession, AuditLog, InterviewBehaviorAnalysis, CandidatePerformanceReport
+from models.consent import InterviewConsent
+from models.notification import Notification
 
 from security.password import hash_password
 
@@ -31,10 +33,15 @@ from routers import (
     interview_api_router,
     interview_singular_api_router,
     interview_singular_noapi_router,
+    alias_reports_router,
     question_router,
     question_api_router,
-    speech_router
+    speech_router,
+    analytics_router,
+    consent_router,
+    notification_router
 )
+
 from seed_questions import seed_question_bank
 
 from fastapi import Request
@@ -137,9 +144,13 @@ app.include_router(interview_router)
 app.include_router(interview_api_router)
 app.include_router(interview_singular_api_router)
 app.include_router(interview_singular_noapi_router)
+app.include_router(alias_reports_router)
 app.include_router(question_router)
 app.include_router(question_api_router)
 app.include_router(speech_router)
+app.include_router(analytics_router)
+app.include_router(consent_router)
+app.include_router(notification_router)
 
 
 

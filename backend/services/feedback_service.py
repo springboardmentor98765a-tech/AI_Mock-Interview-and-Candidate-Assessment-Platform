@@ -27,6 +27,8 @@ def identify_strengths(evaluation: Dict[str, Any]) -> List[str]:
 
     cat_scores = evaluation.get("category_scores", {})
     comm_metrics = evaluation.get("communication_analysis", {})
+
+    
     conf_metrics = evaluation.get("confidence_analysis", {})
     tech_metrics = evaluation.get("technical_analysis", {})
     prof_metrics = evaluation.get("professionalism_analysis", {})

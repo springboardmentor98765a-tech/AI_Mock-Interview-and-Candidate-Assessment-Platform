@@ -44,3 +44,4 @@ backend/uploads/*
 Thumbs.db
 uploads/
 node_modules/
+FRONTEND/css/fontawesome/

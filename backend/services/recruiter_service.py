@@ -77,6 +77,9 @@ def get_candidate_rankings_service(
     min_score: Optional[float] = 0.0,
     sort_by: Optional[str] = "overall"
 ) -> List[CandidateRankingItem]:
+    from models.consent import InterviewConsent
+    from models.interview import Interview
+
     candidates_query = db.query(User, CandidateProfile).outerjoin(
         CandidateProfile, User.id == CandidateProfile.user_id
     ).filter(User.role == "CANDIDATE", User.is_active == True)
@@ -85,9 +88,24 @@ def get_candidate_rankings_service(
     ranking_items: List[dict] = []
 
     for user, profile in results:
-        ats = (profile.ats_score if profile and profile.ats_score is not None else 85.0)
-        interview = (profile.interview_score if profile and profile.interview_score is not None else 90.0)
-        overall = round((0.70 * ats) + (0.30 * interview), 2)
+        ats = profile.ats_score if (profile and profile.ats_score is not None) else None
+        interview = profile.interview_score if (profile and profile.interview_score is not None) else None
+
+        # Check candidate score-sharing consent for most recent interview
+        interview_obj = db.query(Interview).filter(Interview.candidate_id == user.id).order_by(Interview.created_at.desc()).first()
+        if interview_obj:
+            consent = db.query(InterviewConsent).filter(
+                InterviewConsent.interview_id == interview_obj.id,
+                InterviewConsent.candidate_id == user.id
+            ).first()
+            has_consent = bool(consent and consent.consent_given and consent.revoked_at is None)
+            if not has_consent:
+                interview = None
+
+        raw_ats = profile.ats_score if (profile and profile.ats_score is not None) else 0.0
+        raw_int = profile.interview_score if (profile and profile.interview_score is not None) else 0.0
+        overall = round((0.70 * raw_ats) + (0.30 * raw_int), 2)
+
         pref_role = (profile.preferred_role if profile and profile.preferred_role else "Software Engineer")
         skills = profile.skills if profile else None
         college = profile.college if profile else None
@@ -113,8 +131,8 @@ def get_candidate_rankings_service(
             "user_id": user.id,
             "candidate_name": user.name,
             "email": user.email,
-            "ats_score": ats,
-            "interview_score": interview,
+            "ats_score": raw_ats,
+            "interview_score": raw_int,
             "overall_score": overall,
             "preferred_role": pref_role,
             "skills": skills,
@@ -275,7 +293,7 @@ def get_recruiter_analytics_service(db: Session) -> dict:
     total_interviews = db.query(InterviewHistory).count()
 
     all_scores = [h.score for h in db.query(InterviewHistory).all()]
-    avg_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else 88.5
+    avg_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else 0.0
 
     resume_count = db.query(ResumeUpload).count()
     if resume_count == 0:
@@ -295,7 +313,7 @@ def compare_candidates_service(candidate_ids: List[int], db: Session) -> list:
         profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
         interviews = db.query(InterviewHistory).filter(InterviewHistory.candidate_id == user.id).all()
         completed_cnt = len(interviews)
-        avg_score = round(sum(i.score for i in interviews) / completed_cnt, 1) if completed_cnt > 0 else (profile.interview_score if profile else 0.0)
+        avg_score = round(sum(i.score for i in interviews) / completed_cnt, 1) if completed_cnt > 0 else (profile.interview_score if profile and profile.interview_score is not None else 0.0)
         
         has_resume = bool(profile and profile.resume)
         resume_link = f"/uploads/resumes/{profile.resume}" if (profile and profile.resume) else "Not Uploaded"
@@ -307,7 +325,7 @@ def compare_candidates_service(candidate_ids: List[int], db: Session) -> list:
             "role": profile.preferred_role if profile else "Software Engineer",
             "college": profile.college if profile else "N/A",
             "degree": profile.degree if profile else "N/A",
-            "ats_score": profile.ats_score if profile else 0.0,
+            "ats_score": profile.ats_score if (profile and profile.ats_score is not None) else 0.0,
             "interview_score": avg_score,
             "completed_interviews": completed_cnt,
             "resume_status": "Uploaded" if has_resume else "Missing",
@@ -316,50 +334,29 @@ def compare_candidates_service(candidate_ids: List[int], db: Session) -> list:
     return results
 
 def get_monitoring_sessions_service(db: Session) -> list:
-    recent_history = db.query(InterviewHistory).order_by(InterviewHistory.created_at.desc()).limit(5).all()
+    from models.interview import InterviewSession, Interview
+    real_sessions = db.query(InterviewSession).order_by(InterviewSession.created_at.desc()).limit(10).all()
     sessions = []
 
-    active_candidates = db.query(User).filter(User.role == "CANDIDATE", User.is_active == True).all()
-    cand1_name = active_candidates[0].name if len(active_candidates) > 0 else "Candidate 1"
-    cand2_name = active_candidates[1].name if len(active_candidates) > 1 else "Candidate 2"
+    for s in real_sessions:
+        cand_user = db.query(User).filter(User.id == s.candidate_id).first()
+        interview_obj = db.query(Interview).filter(Interview.id == s.interview_id).first()
 
-    # Map real history + simulated active sessions for monitoring display
-    simulated = [
-        {
-            "session_id": 901,
-            "candidate_name": cand1_name,
-            "target_role": "Senior Frontend Engineer",
-            "category": "Technical",
-            "status": "RUNNING",
-            "progress_percentage": 65,
-            "time_remaining_mins": 12,
-            "started_at": "10 mins ago"
-        },
-        {
-            "session_id": 902,
-            "candidate_name": cand2_name,
-            "target_role": "Fullstack Engineer",
-            "category": "Behavioral",
-            "status": "SCHEDULED",
-            "progress_percentage": 0,
-            "time_remaining_mins": 45,
-            "started_at": "In 30 mins"
-        }
-    ]
-    sessions.extend(simulated)
+        cand_name = cand_user.name if cand_user else f"Candidate #{s.candidate_id}"
+        role_title = interview_obj.domain if interview_obj else "Software Engineer"
+        category = interview_obj.interview_type if interview_obj else "Technical"
 
-    for idx, h in enumerate(recent_history, start=1000):
-        cand_user = db.query(User).filter(User.id == h.candidate_id).first()
-        cand_name = cand_user.name if cand_user else f"Candidate #{h.candidate_id}"
+        progress = 100 if s.status in ["COMPLETED", "ENDED", "TERMINATED"] else (50 if s.status == "IN_PROGRESS" else 0)
+
         sessions.append({
-            "session_id": idx,
+            "session_id": s.id,
             "candidate_name": cand_name,
-            "target_role": h.target_role or "Software Engineer",
-            "category": h.category,
-            "status": "COMPLETED",
-            "progress_percentage": 100,
-            "time_remaining_mins": 0,
-            "started_at": h.created_at.strftime("%b %d, %H:%M")
+            "target_role": role_title,
+            "category": category,
+            "status": s.status,
+            "progress_percentage": progress,
+            "time_remaining_mins": 0 if progress == 100 else 15,
+            "started_at": s.created_at.strftime("%b %d, %H:%M") if s.created_at else "N/A"
         })
 
     return sessions

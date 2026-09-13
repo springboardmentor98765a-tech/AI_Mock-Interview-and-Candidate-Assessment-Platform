@@ -134,7 +134,9 @@ def list_module6_behavior_reports(
 
     results = query.all()
     formatted = []
+    from services.consent_service import check_recruiter_score_access
     for ba, session, interview, cand in results:
+        has_consent = check_recruiter_score_access(db, current_user, interview.id)
         formatted.append({
             "report_id": ba.id,
             "session_id": session.id,
@@ -144,13 +146,13 @@ def list_module6_behavior_reports(
             "candidate_email": cand.email,
             "position": interview.interview_type,
             "interview_title": interview.domain,
-            "analysis_status": ba.analysis_status or "in_progress",
-            "confidence_score": ba.confidence_score,
-            "attention_score": ba.attention_score,
-            "eye_contact_percentage": ba.eye_contact_percentage,
-            "engagement_score": ba.engagement_score,
-            "engagement_category": ba.engagement_category,
-            "facial_presentation": ba.facial_presentation,
+            "analysis_status": "Scores Private" if not has_consent else (ba.analysis_status or "in_progress"),
+            "confidence_score": ba.confidence_score if has_consent else None,
+            "attention_score": ba.attention_score if has_consent else None,
+            "eye_contact_percentage": ba.eye_contact_percentage if has_consent else None,
+            "engagement_score": ba.engagement_score if has_consent else None,
+            "engagement_category": ba.engagement_category if has_consent else "Scores Private",
+            "facial_presentation": ba.facial_presentation if has_consent else None,
             "mobile_event_count": ba.mobile_event_count or 0,
             "fullscreen_violations_count": ba.fullscreen_violations_count or 0,
             "created_at": ba.created_at.strftime("%Y-%m-%d %H:%M:%S") if ba.created_at else None
@@ -528,10 +530,17 @@ def get_session_behavior_report(
         # Fallback for callers passing interview_id
         session_rec = db.query(InterviewSession).filter(InterviewSession.interview_id == session_id).order_by(InterviewSession.created_at.desc()).first()
 
-    if not session_rec:
-        raise HTTPException(status_code=404, detail="Interview session not found.")
     if current_user.role == "CANDIDATE" and session_rec.candidate_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized for this session.")
+
+    if current_user.role == "RECRUITER":
+        from services.consent_service import check_recruiter_score_access
+        has_access = check_recruiter_score_access(db, current_user, session_rec.interview_id)
+        if not has_access:
+            raise HTTPException(
+                status_code=403,
+                detail="Access Denied: Candidate has not granted score-sharing consent for this interview."
+            )
 
     logger.info(f"[MODULE 6] Report API called for session #{session_rec.id}")
     report = db.query(InterviewBehaviorAnalysis).filter(InterviewBehaviorAnalysis.session_id == session_rec.id).first()
@@ -547,7 +556,9 @@ def get_session_behavior_report(
 # PERFORMANCE EVALUATION & AI FEEDBACK REPORT ENDPOINTS
 # ==========================================
 
+from fastapi.responses import Response
 from services.interview_service import get_performance_report_service
+from services.pdf_report_service import generate_interview_pdf_report
 
 @router.get("/sessions/{session_id}/performance-report")
 @api_router.get("/sessions/{session_id}/performance-report")
@@ -575,6 +586,47 @@ def get_interview_performance_report(
     """Retrieve complete candidate performance evaluation report by interview ID."""
     report_dict = get_performance_report_service(current_user, interview_id, db, is_session=False)
     return {"success": True, "data": report_dict}
+
+
+# ==========================================
+# CANONICAL PDF REPORT DOWNLOAD ENDPOINT
+# ==========================================
+
+@api_router.get("/{interview_id}/report/pdf")
+@router.get("/{interview_id}/report/pdf")
+@singular_api_router.get("/{interview_id}/report/pdf")
+def download_canonical_interview_pdf_report(
+    interview_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Canonical endpoint: GET /api/interviews/{interview_id}/report/pdf
+    Generates and streams downloadable PDF evaluation report.
+    Enforces RBAC and candidate score-sharing consent check.
+    """
+    pdf_bytes = generate_interview_pdf_report(db, interview_id, current_user)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="SmartHire_Report_Interview_{interview_id}.pdf"'
+        }
+    )
+
+
+# Alias compatibility route for /api/reports/{interview_id}/pdf
+alias_reports_router = APIRouter(prefix="/api/reports", tags=["Reports PDF"])
+
+@alias_reports_router.get("/{interview_id}/pdf")
+def download_alias_interview_pdf_report(
+    interview_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Compatibility alias pointing to the canonical PDF report generator."""
+    return download_canonical_interview_pdf_report(interview_id, current_user, db)
+
 
 
 

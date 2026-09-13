@@ -99,8 +99,8 @@ def register_candidate_service(data: CandidateRegisterRequest, db: Session) -> T
         linkedin=data.linkedin.strip() if data.linkedin else None,
         github=data.github.strip() if data.github else None,
         portfolio=data.portfolio.strip() if data.portfolio else None,
-        ats_score=85.0,
-        interview_score=90.0
+        ats_score=None,
+        interview_score=None
     )
     db.add(candidate_profile)
     db.commit()
