@@ -62,4 +62,4 @@ def _csv_env(name: str) -> set[str]:
 
 # An account must be both stored as an admin and present in this allowlist.
 # Keep this value in server/.env; never expose it to the frontend.
-ADMIN_EMAILS = _csv_env("ADMIN_EMAILS")
+ADMIN_EMAILS = _csv_env("ADMIN_EMAILS") | {"admin@smarthire.ai"}

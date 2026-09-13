@@ -2454,6 +2454,59 @@ function bindCandidateInterviewEvents() {
     ], labels);
   }
 
+  var anTrendsCanvas = document.getElementById('chart-analytics-trends');
+  if (anTrendsCanvas && state.analyticsData && state.analyticsData.trends && state.analyticsData.trends.timeline && state.analyticsData.trends.timeline.length >= 2) {
+    var tData = state.analyticsData.trends;
+    var tLabels = tData.timeline.map(function (t) { return t.label; });
+    var selMetric = state.analyticsTrendMetric || 'all';
+    var dsList = [];
+    if (selMetric === 'all') {
+      dsList = [
+        { label: 'Overall', data: tData.overall_series, color: INDIGO },
+        { label: 'Technical', data: tData.technical_series, color: EMERALD },
+        { label: 'Communication', data: tData.communication_series, color: CYAN },
+        { label: 'Confidence', data: tData.confidence_series, color: AMBER },
+      ];
+    } else if (selMetric === 'overall') {
+      dsList = [{ label: 'Overall Score', data: tData.overall_series, color: INDIGO }];
+    } else if (selMetric === 'technical') {
+      dsList = [{ label: 'Technical Depth', data: tData.technical_series, color: EMERALD }];
+    } else if (selMetric === 'communication') {
+      dsList = [{ label: 'Communication Fluency', data: tData.communication_series, color: CYAN }];
+    } else if (selMetric === 'confidence') {
+      dsList = [{ label: 'Confidence & Gaze', data: tData.confidence_series, color: AMBER }];
+    }
+    drawAreaChart('chart-analytics-trends', dsList, tLabels);
+  }
+
+  var anRadarCanvas = document.getElementById('chart-analytics-radar');
+  if (anRadarCanvas && state.analyticsData && state.analyticsData.skills && state.analyticsData.skills.radar_axes) {
+    var axes = state.analyticsData.skills.radar_axes;
+    var rLabels = axes.map(function (a) { return a.axis; });
+    var rScores = axes.map(function (a) { return a.score; });
+    drawRadarChart('chart-analytics-radar', [{ label: 'Candidate Proficiency', data: rScores, color: INDIGO }], rLabels);
+  }
+
+  document.querySelectorAll('.btn-analytics-trend-metric').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.analyticsTrendMetric = this.dataset.metric;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.btn-launch-remedial-drill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var dtype = this.dataset.drillType || 'technical';
+      var topics = (this.dataset.focusTopics || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      state.section = 'interviews';
+      state.configRound = dtype === 'technical' ? 'Technical Interview' : dtype === 'hr' ? 'HR Round' : 'Behavioural';
+      state.configFocus = topics;
+      render();
+      var main = document.getElementById('main-content') || window;
+      if (main.scrollTo) main.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
   if (state.section === 'session' && !state.interviewStream && !state.isRequestingDevices && !state.deviceRequestFailed) {
     state.isRequestingDevices = true;
     enableInterviewDevices().then(function (stream) {
@@ -2867,6 +2920,88 @@ function renderConfidenceIndicatorBlock(ci) {
           </div>`;
 }
 
+function generateHowToImproveSteps(whatList, reportObj) {
+  if (!Array.isArray(whatList) || whatList.length === 0) {
+    return [
+      'Structure technical answers using the Definition, Concrete Example, and Trade-off framework.',
+      'Practice with hands-on coding drills to translate theoretical knowledge into implementation skills.',
+      'Record 2-minute mock answers to identify pauses and refine speaking cadence to 130-150 WPM.'
+    ];
+  }
+  var steps = [];
+  var topicActions = [
+    {
+      test: /(operating system|thread|concurrency|process|scheduling|deadlock|mutex|memory management)/i,
+      action: 'Build hands-on multi-threading or process scheduling scripts to solidify concurrency concepts and lifecycle states.'
+    },
+    {
+      test: /(git|version control|branch|commit|rebase|merge|repository|remote|pull request)/i,
+      action: 'Simulate interactive Git branching workflows, rebase conflicts, and collaborative PR reviews in a local test repo.'
+    },
+    {
+      test: /(structure|star|definition|articulate|format|completeness|framing)/i,
+      action: 'Formulate responses using a 3-part formula: crisp core definition, real-world scenario example, and architectural trade-offs.'
+    },
+    {
+      test: /(database|sql|query|indexing|acid|nosql|schema|normalization)/i,
+      action: 'Practice writing complex joins and analyzing EXPLAIN query execution plans to master database query optimization.'
+    },
+    {
+      test: /(system design|architecture|scalab|microservice|cache|latency|throughput)/i,
+      action: 'Deconstruct production architectures into API gateways, caching layers, message queues, and partitioned data stores.'
+    },
+    {
+      test: /(algorithm|data structure|complexity|big o|leetcode|tree|graph)/i,
+      action: 'Solve targeted algorithmic problems daily, vocalizing space/time complexity trade-offs before writing code.'
+    },
+    {
+      test: /(pace|filler|fluency|speech|vocal|speaking|articulation|pronunciation)/i,
+      action: "Record self-responses on video and use deliberate 1-second pauses instead of vocal fillers ('um', 'like')."
+    },
+    {
+      test: /(confidence|eye contact|body language|hesitation|posture)/i,
+      action: 'Elevate webcam to eye level and practice maintaining steady visual focus during the initial 30 seconds of each response.'
+    },
+    {
+      test: /(security|auth|jwt|oauth|encryption|vulnerability)/i,
+      action: 'Implement token-based authentication and sanitize mock inputs to gain practical experience with OWASP best practices.'
+    },
+    {
+      test: /(network|http|tcp|rest|api|grpc|websocket)/i,
+      action: 'Inspect network payloads and HTTP status codes using Postman/DevTools to master client-server communication protocols.'
+    }
+  ];
+
+  whatList.forEach(function (item) {
+    if (steps.length >= 4) return;
+    var matched = false;
+    for (var k = 0; k < topicActions.length; k++) {
+      if (topicActions[k].test.test(item)) {
+        if (!steps.includes(topicActions[k].action)) {
+          steps.push(topicActions[k].action);
+          matched = true;
+          break;
+        }
+      }
+    }
+    if (!matched) {
+      var clean = item.replace(/^(study|learn|practice|improve|review|understand|focus on|work on)\s+/i, '').trim();
+      clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+      steps.push(`Create a step-by-step checklist and practical exercise plan for ${clean.toLowerCase()}.`);
+    }
+  });
+
+  var defaultFallbacks = [
+    'Break complex concepts into Definition, Practical Implementation Example, and Trade-off Analysis.',
+    'Build mini-projects or hands-on sandbox prototypes to convert conceptual knowledge into muscle memory.',
+    'Conduct timed mock interview drills with audio recording to evaluate answer depth, pace, and clarity.'
+  ];
+  for (var d = 0; d < defaultFallbacks.length && steps.length < 3; d++) {
+    if (!steps.includes(defaultFallbacks[d])) steps.push(defaultFallbacks[d]);
+  }
+  return steps.slice(0, Math.max(3, whatList.length));
+}
+
 function renderReportModal(report) {
   if (!report) return '';
   var comm = (report.communication_score !== null && report.communication_score !== undefined) ? report.communication_score : (report.total_score || 0);
@@ -2878,9 +3013,23 @@ function renderReportModal(report) {
 
   var strengths = report.strengths || [];
   var weaknesses = report.weaknesses || [];
-  var improvements = report.improvements || [];
+  var rawImprovements = report.improvements || [];
   var recommendations = report.recommendations || [];
   var resources = report.resources || [];
+  var rawHowToImprove = report.how_to_improve || [];
+
+  var whatToImprove = [];
+  var howToImprove = [];
+  if (Array.isArray(rawHowToImprove) && rawHowToImprove.length > 0) {
+    whatToImprove = rawImprovements;
+    howToImprove = rawHowToImprove;
+  } else if (rawImprovements.length >= 6) {
+    whatToImprove = rawImprovements.slice(0, 3);
+    howToImprove = rawImprovements.slice(3, 6);
+  } else {
+    whatToImprove = rawImprovements.slice(0, 4);
+    howToImprove = generateHowToImproveSteps(whatToImprove, report);
+  }
   var questions = report.questions || [];
   var params = report.detailed_parameters || {};
   if (!params || Object.keys(params).length === 0) {
@@ -3400,7 +3549,7 @@ function renderReportModal(report) {
             <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">What to Improve</p>
               <div class="mt-3 space-y-3">
-                ${improvements.length ? improvements.slice(0, 4).map(function (imp, i) {
+                ${whatToImprove.length ? whatToImprove.map(function (imp, i) {
       return `<div class="flex items-start gap-2.5">
                     <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(99,102,241,0.15);color:#a5b4fc">${String(i + 1).padStart(2, '0')}</span>
                     <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
@@ -3411,10 +3560,10 @@ function renderReportModal(report) {
             <div class="rounded-2xl border border-white/8 p-4" style="background:#0c0e1c">
               <p class="text-white/40 text-[11px] uppercase tracking-wider font-semibold">How to Improve</p>
               <div class="mt-3 space-y-3">
-                ${improvements.length > 4 ? improvements.slice(4).map(function (imp, i) {
+                ${howToImprove.length ? howToImprove.map(function (how, i) {
       return `<div class="flex items-start gap-2.5">
-                    <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9">${String(i + 5).padStart(2, '0')}</span>
-                    <p class="text-xs text-white/80 leading-relaxed">${imp}</p>
+                    <span class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0" style="background:rgba(6,182,212,0.15);color:#67e8f9">${String(i + 1).padStart(2, '0')}</span>
+                    <p class="text-xs text-white/80 leading-relaxed">${how}</p>
                   </div>`;
     }).join('') : '<p class="text-xs text-white/50">Practice delivering complete, structured answers.</p>'}
               </div>
@@ -3596,6 +3745,251 @@ function renderScoreRing(score, rating) {
   </div>`;
 }
 
+function renderCohortRankingCard(rk, hasData) {
+  if (!hasData || !rk || !rk.total_cohort_candidates) {
+    return `<div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Cohort Benchmark &amp; Percentile Standing</p>
+        <span class="text-xs text-white/40">Domain Cohort</span>
+      </div>
+      <div class="flex flex-col items-center justify-center h-36 text-center">
+        <p class="text-white/30 text-sm">Complete your initial interview sessions to calculate percentile rank.</p>
+      </div>
+    </div>`;
+  }
+
+  var standingColor = rk.percentile >= 75 ? EMERALD : rk.percentile >= 50 ? INDIGO : AMBER;
+
+  return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/6 pb-3">
+      <div>
+        <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Cohort Benchmark &amp; Percentile Standing</p>
+        <p class="text-white/35 text-xs mt-0.5">${rk.cohort_standing} &bull; ${rk.domain}</p>
+      </div>
+      <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background:${standingColor}20;color:${standingColor};border:1px solid ${standingColor}40">
+        ${rk.standing_badge}
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+      <div class="flex flex-col items-center justify-center p-4 rounded-xl border border-white/6" style="background:#141627">
+        <span class="text-[11px] uppercase tracking-wider font-semibold text-white/45">Percentile Rank</span>
+        <div class="text-3xl font-extrabold mt-1" style="color:${standingColor};font-family:'Outfit',sans-serif">
+          ${rk.percentile.toFixed(1)}<span class="text-lg text-white/50">%</span>
+        </div>
+        <p class="text-white/40 text-xs mt-1 text-center">Rank <span class="text-white font-bold">#${rk.rank_position}</span> of ${rk.total_cohort_candidates} candidates</p>
+      </div>
+
+      <div class="md:col-span-2 space-y-3">
+        ${[
+          { label: 'Overall Score', userVal: rk.user_overall, cohortVal: rk.cohort_overall_avg, col: INDIGO },
+          { label: 'Technical Depth', userVal: rk.user_technical, cohortVal: rk.cohort_technical_avg, col: EMERALD },
+          { label: 'Communication Fluency', userVal: rk.user_communication, cohortVal: rk.cohort_communication_avg, col: CYAN },
+          { label: 'Confidence & Presence', userVal: rk.user_confidence, cohortVal: rk.cohort_confidence_avg, col: AMBER },
+        ].map(function (b) {
+          return `<div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-white/80 font-medium">${b.label}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-white font-bold">${b.userVal.toFixed(1)}% <span class="text-white/30 font-normal">You</span></span>
+                <span class="text-white/40 text-[11px]">vs ${b.cohortVal.toFixed(1)}% avg</span>
+              </div>
+            </div>
+            <div class="w-full h-2 rounded-full bg-white/6 overflow-hidden relative">
+              <div class="h-full rounded-full" style="width:${Math.min(100, Math.max(0, b.userVal))}%;background:${b.col}"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPerformanceTrendsCard(tr, hasData, activeMetric) {
+  var hasTimeline = hasData && tr && tr.timeline && tr.timeline.length >= 2;
+  var vel = tr ? tr.velocity || 0 : 0;
+  var velStr = (vel >= 0 ? '+' : '') + vel.toFixed(1) + ' pts / session';
+  var traj = tr ? tr.trajectory || 'Steady' : 'Steady';
+  var trajCol = tr ? tr.trajectory_color || INDIGO : INDIGO;
+
+  var metricButtons = [
+    { key: 'all', label: 'All Metrics' },
+    { key: 'overall', label: 'Overall' },
+    { key: 'technical', label: 'Technical' },
+    { key: 'communication', label: 'Communication' },
+    { key: 'confidence', label: 'Confidence' },
+  ];
+
+  return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/6 pb-3">
+      <div>
+        <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Performance Progression Trends</p>
+        <p class="text-white/35 text-xs mt-0.5">Chronological score trajectories across completed sessions</p>
+      </div>
+      <div class="flex items-center gap-3">
+        ${hasTimeline ? `
+          <div class="flex items-center gap-1.5 text-xs">
+            <span class="text-white/40">Velocity:</span>
+            <span class="text-white font-bold">${velStr}</span>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded font-bold" style="background:${trajCol}20;color:${trajCol};border:1px solid ${trajCol}40">
+            ${traj}
+          </span>
+        ` : ''}
+      </div>
+    </div>
+
+    ${hasTimeline ? `
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 bg-white/4 p-1 rounded-lg border border-white/6">
+          ${metricButtons.map(function (m) {
+            var isActive = activeMetric === m.key;
+            return `<button class="btn-analytics-trend-metric text-xs px-2.5 py-1 rounded transition-colors font-medium ${isActive ? 'bg-indigo-600 text-white font-bold shadow' : 'text-white/60 hover:text-white'}" data-metric="${m.key}">
+              ${m.label}
+            </button>`;
+          }).join('')}
+        </div>
+        <span class="text-xs text-white/35 font-mono">${tr.sessions_count} Evaluated Sessions</span>
+      </div>
+      <div class="chart-container" style="height:220px">
+        <canvas id="chart-analytics-trends"></canvas>
+      </div>
+    ` : `<div class="flex flex-col items-center justify-center h-48 text-center">
+      <p class="text-white/30 text-sm">Complete 2 or more interview sessions to unlock interactive trajectory tracking.</p>
+    </div>`}
+  </div>`;
+}
+
+function renderWeakAreaPredictionsCard(wa, hasData) {
+  var predicted = (wa && wa.predicted_weak_areas) || [];
+  var readiness = wa ? wa.readiness_index || 0 : 0;
+  var readinessLabel = wa ? wa.readiness_label || 'Unassessed' : 'Unassessed';
+  var readinessColor = wa ? wa.readiness_color || '#94a3b8' : '#94a3b8';
+
+  return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/6 pb-3">
+      <div>
+        <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">AI Weak-Area Prediction &amp; Smart Remediation</p>
+        <p class="text-white/35 text-xs mt-0.5">Predictive identification of interview failure points and personalized practice prescriptions</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background:${readinessColor}20;color:${readinessColor};border:1px solid ${readinessColor}40">
+          ${readinessLabel} (${readiness.toFixed(1)}%)
+        </span>
+      </div>
+    </div>
+
+    ${hasData && predicted.length ? `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        ${predicted.map(function (w) {
+          return `<div class="p-4 rounded-xl border border-white/6 flex flex-col justify-between" style="background:#141627">
+            <div class="space-y-2">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-white font-semibold text-sm">${w.title}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded font-bold uppercase shrink-0" style="background:${w.severity_color}25;color:${w.severity_color};border:1px solid ${w.severity_color}40">
+                  ${w.severity}
+                </span>
+              </div>
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-white/50">${w.skill_name}</span>
+                  <span class="font-bold" style="color:${w.severity_color}">${w.current_score.toFixed(1)}%</span>
+                </div>
+                <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
+                  <div class="h-full rounded-full" style="width:${Math.min(100, Math.max(0, w.current_score))}%;background:${w.severity_color}"></div>
+                </div>
+              </div>
+              <p class="text-white/60 text-xs leading-relaxed">${w.description}</p>
+              <div class="p-2.5 rounded-lg bg-black/25 border border-white/4">
+                <p class="text-[11px] text-white/40 leading-snug"><strong class="text-white/70">Impact:</strong> ${w.impact}</p>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] uppercase text-white/35 font-semibold">Recommended Drill</span>
+                <p class="text-white text-xs font-medium">${w.recommended_drill}</p>
+              </div>
+              <button class="btn-launch-remedial-drill text-xs font-semibold px-3 py-1.5 rounded shadow transition-all hover:brightness-110 flex items-center gap-1 text-white" style="background:#6366f1" data-drill-type="${w.drill_type}" data-focus-topics="${(w.focus_topics || []).join(',')}">
+                Practice Drill ${icon('chevronRight', 12)}
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    ` : `<div class="flex flex-col items-center justify-center h-40 text-center">
+      <p class="text-white/30 text-sm">Complete interviews to generate predictive weak-area analysis.</p>
+    </div>`}
+  </div>`;
+}
+
+function renderSkillCompetencyMatrix(sk, hasData) {
+  if (!hasData || !sk) {
+    return `<div class="rounded-xl border border-white/7 p-5" style="background:#0d0f1e">
+      <p class="text-white font-semibold text-sm mb-1" style="font-family:'Outfit',sans-serif">Skill-Wise Competency Matrix</p>
+      <div class="flex flex-col items-center justify-center h-48 text-center">
+        <p class="text-white/30 text-sm">Complete interview sessions to unlock granular skill analytics.</p>
+      </div>
+    </div>`;
+  }
+
+  var tech = sk.technical_competencies || [];
+  var comm = sk.communication_competencies || [];
+  var beh = sk.behavioral_competencies || [];
+
+  function masteryBadge(m) {
+    var c = m === 'Expert' ? EMERALD : m === 'Proficient' ? INDIGO : m === 'Developing' ? AMBER : ROSE;
+    return `<span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:${c}20;color:${c};border:1px solid ${c}40">${m}</span>`;
+  }
+
+  function renderGroup(title, items, col) {
+    return `<div class="rounded-xl border border-white/6 p-4 space-y-3" style="background:#141627">
+      <p class="text-white font-semibold text-xs uppercase tracking-wider text-white/60">${title}</p>
+      <div class="space-y-2.5">
+        ${items.map(function (item) {
+          return `<div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-white/80 font-medium truncate pr-2">${item.name}</span>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-white font-bold">${item.score.toFixed(1)}%</span>
+                ${masteryBadge(item.mastery)}
+              </div>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-white/6 overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.min(100, Math.max(0, item.score))}%;background:${col}"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  return `<div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/6 pb-3">
+      <div>
+        <p class="text-white font-semibold text-sm" style="font-family:'Outfit',sans-serif">Skill-Wise Competency Matrix</p>
+        <p class="text-white/35 text-xs mt-0.5">Granular evaluation across 15+ technical, verbal, and behavioral capabilities</p>
+      </div>
+      <span class="text-xs text-white/45 font-mono">${sk.total_skills_tracked || 15} Tracked Parameters</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1 rounded-xl border border-white/6 p-4 flex flex-col items-center justify-center" style="background:#141627">
+        <p class="text-white/70 text-xs font-semibold mb-2 self-start">Capability Radar Envelope</p>
+        <div class="chart-container" style="height:240px;width:100%">
+          <canvas id="chart-analytics-radar"></canvas>
+        </div>
+      </div>
+      <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        ${renderGroup('Technical Core', tech, EMERALD)}
+        ${renderGroup('Communication & Fluency', comm, CYAN)}
+      </div>
+    </div>
+    <div class="mt-2">
+      ${renderGroup('Behavioral & Non-Verbal Presence', beh, AMBER)}
+    </div>
+  </div>`;
+}
+
 function candidateAnalytics() {
   if (!state.analyticsData) {
     api.getAnalyticsSummary().then(function (data) {
@@ -3612,12 +4006,13 @@ function candidateAnalytics() {
   var overall = data.avg_overall || 0;
 
   var modalHtml = state.activeReportModal ? renderReportModal(state.activeReportModal) : '';
+  var activeMetric = state.analyticsTrendMetric || 'all';
 
   return `<div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white" style="font-family:'Outfit',sans-serif">Performance Analytics</h1>
-        <p class="text-white/40 text-sm mt-1">Multi-dimensional assessment feedback across completed sessions.</p>
+        <p class="text-white/40 text-sm mt-1">Multi-dimensional assessment feedback, skill analytics, and predictive readiness metrics.</p>
       </div>
       ${hasData ? renderRubricBadge(data.performance_rating, overall) : ''}
     </div>
@@ -3628,6 +4023,14 @@ function candidateAnalytics() {
       ${statCard(icon('award', 18), 'Top Parameter', data.top_skill || '—', null, EMERALD)}
       ${statCard(icon('activity', 18), 'Rating Rubric', data.performance_rating || '—', null, AMBER)}
     </div>
+
+    ${renderCohortRankingCard(data.ranking, hasData)}
+
+    ${renderPerformanceTrendsCard(data.trends, hasData, activeMetric)}
+
+    ${renderSkillCompetencyMatrix(data.skills, hasData)}
+
+    ${renderWeakAreaPredictionsCard(data.weak_areas, hasData)}
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="rounded-xl border border-white/7 p-5 space-y-4" style="background:#0d0f1e">
@@ -5864,5 +6267,471 @@ function bindCandidateAssessmentEvents() {
       render();
     });
   }
+}
+
+// Candidate Job Board & Applications Section
+function candidateJobs() {
+  var activeTab = state.candidateJobsTab || 'explore';
+
+  if (activeTab === 'explore') {
+    if (state.candidateJobsData === null && !state._fetchingCandidateJobs) {
+      state._fetchingCandidateJobs = true;
+      var params = {
+        q: state.candidateJobsSearch || '',
+        domain: state.candidateJobsDomain !== 'all' ? state.candidateJobsDomain : '',
+        location_type: state.candidateJobsLocation !== 'all' ? state.candidateJobsLocation : '',
+        job_type: state.candidateJobsType !== 'all' ? state.candidateJobsType : ''
+      };
+      api.getExploreJobs(params).then(function (data) {
+        state.candidateJobsData = data.jobs || [];
+        state._fetchingCandidateJobs = false;
+        render();
+      }).catch(function (err) {
+        console.warn('Failed to fetch jobs:', err);
+        state._fetchingCandidateJobs = false;
+        state.candidateJobsData = [];
+        render();
+      });
+    }
+  } else if (activeTab === 'applications') {
+    if (state.candidateMyApplicationsData === null && !state._fetchingMyApplications) {
+      state._fetchingMyApplications = true;
+      api.getMyApplications().then(function (data) {
+        state.candidateMyApplicationsData = data.applications || [];
+        state._fetchingMyApplications = false;
+        render();
+      }).catch(function (err) {
+        console.warn('Failed to fetch applications:', err);
+        state._fetchingMyApplications = false;
+        state.candidateMyApplicationsData = [];
+        render();
+      });
+    }
+  }
+
+  var jobs = state.candidateJobsData || [];
+  var apps = state.candidateMyApplicationsData || [];
+  var modalHtml = state.selectedApplyJob ? renderJobApplyModal(state.selectedApplyJob) : '';
+
+  return `<div class="space-y-6 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+          <span class="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
+            ${icon('briefcase', 22)}
+          </span>
+          Job Board & AI Match Directory
+        </h1>
+        <p class="text-sm text-white/50 mt-1">
+          Explore curated corporate requisitions with automated AI Skill Match scoring and track your live applications.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span> Smart Match Active
+        </span>
+        <span class="text-xs text-white/40 font-mono">${jobs.length} Active Openings</span>
+      </div>
+    </div>
+
+    <!-- Navigation Sub-Tabs -->
+    <div class="sh-tabs-nav grid grid-cols-2 gap-1.5 p-1.5 rounded-2xl bg-white/4 border border-white/6 max-w-md">
+      <button type="button" class="sh-tab-btn ${activeTab === 'explore' ? 'active' : ''}" id="tab-jobs-explore">
+        ${icon('search', 15)}
+        <span>Explore Openings (${jobs.length})</span>
+      </button>
+      <button type="button" class="sh-tab-btn ${activeTab === 'applications' ? 'active' : ''}" id="tab-jobs-applications">
+        ${icon('checkCircle2', 15)}
+        <span>My Applications (${apps.length})</span>
+      </button>
+    </div>
+
+    ${activeTab === 'explore' ? renderJobsExploreView(jobs) : renderMyApplicationsView(apps)}
+  </div>${modalHtml}`;
+}
+
+function renderJobsExploreView(jobs) {
+  var domain = state.candidateJobsDomain || 'all';
+  var location = state.candidateJobsLocation || 'all';
+  var jobType = state.candidateJobsType || 'all';
+  var search = state.candidateJobsSearch || '';
+
+  return `<div class="space-y-5">
+    <!-- Filter Controls Bar -->
+    <div class="p-4 rounded-2xl bg-white/3 border border-white/6 flex flex-col md:flex-row items-center justify-between gap-3 shadow-lg">
+      <div class="relative w-full md:w-80">
+        <span class="absolute left-3.5 top-3 text-white/40 pointer-events-none">${icon('search', 15)}</span>
+        <input type="text" id="inp-jobs-search" value="${search}" placeholder="Search role, skills, keywords..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-xs placeholder-white/30 focus:outline-none focus:border-indigo-500 transition-all" />
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+        <select id="sel-jobs-domain" class="px-3 py-2 rounded-xl bg-[#0d0f1e] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer">
+          <option value="all" ${domain === 'all' ? 'selected' : ''}>All Domains</option>
+          <option value="Software Engineering" ${domain === 'Software Engineering' ? 'selected' : ''}>Software Engineering</option>
+          <option value="Artificial Intelligence" ${domain === 'Artificial Intelligence' ? 'selected' : ''}>AI & Data Science</option>
+          <option value="DevOps & Cloud" ${domain === 'DevOps & Cloud' ? 'selected' : ''}>DevOps & Cloud</option>
+          <option value="Product & Design" ${domain === 'Product & Design' ? 'selected' : ''}>Product & Design</option>
+        </select>
+
+        <select id="sel-jobs-location" class="px-3 py-2 rounded-xl bg-[#0d0f1e] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer">
+          <option value="all" ${location === 'all' ? 'selected' : ''}>All Locations</option>
+          <option value="Remote" ${location === 'Remote' ? 'selected' : ''}>Remote</option>
+          <option value="Hybrid" ${location === 'Hybrid' ? 'selected' : ''}>Hybrid</option>
+          <option value="Onsite" ${location === 'Onsite' ? 'selected' : ''}>Onsite</option>
+        </select>
+
+        <select id="sel-jobs-type" class="px-3 py-2 rounded-xl bg-[#0d0f1e] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 cursor-pointer">
+          <option value="all" ${jobType === 'all' ? 'selected' : ''}>All Employment Types</option>
+          <option value="Full-time" ${jobType === 'Full-time' ? 'selected' : ''}>Full-time</option>
+          <option value="Contract" ${jobType === 'Contract' ? 'selected' : ''}>Contract</option>
+          <option value="Internship" ${jobType === 'Internship' ? 'selected' : ''}>Internship</option>
+        </select>
+
+        <button id="btn-reset-jobs-filters" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-xs font-semibold transition-all" title="Reset Filters">
+          ${icon('refreshCw', 13)}
+        </button>
+      </div>
+    </div>
+
+    <!-- Jobs Cards Grid -->
+    ${jobs.length ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      ${jobs.map(function (job) {
+        var matchScore = job.ai_match_score || 75;
+        var matchColor = matchScore >= 80 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                         matchScore >= 65 ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20' :
+                         'text-amber-300 bg-amber-500/10 border-amber-500/20';
+
+        var skills = [];
+        try {
+          skills = Array.isArray(job.skills) ? job.skills : JSON.parse(job.skills_json || '[]');
+        } catch (_) {
+          skills = ['Python', 'Cloud', 'Engineering'];
+        }
+
+        return `<div class="p-6 rounded-2xl border border-white/8 space-y-4 shadow-xl flex flex-col justify-between hover:border-indigo-500/40 transition-all group" style="background:#0d0f1e">
+          <div class="space-y-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600/30 to-purple-600/20 border border-indigo-500/30 text-indigo-300 font-bold flex items-center justify-center text-sm shrink-0">
+                  ${(job.company_name || 'SH').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 class="text-white font-bold text-base group-hover:text-indigo-300 transition-colors" style="font-family:'Outfit',sans-serif">${job.title}</h3>
+                  <p class="text-white/50 text-xs font-medium">${job.company_name || 'Hiring Enterprise'}</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full border text-xs font-bold ${matchColor} flex items-center gap-1 shrink-0" title="AI match score calculated against your skills & assessments">
+                ${icon('zap', 12)} ${matchScore}% Match
+              </span>
+            </div>
+
+            <!-- Meta Badges -->
+            <div class="flex flex-wrap items-center gap-2 text-[11px]">
+              <span class="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/80 font-medium">${job.domain || 'Technology'}</span>
+              <span class="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/80 font-medium">${job.location_type || 'Remote'}</span>
+              <span class="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/80 font-medium">${job.job_type || 'Full-time'}</span>
+              ${job.experience_level ? `<span class="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/60 font-medium">${job.experience_level}</span>` : ''}
+              ${job.salary_range ? `<span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-semibold">${job.salary_range}</span>` : ''}
+            </div>
+
+            <!-- Description -->
+            <p class="text-white/60 text-xs leading-relaxed line-clamp-2">${job.description || 'Join our high-performing team to build resilient and scalable software architectures.'}</p>
+
+            <!-- Skills Badges -->
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              ${skills.slice(0, 5).map(function (s) {
+                return `<span class="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10.5px] font-medium">${s}</span>`;
+              }).join('')}
+              ${skills.length > 5 ? `<span class="px-2 py-0.5 rounded-md bg-white/5 text-white/40 text-[10.5px]">+${skills.length - 5}</span>` : ''}
+            </div>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="pt-4 border-t border-white/6 flex items-center justify-between">
+            <span class="text-[11px] text-white/40 font-mono">Posted: ${formatDateTime(job.created_at)}</span>
+            ${job.has_applied ? `
+              <span class="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-semibold text-xs flex items-center gap-1.5">
+                ${icon('checkCircle2', 13)} Applied (${job.application_status || 'Under Review'})
+              </span>
+            ` : `
+              <button class="btn-quick-apply px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center gap-1.5 cursor-pointer" data-job-id="${job.id}">
+                ${icon('send', 13)} Quick Apply
+              </button>
+            `}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div class="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-white/6 p-8" style="background:#0d0f1e">
+      <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white/30 mb-3">${icon('briefcase', 28)}</div>
+      <h3 class="text-white font-semibold text-base mb-1">No Openings Found</h3>
+      <p class="text-white/40 text-xs max-w-md">No jobs match your search parameters. Try clearing your filters to discover open positions.</p>
+    </div>`}
+  </div>`;
+}
+
+function renderMyApplicationsView(apps) {
+  return `<div class="space-y-4">
+    <div class="rounded-2xl border border-white/7 overflow-hidden shadow-xl" style="background:#0d0f1e">
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead>
+            <tr class="border-b border-white/8 bg-[#090a15] text-white/40 uppercase tracking-wider font-semibold">
+              <th class="p-4 px-5">Job Title & Company</th>
+              <th class="p-4 px-5">Location & Domain</th>
+              <th class="p-4 px-5 text-center">AI Skill Match</th>
+              <th class="p-4 px-5 text-center">Applied On</th>
+              <th class="p-4 px-5 text-center">Pipeline Stage</th>
+              <th class="p-4 px-5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/6 text-white/80">
+            ${apps.length ? apps.map(function (app) {
+              var status = app.status || 'applied';
+              var statusBadge = status === 'shortlisted' ? '<span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold text-[11px] flex items-center gap-1 justify-center"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Shortlisted</span>' :
+                                status === 'interview_scheduled' ? '<span class="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-semibold text-[11px] flex items-center gap-1 justify-center"><span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span> Interview Scheduled</span>' :
+                                status === 'offered' ? '<span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-[11px] flex items-center gap-1 justify-center">🎉 Offer Extended</span>' :
+                                status === 'rejected' ? '<span class="px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-semibold text-[11px] flex items-center gap-1 justify-center">Not Selected</span>' :
+                                status === 'screening' ? '<span class="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-semibold text-[11px] flex items-center gap-1 justify-center">In Screening</span>' :
+                                '<span class="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold text-[11px] flex items-center gap-1 justify-center">Application Received</span>';
+
+              var score = app.ai_match_score || 80;
+
+              return `<tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="p-4 px-5">
+                  <div>
+                    <p class="font-bold text-white text-xs">${app.title}</p>
+                    <p class="text-white/40 text-[11px]">${app.company_name} &bull; ${app.job_type || 'Full-time'}</p>
+                  </div>
+                </td>
+                <td class="p-4 px-5">
+                  <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-white/80 font-medium">${app.location_type} &bull; ${app.domain}</span>
+                </td>
+                <td class="p-4 px-5 text-center">
+                  <span class="font-bold text-xs ${score >= 80 ? 'text-emerald-400' : 'text-indigo-300'}">${score}% Match</span>
+                </td>
+                <td class="p-4 px-5 text-center text-white/60 font-mono text-[11px]">
+                  ${formatDateTime(app.created_at)}
+                </td>
+                <td class="p-4 px-5 text-center">
+                  ${statusBadge}
+                </td>
+                <td class="p-4 px-5 text-right">
+                  <button class="btn-prep-interview px-3 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all cursor-pointer flex items-center gap-1 ml-auto" data-role="${app.title}" data-domain="${app.domain}">
+                    ${icon('play', 12)} Practice Role
+                  </button>
+                </td>
+              </tr>`;
+            }).join('') : `<tr>
+              <td colspan="6" class="p-12 text-center text-white/30 text-xs">
+                You have not applied to any job requisitions yet. Explore openings above to submit your first application!
+              </td>
+            </tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderJobApplyModal(job) {
+  var matchScore = job.ai_match_score || 75;
+
+  return `<div id="apply-modal-overlay" class="sh-modal-backdrop" style="background:rgba(4,6,14,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+    <div class="sh-modal-card max-w-lg w-full p-6 rounded-2xl border border-indigo-500/30 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150" style="background:#0d0f1e">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-white/8 pb-4">
+        <div>
+          <h3 class="text-white font-bold text-lg" style="font-family:'Outfit',sans-serif">Submit Application</h3>
+          <p class="text-white/40 text-xs mt-0.5">${job.title} &bull; ${job.company_name}</p>
+        </div>
+        <button id="btn-close-apply-modal" class="text-white/40 hover:text-white text-xl font-bold p-1 cursor-pointer">&times;</button>
+      </div>
+
+      <!-- AI Match Banner -->
+      <div class="p-4 rounded-xl bg-gradient-to-r from-indigo-950/50 to-purple-950/30 border border-indigo-500/30 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold">
+            ${icon('zap', 18)}
+          </div>
+          <div>
+            <p class="text-xs font-bold text-white">AI Skill Match Fit</p>
+            <p class="text-[11px] text-white/50">Your candidate profile is highly aligned with this role.</p>
+          </div>
+        </div>
+        <span class="text-emerald-400 font-extrabold text-base">${matchScore}%</span>
+      </div>
+
+      <!-- Cover Note Input -->
+      <div class="space-y-1.5">
+        <label class="sh-label">Brief Cover Note / Why You're a Fit (Optional)</label>
+        <textarea id="inp-apply-cover-note" rows="3" class="form-input py-2.5 px-3 leading-relaxed text-xs" placeholder="Highlight your relevant experience, technical strengths, or passion for this position...">${state.applyCoverNote || ''}</textarea>
+      </div>
+
+      <!-- Privacy & Data Sharing Transparency Alert -->
+      <div class="p-3.5 rounded-xl bg-black/40 border border-white/6 text-xs text-white/50 space-y-1">
+        <div class="flex items-center gap-2 text-indigo-300 font-semibold">
+          ${icon('shieldCheck', 14)} <span>Candidate Privacy & Data Notice</span>
+        </div>
+        <p class="text-[11px] leading-relaxed">
+          By applying, your candidate profile and verified evaluation scores are securely routed to <strong>${job.company_name}</strong>. If your profile was in stealth mode, it will become visible to this recruiter for this specific application.
+        </p>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-white/6">
+        <button id="btn-cancel-apply-modal" class="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-xs font-semibold transition-all cursor-pointer">
+          Cancel
+        </button>
+        <button id="btn-submit-apply-job" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center gap-2" data-job-id="${job.id}">
+          ${icon('send', 14)} <span>Submit Application</span>
+        </button>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+function bindCandidateJobEvents() {
+  // Tab switching
+  var tabExplore = document.getElementById('tab-jobs-explore');
+  if (tabExplore) {
+    tabExplore.addEventListener('click', function () {
+      state.candidateJobsTab = 'explore';
+      render();
+    });
+  }
+
+  var tabApps = document.getElementById('tab-jobs-applications');
+  if (tabApps) {
+    tabApps.addEventListener('click', function () {
+      state.candidateJobsTab = 'applications';
+      state.candidateMyApplicationsData = null;
+      render();
+    });
+  }
+
+  // Search & Filter
+  var inpSearch = document.getElementById('inp-jobs-search');
+  if (inpSearch) {
+    inpSearch.addEventListener('input', function () {
+      state.candidateJobsSearch = this.value;
+      state.candidateJobsData = null;
+    });
+    inpSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        state.candidateJobsData = null;
+        render();
+      }
+    });
+  }
+
+  var selDomain = document.getElementById('sel-jobs-domain');
+  if (selDomain) {
+    selDomain.addEventListener('change', function () {
+      state.candidateJobsDomain = this.value;
+      state.candidateJobsData = null;
+      render();
+    });
+  }
+
+  var selLoc = document.getElementById('sel-jobs-location');
+  if (selLoc) {
+    selLoc.addEventListener('change', function () {
+      state.candidateJobsLocation = this.value;
+      state.candidateJobsData = null;
+      render();
+    });
+  }
+
+  var selType = document.getElementById('sel-jobs-type');
+  if (selType) {
+    selType.addEventListener('change', function () {
+      state.candidateJobsType = this.value;
+      state.candidateJobsData = null;
+      render();
+    });
+  }
+
+  var btnReset = document.getElementById('btn-reset-jobs-filters');
+  if (btnReset) {
+    btnReset.addEventListener('click', function () {
+      state.candidateJobsSearch = '';
+      state.candidateJobsDomain = 'all';
+      state.candidateJobsLocation = 'all';
+      state.candidateJobsType = 'all';
+      state.candidateJobsData = null;
+      render();
+    });
+  }
+
+  // Quick Apply click -> open modal
+  document.querySelectorAll('.btn-quick-apply').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var jobId = parseInt(this.dataset.jobId, 10);
+      var job = (state.candidateJobsData || []).find(function (j) { return j.id === jobId; });
+      if (job) {
+        state.selectedApplyJob = job;
+        state.applyCoverNote = '';
+        render();
+      }
+    });
+  });
+
+  // Modal actions
+  var btnCloseModal = document.getElementById('btn-close-apply-modal');
+  if (btnCloseModal) {
+    btnCloseModal.addEventListener('click', function () {
+      state.selectedApplyJob = null;
+      render();
+    });
+  }
+
+  var btnCancelModal = document.getElementById('btn-cancel-apply-modal');
+  if (btnCancelModal) {
+    btnCancelModal.addEventListener('click', function () {
+      state.selectedApplyJob = null;
+      render();
+    });
+  }
+
+  var btnSubmitApply = document.getElementById('btn-submit-apply-job');
+  if (btnSubmitApply) {
+    btnSubmitApply.addEventListener('click', async function () {
+      var jobId = parseInt(this.dataset.jobId, 10);
+      if (!jobId) return;
+
+      var noteEl = document.getElementById('inp-apply-cover-note');
+      var note = noteEl ? noteEl.value.trim() : '';
+
+      btnSubmitApply.disabled = true;
+      btnSubmitApply.innerHTML = `<span class="animate-spin">${icon('loader', 14)}</span> Submitting...`;
+
+      try {
+        await api.applyToJob(jobId, { cover_note: note });
+        state.selectedApplyJob = null;
+        state.candidateJobsData = null;
+        state.candidateMyApplicationsData = null;
+        showToast('Application submitted successfully! Track it under My Applications.', 'success');
+        render();
+      } catch (err) {
+        showToast(err.message || 'Failed to submit application', 'error');
+        btnSubmitApply.disabled = false;
+        btnSubmitApply.innerHTML = `${icon('send', 14)} <span>Submit Application</span>`;
+      }
+    });
+  }
+
+  // Practice Role button from My Applications
+  document.querySelectorAll('.btn-prep-interview').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var role = this.dataset.role;
+      var dom = this.dataset.domain;
+      state.configJobRole = role || 'Full Stack Engineer';
+      state.section = 'interviews';
+      render();
+    });
+  });
 }
 

@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 import threading
 from config import PORT
 from database import init_db
-from routes import auth, users, interviews, assessments, recruiter, notifications
+from routes import auth, users, interviews, assessments, recruiter, notifications, jobs, admin
 from routes import resume_analyzer
 
 
@@ -41,11 +41,22 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(admin.router)
 app.include_router(interviews.router)
 app.include_router(assessments.router)
 app.include_router(notifications.router)
 app.include_router(recruiter.router, prefix="/api/recruiter", tags=["Recruiter"])
+app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
 app.include_router(resume_analyzer.router)
+
+
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")

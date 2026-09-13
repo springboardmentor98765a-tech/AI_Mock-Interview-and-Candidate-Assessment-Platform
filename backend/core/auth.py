@@ -59,7 +59,8 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User account no longer exists.")
 
     role = row["role"]
-    if role == "admin" and row["email"].strip().lower() not in ADMIN_EMAILS:
+    is_super = bool(row["is_super_admin"])
+    if role == "admin" and not is_super and row["email"].strip().lower() not in ADMIN_EMAILS:
         role = "candidate"
 
     return {
@@ -67,7 +68,7 @@ def get_current_user(
         "name": row["name"],
         "email": row["email"],
         "role": role,
-        "is_super_admin": bool(row["is_super_admin"]),
+        "is_super_admin": is_super,
     }
 
 

@@ -125,6 +125,9 @@ var api = {
   getAnalyticsSummary: function() {
     return apiRequest('/interviews/analytics/summary');
   },
+  getComprehensiveAnalytics: function() {
+    return apiRequest('/interviews/analytics/comprehensive');
+  },
   uploadResume: function(file) {
     var formData = new FormData();
     formData.append('file', file);
@@ -282,6 +285,138 @@ var api = {
   },
   sendNotifReminder: function(payload) {
     return apiRequest('/notifications/send-reminder', { method: 'POST', body: payload || {} });
+  },
+  testNotifEmail: function(payload) {
+    return apiRequest('/notifications/test-email', { method: 'POST', body: payload || {} });
+  },
+
+  // Privacy Settings
+  updatePrivacySettings: function(payload) {
+    return apiRequest('/auth/privacy-settings', {
+      method: 'PUT',
+      body: payload
+    });
+  },
+
+  // Candidate Jobs
+  getExploreJobs: function(filters) {
+    var params = new URLSearchParams();
+    if (filters) {
+      if (filters.search) params.append('search', filters.search);
+      if (filters.domain) params.append('domain', filters.domain);
+      if (filters.location_type) params.append('location_type', filters.location_type);
+      if (filters.job_type) params.append('job_type', filters.job_type);
+      if (filters.experience_level) params.append('experience_level', filters.experience_level);
+    }
+    var q = params.toString();
+    return apiRequest('/jobs/explore' + (q ? '?' + q : ''));
+  },
+  applyToJob: function(jobId, payload) {
+    var body = typeof payload === 'string' ? { cover_note: payload } : (payload || {});
+    return apiRequest('/jobs/' + jobId + '/apply', {
+      method: 'POST',
+      body: body
+    });
+  },
+  getMyApplications: function() {
+    return apiRequest('/jobs/my-applications');
+  },
+
+  // Recruiter Jobs & ATS
+  getRecruiterJobs: function() {
+    return apiRequest('/jobs/recruiter');
+  },
+  createJob: function(payload) {
+    return apiRequest('/jobs', {
+      method: 'POST',
+      body: payload
+    });
+  },
+  updateJob: function(jobId, payload) {
+    return apiRequest('/jobs/' + jobId, {
+      method: 'PUT',
+      body: payload
+    });
+  },
+  deleteJob: function(jobId) {
+    return apiRequest('/jobs/' + jobId, {
+      method: 'DELETE'
+    });
+  },
+  getJobApplicants: function(jobId) {
+    return apiRequest('/jobs/' + jobId + '/applicants');
+  },
+  updateApplicationStatus: function(applicationId, payload) {
+    var body = typeof payload === 'string' ? { status: payload } : (payload || {});
+    return apiRequest('/jobs/applications/' + applicationId + '/status', {
+      method: 'PUT',
+      body: body
+    });
+  },
+
+  // Admin Endpoints
+  getAdminOverview: function() {
+    return apiRequest('/admin/overview');
+  },
+  getAdminUsers: function(params) {
+    var query = '';
+    if (params) {
+      var searchParams = new URLSearchParams();
+      if (params.role) searchParams.append('role', params.role);
+      if (params.search) searchParams.append('search', params.search);
+      if (params.page) searchParams.append('page', params.page);
+      if (params.limit) searchParams.append('limit', params.limit);
+      var qStr = searchParams.toString();
+      if (qStr) query = '?' + qStr;
+    }
+    return apiRequest('/admin/users' + query);
+  },
+  createAdminUser: function(payload) {
+    return apiRequest('/admin/users', {
+      method: 'POST',
+      body: payload
+    });
+  },
+  updateAdminUserRole: function(userId, payload) {
+    return apiRequest('/admin/users/' + userId + '/role', {
+      method: 'PUT',
+      body: payload
+    });
+  },
+  deleteAdminUser: function(userId) {
+    return apiRequest('/admin/users/' + userId, {
+      method: 'DELETE'
+    });
+  },
+  getAdminInterviews: function(params) {
+    var query = '';
+    if (params) {
+      var searchParams = new URLSearchParams();
+      if (params.status) searchParams.append('status', params.status);
+      if (params.domain) searchParams.append('domain', params.domain);
+      if (params.search) searchParams.append('search', params.search);
+      if (params.page) searchParams.append('page', params.page);
+      if (params.limit) searchParams.append('limit', params.limit);
+      var qStr = searchParams.toString();
+      if (qStr) query = '?' + qStr;
+    }
+    return apiRequest('/admin/interviews' + query);
+  },
+  getAdminAIPerformance: function() {
+    return apiRequest('/admin/ai-performance');
+  },
+  updateAdminAIConfig: function(payload) {
+    return apiRequest('/admin/ai-config', {
+      method: 'PUT',
+      body: payload
+    });
+  },
+  getAdminSystemHealth: function() {
+    return apiRequest('/admin/system-health');
+  },
+  getAdminActivityLog: function(limit) {
+    var q = limit ? '?limit=' + limit : '';
+    return apiRequest('/admin/activity-log' + q);
   },
 };
 

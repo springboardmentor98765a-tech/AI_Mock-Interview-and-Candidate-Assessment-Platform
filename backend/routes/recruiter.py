@@ -139,7 +139,7 @@ def get_recruiter_candidates(
 
     query = """
         SELECT 
-            u.id, u.name, u.email, u.created_at,
+            u.id, u.name, u.email, u.created_at, u.is_recruiter_visible, u.share_recordings_reports,
             COALESCE(rcs.status, 'new') as shortlist_status,
             rcs.notes,
             COUNT(DISTINCT s.id) as sessions_count,
@@ -156,8 +156,16 @@ def get_recruiter_candidates(
         LEFT JOIN interview_session s ON (u.id = s.candidate_id OR u.id = s.user_id) AND s.status = 'completed'
         LEFT JOIN assessment a ON u.id = a.user_id AND a.status = 'completed'
         WHERE u.role = 'candidate'
+          AND (
+            COALESCE(u.is_recruiter_visible, 1) = 1
+            OR u.id IN (
+                SELECT ja.candidate_id FROM job_applications ja
+                JOIN job_postings jp ON jp.id = ja.job_id
+                WHERE jp.recruiter_id = ?
+            )
+          )
     """
-    params = [recruiter_id]
+    params = [recruiter_id, recruiter_id]
 
     if search:
         query += " AND (u.name LIKE ? OR u.email LIKE ? OR s.domain LIKE ?)"
@@ -206,6 +214,8 @@ def get_recruiter_candidates(
             "created_at": r["created_at"],
             "status": r["shortlist_status"],
             "notes": r["notes"] or "",
+            "is_recruiter_visible": bool(r["is_recruiter_visible"] if "is_recruiter_visible" in r.keys() and r["is_recruiter_visible"] is not None else 1),
+            "share_recordings_reports": bool(r["share_recordings_reports"] if "share_recordings_reports" in r.keys() and r["share_recordings_reports"] is not None else 1),
             "sessions_count": r["sessions_count"],
             "assessments_count": r["assessments_count"],
             "overall_score": overall,
@@ -301,6 +311,7 @@ def get_recruiter_sessions(
             u.id as candidate_id,
             u.name as candidate_name,
             u.email as candidate_email,
+            u.share_recordings_reports,
             r.id as recording_id,
             r.mime_type as recording_mime_type,
             r.file_size_bytes as recording_size
@@ -333,6 +344,8 @@ def get_recruiter_sessions(
             (r["session_id"], (r["current_question_index"] or 0) + 1)
         ).fetchone()
 
+        can_share = bool(r["share_recordings_reports"] if "share_recordings_reports" in r.keys() and r["share_recordings_reports"] is not None else 1)
+
         sessions.append({
             "session_id": r["session_id"],
             "interview_type": r["interview_type"],
@@ -355,9 +368,10 @@ def get_recruiter_sessions(
             "candidate_id": r["candidate_id"],
             "candidate_name": r["candidate_name"],
             "candidate_email": r["candidate_email"],
-            "recording_id": r["recording_id"],
-            "recording_mime_type": r["recording_mime_type"],
-            "recording_size": r["recording_size"]
+            "recording_id": r["recording_id"] if can_share else None,
+            "recording_restricted": bool(not can_share and r["recording_id"]),
+            "recording_mime_type": r["recording_mime_type"] if can_share else None,
+            "recording_size": r["recording_size"] if can_share else None
         })
 
     conn.close()

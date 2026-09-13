@@ -31,6 +31,7 @@ from services import vision_monitor
 from services import attention_monitor
 from services import behavior_analysis
 from services import vision_scoring
+from services import analytics_engine
 
 router = APIRouter(prefix="/api/interviews", tags=["interviews"])
 
@@ -120,6 +121,7 @@ def row_to_interview(row) -> dict:
         "strengths": _safe_json_loads(d.get("strengths_json"), []),
         "weaknesses": _safe_json_loads(d.get("weaknesses_json"), []),
         "improvements": _safe_json_loads(d.get("improvements_json"), []),
+        "how_to_improve": _safe_json_loads(d.get("how_to_improve_json"), []),
         "recommendations": _safe_json_loads(d.get("recommendations_json"), []),
         "resources": _safe_json_loads(d.get("resources_json"), []),
         "detailed_parameters": detailed_params,
@@ -660,6 +662,10 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
     ).fetchall()
 
     if not rows:
+        skills = analytics_engine.compute_skill_analytics(user["id"], conn)
+        weak_areas = analytics_engine.predict_weak_areas(user["id"], conn)
+        trends = analytics_engine.compute_performance_trends(user["id"], conn)
+        ranking = analytics_engine.compute_candidate_ranking(user["id"], conn)
         conn.close()
         return {
             "sessions_completed": 0,
@@ -671,6 +677,10 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
             "performance_rating": None,
             "top_skill": None,
             "history": [],
+            "skills": skills,
+            "weak_areas": weak_areas,
+            "trends": trends,
+            "ranking": ranking,
         }
 
     interviews = [row_to_interview(r) for r in rows]
@@ -699,6 +709,12 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
     }
     top_skill = max(skill_averages, key=skill_averages.get)
 
+    # Advanced analytics dimensions
+    skills = analytics_engine.compute_skill_analytics(user["id"], conn)
+    weak_areas = analytics_engine.predict_weak_areas(user["id"], conn)
+    trends = analytics_engine.compute_performance_trends(user["id"], conn)
+    ranking = analytics_engine.compute_candidate_ranking(user["id"], conn)
+
     conn.close()
     return {
         "sessions_completed": total_count,
@@ -710,7 +726,17 @@ def get_analytics_summary(user: dict = Depends(get_current_user)):
         "performance_rating": rating,
         "top_skill": top_skill,
         "history": interviews,
+        "skills": skills,
+        "weak_areas": weak_areas,
+        "trends": trends,
+        "ranking": ranking,
     }
+
+
+@router.get("/analytics/comprehensive")
+def get_comprehensive_analytics(user: dict = Depends(get_current_user)):
+    """Return unified comprehensive candidate analytics including skill-wise competencies, weak-area predictions, performance trends, and cohort ranking."""
+    return analytics_engine.get_comprehensive_analytics(user["id"])
 
 
 @router.get("/{interview_id}/report")
@@ -866,13 +892,15 @@ def list_all_recordings(user: dict = Depends(get_current_user)):
     if user_role in ("recruiter", "admin"):
         query = """
             SELECT r.*, s.interview_type, s.domain, s.difficulty, s.created_at as session_created_at,
-                   s.overall_score, s.performance_rating, u.name as candidate_name, u.email as candidate_email
+                   s.overall_score, s.performance_rating, u.name as candidate_name, u.email as candidate_email,
+                   u.share_recordings_reports
             FROM interview_recording r
             LEFT JOIN interview_session s ON s.id = r.session_id
             LEFT JOIN users u ON u.id = COALESCE(s.candidate_id, s.user_id)
+            WHERE (COALESCE(u.share_recordings_reports, 1) = 1 OR u.id = ?)
             ORDER BY r.created_at DESC
         """
-        rows = conn.execute(query).fetchall()
+        rows = conn.execute(query, (user["id"],)).fetchall()
     else:
         query = """
             SELECT r.*, s.interview_type, s.domain, s.difficulty, s.created_at as session_created_at,
@@ -917,14 +945,26 @@ def list_recordings(interview_id: int, user: dict = Depends(get_current_user)):
     conn = get_db()
     user_role = user.get("role", "candidate")
     if user_role in ("recruiter", "admin"):
-        interview = conn.execute("SELECT id FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+        interview = conn.execute("""
+            SELECT s.id, s.candidate_id, s.user_id, u.share_recordings_reports
+            FROM interview_session s
+            JOIN users u ON u.id = COALESCE(s.candidate_id, s.user_id)
+            WHERE s.id = ?
+        """, (interview_id,)).fetchone()
+        if not interview:
+            conn.close()
+            raise HTTPException(404, "Interview not found.")
+        cand_id = interview["candidate_id"] or interview["user_id"]
+        if user["id"] != cand_id and user_role != "admin" and not bool(interview["share_recordings_reports"] if interview["share_recordings_reports"] is not None else 1):
+            conn.close()
+            return {"recordings": [], "restricted": True, "message": "Candidate has chosen not to share interview recordings."}
     else:
         interview = conn.execute(
             "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)", (interview_id, user["id"], user["id"])
         ).fetchone()
-    if not interview:
-        conn.close()
-        raise HTTPException(404, "Interview not found.")
+        if not interview:
+            conn.close()
+            raise HTTPException(404, "Interview not found.")
     rows = conn.execute(
         "SELECT * FROM interview_recording WHERE session_id = ? ORDER BY created_at ASC", (interview_id,)
     ).fetchall()
@@ -993,16 +1033,27 @@ def stream_recording(interview_id: int, recording_id: int, user: dict = Depends(
     conn = get_db()
     user_role = user.get("role", "candidate")
     if user_role in ("recruiter", "admin"):
-        interview = conn.execute("SELECT id FROM interview_session WHERE id = ?", (interview_id,)).fetchone()
+        interview = conn.execute("""
+            SELECT s.id, s.candidate_id, s.user_id, u.share_recordings_reports
+            FROM interview_session s
+            JOIN users u ON u.id = COALESCE(s.candidate_id, s.user_id)
+            WHERE s.id = ?
+        """, (interview_id,)).fetchone()
+        if not interview:
+            conn.close()
+            raise HTTPException(404, "Interview session not found or unauthorized.")
+        cand_id = interview["candidate_id"] or interview["user_id"]
+        if user["id"] != cand_id and user_role != "admin" and not bool(interview["share_recordings_reports"] if interview["share_recordings_reports"] is not None else 1):
+            conn.close()
+            raise HTTPException(403, "Candidate has chosen not to share interview recordings with recruiters.")
     else:
         interview = conn.execute(
             "SELECT id FROM interview_session WHERE id = ? AND (user_id = ? OR candidate_id = ?)",
             (interview_id, user["id"], user["id"])
         ).fetchone()
-
-    if not interview:
-        conn.close()
-        raise HTTPException(404, "Interview session not found or unauthorized.")
+        if not interview:
+            conn.close()
+            raise HTTPException(404, "Interview session not found or unauthorized.")
 
     rec = conn.execute(
         "SELECT * FROM interview_recording WHERE id = ? AND session_id = ?",

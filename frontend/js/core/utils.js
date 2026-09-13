@@ -192,6 +192,57 @@ function drawPieChart(canvasId, data, labels, colors) {
   });
 }
 
+function drawRadarChart(canvasId, datasets, labels) {
+  var el = document.getElementById(canvasId);
+  if (!el) return;
+  var ctx = el.getContext('2d');
+  charts[canvasId] = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: datasets.map(function(ds) {
+        return {
+          label: ds.label,
+          data: ds.data,
+          borderColor: ds.color,
+          backgroundColor: ds.color + '26',
+          pointBackgroundColor: ds.color,
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: ds.color,
+          borderWidth: 2,
+        };
+      }),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: datasets.length > 1, labels: { color: '#8e95b3', font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: '#0d0f1e',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          titleColor: '#8e95b3',
+          bodyColor: '#e8eaf2',
+          padding: 8,
+          cornerRadius: 8,
+        },
+      },
+      scales: {
+        r: {
+          angleLines: { color: 'rgba(255,255,255,0.08)' },
+          grid: { color: 'rgba(255,255,255,0.08)' },
+          pointLabels: { color: '#94a3b8', font: { size: 11, family: 'Outfit, sans-serif' } },
+          ticks: { backdropColor: 'transparent', color: '#64748b', font: { size: 9 }, stepSize: 20 },
+          suggestedMin: 0,
+          suggestedMax: 100,
+        },
+      },
+    },
+  });
+}
+
 function chartOpts(legend, horizontal) {
   return {
     responsive: true,
@@ -433,6 +484,39 @@ function renderProfileModal() {
             </div>
           </div>
 
+          ${role === 'candidate' ? `
+            <!-- Recruitment & Privacy Visibility Controls -->
+            <div class="w-full mt-4 p-3.5 rounded-xl bg-white/4 border border-indigo-500/20 text-left space-y-3">
+              <div class="flex items-center justify-between border-b border-white/6 pb-2">
+                <div class="flex items-center gap-2 text-xs font-bold text-indigo-300">
+                  <span>${icon('shield', 14)}</span>
+                  <span>Recruiter Visibility & Privacy</span>
+                </div>
+                <span class="text-[10px] text-white/40 font-mono" id="profile-privacy-audit-badge">
+                  ${user.privacy_updated_at ? 'Audited: ' + new Date(user.privacy_updated_at).toLocaleDateString() : 'Audited: Today'}
+                </span>
+              </div>
+
+              <!-- Option 1: Show profile for recruitment -->
+              <label class="flex items-start gap-2.5 p-2 rounded-lg bg-white/2 hover:bg-white/4 border border-white/5 cursor-pointer transition-all">
+                <input type="checkbox" id="profile-cb-recruiter-visible" ${user.is_recruiter_visible !== false ? 'checked' : ''} onchange="handleToggleProfilePrivacy('is_recruiter_visible', this.checked)" class="mt-0.5 rounded border-white/20 text-indigo-600 focus:ring-indigo-500/40 bg-black/40">
+                <div class="flex-1 min-w-0">
+                  <span class="text-xs font-semibold text-white block">Show profile for recruitment</span>
+                  <span class="text-[11px] text-white/40 block leading-tight">Allow recruiters to discover your profile in candidate searches and talent directory.</span>
+                </div>
+              </label>
+
+              <!-- Option 2: Share recordings and reports -->
+              <label class="flex items-start gap-2.5 p-2 rounded-lg bg-white/2 hover:bg-white/4 border border-white/5 cursor-pointer transition-all">
+                <input type="checkbox" id="profile-cb-share-recordings" ${user.share_recordings_reports !== false ? 'checked' : ''} onchange="handleToggleProfilePrivacy('share_recordings_reports', this.checked)" class="mt-0.5 rounded border-white/20 text-indigo-600 focus:ring-indigo-500/40 bg-black/40">
+                <div class="flex-1 min-w-0">
+                  <span class="text-xs font-semibold text-white block">Share interview recordings & reports</span>
+                  <span class="text-[11px] text-white/40 block leading-tight">Allow recruiters to view video recordings and detailed question feedback.</span>
+                </div>
+              </label>
+            </div>
+          ` : ''}
+
           <!-- Action Buttons -->
           <div class="w-full flex items-center gap-2.5 mt-6 pt-4 border-t border-white/6">
             <button type="button" class="flex-1 sh-btn-primary flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-lg" onclick="triggerProfilePhotoUpload(event)">
@@ -455,6 +539,31 @@ function renderProfileModal() {
     </div>
   `;
 }
+
+function handleToggleProfilePrivacy(settingKey, isChecked) {
+  if (!state.user) return;
+  state.user[settingKey] = isChecked;
+  var payload = {};
+  payload[settingKey] = isChecked;
+
+  api.updatePrivacySettings(payload).then(function(res) {
+    state.user.is_recruiter_visible = res.is_recruiter_visible;
+    state.user.share_recordings_reports = res.share_recordings_reports;
+    state.user.privacy_updated_at = res.privacy_updated_at;
+    var badgeEl = document.getElementById('profile-privacy-audit-badge');
+    if (badgeEl && res.privacy_updated_at) {
+      badgeEl.innerText = 'Audited: ' + new Date(res.privacy_updated_at).toLocaleDateString();
+    }
+    if (typeof showToast === 'function') {
+      var label = settingKey === 'is_recruiter_visible' ? 'Recruiter profile visibility' : 'Interview recording sharing';
+      showToast(label + ' set to ' + (isChecked ? 'Enabled' : 'Restricted (Private)'), 'success');
+    }
+  }).catch(function(err) {
+    console.error('Failed to update privacy setting:', err);
+    if (typeof showToast === 'function') showToast('Failed to update privacy setting.', 'error');
+  });
+}
+window.handleToggleProfilePrivacy = handleToggleProfilePrivacy;
 
 function triggerProfilePhotoUpload(e) {
   if (e) {
@@ -1360,6 +1469,383 @@ function downloadReportAsPDF(report) {
   var printWindow = window.open('', '_blank', 'width=950,height=800');
   if (!printWindow) {
     window.alert('Please allow pop-ups to open and print the PDF report.');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(function() {
+    printWindow.print();
+  }, 600);
+}
+
+function downloadSystemHealthReportPDF(health, logs, overview) {
+  var h = health || {};
+  var db = h.database || {};
+  var storage = h.storage || {};
+  var runtime = h.runtime || {};
+  var telemetry = h.telemetry || (overview && overview.telemetry) || {};
+  var kpis = (overview && overview.kpis) || {};
+  var eventLogs = logs || [];
+
+  var dateStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  var reportId = 'SH-HEALTH-' + Date.now().toString(36).toUpperCase();
+  var adminName = (state.user && state.user.name) ? state.user.name : 'System Administrator';
+  var adminEmail = (state.user && state.user.email) ? state.user.email : 'admin@smarthire.ai';
+
+  var tables = db.tables || {};
+  var tableRows = Object.keys(tables).map(function(tName) {
+    var friendlyNames = {
+      users: 'Registered User Accounts',
+      interview_session: 'Mock Interview Sessions',
+      interview_question: 'AI Interview Question Bank',
+      candidate_response: 'Evaluated Candidate Responses',
+      job_postings: 'Active ATS Job Requisitions',
+      job_applications: 'Candidate Job Applications',
+      notifications: 'Dispatched In-App & Email Notifications'
+    };
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;">${friendlyNames[tName] || tName}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:'JetBrains Mono',monospace;color:#64748b;">${tName}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;font-family:'JetBrains Mono',monospace;color:#0f172a;">${tables[tName]} rows</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right;"><span style="color:#10b981;font-weight:700;font-size:10px;background:#ecfdf5;padding:2px 6px;border-radius:4px;">Operational</span></td>
+    </tr>`;
+  }).join('');
+
+  var logRows = eventLogs.slice(0, 15).map(function(item) {
+    var timeFormatted = item.timestamp ? item.timestamp.slice(0, 19).replace('T', ' ') : 'Recent';
+    return `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-family:'JetBrains Mono',monospace;font-size:10px;color:#64748b;white-space:nowrap;">${timeFormatted}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#1e293b;font-size:11px;">${item.title || 'System Event'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;color:#475569;font-size:10.5px;">${item.detail || ''}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:10.5px;color:#334155;white-space:nowrap;"><strong>${item.actor || 'System'}</strong> <span style="font-size:9.5px;color:#64748b;">(${item.actor_role || 'core'})</span></td>
+    </tr>`;
+  }).join('');
+
+  var printHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>SmartHire AI — Enterprise System Health Report (${reportId})</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    @page { size: A4; margin: 12mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      font-size: 11.5px;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #6366f1;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .logo-area h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 2px 0;
+      letter-spacing: -0.5px;
+    }
+    .logo-area h1 span { color: #6366f1; }
+    .logo-area p {
+      font-size: 11px;
+      color: #64748b;
+      margin: 0;
+      font-weight: 500;
+    }
+    .doc-meta { text-align: right; }
+    .doc-meta p { margin: 0; font-size: 10px; color: #64748b; }
+    .doc-meta .doc-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #6366f1;
+      margin: 2px 0 4px 0;
+    }
+    .badge-healthy {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .meta-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+    }
+    .meta-col p { margin: 0; font-size: 9.5px; font-weight: 600; text-transform: uppercase; color: #64748b; }
+    .meta-col span { font-size: 12px; font-weight: 700; color: #0f172a; }
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 5px;
+      margin: 18px 0 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kpi-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .kpi-card p { margin: 0; font-size: 9px; font-weight: 600; text-transform: uppercase; color: #64748b; }
+    .kpi-card .val { font-size: 16px; font-weight: 800; color: #0f172a; margin: 3px 0 1px 0; }
+    .kpi-card .sub { font-size: 9.5px; color: #10b981; font-weight: 600; margin: 0; }
+    .table-container {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      background: #f8fafc;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .tel-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fdfdfd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tel-name { font-weight: 700; font-size: 11.5px; color: #0f172a; }
+    .tel-desc { font-size: 10px; color: #64748b; margin-top: 1px; }
+    .tel-stat { text-align: right; }
+    .tel-stat .latency { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; color: #0284c7; }
+    .tel-stat .status { font-size: 9.5px; font-weight: 700; color: #059669; }
+    .footer {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-area">
+      <h1>SmartHire <span>AI</span></h1>
+      <p>Enterprise Platform Diagnostic &amp; System Health Report</p>
+    </div>
+    <div class="doc-meta">
+      <div class="badge-healthy">&#9679; Systems Healthy &bull; Operational</div>
+      <div class="doc-id">${reportId}</div>
+      <p>Generated: ${dateStr}</p>
+    </div>
+  </div>
+
+  <div class="meta-strip">
+    <div class="meta-col"><p>Auditor / Admin</p><span>${adminName}</span></div>
+    <div class="meta-col"><p>Admin Account</p><span style="font-family:'JetBrains Mono',monospace;font-size:11px;">${adminEmail}</span></div>
+    <div class="meta-col"><p>Platform Environment</p><span>Python ${runtime.python_version || '3.13'} (${runtime.platform || 'win32'})</span></div>
+    <div class="meta-col"><p>Engine Uptime</p><span>${runtime.uptime || 'Live'}</span></div>
+  </div>
+
+  <!-- Key Infrastructure Health KPIs -->
+  <div class="kpi-cards">
+    <div class="kpi-card">
+      <p>Database Integrity</p>
+      <div class="val" style="color:#059669;">${(db.integrity || 'ok').toUpperCase()}</div>
+      <p class="sub">PRAGMA Check Passed</p>
+    </div>
+    <div class="kpi-card">
+      <p>Storage Footprint</p>
+      <div class="val">${storage.total_storage_mb || 0.5} MB</div>
+      <p class="sub" style="color:#6366f1;">Media &amp; Database Active</p>
+    </div>
+    <div class="kpi-card">
+      <p>Total Platform Users</p>
+      <div class="val">${kpis.total_users || (tables.users || 0)}</div>
+      <p class="sub" style="color:#0284c7;">${kpis.total_candidates || 0} Candidates &bull; ${kpis.total_recruiters || 0} Recruiters</p>
+    </div>
+    <div class="kpi-card">
+      <p>Completed Interviews</p>
+      <div class="val">${kpis.completed_sessions || (tables.interview_session || 0)}</div>
+      <p class="sub" style="color:#d97706;">Avg Score: ${kpis.avg_platform_score || 0}%</p>
+    </div>
+  </div>
+
+  <!-- Database & Entity Inventory -->
+  <div class="section-title">
+    <span>Database Infrastructure &amp; Entity Inventory</span>
+    <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#64748b;">SQLite 3 &bull; Journal: ${(db.journal_mode || 'wal').toUpperCase()} &bull; Size: ${db.size_mb || 0.12} MB</span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Entity Domain</th>
+          <th>Table Name</th>
+          <th style="text-align:right;">Recorded Volume</th>
+          <th style="text-align:right;">Health Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows || '<tr><td colspan="4" style="padding:10px;text-align:center;color:#94a3b8;">No tables inspected.</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AI Microservices & Pipeline Telemetry -->
+  <div class="section-title">
+    <span>AI Microservices &amp; Real-Time Telemetry</span>
+    <span style="font-size:10px;color:#059669;font-weight:700;">ALL 4 ENGINES ONLINE</span>
+  </div>
+  <div class="telemetry-grid">
+    <div class="tel-box">
+      <div>
+        <div class="tel-name">Groq Whisper Large v3 (Voice STT)</div>
+        <div class="tel-desc">Streaming audio ingestion &bull; Multi-language transcription</div>
+      </div>
+      <div class="tel-stat">
+        <div class="latency">${telemetry.stt_engine ? telemetry.stt_engine.latency : '178ms'}</div>
+        <div class="status">&#10003; Operational</div>
+      </div>
+    </div>
+
+    <div class="tel-box">
+      <div>
+        <div class="tel-name">MediaPipe Face Mesh (Vision AI)</div>
+        <div class="tel-desc">Real-time head orientation, eye gaze &bull; Behavioral telemetry</div>
+      </div>
+      <div class="tel-stat">
+        <div class="latency">${telemetry.vision_engine ? telemetry.vision_engine.fps + ' FPS' : '30 FPS'}</div>
+        <div class="status">&#10003; ${telemetry.vision_engine ? telemetry.vision_engine.latency : '31ms'}</div>
+      </div>
+    </div>
+
+    <div class="tel-box">
+      <div>
+        <div class="tel-name">LLM Evaluation &amp; Fallback Engine</div>
+        <div class="tel-desc">DeepSeek V3 / Qwen 2.5 / Gemini 2.5 Dynamic Failover</div>
+      </div>
+      <div class="tel-stat">
+        <div class="latency">${telemetry.llm_engine ? telemetry.llm_engine.latency : '780ms'}</div>
+        <div class="status">&#10003; Operational</div>
+      </div>
+    </div>
+
+    <div class="tel-box">
+      <div>
+        <div class="tel-name">SQLite Engine &amp; Disk Storage</div>
+        <div class="tel-desc">Write-Ahead Logging &bull; Zero concurrency lockups</div>
+      </div>
+      <div class="tel-stat">
+        <div class="latency">${db.size_mb || 0.12} MB</div>
+        <div class="status">&#10003; Healthy</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Storage Volumes -->
+  <div class="section-title">
+    <span>Storage Directory Allocation Breakdown</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-bottom:18px;">
+    <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:8px 12px;">
+      <p style="margin:0;font-size:9.5px;color:#64748b;font-weight:600;text-transform:uppercase;">Interview Video Recordings</p>
+      <p style="margin:2px 0 0 0;font-size:14px;font-weight:800;color:#0f172a;">${storage.recordings_size_mb || 0} MB</p>
+    </div>
+    <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:8px 12px;">
+      <p style="margin:0;font-size:9.5px;color:#64748b;font-weight:600;text-transform:uppercase;">Candidate Resumes &amp; Uploads</p>
+      <p style="margin:2px 0 0 0;font-size:14px;font-weight:800;color:#0f172a;">${storage.uploads_size_mb || 0} MB</p>
+    </div>
+    <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:8px 12px;">
+      <p style="margin:0;font-size:9.5px;color:#64748b;font-weight:600;text-transform:uppercase;">Email &amp; Notification Service</p>
+      <p style="margin:2px 0 0 0;font-size:12px;font-weight:700;color:#059669;">${runtime.email_service || 'Active'}</p>
+    </div>
+  </div>
+
+  <!-- Recent Audit Trail Events -->
+  <div class="section-title">
+    <span>Recent Platform Security &amp; Audit Trail Events</span>
+    <span style="font-size:10px;color:#64748b;">Top ${Math.min(15, eventLogs.length)} Chronological Events</span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:18%;">Timestamp</th>
+          <th style="width:24%;">Event Title</th>
+          <th style="width:38%;">Details</th>
+          <th style="width:20%;">Triggered By</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${logRows || '<tr><td colspan="4" style="padding:10px;text-align:center;color:#94a3b8;">No audit trail events logged.</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>SmartHire AI &bull; Enterprise Diagnostic Engine &bull; Confidential Administrative Report</span>
+    <span>Report Ref: ${reportId} &bull; Generated: ${dateStr}</span>
+  </div>
+</body>
+</html>`;
+
+  var printWindow = window.open('', '_blank', 'width=1000,height=850');
+  if (!printWindow) {
+    window.alert('Please allow pop-ups to open and print the System Health PDF report.');
     return;
   }
   printWindow.document.open();

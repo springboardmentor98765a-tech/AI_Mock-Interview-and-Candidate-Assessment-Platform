@@ -4,6 +4,7 @@ from typing import Optional, List
 from database import get_db
 from auth import get_current_user
 from services import notification_service
+from config import APP_BASE_URL
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -13,6 +14,12 @@ class ReminderCreateReq(BaseModel):
     message: Optional[str] = "Don't forget to practice your technical and behavioral interview questions today."
     domain: Optional[str] = "Software Engineering"
     send_email: Optional[bool] = False
+
+
+class TestEmailReq(BaseModel):
+    recipient: Optional[str] = None
+    subject: Optional[str] = "SmartHire AI Notification Test"
+    message: Optional[str] = "This is a test notification from SmartHire AI to verify your email delivery configuration."
 
 
 @router.get("")
@@ -118,3 +125,28 @@ def trigger_reminder(req: ReminderCreateReq, user: dict = Depends(get_current_us
     )
     conn.close()
     return {"message": "Interview reminder dispatched successfully", "notification": notif}
+
+
+@router.post("/test-email")
+def test_email(req: TestEmailReq, user: dict = Depends(get_current_user)):
+    """Send a test notification email or log in dev mode."""
+    from services.email_service import send_notification_email
+    recipient = req.recipient or user.get("email")
+    if not recipient:
+        raise HTTPException(status_code=400, detail="No recipient email specified or found for user.")
+
+    success = send_notification_email(
+        recipient=recipient,
+        subject=req.subject or "SmartHire AI Notification Test",
+        title="SmartHire AI System Notification",
+        message=req.message or "This is a test notification to verify your email delivery pipeline.",
+        action_label="Open SmartHire AI",
+        action_url=APP_BASE_URL,
+        badge_label="TEST NOTIFICATION"
+    )
+    return {
+        "success": success,
+        "recipient": recipient,
+        "message": f"Test email dispatched for {recipient}."
+    }
+

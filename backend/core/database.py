@@ -185,6 +185,49 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
         CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
         CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+
+        CREATE TABLE IF NOT EXISTS job_postings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recruiter_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            company_name TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            location_type TEXT NOT NULL DEFAULT 'Remote' CHECK(location_type IN ('Remote', 'Hybrid', 'On-site')),
+            job_type TEXT NOT NULL DEFAULT 'Full-time' CHECK(job_type IN ('Full-time', 'Part-time', 'Internship', 'Contract')),
+            experience_level TEXT NOT NULL DEFAULT 'Mid Level',
+            salary_range TEXT,
+            skills_json TEXT,
+            description TEXT NOT NULL,
+            requirements TEXT,
+            linked_template_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'draft', 'paused', 'closed')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (linked_template_id) REFERENCES interview_template(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_job_postings_recruiter ON job_postings(recruiter_id);
+        CREATE INDEX IF NOT EXISTS idx_job_postings_status ON job_postings(status);
+        CREATE INDEX IF NOT EXISTS idx_job_postings_domain ON job_postings(domain);
+
+        CREATE TABLE IF NOT EXISTS job_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            candidate_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'applied' CHECK(status IN ('applied', 'screening', 'shortlisted', 'interview_scheduled', 'offered', 'rejected')),
+            cover_note TEXT,
+            ai_match_score REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES job_postings(id) ON DELETE CASCADE,
+            FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(job_id, candidate_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_job_applications_job ON job_applications(job_id);
+        CREATE INDEX IF NOT EXISTS idx_job_applications_candidate ON job_applications(candidate_id);
+        CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(status);
     """)
 
     # Seed initial standard templates if table is empty
@@ -199,6 +242,19 @@ def init_db():
         """)
         conn.commit()
 
+    # Seed initial job postings if empty
+    j_count = conn.execute("SELECT COUNT(*) FROM job_postings").fetchone()[0]
+    if j_count == 0:
+        rec_row = conn.execute("SELECT id FROM users WHERE role = 'recruiter' ORDER BY id ASC LIMIT 1").fetchone()
+        rec_id = rec_row[0] if rec_row else 1
+        conn.execute("""
+            INSERT INTO job_postings (recruiter_id, title, company_name, domain, location_type, job_type, experience_level, salary_range, skills_json, description, requirements, status)
+            VALUES 
+            (?, 'Senior Full Stack Engineer', 'SmartHire Cloud Technologies', 'Software Engineering', 'Remote', 'Full-time', 'Senior Level (5+ yrs)', '₹24 - ₹32 LPA', '["Python", "React", "TypeScript", "FastAPI", "PostgreSQL", "Docker"]', 'Lead development of scalable distributed web platforms and real-time candidate evaluation pipelines.', '5+ years experience building production web applications with Python and modern frontend frameworks.', 'active'),
+            (?, 'AI / Machine Learning Engineer', 'Cognitive Systems Lab', 'Data Science', 'Hybrid', 'Full-time', 'Mid Level (2-5 yrs)', '₹18 - ₹26 LPA', '["Python", "Machine Learning", "PyTorch", "NLP", "LLM APIs", "System Design"]', 'Design and deploy multi-modal LLM reasoning and real-time computer vision scoring pipelines.', 'Solid understanding of deep learning architectures, Python, model optimization, and REST API deployment.', 'active'),
+            (?, 'DevOps & Cloud Systems Architect', 'Nexus Cloud Infrastructure', 'DevOps', 'Remote', 'Full-time', 'Senior Level (5+ yrs)', '₹22 - ₹30 LPA', '["Kubernetes", "AWS", "Docker", "CI/CD", "Terraform", "Monitoring"]', 'Architect high-availability Kubernetes clusters, automated zero-downtime CI/CD pipelines, and observability.', 'Demonstrated track record of orchestrating secure containerized deployments at scale.', 'active')
+        """, (rec_id, rec_id, rec_id))
+        conn.commit()
 
     tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     if "interview" in tables:
@@ -215,6 +271,91 @@ def init_db():
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
     if "is_super_admin" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0")
+    if "is_recruiter_visible" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_recruiter_visible INTEGER NOT NULL DEFAULT 1")
+    if "share_recordings_reports" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN share_recordings_reports INTEGER NOT NULL DEFAULT 1")
+    if "privacy_updated_at" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN privacy_updated_at TIMESTAMP")
+        conn.execute("UPDATE users SET privacy_updated_at = CURRENT_TIMESTAMP WHERE privacy_updated_at IS NULL")
+
+    # Seed default super admin user if not exists
+    admin_row = conn.execute("SELECT id FROM users WHERE email = 'admin@smarthire.ai'").fetchone()
+    if not admin_row:
+        from core.auth import hash_password
+        admin_pass = hash_password("AdminPass123!")
+        conn.execute("""
+            INSERT INTO users (name, email, password, role, is_super_admin, provider)
+            VALUES ('System Administrator', 'admin@smarthire.ai', ?, 'admin', 1, 'LOCAL')
+        """, (admin_pass,))
+        conn.commit()
+
+    # Check if job_postings has an old status CHECK constraint that blocks 'draft'
+    job_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='job_postings'").fetchone()
+    if job_sql and job_sql[0] and "CHECK(status IN" in job_sql[0] and "'draft'" not in job_sql[0]:
+        conn.execute("DROP TABLE IF EXISTS job_postings_old")
+        conn.execute("ALTER TABLE job_postings RENAME TO job_postings_old")
+        conn.execute("""
+            CREATE TABLE job_postings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recruiter_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                domain TEXT NOT NULL,
+                location_type TEXT NOT NULL DEFAULT 'Remote' CHECK(location_type IN ('Remote', 'Hybrid', 'On-site')),
+                job_type TEXT NOT NULL DEFAULT 'Full-time' CHECK(job_type IN ('Full-time', 'Part-time', 'Internship', 'Contract')),
+                experience_level TEXT NOT NULL DEFAULT 'Mid Level',
+                salary_range TEXT,
+                skills_json TEXT,
+                description TEXT NOT NULL,
+                requirements TEXT,
+                linked_template_id INTEGER,
+                status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'draft', 'paused', 'closed')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (recruiter_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (linked_template_id) REFERENCES interview_template(id) ON DELETE SET NULL
+            );
+        """)
+        old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(job_postings_old)").fetchall()]
+        new_cols = [r["name"] for r in conn.execute("PRAGMA table_info(job_postings)").fetchall()]
+        common_cols = [c for c in old_cols if c in new_cols]
+        cols_str = ", ".join(common_cols)
+        conn.execute(f"INSERT INTO job_postings ({cols_str}) SELECT {cols_str} FROM job_postings_old")
+        conn.execute("DROP TABLE job_postings_old")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_postings_recruiter ON job_postings(recruiter_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_postings_status ON job_postings(status);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_postings_domain ON job_postings(domain);")
+
+    # Fix any foreign keys on dependent table job_applications automatically updated by SQLite to job_postings_old
+    t_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='job_applications'").fetchone()
+    if t_sql and t_sql[0] and "job_postings_old" in t_sql[0]:
+        conn.execute("DROP TABLE IF EXISTS job_applications_old")
+        conn.execute("ALTER TABLE job_applications RENAME TO job_applications_old")
+        conn.execute("""
+            CREATE TABLE job_applications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                candidate_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'applied' CHECK(status IN ('applied', 'screening', 'shortlisted', 'interview_scheduled', 'offered', 'rejected')),
+                cover_note TEXT,
+                ai_match_score REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (job_id) REFERENCES job_postings(id) ON DELETE CASCADE,
+                FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(job_id, candidate_id)
+            );
+        """)
+        old_cols = [r["name"] for r in conn.execute("PRAGMA table_info(job_applications_old)").fetchall()]
+        new_cols = [r["name"] for r in conn.execute("PRAGMA table_info(job_applications)").fetchall()]
+        common_cols = [c for c in old_cols if c in new_cols]
+        cols_str = ", ".join(common_cols)
+        conn.execute(f"INSERT INTO job_applications ({cols_str}) SELECT {cols_str} FROM job_applications_old")
+        conn.execute("DROP TABLE job_applications_old")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_job ON job_applications(job_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_candidate ON job_applications(candidate_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(status);")
 
     # Check if interview_session has an old status CHECK constraint that blocks 'paused'
     table_sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='interview_session'").fetchone()
@@ -351,6 +492,8 @@ def init_db():
         conn.execute("ALTER TABLE interview_session ADD COLUMN weaknesses_json TEXT")
     if "improvements_json" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN improvements_json TEXT")
+    if "how_to_improve_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN how_to_improve_json TEXT")
     if "recommendations_json" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN recommendations_json TEXT")
     if "resources_json" not in session_cols:

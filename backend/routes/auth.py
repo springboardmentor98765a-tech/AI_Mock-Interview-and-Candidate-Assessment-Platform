@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 import hashlib
 import secrets
+from pydantic import BaseModel
 
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
@@ -18,11 +20,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def row_to_user(row) -> dict:
-    # A database role alone never grants admin access. This keeps every response
-    # (login, Google sign-in, /me, and the UI) aligned with the access policy.
     role = row["role"]
     if role == "admin" and row["email"].strip().lower() not in ADMIN_EMAILS:
         role = "candidate"
+    keys = row.keys() if hasattr(row, "keys") else []
+    is_recruiter_visible = bool(row["is_recruiter_visible"]) if "is_recruiter_visible" in keys and row["is_recruiter_visible"] is not None else True
+    share_recordings_reports = bool(row["share_recordings_reports"]) if "share_recordings_reports" in keys and row["share_recordings_reports"] is not None else True
+    privacy_updated_at = str(row["privacy_updated_at"]) if "privacy_updated_at" in keys and row["privacy_updated_at"] else None
+
     return {
         "id": row["id"],
         "name": row["name"],
@@ -31,6 +36,9 @@ def row_to_user(row) -> dict:
         "provider": row["provider"],
         "google_id": row["google_id"],
         "avatar": row["avatar"],
+        "is_recruiter_visible": is_recruiter_visible,
+        "share_recordings_reports": share_recordings_reports,
+        "privacy_updated_at": privacy_updated_at,
         "created_at": str(row["created_at"]) if row["created_at"] else None,
         "updated_at": str(row["updated_at"]) if row["updated_at"] else None,
     }
@@ -166,6 +174,45 @@ def update_profile(req: UpdateProfileRequest, user: dict = Depends(get_current_u
     row = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
     conn.close()
     return {"message": "Profile updated.", "user": row_to_user(row)}
+
+
+class PrivacySettingsRequest(BaseModel):
+    is_recruiter_visible: Optional[bool] = None
+    share_recordings_reports: Optional[bool] = None
+
+
+@router.put("/privacy-settings")
+def update_privacy_settings(req: PrivacySettingsRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    updates = []
+    values = []
+    if req.is_recruiter_visible is not None:
+        updates.append("is_recruiter_visible = ?")
+        values.append(1 if req.is_recruiter_visible else 0)
+    if req.share_recordings_reports is not None:
+        updates.append("share_recordings_reports = ?")
+        values.append(1 if req.share_recordings_reports else 0)
+
+    if updates:
+        updates.append("privacy_updated_at = CURRENT_TIMESTAMP")
+        values.append(user["id"])
+        conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", values)
+        conn.commit()
+
+    row = conn.execute(
+        "SELECT * FROM users WHERE id = ?",
+        (user["id"],)
+    ).fetchone()
+    conn.close()
+
+    user_dict = row_to_user(row) if row else None
+    return {
+        "message": "Privacy preferences updated successfully.",
+        "user": user_dict,
+        "is_recruiter_visible": user_dict["is_recruiter_visible"] if user_dict else True,
+        "share_recordings_reports": user_dict["share_recordings_reports"] if user_dict else True,
+        "privacy_updated_at": user_dict["privacy_updated_at"] if user_dict else None,
+    }
 
 
 @router.put("/password")

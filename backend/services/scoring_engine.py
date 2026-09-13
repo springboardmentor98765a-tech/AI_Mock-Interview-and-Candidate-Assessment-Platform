@@ -453,6 +453,11 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             "Articulate structured responses with relevant domain and technical terminology.",
             "Practice speaking responses out loud to build fluency and confidence.",
         ]
+        how_to_improve = [
+            "Outline key arguments for 20 seconds before verbalizing to maintain logical coherence.",
+            "Apply the STAR framework (Situation, Task, Action, Result) for structured storytelling.",
+            "Simulate realistic interview pressure with timed 2-minute answer sprints.",
+        ]
         recommendations = [
             f"Start a new {itype} practice session and attempt all questions.",
             "Practice formulating structured answers before speaking.",
@@ -532,6 +537,11 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             "Use the STAR method (Situation, Task, Action, Result) to structure behavioral and domain responses.",
             "Practice speaking at a steady 130-150 WPM pace to project maximum authority.",
             "Incorporate relevant technical jargon and architecture patterns directly into explanations.",
+        ]
+        how_to_improve = [
+            "Break complex technical answers into Definition, Implementation Example, and Trade-off analysis.",
+            "Record and review audio playback to identify and replace vocal fillers with intentional pauses.",
+            "Build practical coding/system prototypes to reinforce theoretical concepts with real-world context.",
         ]
         recommendations = [
             f"Mock practice 3 additional sessions in {domain} to sharpen instant recall.",
@@ -685,6 +695,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
                     '  "strengths": ["string", "string", "string"],\n'
                     '  "weaknesses": ["string", "string"],\n'
                     '  "improvements": ["string", "string", "string"],\n'
+                    '  "how_to_improve": ["string", "string", "string"],\n'
                     '  "recommendations": ["string", "string", "string"],\n'
                     '  "resources": [\n'
                     '    {"title": "Resource Name", "type": "Guide/Course", "description": "Brief summary", "link": "https://example.com"}\n'
@@ -699,6 +710,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
                     if ai_report.get("strengths"): strengths = ai_report["strengths"]
                     if ai_report.get("weaknesses"): weaknesses = ai_report["weaknesses"]
                     if ai_report.get("improvements"): improvements = ai_report["improvements"]
+                    if ai_report.get("how_to_improve"): how_to_improve = ai_report["how_to_improve"]
                     if ai_report.get("recommendations"): recommendations = ai_report["recommendations"]
                     if ai_report.get("resources"): resources = ai_report["resources"]
             except Exception:
@@ -706,6 +718,8 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
 
     # Check columns in interview_session table
     session_cols = {row["name"] for row in conn.execute("PRAGMA table_info(interview_session)").fetchall()}
+    if "how_to_improve_json" not in session_cols:
+        conn.execute("ALTER TABLE interview_session ADD COLUMN how_to_improve_json TEXT")
     if "grammar_analysis_json" not in session_cols:
         conn.execute("ALTER TABLE interview_session ADD COLUMN grammar_analysis_json TEXT")
     if "filler_analysis_json" not in session_cols:
@@ -729,6 +743,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             strengths_json = ?,
             weaknesses_json = ?,
             improvements_json = ?,
+            how_to_improve_json = ?,
             recommendations_json = ?,
             resources_json = ?,
             detailed_parameters_json = ?,
@@ -748,6 +763,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
             json.dumps(strengths),
             json.dumps(weaknesses),
             json.dumps(improvements),
+            json.dumps(how_to_improve),
             json.dumps(recommendations),
             json.dumps(resources),
             json.dumps(detailed_params),
@@ -775,7 +791,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
                     title=f"AI Evaluation Report Ready: {d_name}",
                     message=f"Your {sess_row['interview_type']} evaluation has compiled with an overall score of {avg_overall}% ({rating}). View or download your comprehensive 19-parameter analysis.",
                     data={"session_id": interview_id, "score": avg_overall, "rating": rating, "domain": d_name, "action_type": "report"},
-                    send_email=False
+                    send_email=True
                 )
     except Exception as e:
         print(f"[Warning] Failed to create report notification: {e}")
@@ -791,6 +807,7 @@ def generate_final_report(interview_id: int, conn: Any) -> Dict[str, Any]:
         "strengths": strengths,
         "weaknesses": weaknesses,
         "improvements": improvements,
+        "how_to_improve": how_to_improve,
         "recommendations": recommendations,
         "resources": resources,
         "detailed_parameters": detailed_params,
