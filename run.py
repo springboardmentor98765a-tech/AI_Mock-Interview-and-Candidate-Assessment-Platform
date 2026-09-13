@@ -20,7 +20,9 @@ if __name__ == "__main__":
     except Exception:
         port = 8080
 
-    print(f"SmartHire AI running at: http://localhost:{port}")
-    print(f"Interactive API Docs:   http://localhost:{port}/docs")
+    host = os.getenv("HOST", "0.0.0.0")
 
-    uvicorn.run("main:app", host="127.0.0.1", port=port, reload=False)
+    print(f"SmartHire AI running at: http://{host}:{port}")
+    print(f"Interactive API Docs:   http://{host}:{port}/docs")
+
+    uvicorn.run("main:app", host=host, port=port, reload=False)

@@ -79,5 +79,6 @@ app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"\n  SmartHire AI running at: http://localhost:{PORT}\n")
-    uvicorn.run("main:app", host="127.0.0.1", port=PORT, reload=False)
+    host = os.getenv("HOST", "0.0.0.0")
+    print(f"\n  SmartHire AI running at: http://{host}:{PORT}\n")
+    uvicorn.run("main:app", host=host, port=PORT, reload=False)
