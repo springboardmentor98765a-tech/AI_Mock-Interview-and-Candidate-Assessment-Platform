@@ -24,6 +24,17 @@ function getSttServiceUrl() {
 }
 
 /**
+ * Build headers for inter-service requests.
+ * Injects X-AI-Secret when AI_SECRET_TOKEN is configured in the environment.
+ */
+function serviceHeaders(extra = {}) {
+  const headers = { ...extra }
+  const secret  = (process.env.AI_SECRET_TOKEN || '').trim()
+  if (secret) headers['X-AI-Secret'] = secret
+  return headers
+}
+
+/**
  * Check whether the Python STT service is reachable and ready.
  * @returns {Promise<{status:string, model:string, ready:boolean}>}
  */
@@ -31,7 +42,7 @@ async function healthCheck() {
   const url = `${getSttServiceUrl()}/health`
   let res
   try {
-    res = await fetch(url, { method: 'GET' })
+    res = await fetch(url, { method: 'GET', headers: serviceHeaders() })
   } catch (connErr) {
     throw new Error(
       `STT service unreachable at ${url} — is stt_service.py running? (${connErr.message})`
@@ -61,7 +72,7 @@ async function transcribe(audioBuffer, filename = 'audio.wav') {
 
   let res
   try {
-    res = await fetch(url, { method: 'POST', body: form })
+    res = await fetch(url, { method: 'POST', headers: serviceHeaders(), body: form })
   } catch (connErr) {
     throw new Error(
       `STT service unreachable at ${url} — is stt_service.py running? (${connErr.message})`

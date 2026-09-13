@@ -147,6 +147,17 @@ async function getUsageAnalytics(req, res) {
   }
 }
 
+/* ─── GET /api/admin/recent-activity ────────────────────────────────────── */
+async function getRecentActivity(req, res) {
+  try {
+    const data = await adminService.getRecentActivity()
+    return res.status(200).json({ success: true, ...data })
+  } catch (err) {
+    console.error('[adminController.getRecentActivity]', err.message)
+    return res.status(500).json({ success: false, message: 'Failed to load recent activity' })
+  }
+}
+
 /* ─── POST /api/admin/notifications ─────────────────────────────────────── */
 
 /**
@@ -242,5 +253,6 @@ module.exports = {
   getAiMonitoring,
   getSystemHealth,
   getUsageAnalytics,
+  getRecentActivity,
   broadcastNotification,
 }

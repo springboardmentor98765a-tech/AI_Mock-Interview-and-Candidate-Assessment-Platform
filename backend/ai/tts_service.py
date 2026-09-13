@@ -18,6 +18,7 @@ This service uses: 8766
 import argparse
 import io
 import json
+import os
 import sys
 import time
 import wave
@@ -35,6 +36,21 @@ PIPELINE = None
 VOICE    = 'af_heart'
 READY    = False
 MODEL_ID = 'kokoro-0.9.4'
+
+# ── service-to-service auth ──────────────────────────────────────────────────
+
+_AI_SECRET = os.environ.get("AI_SECRET_TOKEN", "").strip()
+
+def _check_auth(handler):
+    """
+    Validate the X-AI-Secret header when AI_SECRET_TOKEN is configured.
+    In local-dev mode (token unset / empty) every request passes through.
+    """
+    if not _AI_SECRET:
+        return True
+    import hmac
+    provided = handler.headers.get("X-AI-Secret", "").strip()
+    return hmac.compare_digest(provided, _AI_SECRET)
 
 
 # ── audio helpers ────────────────────────────────────────────────────────────
@@ -90,6 +106,9 @@ class TTSHandler(BaseHTTPRequestHandler):
         self.wfile.write(wav_bytes)
 
     def do_GET(self):
+        if not _check_auth(self):
+            self._send_json(401, {'error': 'Unauthorized'})
+            return
         if self.path == '/health':
             self._send_json(200, {
                 'status': 'ok',
@@ -101,6 +120,9 @@ class TTSHandler(BaseHTTPRequestHandler):
             self._send_json(404, {'error': 'not found'})
 
     def do_POST(self):
+        if not _check_auth(self):
+            self._send_json(401, {'error': 'Unauthorized'})
+            return
         if self.path != '/speak':
             self._send_json(404, {'error': 'not found'})
             return
@@ -144,6 +166,8 @@ def main():
 
     parser = argparse.ArgumentParser(description='Kokoro TTS HTTP service')
     parser.add_argument('--port',   type=int, default=8766)
+    parser.add_argument('--host',   default='localhost',
+                        help='Bind address (default: localhost; use 0.0.0.0 for remote access)')
     parser.add_argument('--voice',  default='af_heart')
     parser.add_argument('--device', default='cuda')
     args = parser.parse_args()
@@ -182,14 +206,14 @@ def main():
 
     elapsed = time.perf_counter() - t0
     sys.stdout.write(f'[TTS] Model loaded in {elapsed:.2f}s\n')
-    sys.stdout.write(f'[TTS] Service ready on http://localhost:{args.port}\n')
+    sys.stdout.write(f'[TTS] Service ready on http://{args.host}:{args.port}\n')
     sys.stdout.write(f'[TTS] POST /speak  - synthesise speech (JSON: {{"text":"..."}})\n')
     sys.stdout.write(f'[TTS] GET  /health - liveness check\n')
     sys.stdout.flush()
 
     READY = True
 
-    server = HTTPServer(('localhost', args.port), TTSHandler)
+    server = HTTPServer((args.host, args.port), TTSHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

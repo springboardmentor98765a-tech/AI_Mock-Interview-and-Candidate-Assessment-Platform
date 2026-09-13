@@ -14,7 +14,7 @@
  *   POST /api/admin/notifications       — broadcastNotification({ title, message, target })
  */
 
-const BASE_URL = '/api'
+const BASE_URL = (import.meta.env.VITE_API_URL ?? '') + '/api'
 
 function authHeaders() {
   const token = localStorage.getItem('token')

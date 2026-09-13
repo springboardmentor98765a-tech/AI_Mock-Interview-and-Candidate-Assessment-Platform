@@ -72,6 +72,9 @@ router.get('/system-health', ctrl.getSystemHealth)
 // Platform usage analytics (Req 20)
 router.get('/usage-analytics', ctrl.getUsageAnalytics)
 
+// Recent activity feed (cross-table event log)
+router.get('/recent-activity', ctrl.getRecentActivity)
+
 // Admin broadcast notification (Module 9 Chunk 4)
 router.post(
   '/notifications',

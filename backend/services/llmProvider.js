@@ -11,6 +11,7 @@
  *
  * Configuration (read from process.env / .env):
  *   AI_PROVIDER           — "ollama" | "gemini"  (default: "gemini")
+ *   OLLAMA_BASE_URL       — Ollama service base URL (default: "http://localhost:11434")
  *   OLLAMA_MODEL          — primary Ollama model  (default: "qwen2.5:7b")
  *   OLLAMA_FALLBACK_MODEL — logged for future failover, not used yet
  *
@@ -29,7 +30,9 @@
 const { executeGeminiCall } = require('../utils/geminiKeyManager')
 const { GEMINI_TEXT_MODELS } = require('../config/geminiKeys')
 
-const OLLAMA_BASE = 'http://localhost:11434'
+function getOllamaBase() {
+  return (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').trimEnd().replace(/\/$/, '')
+}
 
 // ---------------------------------------------------------------------------
 // Environment helpers
@@ -82,16 +85,17 @@ async function callOllama(prompt, options = {}) {
     options:    { temperature, num_predict },
   }
 
+  const ollamaBase = getOllamaBase()
   let res
   try {
-    res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+    res = await fetch(`${ollamaBase}/api/generate`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body),
     })
   } catch (connErr) {
     throw new Error(
-      `Ollama connection failed (is Ollama running on ${OLLAMA_BASE}?): ${connErr.message}`
+      `Ollama connection failed (is Ollama running on ${ollamaBase}?): ${connErr.message}`
     )
   }
 

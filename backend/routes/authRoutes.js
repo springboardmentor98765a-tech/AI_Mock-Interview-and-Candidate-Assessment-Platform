@@ -5,13 +5,15 @@ const {
   register, login, getProfile, updateProfile,
   changePassword, logout, googleCallback, githubCallback,
 } = require('../controllers/authController')
-const { authenticate } = require('../middleware/auth')
-const { validate }     = require('../middleware/validate')
+const { authenticate }           = require('../middleware/auth')
+const { validate }               = require('../middleware/validate')
+const { authLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
 const router = express.Router()
 
 router.post(
   '/register',
+  registerLimiter,
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
@@ -30,6 +32,7 @@ router.post(
 
 router.post(
   '/login',
+  authLimiter,
   [
     body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
     body('password').notEmpty().withMessage('Password is required'),

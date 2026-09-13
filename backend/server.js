@@ -17,12 +17,26 @@ const adminRoutes         = require('./routes/adminRoutes')
 const notificationRoutes  = require('./routes/notificationRoutes')
 const scheduleRoutes      = require('./routes/scheduleRoutes')
 const reportRoutes        = require('./routes/reportRoutes')
-const { errorHandler } = require('./middleware/errorHandler')
+const { errorHandler }    = require('./middleware/errorHandler')
+const { healthLimiter }   = require('./middleware/rateLimiter')
 const { testConnection, initDatabase } = require('./config/database')
 const reminderScheduler   = require('./services/reminderScheduler')
 
 const app  = express()
 const PORT = process.env.PORT || 5000
+
+// ---------------------------------------------------------------------------
+// Reverse-proxy trust
+// In production behind Nginx the real client IP is in X-Forwarded-For.
+// We trust exactly 1 hop (the Nginx reverse proxy). This allows:
+//   - rate limiters to use real client IPs
+//   - req.ip to be accurate for logging
+// In localhost (NODE_ENV != 'production') we leave trust proxy off so that
+// no IP spoofing via header injection is possible during development.
+// ---------------------------------------------------------------------------
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 
@@ -39,7 +53,7 @@ app.use(passport.initialize())
 
 // (Public /uploads static exposure removed for security: all resumes and recordings are protected behind authenticated API endpoints)
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', healthLimiter, (req, res) => {
   res.status(200).json({ success: true, message: 'HireAI backend is running' })
 })
 

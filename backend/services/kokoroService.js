@@ -22,6 +22,18 @@ function getTtsServiceUrl() {
 }
 
 /**
+ * Build headers for inter-service requests.
+ * Injects X-AI-Secret when AI_SECRET_TOKEN is configured in the environment.
+ * When the variable is absent (localhost dev), the header is omitted.
+ */
+function serviceHeaders(extra = {}) {
+  const headers = { ...extra }
+  const secret  = (process.env.AI_SECRET_TOKEN || '').trim()
+  if (secret) headers['X-AI-Secret'] = secret
+  return headers
+}
+
+/**
  * Check whether the Kokoro TTS service is reachable and ready.
  * @returns {Promise<{status:string, model:string, voice:string, ready:boolean}>}
  */
@@ -29,7 +41,7 @@ async function healthCheck() {
   const url = `${getTtsServiceUrl()}/health`
   let res
   try {
-    res = await fetch(url, { method: 'GET' })
+    res = await fetch(url, { method: 'GET', headers: serviceHeaders() })
   } catch (connErr) {
     throw new Error(
       `Kokoro TTS service unreachable at ${url} — is tts_service.py running? (${connErr.message})`
@@ -53,7 +65,7 @@ async function generateSpeech(text) {
   try {
     res = await fetch(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: serviceHeaders({ 'Content-Type': 'application/json' }),
       body:    JSON.stringify({ text: String(text).trim() }),
     })
   } catch (connErr) {

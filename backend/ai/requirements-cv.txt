@@ -1,0 +1,51 @@
+# backend/ai/requirements-cv.txt
+#
+# Dependency manifest for the CV Analysis microservice (cv_service.py).
+# Install in an isolated virtualenv:
+#
+#   python3 -m venv cv-venv
+#   source cv-venv/bin/activate
+#   pip install --upgrade pip
+#   pip install -r requirements-cv.txt
+#
+# Python: 3.10+ required (3.11 recommended).
+#
+# System dependencies (Linux):
+#   # OpenCV headless needs these on Ubuntu/Debian:
+#   apt install -y libgl1 libglib2.0-0
+#
+# Model files (NOT in Git — must be provisioned manually):
+#   Place the following files in backend/ai/cv_model/ on the CV VM:
+#     - best_checkpoint.pt           (~44.8 MB) — trained ResNet-18 dual-head
+#     - face_detection_yunet_2023mar.onnx (~440 KB) — YuNet face detector
+#     - class_labels.json            (91 B)  — emotion label mapping
+#   Copy from developer machine:
+#     scp -r backend/ai/cv_model/ user@oracle-vm:~/hireai/backend/ai/cv_model/
+#   Or upload to Google Drive / S3 and download on the VM.
+#   The model path is resolved relative to cv_service.py's own directory:
+#     CHECKPOINT_PATH = os.path.join(_SERVICE_DIR, "cv_model", "best_checkpoint.pt")
+#   Override by setting CV_MODEL_DIR environment variable if needed (not
+#   currently implemented in cv_service.py — path is hardcoded to _SERVICE_DIR).
+#
+# Startup:
+#   python cv_service.py --host 0.0.0.0 --port 8767
+#
+# Environment variables:
+#   AI_SECRET_TOKEN   — optional shared secret for X-AI-Secret auth header
+#
+# ARM64 (Oracle A1 Ampere) status:
+#   torch / torchvision:        LIKELY — PyTorch publishes aarch64 Linux wheels.
+#   opencv-python-headless:     LIKELY — OpenCV publishes manylinux_aarch64 wheels
+#                               for headless builds since OpenCV 4.6.
+#   numpy:                      LIKELY — standard aarch64 wheels available.
+#   Full validation on Oracle A1 ARM64 is REQUIRED before production deployment.
+#
+# CPU/GPU:
+#   The service auto-detects CUDA availability and falls back to CPU.
+#   On Oracle Always Free ARM64 there is no GPU; the service runs on CPU.
+#   ResNet-18 inference on CPU for a typical 5-min interview is ~30-90s.
+
+torch>=2.1.0
+torchvision>=0.16.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0

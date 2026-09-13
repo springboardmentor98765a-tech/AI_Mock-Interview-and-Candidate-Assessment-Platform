@@ -78,3 +78,8 @@ export async function fetchSystemHealth() {
 export async function fetchUsageAnalytics() {
   return apiFetch('/api/admin/usage-analytics')
 }
+
+/* ─── Recent Activity Feed ───────────────────────────────────────────────── */
+export async function fetchRecentActivity() {
+  return apiFetch('/api/admin/recent-activity')
+}

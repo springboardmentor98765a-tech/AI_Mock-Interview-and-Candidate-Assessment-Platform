@@ -1,0 +1,40 @@
+# backend/ai/requirements-stt.txt
+#
+# Dependency manifest for the Faster-Whisper STT microservice (stt_service.py).
+# Install in an isolated virtualenv:
+#
+#   python3 -m venv stt-venv
+#   source stt-venv/bin/activate
+#   pip install --upgrade pip
+#   pip install -r requirements-stt.txt
+#
+# Python: 3.10+ required (3.11 recommended).
+#         3.13 is supported — the cgi module removal in 3.13 was already
+#         worked around using the stdlib email module.
+#
+# Model: Whisper "small" is downloaded automatically by faster-whisper on
+#        first startup to ~/.cache/huggingface/hub/.
+#        Control the download location via:
+#            HF_HOME=/your/path/to/models python stt_service.py
+#
+# Startup:
+#   CPU (production, ARM64/x86):
+#     python stt_service.py --host 0.0.0.0 --port 8765 \
+#                           --device cpu --compute-type int8
+#   GPU (CUDA, optional):
+#     python stt_service.py --host 0.0.0.0 --port 8765 \
+#                           --device cuda --compute-type float16
+#
+# Environment variables:
+#   AI_SECRET_TOKEN   — optional shared secret for X-AI-Secret auth header
+#   HF_HOME           — optional path to cache Whisper model files
+#
+# ARM64 (Oracle A1 Ampere) status:
+#   faster-whisper: NOT VERIFIED — depends on CTranslate2
+#   ctranslate2:    NOT VERIFIED — lacks reliable prebuilt manylinux2014_aarch64
+#                   wheels on PyPI; may require compilation from source.
+#                   See: https://github.com/OpenNMT/CTranslate2#building
+#   numpy:          LIKELY — standard wheels available on most ARM64 platforms.
+#   Validation on Oracle A1 ARM64 is REQUIRED before production deployment.
+
+faster-whisper>=1.0.3

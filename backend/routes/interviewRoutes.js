@@ -2,11 +2,12 @@
 
 const express = require('express')
 const router  = express.Router()
-const { authenticate } = require('../middleware/auth')
+const { authenticate }         = require('../middleware/auth')
+const { aiGenerateLimiter }    = require('../middleware/rateLimiter')
 const ctrl    = require('../controllers/interviewController')
 
 router.post('/recommend-roles', authenticate, ctrl.recommendRoles)
-router.post('/generate',        authenticate, ctrl.generate)
+router.post('/generate',        authenticate, aiGenerateLimiter, ctrl.generate)
 router.post('/start',           authenticate, ctrl.start)
 router.post('/pause',           authenticate, ctrl.pauseInterview)
 router.post('/resume',          authenticate, ctrl.resumeInterview)

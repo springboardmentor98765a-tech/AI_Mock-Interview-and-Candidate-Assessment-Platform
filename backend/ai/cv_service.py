@@ -32,7 +32,9 @@ import json
 import os
 import sys
 import time
+import tempfile
 import traceback
+from email import message_from_bytes
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import cv2
@@ -41,6 +43,26 @@ import torch
 import torch.nn as nn
 from torchvision import models
 from torchvision.models import ResNet18_Weights
+
+
+# =============================================================================
+# 0. Service-to-service authentication
+# =============================================================================
+
+_AI_SECRET = os.environ.get("AI_SECRET_TOKEN", "").strip()
+
+def _check_auth(handler):
+    """
+    Validate the X-AI-Secret header when AI_SECRET_TOKEN is configured.
+    Returns True if the request is authorised, False otherwise.
+    In local-dev mode (AI_SECRET_TOKEN unset / empty) every request passes.
+    """
+    if not _AI_SECRET:
+        return True  # dev mode: no authentication required
+    provided = handler.headers.get("X-AI-Secret", "").strip()
+    # Use constant-time comparison to prevent timing attacks
+    import hmac
+    return hmac.compare_digest(provided, _AI_SECRET)
 
 
 # =============================================================================
@@ -1010,6 +1032,9 @@ class CVHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_GET(self):
+        if not _check_auth(self):
+            self._send_json(401, {"error": "Unauthorized"})
+            return
         if self.path == "/health":
             status = {
                 "status":           "ok" if _model_ready else "degraded",
@@ -1025,17 +1050,22 @@ class CVHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "Not found"})
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body   = self.rfile.read(length)
-
-        try:
-            req = json.loads(body)
-        except json.JSONDecodeError:
-            self._send_json(400, {"error": "Invalid JSON"})
+        if not _check_auth(self):
+            self._send_json(401, {"error": "Unauthorized"})
             return
 
+        length = int(self.headers.get("Content-Length", 0))
+        content_type = self.headers.get("Content-Type", "")
+
+        # ── /analyze_frame — JSON body with base64 image ─────────────────────
         if self.path == "/analyze_frame":
-            # Live single-frame analysis for candidate screen
+            body = self.rfile.read(length)
+            try:
+                req = json.loads(body)
+            except json.JSONDecodeError:
+                self._send_json(400, {"error": "Invalid JSON"})
+                return
+
             if not _model_ready:
                 self._send_json(503, {
                     "error": "Model not ready",
@@ -1066,16 +1096,8 @@ class CVHandler(BaseHTTPRequestHandler):
                 self._send_json(500, {"status": "error", "error": str(e)})
             return
 
+        # ── /analyze — multipart/form-data with video file bytes ─────────────
         elif self.path == "/analyze":
-            file_path    = req.get("file_path")
-            interview_id = req.get("interview_id")
-
-            if not file_path or interview_id is None:
-                self._send_json(400, {
-                    "error": "file_path and interview_id are required"
-                })
-                return
-
             if not _model_ready:
                 self._send_json(503, {
                     "error": "Model not ready",
@@ -1083,8 +1105,67 @@ class CVHandler(BaseHTTPRequestHandler):
                 })
                 return
 
+            body = self.rfile.read(length)
+
+            # Parse multipart: expect fields 'video' (file) and 'interview_id' (text)
+            interview_id = None
+            video_bytes  = None
+
+            if "multipart/form-data" in content_type:
+                # Parse using stdlib email module (same approach as stt_service.py)
+                mime_header = (
+                    b"MIME-Version: 1.0\r\n"
+                    b"Content-Type: " + content_type.encode() + b"\r\n\r\n"
+                ) + body
+                msg = message_from_bytes(mime_header)
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        cd = part.get("Content-Disposition", "")
+                        if not cd:
+                            continue
+                        # Extract field name
+                        name = None
+                        for seg in cd.split(";"):
+                            seg = seg.strip()
+                            if seg.startswith("name="):
+                                name = seg[5:].strip().strip('"')
+                        if name == "interview_id":
+                            interview_id = part.get_payload(decode=True).decode("utf-8", errors="replace").strip()
+                        elif name == "video":
+                            video_bytes = part.get_payload(decode=True)
+            else:
+                # Fallback: accept legacy JSON {interview_id, file_path} ONLY on localhost
+                # (i.e. when the CV service and backend share the same filesystem).
+                # In distributed mode this path will fail with FileNotFoundError, which
+                # is intentional — the backend must use multipart upload.
+                try:
+                    req = json.loads(body)
+                    interview_id = str(req.get("interview_id", ""))
+                    file_path    = req.get("file_path", "")
+                    if file_path:
+                        with open(file_path, "rb") as fh:
+                            video_bytes = fh.read()
+                except Exception as je:
+                    self._send_json(400, {"error": f"Could not parse request: {je}"})
+                    return
+
+            if not interview_id:
+                self._send_json(400, {"error": "interview_id field is required"})
+                return
+            if not video_bytes:
+                self._send_json(400, {"error": "video field (file bytes) is required"})
+                return
+
+            # Write video bytes to a temporary file on this host, analyse, then delete
+            tmp_path = None
             try:
-                result = analyze_video(file_path, interview_id)
+                with tempfile.NamedTemporaryFile(
+                    suffix=".webm", delete=False, dir=tempfile.gettempdir()
+                ) as tmp:
+                    tmp.write(video_bytes)
+                    tmp_path = tmp.name
+
+                result = analyze_video(tmp_path, interview_id)
                 self._send_json(200, result)
             except FileNotFoundError as e:
                 self._send_json(404, {
@@ -1099,8 +1180,16 @@ class CVHandler(BaseHTTPRequestHandler):
                     "status":       "error",
                     "error":        str(e),
                 })
+            finally:
+                # Always delete the temporary file after analysis
+                if tmp_path:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
         else:
             self._send_json(404, {"error": "Not found"})
+
 
 
 # =============================================================================

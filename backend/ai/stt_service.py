@@ -41,6 +41,23 @@ def parse_args():
     return p.parse_args()
 
 # ---------------------------------------------------------------------------
+# Service-to-service authentication
+# ---------------------------------------------------------------------------
+
+_AI_SECRET = os.environ.get("AI_SECRET_TOKEN", "").strip()
+
+def _check_auth(handler):
+    """
+    Validate the X-AI-Secret header when AI_SECRET_TOKEN is configured.
+    In local-dev mode (token unset / empty) every request passes through.
+    """
+    if not _AI_SECRET:
+        return True
+    import hmac
+    provided = handler.headers.get("X-AI-Secret", "").strip()
+    return hmac.compare_digest(provided, _AI_SECRET)
+
+# ---------------------------------------------------------------------------
 # Model — loaded once at module level after args are parsed
 # ---------------------------------------------------------------------------
 
@@ -214,6 +231,9 @@ class STTHandler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if not _check_auth(self):
+            _json_response(self, 401, {"error": "Unauthorized"})
+            return
         if self.path == "/health":
             _json_response(self, 200, {
                 "status": "ok",
@@ -224,6 +244,9 @@ class STTHandler(BaseHTTPRequestHandler):
             _json_response(self, 404, {"error": "not found"})
 
     def do_POST(self):
+        if not _check_auth(self):
+            _json_response(self, 401, {"error": "Unauthorized"})
+            return
         if self.path != "/transcribe":
             _json_response(self, 404, {"error": "not found"})
             return

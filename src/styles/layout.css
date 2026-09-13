@@ -1393,3 +1393,81 @@
     padding: 16px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN CONSOLE — Component Styles
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* KPI card grid: 4 per row → 2 → 1 */
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .admin-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .admin-kpi-grid { grid-template-columns: 1fr; }
+}
+
+/* Individual KPI card */
+.admin-kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.admin-kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Two-column layout for paired panels */
+.admin-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .admin-two-col { grid-template-columns: 1fr; }
+  .admin-two-col > [style*="grid-column: span 2"] { grid-column: 1 !important; }
+}
+
+/* AI metric mini-grid: 4 cells */
+.admin-ai-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .admin-ai-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .admin-ai-grid { grid-template-columns: 1fr; }
+}
+
+/* Shimmer keyframe (used by Skeleton component) */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Spin keyframe (used by Refresh button loading state) */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

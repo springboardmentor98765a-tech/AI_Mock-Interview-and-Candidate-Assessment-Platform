@@ -45,3 +45,9 @@ backend/config/geminiKeys.js
 # Python cache
 __pycache__/
 *.pyc
+
+# CV model — trained weights and detector binaries (too large for git; provision separately)
+# The directory skeleton is tracked via backend/ai/cv_model/.gitkeep
+backend/ai/cv_model/*.pt
+backend/ai/cv_model/*.onnx
+backend/ai/cv_model/__pycache__/

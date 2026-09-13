@@ -1,0 +1,44 @@
+# backend/ai/requirements-tts.txt
+#
+# Dependency manifest for the Kokoro TTS microservice (tts_service.py).
+# Install in an isolated virtualenv:
+#
+#   python3 -m venv tts-venv
+#   source tts-venv/bin/activate
+#   pip install --upgrade pip
+#   pip install -r requirements-tts.txt
+#
+# Python: 3.10+ required (3.11 recommended).
+#
+# System dependencies (Linux):
+#   apt install -y espeak-ng
+#   # espeak-ng is required by the phonemizer/misaki backend inside kokoro.
+#
+# Model: Kokoro model weights (~350 MB) are downloaded automatically to
+#        ~/.cache/huggingface/hub/ on first startup (KPipeline(lang_code='a')).
+#        Requires internet access on first run.
+#        Control the download location via:
+#            HF_HOME=/your/path/to/models python tts_service.py
+#
+# Startup:
+#   CPU (production, ARM64/x86):
+#     python tts_service.py --host 0.0.0.0 --port 8766 --device cpu
+#   GPU (CUDA, optional):
+#     python tts_service.py --host 0.0.0.0 --port 8766 --device cuda
+#
+# Environment variables:
+#   AI_SECRET_TOKEN   — optional shared secret for X-AI-Secret auth header
+#   HF_HOME           — optional path to cache Kokoro model files
+#
+# ARM64 (Oracle A1 Ampere) status:
+#   torch:     LIKELY — PyTorch publishes aarch64 Linux wheels.
+#   kokoro:    LIKELY — pure Python package; depends on torch.
+#   soundfile: LIKELY — uses libsndfile, available via apt on ARM64.
+#   numpy:     LIKELY — standard aarch64 wheels available.
+#   espeak-ng: VERIFIED — in standard Ubuntu/Debian apt repositories.
+#   Full validation on Oracle A1 ARM64 is REQUIRED before production deployment.
+
+kokoro>=0.9.4
+soundfile>=0.12.1
+numpy>=1.24.0
+torch>=2.1.0

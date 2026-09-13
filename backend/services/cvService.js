@@ -6,7 +6,13 @@
  * Node-side bridge to the Python CV Analysis service (cv_service.py).
  *
  * The Python service runs separately at CV_SERVICE_URL (default http://127.0.0.1:8767).
- * Uses Node built-in fetch — no new dependencies.
+ * Uses Node built-in fetch and FormData — no new dependencies.
+ *
+ * Architecture:
+ *   The backend reads the video file from its own disk (req.file.path) and
+ *   POSTs the raw bytes to the CV service as multipart/form-data.
+ *   This allows the CV service to run on a separate VM — it does NOT need
+ *   access to the backend filesystem.
  *
  * Public API:
  *   healthCheck()                             → Promise<object>
@@ -15,12 +21,30 @@
  *
  * Configuration (.env):
  *   CV_SERVICE_URL=http://127.0.0.1:8767   (default if not set)
+ *   AI_SECRET_TOKEN=<shared-secret>         (optional; leave unset for localhost dev)
  */
+
+const fs = require('fs')
 
 const CV_DEFAULT_URL = 'http://127.0.0.1:8767'
 
 function getCvServiceUrl() {
   return (process.env.CV_SERVICE_URL || CV_DEFAULT_URL).replace(/\/$/, '')
+}
+
+/**
+ * Build request headers for inter-service calls.
+ * Adds X-AI-Secret when AI_SECRET_TOKEN is set in the environment.
+ * On localhost (no token configured) the header is omitted entirely so
+ * the Python service's dev-mode pass-through applies.
+ */
+function serviceHeaders(extra = {}) {
+  const headers = { ...extra }
+  const secret  = (process.env.AI_SECRET_TOKEN || '').trim()
+  if (secret) {
+    headers['X-AI-Secret'] = secret
+  }
+  return headers
 }
 
 /**
@@ -31,7 +55,7 @@ async function healthCheck() {
   const url = `${getCvServiceUrl()}/health`
   let res
   try {
-    res = await fetch(url, { method: 'GET' })
+    res = await fetch(url, { method: 'GET', headers: serviceHeaders() })
   } catch (connErr) {
     throw new Error(
       `CV service unreachable at ${url} — is cv_service.py running? (${connErr.message})`
@@ -44,25 +68,41 @@ async function healthCheck() {
 }
 
 /**
- * Send a video file path to the Python CV service for analysis.
+ * Send a video file to the Python CV service for analysis.
  *
- * This is the core bridge: called fire-and-forget from the recording upload
- * controller, and also directly from the admin trigger endpoint.
+ * Reads the file from `filePath` on the backend VM and sends the raw bytes
+ * to the CV service via multipart/form-data.  The CV service writes a temp
+ * file locally, runs analysis, then deletes it — no shared filesystem needed.
  *
  * @param {number|string} interviewId  The interview ID to associate results with.
  * @param {string}        filePath     Absolute path to the saved WebM recording.
  * @returns {Promise<{status, scores, per_frame_raw, analyzed_at, elapsed_s, error}>}
- * @throws  Error on network failure or non-200 HTTP response.
+ * @throws  Error on file-read failure, network failure, or non-200 HTTP response.
  */
 async function triggerAnalysis(interviewId, filePath) {
   const url = `${getCvServiceUrl()}/analyze`
+
+  // Read the recording from the backend VM's own disk
+  let videoBuffer
+  try {
+    videoBuffer = fs.readFileSync(filePath)
+  } catch (readErr) {
+    throw new Error(
+      `[CV] Cannot read recording file at ${filePath}: ${readErr.message}`
+    )
+  }
+
+  // Build multipart/form-data body
+  const form = new FormData()
+  form.append('interview_id', String(interviewId))
+  form.append('video', new Blob([videoBuffer]), 'recording.webm')
 
   let res
   try {
     res = await fetch(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ file_path: filePath, interview_id: interviewId }),
+      headers: serviceHeaders(), // Content-Type is set automatically by FormData
+      body:    form,
     })
   } catch (connErr) {
     throw new Error(
@@ -106,7 +146,7 @@ async function analyzeFrame(imageBase64) {
   try {
     res = await fetch(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: serviceHeaders({ 'Content-Type': 'application/json' }),
       body:    JSON.stringify({ image: imageBase64 }),
     })
   } catch (connErr) {
@@ -132,4 +172,3 @@ async function analyzeFrame(imageBase64) {
 }
 
 module.exports = { triggerAnalysis, analyzeFrame, healthCheck, getCvServiceUrl }
-

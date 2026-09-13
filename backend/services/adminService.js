@@ -45,14 +45,15 @@ function readGeminiCounters() {
  * completed interviews (= reports), and active user count.
  */
 async function getAdminStats() {
-  const [usersRes, interviewsRes] = await Promise.all([
+  const [usersRes, interviewsRes, newUsersRes, avgScoreRes] = await Promise.all([
     pool.query(`
       SELECT
         COUNT(*)                                          AS total_users,
         COUNT(*) FILTER (WHERE role = 'USER')            AS total_candidates,
         COUNT(*) FILTER (WHERE role = 'RECRUITER')       AS total_recruiters,
         COUNT(*) FILTER (WHERE role = 'ADMIN')           AS total_admins,
-        COUNT(*) FILTER (WHERE is_active = true)         AS active_users
+        COUNT(*) FILTER (WHERE is_active = true)         AS active_users,
+        COUNT(*) FILTER (WHERE is_active = false)        AS blocked_users
       FROM users
     `),
     pool.query(`
@@ -63,23 +64,46 @@ async function getAdminStats() {
         COUNT(*) FILTER (WHERE status = 'pending')       AS pending_interviews
       FROM interviews
     `),
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') AS today,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')   AS this_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')  AS this_month
+      FROM users
+    `),
+    pool.query(`
+      SELECT
+        ROUND(AVG(score))         AS avg_score,
+        MAX(score)                AS max_score,
+        COUNT(*) FILTER (WHERE hire_recommendation = 'Highly Recommended') AS highly_recommended
+      FROM interviews
+      WHERE status = 'completed' AND score IS NOT NULL
+    `),
   ])
 
-  const u = usersRes.rows[0]
+  const u  = usersRes.rows[0]
   const iv = interviewsRes.rows[0]
+  const nu = newUsersRes.rows[0]
+  const sc = avgScoreRes.rows[0]
 
   return {
-    totalUsers:          safeInt(u.total_users),
-    totalCandidates:     safeInt(u.total_candidates),
-    totalRecruiters:     safeInt(u.total_recruiters),
-    totalAdmins:         safeInt(u.total_admins),
-    activeUsers:         safeInt(u.active_users),
-    totalInterviews:     safeInt(iv.total_interviews),
-    completedInterviews: safeInt(iv.completed_interviews),
-    activeInterviews:    safeInt(iv.active_interviews),
-    pendingInterviews:   safeInt(iv.pending_interviews),
-    // Completed interviews with a score = a generated report
-    reportsGenerated:    safeInt(iv.completed_interviews),
+    totalUsers:           safeInt(u.total_users),
+    totalCandidates:      safeInt(u.total_candidates),
+    totalRecruiters:      safeInt(u.total_recruiters),
+    totalAdmins:          safeInt(u.total_admins),
+    activeUsers:          safeInt(u.active_users),
+    blockedUsers:         safeInt(u.blocked_users),
+    newUsersToday:        safeInt(nu.today),
+    newUsersThisWeek:     safeInt(nu.this_week),
+    newUsersThisMonth:    safeInt(nu.this_month),
+    totalInterviews:      safeInt(iv.total_interviews),
+    completedInterviews:  safeInt(iv.completed_interviews),
+    activeInterviews:     safeInt(iv.active_interviews),
+    pendingInterviews:    safeInt(iv.pending_interviews),
+    reportsGenerated:     safeInt(iv.completed_interviews),
+    avgScore:             sc.avg_score !== null ? Number(sc.avg_score) : null,
+    maxScore:             sc.max_score !== null ? Number(sc.max_score) : null,
+    highlyRecommended:    safeInt(sc.highly_recommended),
   }
 }
 
@@ -449,8 +473,75 @@ async function getSystemHealth() {
  *  - Monthly new user signups for last 6 months
  *  - Monthly platform activity (interviews + users per month)
  */
+/* ─── Recent Activity Feed ───────────────────────────────────────────────── */
+
+/**
+ * Returns a cross-table activity feed of the last 25 real platform events.
+ * Sources: user registrations, interview completions, interview starts.
+ * No fake/synthetic events — every row comes from real DB tables.
+ */
+async function getRecentActivity() {
+  // Union of real events from users + interviews tables
+  const result = await pool.query(`
+    SELECT * FROM (
+      -- User registrations
+      SELECT
+        'registration'       AS event_type,
+        u.id                 AS entity_id,
+        u.name               AS actor,
+        u.email              AS detail,
+        u.role               AS role,
+        u.created_at         AS occurred_at
+      FROM users u
+      WHERE u.created_at IS NOT NULL
+
+      UNION ALL
+
+      -- Interview completions
+      SELECT
+        'interview_completed' AS event_type,
+        iv.id                 AS entity_id,
+        u.name                AS actor,
+        iv.selected_role      AS detail,
+        u.role                AS role,
+        iv.completed_at       AS occurred_at
+      FROM interviews iv
+      JOIN users u ON u.id = iv.user_id
+      WHERE iv.status = 'completed' AND iv.completed_at IS NOT NULL
+
+      UNION ALL
+
+      -- Interviews started (in_progress)
+      SELECT
+        'interview_started'  AS event_type,
+        iv.id                AS entity_id,
+        u.name               AS actor,
+        iv.selected_role     AS detail,
+        u.role               AS role,
+        iv.started_at        AS occurred_at
+      FROM interviews iv
+      JOIN users u ON u.id = iv.user_id
+      WHERE iv.status IN ('in_progress','completed') AND iv.started_at IS NOT NULL
+    ) events
+    ORDER BY occurred_at DESC
+    LIMIT 25
+  `)
+
+  return {
+    events: result.rows.map(r => ({
+      eventType:  r.event_type,
+      entityId:   r.entity_id,
+      actor:      r.actor,
+      detail:     r.detail,
+      role:       r.role,
+      occurredAt: r.occurred_at,
+      timeAgo:    formatTimeAgo(r.occurred_at),
+    })),
+  }
+}
+
 async function getUsageAnalytics() {
-  const [roleRes, monthlyUsersRes, monthlyActivityRes] = await Promise.all([
+  const [roleRes, monthlyUsersRes, monthlyActivityRes, scoreDistRes] = await Promise.all([
     // Role distribution
     pool.query(`
       SELECT role, COUNT(*) AS count
@@ -471,6 +562,24 @@ async function getUsageAnalytics() {
       WHERE created_at >= NOW() - INTERVAL '6 months'
       GROUP BY DATE_TRUNC('month', created_at)
       ORDER BY month_ts ASC
+    `),
+
+    // Score distribution histogram (completed interviews with a score)
+    pool.query(`
+      SELECT
+        CASE
+          WHEN score >= 90 THEN '90-100'
+          WHEN score >= 80 THEN '80-89'
+          WHEN score >= 70 THEN '70-79'
+          WHEN score >= 60 THEN '60-69'
+          WHEN score >= 50 THEN '50-59'
+          ELSE '0-49'
+        END AS bucket,
+        COUNT(*) AS count
+      FROM interviews
+      WHERE status = 'completed' AND score IS NOT NULL
+      GROUP BY bucket
+      ORDER BY bucket DESC
     `),
 
     // Monthly combined activity (users + interviews)
@@ -517,6 +626,10 @@ async function getUsageAnalytics() {
   ])
 
   const ROLE_COLORS = { USER: '#6366f1', RECRUITER: '#0ea5e9', ADMIN: '#10b981' }
+  const scoreDistribution = scoreDistRes.rows.map(r => ({
+    bucket: r.bucket,
+    count:  safeInt(r.count),
+  }))
   const roleDistribution = roleRes.rows.map(r => ({
     name:  r.role === 'USER' ? 'Candidates' : r.role === 'RECRUITER' ? 'Recruiters' : 'Admins',
     role:  r.role,
@@ -542,6 +655,7 @@ async function getUsageAnalytics() {
     roleDistribution,
     monthlySignups,
     monthlyActivity,
+    scoreDistribution,
   }
 }
 
@@ -554,4 +668,5 @@ module.exports = {
   getAiMonitoring,
   getSystemHealth,
   getUsageAnalytics,
+  getRecentActivity,
 }
