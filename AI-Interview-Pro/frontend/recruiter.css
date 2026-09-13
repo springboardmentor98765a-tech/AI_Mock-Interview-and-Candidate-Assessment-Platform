@@ -1957,3 +1957,87 @@ td{
     color:#fecaca;
     font-weight:600;
 }
+
+/* ===============================
+   MODULE 8 - SHARED INTERVIEWS
+================================ */
+.shared-heading,.panel-title-row { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.privacy-pill { padding:7px 11px; border-radius:999px; background:rgba(16,185,129,.12); border:1px solid rgba(52,211,153,.3); color:#a7f3d0; font-size:11px; }
+.shared-toolbar { display:grid; grid-template-columns:minmax(210px,1.7fr) repeat(3,minmax(130px,1fr)) auto; gap:10px; margin:18px 0 10px; }
+.shared-toolbar input,.shared-toolbar select { width:100%; padding:11px 12px; border:1px solid rgba(148,163,184,.22); border-radius:10px; color:#e2e8f0; background:#111827; outline:none; }
+.shared-toolbar input:focus,.shared-toolbar select:focus { border-color:#60a5fa; box-shadow:0 0 0 3px rgba(59,130,246,.16); }
+.shared-toolbar button { padding:10px 14px; border-radius:10px; border:1px solid #334155; color:#cbd5e1; background:transparent; cursor:pointer; }
+.shared-results-status { color:#94a3b8; font-size:12px; margin-bottom:12px; }
+.shared-interview-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; }
+.shared-interview-card { position:relative; overflow:hidden; padding:18px; border-radius:17px; border:1px solid rgba(148,163,184,.18); background:linear-gradient(145deg,rgba(30,41,59,.9),rgba(15,23,42,.78)); box-shadow:0 14px 32px rgba(0,0,0,.18); transition:.2s ease; }
+.shared-interview-card:hover { transform:translateY(-3px); border-color:rgba(96,165,250,.42); }
+.shared-card-top { display:flex; align-items:center; gap:11px; margin-bottom:14px; }
+.shared-avatar { width:42px; height:42px; display:grid; place-items:center; border-radius:13px; color:white; font-weight:700; background:linear-gradient(135deg,#2563eb,#7c3aed); }
+.shared-card-top h3 { margin:0 0 3px; font-size:15px; }
+.shared-card-top p,.shared-meta,.shared-date { color:#94a3b8; font-size:10px; }
+.consent-badge { margin-left:auto; align-self:flex-start; padding:5px 7px; border-radius:999px; color:#86efac; background:rgba(34,197,94,.1); font-size:9px; }
+.shared-score-row { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin:14px 0; }
+.shared-score { font-size:30px; font-weight:800; color:#f8fafc; }
+.shared-domain { color:#dbeafe; font-weight:600; }
+.view-shared-report { width:100%; margin-top:13px; padding:10px; border:0; border-radius:10px; color:white; background:linear-gradient(90deg,#2563eb,#7c3aed); cursor:pointer; font-weight:600; }
+.shared-empty { grid-column:1/-1; padding:42px 20px; text-align:center; border:1px dashed #334155; border-radius:16px; color:#94a3b8; }
+
+.ranking-panel { margin-top:22px; padding:19px; border-radius:17px; border:1px solid rgba(148,163,184,.16); background:rgba(15,23,42,.55); }
+.panel-title-row p { color:#94a3b8; font-size:11px; margin-top:4px; }
+.ranking-table-wrap { overflow-x:auto; margin-top:14px; }
+.ranking-table { width:100%; border-collapse:collapse; min-width:780px; }
+.ranking-table th,.ranking-table td { padding:11px 10px; text-align:left; border-bottom:1px solid rgba(148,163,184,.12); font-size:11px; }
+.ranking-table th { color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; }
+.rank-medal { font-size:18px; }
+.trend-up { color:#86efac; }.trend-down { color:#fca5a5; }
+
+.shared-report-modal { max-width:980px; max-height:92vh; overflow:auto; }
+.report-hero { display:flex; justify-content:space-between; gap:20px; padding:6px 0 18px; border-bottom:1px solid rgba(148,163,184,.16); }
+.report-hero h2 { margin:0 0 5px; }.report-hero p { color:#94a3b8; }
+.report-overall { min-width:105px; text-align:center; padding:13px; border-radius:15px; background:rgba(37,99,235,.14); }
+.report-overall strong { display:block; font-size:31px; }.report-overall span { color:#93c5fd; font-size:10px; }
+.report-tabs { display:flex; gap:7px; overflow-x:auto; padding:15px 0; }
+.report-tab { white-space:nowrap; padding:8px 11px; border-radius:9px; border:1px solid #334155; color:#94a3b8; background:transparent; cursor:pointer; }
+.report-tab.active { color:white; border-color:#3b82f6; background:rgba(37,99,235,.16); }
+.report-tab-panel[hidden] { display:none; }
+.report-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.report-stat { padding:13px; border-radius:12px; background:rgba(30,41,59,.7); border:1px solid rgba(148,163,184,.12); }
+.report-stat span { display:block; color:#94a3b8; font-size:10px; margin-bottom:5px; }.report-stat strong { font-size:18px; }
+.report-question { padding:15px 0; border-bottom:1px solid rgba(148,163,184,.13); }
+.report-question h4 { color:#dbeafe; margin-bottom:8px; }.report-answer { color:#cbd5e1; line-height:1.6; }
+.report-feedback-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.report-feedback-card { padding:14px; border-radius:12px; background:rgba(30,41,59,.65); }.report-feedback-card ul { padding-left:18px; color:#cbd5e1; font-size:11px; line-height:1.7; }
+.protected-media { width:100%; max-width:520px; margin:10px 0; border-radius:12px; display:block; }
+.recruiter-toast { position:fixed; right:24px; bottom:24px; z-index:1300; opacity:0; transform:translateY(15px); padding:12px 16px; border-radius:11px; background:#0f172a; border:1px solid #334155; transition:.2s; pointer-events:none; }
+.recruiter-toast.show { opacity:1; transform:none; }
+
+@media (max-width:1050px) { .shared-interview-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.shared-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:700px) { .shared-interview-grid,.report-feedback-grid,.report-stat-grid { grid-template-columns:1fr; }.shared-toolbar { grid-template-columns:1fr; }.report-hero { flex-direction:column; }.shared-heading { flex-direction:column; } }
+
+/* MODULE 8.1 - aligned, responsive recruiter workspace */
+.recruiter-sidebar { display:flex; flex-direction:column; height:100dvh; padding:24px 18px 18px; z-index:100; }
+.recruiter-sidebar .brand { flex:0 0 auto; margin-bottom:18px; }
+.recruiter-sidebar nav { flex:1; min-height:0; overflow-y:auto; padding:3px 5px 12px 0; scrollbar-width:thin; scrollbar-color:#475569 transparent; }
+.recruiter-sidebar nav a { margin:5px 0; padding:11px 14px; line-height:1.35; }
+.sidebar-footer { position:static; width:auto; flex:0 0 auto; padding-top:12px; border-top:1px solid rgba(148,163,184,.14); }
+.recruiter-main { max-width:1800px; min-width:0; }
+.section { width:100%; min-height:calc(100dvh - 70px); padding:36px 0; }
+#settings { padding-bottom:45vh; }
+.settings-panel { max-width:none; }
+.settings-panel input[type="checkbox"] { width:20px; height:20px; accent-color:#3b82f6; cursor:pointer; }
+.page-progress { position:fixed; z-index:1400; top:0; left:0; height:3px; width:0; background:linear-gradient(90deg,#38bdf8,#8b5cf6); box-shadow:0 0 16px rgba(96,165,250,.7); }
+.sidebar-toggle,.sidebar-backdrop,.back-to-top { display:none; }
+.back-to-top { position:fixed; right:24px; bottom:24px; z-index:90; width:44px; height:44px; border:1px solid rgba(96,165,250,.4); border-radius:50%; color:white; background:rgba(15,23,42,.92); box-shadow:0 12px 32px rgba(0,0,0,.35); cursor:pointer; }
+.back-to-top.show { display:grid; place-items:center; }
+@media (max-width:800px) {
+  body.nav-open { overflow:hidden; }
+  .recruiter-sidebar { position:fixed; width:min(310px,86vw); height:100dvh; transform:translateX(-105%); transition:transform .25s ease; }
+  body.nav-open .recruiter-sidebar { transform:none; }
+  .recruiter-main { margin-left:0; width:100%; padding:72px 20px 24px; }
+  .sidebar-toggle { display:grid; place-items:center; position:fixed; z-index:130; left:16px; top:16px; width:42px; height:42px; border:1px solid #334155; border-radius:11px; color:white; background:#0f172a; cursor:pointer; }
+  .sidebar-backdrop { position:fixed; inset:0; z-index:99; width:100%; height:100%; border:0; background:rgba(2,6,23,.72); }
+  body.nav-open .sidebar-backdrop { display:block; }
+  .section { min-height:auto; padding:34px 0; }
+  #settings { padding-bottom:100px; }
+}
+@media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }

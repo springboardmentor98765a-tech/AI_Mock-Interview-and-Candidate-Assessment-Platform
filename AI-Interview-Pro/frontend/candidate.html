@@ -16,6 +16,9 @@
   </head>
 
   <body>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close navigation"></button>
     <div class="candidate-container">
       <!-- ================= SIDEBAR ================= -->
 
@@ -35,6 +38,8 @@
 
           <a href="#analytics"> 📊 Performance Analytics </a>
 
+          <a href="#growthInsights"> 📈 Growth Insights </a>
+
           <a href="#speechEmotion"> 🗣️ Speech &amp; Emotion </a>
 
           <a href="#history"> 📜 Interview History </a>
@@ -43,6 +48,7 @@
 
           <a href="#achievements"> 🏆 Achievements </a>
 
+          <a href="notifications.html"> 🔔 Notifications &amp; Reports </a>
           <a href="#settings"> ⚙ Settings </a>
         </nav>
 
@@ -140,6 +146,50 @@
               </div>
             </div>
           </div>
+        </section>
+
+        <!-- ================= MODULE 8: GROWTH INSIGHTS ================= -->
+        <section id="growthInsights" class="section module8-section">
+          <div class="section-heading">
+            <h2>📈 Growth Insights</h2>
+            <p>Evidence-based trends from your completed interviews</p>
+          </div>
+
+          <div class="module8-kpis">
+            <article tabindex="0" data-kpi-help="Your highest overall score across completed interviews."><span>Best score</span><strong id="m8BestScore">-</strong><small>Hover for details</small></article>
+            <article tabindex="0" data-kpi-help="Your most recently completed interview score."><span>Latest score</span><strong id="m8LatestScore">-</strong><small>Hover for details</small></article>
+            <article tabindex="0" data-kpi-help="The difference between your first and latest scored interviews."><span>Growth</span><strong id="m8Growth">-</strong><small>Hover for details</small></article>
+            <article tabindex="0" data-kpi-help="A combined readiness estimate based on saved interview evidence."><span>Readiness</span><strong id="m8Readiness">-</strong><small>Hover for details</small></article>
+          </div>
+
+          <div class="module8-grid">
+            <article class="module8-panel">
+              <div class="panel-title-row trend-panel-heading">
+                <div><h3>Performance trend</h3><p>Your score across completed interviews</p></div>
+                <div class="trend-controls" role="group" aria-label="Trend range">
+                  <button type="button" data-trend-range="5">Last 5</button>
+                  <button type="button" data-trend-range="10">Last 10</button>
+                  <button type="button" data-trend-range="all" class="active">All</button>
+                </div>
+              </div>
+              <div class="trend-chart-wrap">
+                <canvas id="performanceTrendCanvas" height="230" tabindex="0" aria-label="Interview score trend chart. Use left and right arrow keys to inspect scores."></canvas>
+                <div id="trendTooltip" class="trend-tooltip" role="status" aria-live="polite" hidden></div>
+              </div>
+              <p id="trendEmpty" class="module8-empty" hidden>Complete a scored interview to unlock your trend.</p>
+            </article>
+
+            <article class="module8-panel">
+              <div class="panel-title-row"><div><h3>Skill profile</h3><p>Historical category averages</p></div></div>
+              <div id="skillProfileBars" class="skill-profile-bars"></div>
+            </article>
+          </div>
+
+          <article class="module8-panel weak-area-panel">
+            <div class="panel-title-row"><div><h3>🎯 Focus areas</h3><p>Lowest supported averages with practical next steps</p></div></div>
+            <div id="weakAreasGrid" class="weak-areas-grid"></div>
+            <p id="weakAreaNote" class="privacy-note"></p>
+          </article>
         </section>
 
         <!-- ================= RESUME ANALYSIS ================= -->
@@ -491,11 +541,13 @@
                   <th>Score</th>
 
                   <th>Status</th>
+
+                  <th>Recruiter Access</th>
                 </tr>
               </thead>
 
               <tbody id="historyTableBody">
-                <tr><td colspan="6">Loading your interview history...</td></tr>
+                <tr><td colspan="7">Loading your interview history...</td></tr>
               </tbody>
             </table>
           </div>
@@ -614,7 +666,56 @@
       </main>
     </div>
 
+    <!-- Candidate-controlled sharing modal -->
+    <div id="shareInterviewModal" class="consent-modal" hidden aria-hidden="true">
+      <div class="consent-card" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+        <button id="closeShareModal" class="consent-close" type="button" aria-label="Close">×</button>
+        <div class="consent-icon">🔐</div>
+        <h2 id="shareModalTitle">Share interview securely</h2>
+        <p id="shareInterviewSummary" class="consent-summary"></p>
+
+        <label for="recruiterSearch">Choose one or more verified recruiters</label>
+        <input id="recruiterSearch" type="search" placeholder="Search recruiters by name or email" autocomplete="off">
+        <div class="recruiter-selection-toolbar">
+          <span id="recruiterSelectionCount" aria-live="polite">0 selected</span>
+          <div>
+            <button id="selectVisibleRecruiters" type="button">Select visible</button>
+            <button id="clearRecruiterSelection" type="button">Clear</button>
+          </div>
+        </div>
+        <div id="recruiterOptions" class="recruiter-options"></div>
+
+        <div class="shared-data-box">
+          <h3>What every selected recruiter can view</h3>
+          <div class="data-chip-grid">
+            <span>Questions &amp; answers</span><span>All score breakdowns</span>
+            <span>AI feedback</span><span>Speech analysis</span>
+            <span>Eye contact &amp; engagement</span><span>Session recordings</span>
+            <span>Timing &amp; behavior</span><span>Proctoring flags</span>
+            <span>Latest resume analysis &amp; skills</span>
+          </div>
+        </div>
+
+        <label class="consent-check">
+          <input id="shareConsentCheck" type="checkbox">
+          <span>I understand exactly what will be shared and voluntarily grant access. I can revoke it later.</span>
+        </label>
+        <p id="shareError" class="share-error" role="alert"></p>
+        <div class="consent-actions">
+          <button id="cancelShareBtn" class="secondary-action" type="button">Cancel</button>
+          <button id="confirmShareBtn" class="primary-action" type="button" disabled>Share with selected recruiters</button>
+        </div>
+        <div id="existingShares" class="existing-shares"></div>
+      </div>
+    </div>
+
+    <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
+    <button id="backToTop" class="back-to-top" type="button" aria-label="Back to top">↑</button>
+
+    <link rel="stylesheet" href="dashboard-tools.css">
+    <link rel="stylesheet" href="dashboard-motion.css">
     <script src="auth-common.js"></script>
+    <script src="dashboard-tools.js"></script>
     <script src="candidate.js"></script>
   </body>
 </html>

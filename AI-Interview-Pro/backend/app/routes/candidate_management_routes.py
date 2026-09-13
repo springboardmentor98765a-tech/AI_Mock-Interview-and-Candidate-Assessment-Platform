@@ -23,13 +23,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import User, Interview, InterviewSession, InterviewStatusEnum, RoleEnum
+from app.models import User, Interview, InterviewSession, InterviewStatusEnum, RoleEnum, InterviewShareConsent, ShareStatusEnum
 from app.schemas import (
     CandidateLeaderboardEntryOut,
     CandidateProfileOut,
     ProfileRecordingOut,
     UserOut,
     InterviewOut,
+    AnalyticsOut,
 )
 from app.auth import require_role
 from app.resume_parser import compute_resume_score
@@ -60,12 +61,18 @@ def candidate_leaderboard(
     current_user: User = Depends(require_role("recruiter", "admin")),
     db: Session = Depends(get_db),
 ):
-    candidates = (
+    candidates_query = (
         db.query(User)
         .options(joinedload(User.interviews))
         .filter(User.role == RoleEnum.candidate)
-        .all()
     )
+    if current_user.role == RoleEnum.recruiter:
+        shared_candidate_ids = db.query(InterviewShareConsent.candidate_id).filter(
+            InterviewShareConsent.recruiter_id == current_user.id,
+            InterviewShareConsent.status == ShareStatusEnum.active,
+        )
+        candidates_query = candidates_query.filter(User.id.in_(shared_candidate_ids))
+    candidates = candidates_query.all()
 
     entries = []
     for candidate in candidates:
@@ -73,6 +80,13 @@ def candidate_leaderboard(
             i for i in candidate.interviews
             if i.status == InterviewStatusEnum.completed and i.overall_score is not None
         ]
+        if current_user.role == RoleEnum.recruiter:
+            allowed_ids = {row[0] for row in db.query(InterviewShareConsent.interview_id).filter(
+                InterviewShareConsent.candidate_id == candidate.id,
+                InterviewShareConsent.recruiter_id == current_user.id,
+                InterviewShareConsent.status == ShareStatusEnum.active,
+            ).all()}
+            scored_interviews = [i for i in scored_interviews if i.id in allowed_ids]
         best_interview = max(scored_interviews, key=lambda i: i.overall_score, default=None)
         top_skills = [s for s in (candidate.resume_skills or "").split(",") if s][:5]
 
@@ -112,8 +126,18 @@ def candidate_profile(
     if not candidate or candidate.role != RoleEnum.candidate:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
 
+    is_admin = current_user.role == RoleEnum.admin
+    active_share_rows = db.query(InterviewShareConsent.interview_id).filter(
+        InterviewShareConsent.candidate_id == candidate.id,
+        InterviewShareConsent.recruiter_id == current_user.id,
+        InterviewShareConsent.status == ShareStatusEnum.active,
+    ).all() if not is_admin else []
+    allowed_interview_ids = {row[0] for row in active_share_rows}
+    if not is_admin and not allowed_interview_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The candidate has not shared an interview with you.")
+
+    # The authorization gate above already limits recruiters to shared candidates.
     resume = _to_resume_out(candidate) if candidate.resume_uploaded_at else None
-    analytics = compute_analytics_for_user(candidate, db)
 
     interviews = (
         db.query(Interview)
@@ -125,6 +149,26 @@ def candidate_profile(
         .order_by(Interview.created_at.desc())
         .all()
     )
+    if not is_admin:
+        interviews = [i for i in interviews if i.id in allowed_interview_ids]
+
+    if is_admin:
+        analytics = compute_analytics_for_user(candidate, db)
+    else:
+        scored = [i for i in interviews if i.overall_score is not None]
+        questions = [q for i in interviews for q in i.questions if q.answer_text]
+        def avg(attr):
+            values = [getattr(q, attr) for q in questions if getattr(q, attr) is not None]
+            return round(sum(values) / len(values), 1) if values else None
+        values = [i.overall_score for i in scored]
+        analytics = AnalyticsOut(
+            completed_interviews=len(interviews), total_questions_answered=len(questions),
+            average_score=round(sum(values) / len(values), 1) if values else None,
+            last_score=values[0] if values else None,
+            communication_avg=avg("communication_score"), technical_avg=avg("technical_score"),
+            confidence_avg=avg("confidence_score"), grammar_avg=avg("grammar_score"),
+            professionalism_avg=avg("professionalism_score"),
+        )
 
     # Session recordings, flattened across every one of this candidate's
     # interviews - shown only here in the profile, not as a separate page.

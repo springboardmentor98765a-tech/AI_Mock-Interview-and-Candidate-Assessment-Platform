@@ -25,8 +25,32 @@ wireLogoutButton("#logoutBtn");
 
 const sidebarLinks =
 document.querySelectorAll(
-    ".candidate-sidebar nav a"
+    ".candidate-sidebar nav a[href^='#']"
 );
+
+function setDashboardNavigation(open) {
+    document.body.classList.toggle("nav-open", open);
+    const toggle = document.getElementById("sidebarToggle");
+    if (toggle) {
+        toggle.setAttribute("aria-expanded", String(open));
+        toggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+        toggle.textContent = open ? "×" : "☰";
+    }
+}
+
+document.getElementById("sidebarToggle")?.addEventListener("click", () => {
+    setDashboardNavigation(!document.body.classList.contains("nav-open"));
+});
+document.getElementById("sidebarBackdrop")?.addEventListener("click", () => setDashboardNavigation(false));
+document.getElementById("backToTop")?.addEventListener("click", () => window.scrollTo({top:0, behavior:"smooth"}));
+window.addEventListener("scroll", () => {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = maxScroll > 0 ? (window.scrollY / maxScroll) * 100 : 0;
+    const progressBar = document.getElementById("pageProgress");
+    const backToTop = document.getElementById("backToTop");
+    if (progressBar) progressBar.style.width = Math.min(100, progress) + "%";
+    if (backToTop) backToTop.classList.toggle("show", window.scrollY > 600);
+}, {passive:true});
 
 
 
@@ -55,6 +79,8 @@ sidebarLinks.forEach(link=>{
                 behavior:"smooth"
 
             });
+
+            setDashboardNavigation(false);
 
 
         }
@@ -213,9 +239,7 @@ saveButton.addEventListener(
 ()=>{
 
 
-    alert(
-        "Settings saved successfully ✅"
-    );
+    showToast("Settings saved successfully ✓");
 
 
 });
@@ -300,9 +324,7 @@ resumeCard.addEventListener(
 ()=>{
 
 
-    alert(
-        "Opening detailed AI Resume Report 📄"
-    );
+    document.getElementById("resume")?.scrollIntoView({behavior:"smooth"});
 
 
 });
@@ -785,6 +807,15 @@ function formatDate(isoString) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text == null ? "" : String(text);
+  return div.innerHTML;
+}
+
+let historyCache = [];
+const interviewSharesCache = new Map();
+
 async function loadHistory() {
   const tbody = document.getElementById("historyTableBody");
   if (!tbody) return;
@@ -793,21 +824,29 @@ async function loadHistory() {
     const response = await authFetch("/interviews/history");
 
     if (!response.ok) {
-      tbody.innerHTML = "<tr><td colspan=\"6\">Could not load history.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"7\">Could not load history.</td></tr>";
       return;
     }
 
     const interviews = await response.json();
+    historyCache = interviews;
 
     if (interviews.length === 0) {
-      tbody.innerHTML = "<tr><td colspan=\"6\">No completed interviews yet. Finish one above to see it here.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"7\">No completed interviews yet. Finish one above to see it here.</td></tr>";
       return;
     }
 
     tbody.innerHTML = "";
 
+    await Promise.all(interviews.map(async (interview) => {
+      const sharesResponse = await authFetch("/interviews/" + interview.id + "/shares");
+      interviewSharesCache.set(interview.id, sharesResponse.ok ? await sharesResponse.json() : []);
+    }));
+
     interviews.forEach(interview => {
       const row = document.createElement("tr");
+
+      const activeShares = (interviewSharesCache.get(interview.id) || []).filter(s => s.status === "active");
 
       row.innerHTML =
         "<td>" + interview.interview_type + " - " + interview.domain + "</td>" +
@@ -816,15 +855,21 @@ async function loadHistory() {
         "<td>" + interview.answered_count + " / " + interview.total_questions + "</td>" +
         "<td>" + (interview.overall_score != null ? Math.round(interview.overall_score) + "%" : "-") + "</td>" +
         "<td><span class=\"status-badge status-" + interview.status + "\">" + interview.status +
-          (interview.time_expired ? " (time expired)" : "") + "</span></td>";
+          (interview.time_expired ? " (time expired)" : "") + "</span></td>" +
+        "<td class=\"history-action-cell\"><button type=\"button\" class=\"share-history-btn" +
+          (activeShares.length ? " shared" : "") + "\" data-share-interview=\"" + interview.id + "\">" +
+          (activeShares.length ? "🔐 Manage access" : "↗ Share with recruiter") + "</button></td>";
 
-      row.addEventListener("click", () => viewInterviewDetail(interview.id));
+      row.addEventListener("click", (event) => {
+        if (!event.target.closest("button")) viewInterviewDetail(interview.id);
+      });
+      row.querySelector("[data-share-interview]").addEventListener("click", () => openShareModal(interview));
 
       tbody.appendChild(row);
     });
 
   } catch (err) {
-    tbody.innerHTML = "<tr><td colspan=\"6\">Could not load history.</td></tr>";
+    tbody.innerHTML = "<tr><td colspan=\"7\">Could not load history.</td></tr>";
   }
 }
 
@@ -853,9 +898,17 @@ async function viewInterviewDetail(interviewId) {
 
     if (scoreEl) {
       const displayScore = assessment ? assessment.overall_score : interview.overall_score;
+      const aiPending = interview.questions.some(q => q.scoring_method === "heuristic_pending");
       scoreEl.textContent = displayScore != null
         ? "Overall score: " + Math.round(displayScore) + "%" + (assessment ? " · " + assessment.performance_rating : "")
         : "";
+      if (aiPending) {
+        const pending = document.createElement("span");
+        pending.className = "qa-ai-status";
+        pending.textContent = "AI validation in progress";
+        pending.title = "A fast provisional score is visible now. Semantic AI validation will update it automatically.";
+        scoreEl.appendChild(pending);
+      }
     }
 
     renderModule7Assessment(assessmentEl, assessment);
@@ -1092,21 +1145,20 @@ async function loadHistoryDetailRecordings(interviewId, container) {
     container.innerHTML = "<p class=\"hint\">🎬 Your session recording" + (recordings.length > 1 ? "s" : "") + "</p>";
     if (emotionSummaryEl) container.prepend(emotionSummaryEl);
 
-    recordings.forEach((recording) => {
+    for (const recording of recordings) {
       const wrap = document.createElement("div");
       wrap.className = "history-recording-clip";
 
-      // recording_url is normally a relative "/media/..." path, but be
-      // defensive in case it's ever already absolute (e.g. a future S3
-      // backend) - don't double-prefix it in that case.
-      const recordingUrl = /^https?:\/\//i.test(recording.recording_url || "")
-        ? recording.recording_url
-        : API_BASE_URL + recording.recording_url;
-
+      // Module 8 returns an authenticated stream URL. Fetch the bytes with
+      // the JWT, then use a short-lived browser object URL for playback.
       const media = document.createElement(recording.recording_type === "audio" ? "audio" : "video");
       media.controls = true;
       media.preload = "metadata";
+      const streamResponse = await authFetch(recording.recording_url, { headers: {} });
+      if (!streamResponse.ok) throw new Error("Recording access denied");
+      const recordingUrl = URL.createObjectURL(await streamResponse.blob());
       media.src = recordingUrl;
+      media.addEventListener("emptied", () => URL.revokeObjectURL(recordingUrl), { once: true });
       if (recording.recording_type !== "audio") {
         media.style.width = "100%";
         media.style.maxWidth = "360px";
@@ -1121,8 +1173,7 @@ async function loadHistoryDetailRecordings(interviewId, container) {
       const errorMsg = document.createElement("p");
       errorMsg.className = "hint recording-clip-error";
       errorMsg.style.display = "none";
-      errorMsg.innerHTML = "⚠ Couldn't play this recording inline. " +
-        "<a href=\"" + recordingUrl + "\" target=\"_blank\" rel=\"noopener\">Open it directly</a>.";
+      errorMsg.textContent = "⚠ Couldn't play this protected recording in your browser.";
       media.addEventListener("error", () => {
         media.style.display = "none";
         errorMsg.style.display = "";
@@ -1142,7 +1193,7 @@ async function loadHistoryDetailRecordings(interviewId, container) {
       }
 
       container.appendChild(wrap);
-    });
+    }
   } catch (err) {
     console.warn("Could not load session recording:", err);
     container.innerHTML = "";
@@ -1303,11 +1354,364 @@ function updateAchievement(cardId, textId, unlocked, unlockedText, lockedText) {
 }
 
 /* ---------------------------------------------------------
+   MODULE 8 - CANDIDATE-CONTROLLED RECRUITER ACCESS
+--------------------------------------------------------- */
+let shareModalInterview = null;
+let recruiterCache = [];
+let selectedRecruiterIds = new Set();
+
+function showToast(message) {
+  const toast = document.getElementById("appToast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
+function closeShareModal() {
+  const modal = document.getElementById("shareInterviewModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  shareModalInterview = null;
+  selectedRecruiterIds.clear();
+}
+
+async function openShareModal(interview) {
+  shareModalInterview = interview;
+  selectedRecruiterIds.clear();
+  const modal = document.getElementById("shareInterviewModal");
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+  document.getElementById("shareInterviewSummary").textContent =
+    interview.interview_type.toUpperCase() + " · " + interview.domain + " · " +
+    formatDate(interview.completed_at) + " · " + formatPercent(interview.overall_score);
+  document.getElementById("shareConsentCheck").checked = false;
+  document.getElementById("confirmShareBtn").disabled = true;
+  document.getElementById("shareError").textContent = "";
+  document.getElementById("recruiterSearch").value = "";
+
+  if (!recruiterCache.length) {
+    const response = await authFetch("/sharing/recruiters");
+    recruiterCache = response.ok ? await response.json() : [];
+  }
+  renderRecruiterOptions();
+  renderExistingShares();
+  updateShareButtonState();
+  document.getElementById("recruiterSearch").focus();
+}
+
+function renderRecruiterOptions() {
+  const container = document.getElementById("recruiterOptions");
+  const needle = document.getElementById("recruiterSearch").value.trim().toLowerCase();
+  const activeIds = new Set((interviewSharesCache.get(shareModalInterview?.id) || [])
+    .filter(s => s.status === "active").map(s => s.recruiter.id));
+  const matches = recruiterCache.filter(r => (r.full_name + " " + r.email).toLowerCase().includes(needle));
+  container.innerHTML = "";
+  if (!matches.length) {
+    container.innerHTML = "<p class=\"module8-empty\">No matching recruiters found.</p>";
+    return;
+  }
+  matches.forEach(recruiter => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const selected = selectedRecruiterIds.has(recruiter.id);
+    button.className = "recruiter-option" + (selected ? " selected" : "");
+    button.disabled = activeIds.has(recruiter.id);
+    button.setAttribute("aria-pressed", String(selected));
+    button.innerHTML = "<span><strong>" + escapeHtml(recruiter.full_name) + "</strong><small>" +
+      escapeHtml(recruiter.email) + "</small></span><span>" +
+      (activeIds.has(recruiter.id) ? "Already shared" : selected ? "✓ Selected" : "Select") + "</span>";
+    button.addEventListener("click", () => {
+      if (selectedRecruiterIds.has(recruiter.id)) selectedRecruiterIds.delete(recruiter.id);
+      else selectedRecruiterIds.add(recruiter.id);
+      renderRecruiterOptions();
+      updateShareButtonState();
+    });
+    container.appendChild(button);
+  });
+}
+
+function renderExistingShares() {
+  const container = document.getElementById("existingShares");
+  const active = (interviewSharesCache.get(shareModalInterview?.id) || []).filter(s => s.status === "active");
+  container.innerHTML = active.length ? "<h3>Recruiters with access</h3>" : "";
+  active.forEach(share => {
+    const row = document.createElement("div");
+    row.className = "existing-share-row";
+    row.innerHTML = "<div><strong>" + escapeHtml(share.recruiter.full_name) + "</strong><p>Granted " +
+      formatDate(share.granted_at) + "</p></div>";
+    const revoke = document.createElement("button");
+    revoke.type = "button";
+    revoke.className = "revoke-share-btn";
+    revoke.textContent = "Revoke access";
+    revoke.addEventListener("click", async () => {
+      revoke.disabled = true;
+      revoke.textContent = "Revoking…";
+      const response = await authFetch(
+        "/interviews/" + shareModalInterview.id + "/shares/" + share.id,
+        { method: "DELETE" }
+      );
+      if (response.ok) {
+        const updated = await response.json();
+        const shares = interviewSharesCache.get(shareModalInterview.id) || [];
+        interviewSharesCache.set(shareModalInterview.id, shares.map(s => s.id === updated.id ? updated : s));
+        showToast("Recruiter access revoked immediately.");
+        renderExistingShares();
+        renderRecruiterOptions();
+        loadHistory();
+      } else {
+        revoke.disabled = false;
+        revoke.textContent = "Revoke access";
+        document.getElementById("shareError").textContent = "Could not revoke access.";
+      }
+    });
+    row.appendChild(revoke);
+    container.appendChild(row);
+  });
+}
+
+function updateShareButtonState() {
+  const count = selectedRecruiterIds.size;
+  const button = document.getElementById("confirmShareBtn");
+  document.getElementById("recruiterSelectionCount").textContent = count + " selected";
+  button.disabled = count === 0 || !document.getElementById("shareConsentCheck").checked;
+  button.textContent = count ? "Share with " + count + " recruiter" + (count === 1 ? "" : "s") : "Share with selected recruiters";
+}
+
+document.getElementById("recruiterSearch")?.addEventListener("input", renderRecruiterOptions);
+document.getElementById("selectVisibleRecruiters")?.addEventListener("click", () => {
+  const needle = document.getElementById("recruiterSearch").value.trim().toLowerCase();
+  const activeIds = new Set((interviewSharesCache.get(shareModalInterview?.id) || [])
+    .filter(share => share.status === "active").map(share => share.recruiter.id));
+  recruiterCache
+    .filter(recruiter => (recruiter.full_name + " " + recruiter.email).toLowerCase().includes(needle))
+    .filter(recruiter => !activeIds.has(recruiter.id))
+    .forEach(recruiter => selectedRecruiterIds.add(recruiter.id));
+  renderRecruiterOptions();
+  updateShareButtonState();
+});
+document.getElementById("clearRecruiterSelection")?.addEventListener("click", () => {
+  selectedRecruiterIds.clear();
+  renderRecruiterOptions();
+  updateShareButtonState();
+});
+document.getElementById("shareConsentCheck")?.addEventListener("change", updateShareButtonState);
+document.getElementById("closeShareModal")?.addEventListener("click", closeShareModal);
+document.getElementById("cancelShareBtn")?.addEventListener("click", closeShareModal);
+document.getElementById("shareInterviewModal")?.addEventListener("click", event => {
+  if (event.target.id === "shareInterviewModal") closeShareModal();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeShareModal();
+});
+document.getElementById("confirmShareBtn")?.addEventListener("click", async () => {
+  if (!shareModalInterview || selectedRecruiterIds.size === 0) return;
+  const button = document.getElementById("confirmShareBtn");
+  const selectedIds = Array.from(selectedRecruiterIds);
+  button.disabled = true;
+  button.textContent = "Sharing securely with " + selectedIds.length + "…";
+  const response = await authFetch("/interviews/" + shareModalInterview.id + "/shares/batch", {
+    method: "POST",
+    body: JSON.stringify({ recruiter_ids: selectedIds, consent_acknowledged: true }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    document.getElementById("shareError").textContent = data.detail || "Could not share with the selected recruiters.";
+    updateShareButtonState();
+    return;
+  }
+  const shares = interviewSharesCache.get(shareModalInterview.id) || [];
+  const returnedIds = new Set(data.map(share => share.id));
+  const withoutOld = shares.filter(share => !returnedIds.has(share.id));
+  interviewSharesCache.set(shareModalInterview.id, [...data, ...withoutOld]);
+  showToast("Interview shared with " + data.length + " recruiter" + (data.length === 1 ? "" : "s") + ".");
+  selectedRecruiterIds.clear();
+  document.getElementById("shareConsentCheck").checked = false;
+  renderExistingShares();
+  renderRecruiterOptions();
+  updateShareButtonState();
+  loadHistory();
+});
+
+/* ---------------------------------------------------------
+   MODULE 8 - PERFORMANCE TRENDS & WEAK-AREA INSIGHTS
+--------------------------------------------------------- */
+let module8Trend = [];
+let displayedModule8Trend = [];
+let module8ChartPoints = [];
+let activeTrendPoint = -1;
+let trendRange = "all";
+
+function filteredTrend() {
+  if (trendRange === "all") return module8Trend;
+  return module8Trend.slice(-Number(trendRange));
+}
+
+function drawTrendChart(points) {
+  const canvas = document.getElementById("performanceTrendCanvas");
+  const empty = document.getElementById("trendEmpty");
+  if (!canvas) return;
+  displayedModule8Trend = points;
+  empty.hidden = points.length > 0;
+  canvas.hidden = !points.length;
+  if (!points.length) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.max(320, rect.width) * ratio;
+  canvas.height = 230 * ratio;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  const width = canvas.width / ratio, height = 230;
+  const pad = { left: 38, right: 18, top: 18, bottom: 34 };
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = "11px Poppins, sans-serif";
+  ctx.strokeStyle = "rgba(148,163,184,.18)";
+  ctx.fillStyle = "#94a3b8";
+  [0, 25, 50, 75, 100].forEach(value => {
+    const y = pad.top + (100 - value) / 100 * (height - pad.top - pad.bottom);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+    ctx.fillText(String(value), 8, y + 4);
+  });
+  const xFor = index => pad.left + (points.length === 1 ? (width-pad.left-pad.right)/2 : index/(points.length-1)*(width-pad.left-pad.right));
+  const yFor = score => pad.top + (100-score)/100*(height-pad.top-pad.bottom);
+  module8ChartPoints = points.map((point,index) => ({x:xFor(index), y:yFor(point.overall_score), point, index}));
+  const gradient = ctx.createLinearGradient(pad.left, 0, width-pad.right, 0);
+  gradient.addColorStop(0, "#38bdf8"); gradient.addColorStop(1, "#8b5cf6");
+  ctx.strokeStyle = gradient; ctx.lineWidth = 3; ctx.beginPath();
+  points.forEach((point,index) => index ? ctx.lineTo(xFor(index), yFor(point.overall_score)) : ctx.moveTo(xFor(index), yFor(point.overall_score)));
+  ctx.stroke();
+  points.forEach((point,index) => {
+    if(index === activeTrendPoint){
+      ctx.strokeStyle="rgba(96,165,250,.28)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(xFor(index),pad.top); ctx.lineTo(xFor(index),height-pad.bottom); ctx.stroke();
+    }
+    ctx.fillStyle="#0f172a"; ctx.strokeStyle="#60a5fa"; ctx.lineWidth=3; ctx.beginPath();
+    ctx.arc(xFor(index),yFor(point.overall_score),index === activeTrendPoint ? 8 : 5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#cbd5e1"; ctx.textAlign="center"; ctx.fillText(Math.round(point.overall_score)+"%",xFor(index),yFor(point.overall_score)-11);
+    ctx.fillStyle="#64748b"; ctx.fillText(String(index+1),xFor(index),height-12);
+  });
+  ctx.textAlign="left";
+}
+
+function showTrendPoint(index, pointerX, pointerY) {
+  if (!displayedModule8Trend.length) return;
+  activeTrendPoint = Math.max(0, Math.min(index, displayedModule8Trend.length - 1));
+  drawTrendChart(displayedModule8Trend);
+  const point = displayedModule8Trend[activeTrendPoint];
+  const previous = activeTrendPoint > 0 ? displayedModule8Trend[activeTrendPoint - 1] : null;
+  const delta = previous ? point.overall_score - previous.overall_score : null;
+  const tooltip = document.getElementById("trendTooltip");
+  const canvas = document.getElementById("performanceTrendCanvas");
+  if (!tooltip || !canvas) return;
+  const date = new Date(point.date).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});
+  const deltaText = delta == null ? "First recorded score" : (delta >= 0 ? "+" : "") + delta.toFixed(1) + " points from previous";
+  tooltip.innerHTML = "<strong>"+escapeHtml(point.label)+" · "+Math.round(point.overall_score)+"%</strong>"+
+    "<div>"+escapeHtml(date)+" · "+escapeHtml(point.interview_type)+"</div><div class=\""+(delta >= 0 ? "positive" : "negative")+"\">"+escapeHtml(deltaText)+"</div>";
+  tooltip.hidden = false;
+  const plotted = module8ChartPoints[activeTrendPoint];
+  const x = pointerX == null ? plotted.x : pointerX;
+  const y = pointerY == null ? plotted.y : pointerY;
+  const maxLeft = Math.max(8, canvas.clientWidth - 238);
+  tooltip.style.left = Math.max(8, Math.min(maxLeft, x + 14)) + "px";
+  tooltip.style.top = Math.max(4, y - 76) + "px";
+}
+
+function hideTrendPoint() {
+  activeTrendPoint = -1;
+  document.getElementById("trendTooltip")?.setAttribute("hidden", "");
+  if (displayedModule8Trend.length) drawTrendChart(displayedModule8Trend);
+}
+
+const trendCanvas = document.getElementById("performanceTrendCanvas");
+trendCanvas?.addEventListener("mousemove", event => {
+  const rect = trendCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left, y = event.clientY - rect.top;
+  if (!module8ChartPoints.length) return;
+  let nearest = module8ChartPoints.reduce((best,p) => Math.hypot(p.x-x,p.y-y) < best.distance ? {index:p.index,distance:Math.hypot(p.x-x,p.y-y)} : best,{index:0,distance:Infinity});
+  if (nearest.distance <= 30) showTrendPoint(nearest.index,x,y); else hideTrendPoint();
+});
+trendCanvas?.addEventListener("mouseleave", hideTrendPoint);
+trendCanvas?.addEventListener("focus", () => showTrendPoint(Math.max(0, activeTrendPoint)));
+trendCanvas?.addEventListener("blur", hideTrendPoint);
+trendCanvas?.addEventListener("keydown", event => {
+  if (!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)) return;
+  event.preventDefault();
+  let next = activeTrendPoint < 0 ? 0 : activeTrendPoint;
+  if (event.key === "ArrowLeft") next--;
+  if (event.key === "ArrowRight") next++;
+  if (event.key === "Home") next=0;
+  if (event.key === "End") next=displayedModule8Trend.length-1;
+  showTrendPoint(next);
+});
+
+document.querySelectorAll("[data-trend-range]").forEach(button => button.addEventListener("click", () => {
+  trendRange = button.dataset.trendRange;
+  document.querySelectorAll("[data-trend-range]").forEach(item => item.classList.toggle("active", item === button));
+  activeTrendPoint = -1;
+  document.getElementById("trendTooltip")?.setAttribute("hidden", "");
+  drawTrendChart(filteredTrend());
+}));
+
+async function loadModule8Analytics() {
+  try {
+    const response = await authFetch("/analytics/dashboard");
+    if (!response.ok) return;
+    const data = await response.json();
+    setText("m8BestScore", formatPercent(data.best_score));
+    setText("m8LatestScore", formatPercent(data.latest_score));
+    setText("m8Growth", (data.growth_percent > 0 ? "+" : "") + data.growth_percent + "%");
+    setText("m8Readiness", formatPercent(data.interview_readiness));
+    module8Trend = data.trend || [];
+    drawTrendChart(filteredTrend());
+
+    const skills = document.getElementById("skillProfileBars");
+    skills.innerHTML = "";
+    (data.skills || []).forEach(skill => {
+      const row = document.createElement("div"); row.className="skill-profile-row";
+      const value = skill.average == null ? 0 : skill.average;
+      const band = value >= 75 ? "Strong" : value >= 50 ? "Developing" : value > 0 ? "Needs focus" : "Awaiting evidence";
+      row.tabIndex = 0;
+      row.setAttribute("aria-label", skill.label+": "+formatPercent(skill.average)+", "+band+", based on "+skill.sample_size+" scored samples");
+      row.innerHTML = "<div class=\"skill-profile-label\"><span>"+escapeHtml(skill.label)+"</span><strong>"+
+        formatPercent(skill.average)+"</strong></div><div class=\"skill-profile-track\"><div class=\"skill-profile-fill\" style=\"width:"+
+        value+"%\"></div></div><div class=\"skill-profile-sample\">"+skill.sample_size+" scored sample(s)</div><div class=\"skill-detail\">"+
+        escapeHtml(band)+" · Hover or focus to inspect this evidence.</div>";
+      skills.appendChild(row);
+    });
+
+    const weak = document.getElementById("weakAreasGrid"); weak.innerHTML="";
+    if (!data.weak_areas.length) weak.innerHTML="<p class=\"module8-empty\">Complete more scored answers to unlock reliable focus areas.</p>";
+    data.weak_areas.forEach(area => {
+      const card=document.createElement("article"); card.className="weak-area-card";
+      card.innerHTML="<h4>"+escapeHtml(area.label)+"</h4><div class=\"weak-area-score\">"+Math.round(area.average)+
+        "%</div><p>"+escapeHtml(area.reason)+"</p><button class=\"focus-toggle\" type=\"button\" aria-expanded=\"false\">Show action plan</button>"+
+        "<p class=\"focus-plan\" hidden><strong>Next step:</strong> "+escapeHtml(area.recommendation)+"</p>";
+      const focusButton = card.querySelector(".focus-toggle");
+      focusButton.addEventListener("click",()=>{
+        const plan=card.querySelector(".focus-plan"); const open=plan.hidden;
+        plan.hidden=!open; focusButton.setAttribute("aria-expanded",String(open)); focusButton.textContent=open?"Hide action plan":"Show action plan";
+      });
+      weak.appendChild(card);
+    });
+    setText("weakAreaNote", data.data_note);
+  } catch (err) {
+    console.warn("Could not load Module 8 analytics:", err);
+  }
+}
+
+window.addEventListener("resize", () => {
+  if (module8Trend.length) drawTrendChart(filteredTrend());
+});
+
+/* ---------------------------------------------------------
    INITIAL LOAD
 --------------------------------------------------------- */
 
 loadHistory();
 loadAnalytics();
+loadModule8Analytics();
 
 // Module 4 - session storage & management: if the candidate refreshed
 // mid-interview, pick up right where they left off instead of losing
@@ -1326,4 +1730,12 @@ resumeActiveInterviewIfAny();
   if (analyticsSection) analyticsSection.scrollIntoView({ behavior: "smooth" });
 
   viewInterviewDetail(completedId);
+  // Refresh once after asynchronous semantic validation. The candidate can
+  // inspect the provisional report immediately instead of waiting on Gemini.
+  setTimeout(() => {
+    viewInterviewDetail(completedId);
+    loadHistory();
+    loadAnalytics();
+    loadModule8Analytics();
+  }, 5200);
 })();

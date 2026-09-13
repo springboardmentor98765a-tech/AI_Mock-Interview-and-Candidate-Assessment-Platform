@@ -20,51 +20,156 @@ const closeLogin = document.getElementById("closeLogin");
 
 
 function getRememberedAccounts(){
-
-    const raw = localStorage.getItem("rememberedCredentialsList");
-
-    if(!raw) return [];
-
-    try{
-
-        const list = JSON.parse(raw);
-        return Array.isArray(list) ? list : [];
-
-    } catch(err){
-
-        return [];
-
-    }
-
+    return SavedLoginStore.get(localStorage);
 }
 
-function saveRememberedAccounts(list){
-
-    localStorage.setItem("rememberedCredentialsList", JSON.stringify(list));
-
+function saveRememberedAccounts(accounts){
+    return SavedLoginStore.save(accounts, localStorage);
 }
 
-function upsertRememberedAccount(email, password){
+function upsertRememberedAccount(email, password, role){
+    return SavedLoginStore.upsert(email, password, role, localStorage);
+}
 
-    const list = getRememberedAccounts();
-    const existingIndex = list.findIndex(acc => acc.email === email);
-
-    if(existingIndex > -1){
-        list[existingIndex].password = password;
-    } else {
-        list.push({ email: email, password: password });
-    }
-
-    saveRememberedAccounts(list);
-
+function useRememberedAccount(account){
+    const emailInput = document.getElementById("login-email");
+    emailInput.value = account.email;
+    emailInput.readOnly = true;
+    document.getElementById("login-password").value = account.password || "";
+    document.getElementById("login-role").value = account.role || "";
+    document.getElementById("remember-me").checked = true;
+    closeSavedAccountsDropdown();
+    document.querySelector(".login-submit").focus();
 }
 
 function removeRememberedAccount(email){
-
-    const list = getRememberedAccounts().filter(acc => acc.email !== email);
-    saveRememberedAccounts(list);
-
+    return SavedLoginStore.remove(email, localStorage);
 }
+
+function renderSavedAccountsDropdown(show = true){
+    const dropdown = document.getElementById("savedAccountsList");
+    const emailInput = document.getElementById("login-email");
+    if(!dropdown) return;
+    const accounts = getRememberedAccounts();
+    dropdown.innerHTML = "";
+    accounts.forEach(account => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "saved-account-item";
+        item.setAttribute("role", "option");
+        const roleLabel = account.role ? account.role.charAt(0).toUpperCase() + account.role.slice(1) : "Saved account";
+        const initial = account.email.charAt(0).toUpperCase();
+        item.innerHTML = "<span class=\"saved-account-icon\" aria-hidden=\"true\">"+initial+"</span><span class=\"saved-account-text\"><strong>"+
+            account.email.replace(/[&<>\"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char]))+
+            "</strong><small>Saved credentials · "+roleLabel+"</small></span><span class=\"saved-account-remove\" title=\"Remove saved login\" aria-label=\"Remove saved login\">×</span>";
+        item.addEventListener("click", event => {
+            if(event.target.closest(".saved-account-remove")){
+                event.stopPropagation();
+                removeRememberedAccount(account.email);
+                renderSavedAccountsDropdown(true);
+                return;
+            }
+            useRememberedAccount(account);
+        });
+        dropdown.appendChild(item);
+    });
+    if(accounts.length){
+        const other = document.createElement("button");
+        other.type = "button";
+        other.className = "saved-accounts-other";
+        other.textContent = "＋ Use another email";
+        other.addEventListener("click", event => {
+            event.stopPropagation();
+            closeSavedAccountsDropdown();
+            emailInput.readOnly = false;
+            emailInput.value = "";
+            document.getElementById("login-password").value = "";
+            document.getElementById("login-role").value = "";
+            emailInput.focus();
+        });
+        dropdown.appendChild(other);
+        const footer = document.createElement("button");
+        footer.type = "button";
+        footer.className = "saved-accounts-footer";
+        footer.innerHTML = "<span aria-hidden=\"true\">◉</span> Manage saved logins";
+        footer.addEventListener("click", event => {
+            event.stopPropagation();
+            openSavedLoginManager();
+        });
+        dropdown.appendChild(footer);
+    }
+    const shouldShow = show && accounts.length > 0;
+    dropdown.classList.toggle("show", shouldShow);
+    emailInput?.setAttribute("aria-expanded", String(shouldShow));
+}
+
+function renderSavedLoginManager(){
+    const list = document.getElementById("manageSavedAccountsList");
+    const clearButton = document.getElementById("clearAllSavedLogins");
+    if(!list) return;
+    const accounts = getRememberedAccounts();
+    list.innerHTML = "";
+    if(!accounts.length){
+        list.innerHTML = "<div class=\"saved-manager-empty\"><span>🔐</span><strong>No saved logins</strong><p>Select Remember Me after a successful login to save an account on this browser.</p></div>";
+    }
+    accounts.forEach(account => {
+        const row = document.createElement("article");
+        row.className = "saved-manager-row";
+        const roleLabel = account.role.charAt(0).toUpperCase() + account.role.slice(1);
+        row.innerHTML = "<span class=\"saved-manager-avatar\">"+account.email.charAt(0).toUpperCase()+"</span><div><strong></strong><small>"+roleLabel+" account · password saved on this browser</small></div><button type=\"button\" class=\"saved-manager-use\">Use</button><button type=\"button\" class=\"saved-manager-delete\" aria-label=\"Remove saved login\">Remove</button>";
+        row.querySelector("strong").textContent = account.email;
+        row.querySelector(".saved-manager-use").addEventListener("click", () => {
+            useRememberedAccount(account);
+            closeSavedLoginManager();
+        });
+        row.querySelector(".saved-manager-delete").addEventListener("click", () => {
+            removeRememberedAccount(account.email);
+            renderSavedLoginManager();
+            renderSavedAccountsDropdown(false);
+        });
+        list.appendChild(row);
+    });
+    if(clearButton) clearButton.disabled = accounts.length === 0;
+    const count = document.getElementById("savedLoginCount");
+    if(count) count.textContent = accounts.length + (accounts.length === 1 ? " account" : " accounts");
+}
+
+function openSavedLoginManager(){
+    closeSavedAccountsDropdown();
+    renderSavedLoginManager();
+    document.getElementById("savedLoginsModal").style.display = "flex";
+}
+
+function closeSavedLoginManager(){
+    document.getElementById("savedLoginsModal").style.display = "none";
+}
+
+function closeSavedAccountsDropdown(){
+    document.getElementById("savedAccountsList")?.classList.remove("show");
+    document.getElementById("login-email")?.setAttribute("aria-expanded", "false");
+}
+
+// The old standalone remembered email caused the admin address to keep returning.
+localStorage.removeItem("rememberUser");
+saveRememberedAccounts(getRememberedAccounts());
+
+document.getElementById("closeSavedLogins").addEventListener("click", closeSavedLoginManager);
+document.getElementById("doneSavedLogins").addEventListener("click", closeSavedLoginManager);
+document.getElementById("clearAllSavedLogins").addEventListener("click", () => {
+    if(!window.confirm("Remove every saved login from this browser?")) return;
+    SavedLoginStore.clear(localStorage);
+    renderSavedLoginManager();
+    renderSavedAccountsDropdown(false);
+});
+
+document.getElementById("savedLoginsModal").addEventListener("click", event => {
+    if(event.target === event.currentTarget) closeSavedLoginManager();
+});
+
+document.addEventListener("keydown", event => {
+    const manager = document.getElementById("savedLoginsModal");
+    if(event.key === "Escape" && manager.style.display === "flex") closeSavedLoginManager();
+});
 
 function clearLoginFields(){
 
@@ -73,115 +178,42 @@ function clearLoginFields(){
 
 }
 
-function fillLoginFields(email, password){
-
-    // Always clear first so nothing from a previous selection lingers
-    clearLoginFields();
-
-    document.getElementById("login-email").value = email;
-    document.getElementById("login-password").value = password;
-    document.getElementById("remember-me").checked = true;
-
-}
-
-function renderSavedAccountsDropdown(){
-
-    const dropdown = document.getElementById("savedAccountsList");
-
-    if(!dropdown) return;
-
-    const accounts = getRememberedAccounts();
-
-    dropdown.innerHTML = "";
-
-    if(accounts.length === 0){
-        dropdown.classList.remove("show");
-        return;
-    }
-
-    accounts.forEach(acc => {
-
-        const item = document.createElement("div");
-        item.className = "saved-account-item";
-
-        const icon = document.createElement("div");
-        icon.className = "saved-account-icon";
-        icon.textContent = "\ud83d\udd11";
-
-        const textWrap = document.createElement("div");
-        textWrap.className = "saved-account-text";
-
-        const emailLine = document.createElement("div");
-        emailLine.className = "saved-account-email";
-        emailLine.textContent = acc.email;
-
-        const passwordLine = document.createElement("div");
-        passwordLine.className = "saved-account-hint";
-        // Masked, like a browser's own saved-password list -
-        // the real value still fills the field on click.
-        passwordLine.textContent = "\u2022".repeat(Math.min(acc.password.length, 10));
-
-        textWrap.appendChild(emailLine);
-        textWrap.appendChild(passwordLine);
-
-        const removeBtn = document.createElement("div");
-        removeBtn.className = "saved-account-remove";
-        removeBtn.textContent = "\u00d7";
-        removeBtn.title = "Remove this saved account";
-
-        item.appendChild(icon);
-        item.appendChild(textWrap);
-        item.appendChild(removeBtn);
-
-        item.addEventListener("click", (e) => {
-
-            if(e.target === removeBtn){
-
-                e.stopPropagation();
-                removeRememberedAccount(acc.email);
-                renderSavedAccountsDropdown();
-                return;
-
-            }
-
-            fillLoginFields(acc.email, acc.password);
-
-            dropdown.classList.remove("show");
-
-        });
-
-        dropdown.appendChild(item);
-
-    });
-
-    dropdown.classList.add("show");
-
-}
-
 loginBtn.onclick = () => {
 
     loginModal.style.display = "flex";
     clearLoginFields();
+    document.getElementById("login-role").value = "";
     document.getElementById("remember-me").checked = false;
-    renderSavedAccountsDropdown();
+    document.getElementById("login-error").textContent = "";
+    closeSavedAccountsDropdown();
+    document.getElementById("login-email").readOnly = getRememberedAccounts().length > 0;
 
 };
 
-document.getElementById("login-email").addEventListener("click", () => {
-
-    renderSavedAccountsDropdown();
-
-});
-
-document.addEventListener("click", (e) => {
-
-    const emailBox = document.querySelector(".email-box");
-    const dropdown = document.getElementById("savedAccountsList");
-
-    if(dropdown && emailBox && !emailBox.contains(e.target)){
-        dropdown.classList.remove("show");
+const loginEmailInput = document.getElementById("login-email");
+loginEmailInput.addEventListener("click", event => {
+    event.stopPropagation();
+    if(getRememberedAccounts().length){
+        loginEmailInput.readOnly = true;
+        renderSavedAccountsDropdown(true);
+    } else {
+        loginEmailInput.readOnly = false;
     }
-
+});
+loginEmailInput.addEventListener("keydown", event => {
+    if(event.key === "ArrowDown"){
+        event.preventDefault();
+        renderSavedAccountsDropdown(true);
+        document.querySelector(".saved-account-item")?.focus();
+    } else if(event.key === "Escape"){
+        closeSavedAccountsDropdown();
+    }
+});
+document.addEventListener("click", event => {
+    const emailBox = document.querySelector(".email-box");
+    if(emailBox && !emailBox.contains(event.target)){
+        closeSavedAccountsDropdown();
+    }
 });
 
 
@@ -189,6 +221,7 @@ document.addEventListener("click", (e) => {
 closeLogin.onclick = () => {
 
     loginModal.style.display = "none";
+    closeSavedAccountsDropdown();
 
 };
 
@@ -241,6 +274,7 @@ window.onclick = (event)=>{
     if(event.target === loginModal){
 
         loginModal.style.display="none";
+        closeSavedAccountsDropdown();
 
     }
 
@@ -256,7 +290,7 @@ window.onclick = (event)=>{
 
     if(event.target === forgotModal){
 
-        forgotModal.style.display="none";
+        closePasswordReset();
 
     }
 
@@ -277,6 +311,11 @@ window.onclick = (event)=>{
 
 
 const loginFormButton = document.querySelector(".login-submit");
+
+document.getElementById("login-form")?.addEventListener("submit", event => {
+    event.preventDefault();
+    loginFormButton.click();
+});
 
 
 
@@ -308,6 +347,14 @@ loginFormButton.addEventListener("click", async ()=>{
 
 
         error.innerHTML="Please enter email";
+
+        return;
+
+    }
+
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+
+        error.innerHTML="Please enter a valid email address";
 
         return;
 
@@ -390,15 +437,7 @@ loginFormButton.addEventListener("click", async ()=>{
         }
 
         if(document.getElementById("remember-me").checked){
-
-            localStorage.setItem("rememberUser", email);
-            upsertRememberedAccount(email, password);
-
-        } else {
-
-            localStorage.removeItem("rememberUser");
-            removeRememberedAccount(email);
-
+            upsertRememberedAccount(data.user.email || email, password, data.user.role);
         }
 
         saveSession(data.access_token, data.user);
@@ -809,66 +848,188 @@ document.getElementById("forgot-modal");
 const forgotClose =
 document.getElementById("forgot-close");
 
+let resetEmail = "";
+let resetToken = "";
+let resetResendTimer = null;
 
+function setResetStatus(message = "", type = ""){
+    const statusBox = document.getElementById("reset-status");
+    statusBox.textContent = message;
+    statusBox.className = `reset-status${type ? ` ${type}` : ""}`;
+}
 
+function showResetStep(step){
+    document.querySelectorAll("[data-reset-step]").forEach(panel => {
+        const active = Number(panel.dataset.resetStep) === step;
+        panel.hidden = !active;
+        panel.classList.toggle("active", active);
+    });
+    document.querySelectorAll("[data-reset-progress]").forEach(item => {
+        const itemStep = Number(item.dataset.resetProgress);
+        item.classList.toggle("active", itemStep === step);
+        item.classList.toggle("complete", itemStep < step);
+    });
+    setResetStatus();
+}
 
-forgotLink.onclick=(e)=>{
+function resetPasswordResetFlow(){
+    resetEmail = "";
+    resetToken = "";
+    clearInterval(resetResendTimer);
+    document.getElementById("reset-code").value = "";
+    document.getElementById("reset-new-password").value = "";
+    document.getElementById("reset-confirm-password").value = "";
+    showResetStep(1);
+}
 
+function closePasswordReset(){
+    forgotModal.style.display = "none";
+    clearInterval(resetResendTimer);
+}
 
-    e.preventDefault();
+function setButtonBusy(button, busy, busyText){
+    if(!button.dataset.label) button.dataset.label = button.innerHTML;
+    button.disabled = busy;
+    button.innerHTML = busy ? `<span class="reset-spinner"></span>${busyText}` : button.dataset.label;
+}
 
+function apiErrorMessage(data, fallback){
+    const detail = data && data.detail;
+    if(Array.isArray(detail)) return detail[0]?.msg?.replace(/^Value error, /, "") || fallback;
+    return typeof detail === "string" ? detail : fallback;
+}
 
+function startResetCountdown(seconds = 60){
+    clearInterval(resetResendTimer);
+    const resend = document.getElementById("resend-reset-code");
+    const countdown = document.getElementById("reset-resend-countdown");
+    let remaining = seconds;
+    resend.disabled = true;
+    resend.innerHTML = `Resend in <span id="reset-resend-countdown">${remaining}s</span>`;
+    resetResendTimer = setInterval(() => {
+        remaining -= 1;
+        const currentCountdown = document.getElementById("reset-resend-countdown");
+        if(currentCountdown) currentCountdown.textContent = `${remaining}s`;
+        if(remaining <= 0){
+            clearInterval(resetResendTimer);
+            resend.disabled = false;
+            resend.innerHTML = "Resend code";
+        }
+    }, 1000);
+}
 
-    forgotModal.style.display="flex";
-
-
-};
-
-
-
-
-forgotClose.onclick=()=>{
-
-
-    forgotModal.style.display="none";
-
-
-};
-
-
-
-
-
-
-document
-.getElementById("reset-submit")
-.onclick=()=>{
-
-
-    let email =
-    document.getElementById("reset-email").value;
-
-
-
-    if(email===""){
-
-
-        alert("Enter your email");
-
-
+async function requestPasswordReset(isResend = false){
+    const input = document.getElementById("reset-email");
+    const button = isResend ? document.getElementById("resend-reset-code") : document.getElementById("reset-submit");
+    const email = (isResend ? resetEmail : input.value).trim().toLowerCase();
+    if(!email || (!isResend && !input.checkValidity())){
+        setResetStatus("Enter a valid registered email address.", "error");
+        input.focus();
         return;
-
-
     }
+    setButtonBusy(button, true, isResend ? "Sending…" : "Sending code…");
+    try{
+        const response = await fetch(API_BASE_URL + "/password-reset/request", {
+            method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email})
+        });
+        const data = await response.json().catch(() => ({}));
+        if(!response.ok) throw new Error(apiErrorMessage(data, "Could not send the verification code."));
+        resetEmail = email;
+        document.getElementById("reset-email-display").textContent = email;
+        showResetStep(2);
+        setResetStatus(isResend ? "A new verification code was requested. Check your inbox." : data.message, "success");
+        startResetCountdown();
+        document.getElementById("reset-code").focus();
+    } catch(error){
+        setResetStatus(error.message, "error");
+    } finally {
+        setButtonBusy(button, false);
+    }
+}
 
+forgotLink.onclick = event => {
+    event.preventDefault();
+    resetPasswordResetFlow();
+    document.getElementById("reset-email").value = document.getElementById("login-email").value.trim();
+    forgotModal.style.display = "flex";
+    setTimeout(() => document.getElementById("reset-email").focus(), 50);
+};
 
-
-    alert(
-    "Verification code sent to your email"
-    );
-
-
-
+forgotClose.onclick = closePasswordReset;
+document.getElementById("reset-submit").onclick = () => requestPasswordReset(false);
+document.getElementById("reset-google-signin").onclick = () => {
+    window.location.href = API_BASE_URL + "/auth/google";
+};
+document.getElementById("resend-reset-code").onclick = () => requestPasswordReset(true);
+document.getElementById("reset-back-email").onclick = () => {
+    clearInterval(resetResendTimer);
+    showResetStep(1);
+    document.getElementById("reset-email").focus();
+};
+document.getElementById("reset-code").addEventListener("input", event => {
+    event.target.value = event.target.value.replace(/\D/g, "").slice(0, 6);
+});
+document.getElementById("verify-reset-code").onclick = async event => {
+    const button = event.currentTarget;
+    const code = document.getElementById("reset-code").value.trim();
+    if(!/^\d{6}$/.test(code)){
+        setResetStatus("Enter the complete six-digit verification code.", "error");
+        return;
+    }
+    setButtonBusy(button, true, "Verifying…");
+    try{
+        const response = await fetch(API_BASE_URL + "/password-reset/verify", {
+            method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({email: resetEmail, code})
+        });
+        const data = await response.json().catch(() => ({}));
+        if(!response.ok) throw new Error(apiErrorMessage(data, "The code is invalid or expired."));
+        resetToken = data.reset_token;
+        clearInterval(resetResendTimer);
+        showResetStep(3);
+        setResetStatus("Email verified. Create your new password.", "success");
+        document.getElementById("reset-new-password").focus();
+    } catch(error){
+        setResetStatus(error.message, "error");
+    } finally {
+        setButtonBusy(button, false);
+    }
+};
+document.getElementById("complete-password-reset").onclick = async event => {
+    const button = event.currentTarget;
+    const password = document.getElementById("reset-new-password").value;
+    const confirmPassword = document.getElementById("reset-confirm-password").value;
+    if(password.length < 6 || !/[A-Za-z]/.test(password) || !/\d/.test(password)){
+        setResetStatus("Use at least six characters with one letter and one number.", "error");
+        return;
+    }
+    if(password !== confirmPassword){
+        setResetStatus("The two passwords do not match.", "error");
+        return;
+    }
+    setButtonBusy(button, true, "Updating…");
+    try{
+        const response = await fetch(API_BASE_URL + "/password-reset/complete", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({email: resetEmail, reset_token: resetToken, password, confirm_password: confirmPassword})
+        });
+        const data = await response.json().catch(() => ({}));
+        if(!response.ok) throw new Error(apiErrorMessage(data, "The password could not be updated."));
+        removeRememberedAccount(resetEmail);
+        renderSavedAccountsDropdown(false);
+        document.getElementById("login-email").value = resetEmail;
+        document.getElementById("login-password").value = "";
+        document.getElementById("remember-me").checked = false;
+        setResetStatus("Password updated successfully. You can now log in with it.", "success");
+        button.innerHTML = "✓ Password updated";
+        setTimeout(() => {
+            closePasswordReset();
+            loginModal.style.display = "flex";
+            document.getElementById("login-password").focus();
+        }, 1400);
+    } catch(error){
+        setResetStatus(error.message, "error");
+        setButtonBusy(button, false);
+    }
 };
 
 
@@ -992,29 +1153,59 @@ counters.forEach(counter=>{
 ================================ */
 
 
-document
-.querySelectorAll(".hero-buttons button")
-.forEach(button=>{
-
-
-button.onclick=()=>{
-
-
-    document
-    .querySelector("#features")
-    .scrollIntoView({
-
-        behavior:"smooth"
-
-    });
-
-
-
-};
-
-
-
+document.getElementById("heroGetStarted")?.addEventListener("click", () => registerBtn.click());
+document.getElementById("heroLearnMore")?.addEventListener("click", () => {
+    document.querySelector("#how")?.scrollIntoView({ behavior: "smooth" });
 });
+
+document.getElementById("footerRegister")?.addEventListener("click", () => registerBtn.click());
+document.getElementById("footerLogin")?.addEventListener("click", () => loginBtn.click());
+document.getElementById("footerOpenLogin")?.addEventListener("click", () => loginBtn.click());
+document.getElementById("footerYear").textContent = new Date().getFullYear();
+
+const pageProgress = document.getElementById("pageProgress");
+const updateHomepageProgress = () => {
+    const available = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = available > 0 ? Math.min(100, window.scrollY / available * 100) : 0;
+    pageProgress.style.width = progress + "%";
+    document.querySelector("header")?.classList.toggle("scrolled", window.scrollY > 24);
+};
+window.addEventListener("scroll", updateHomepageProgress, { passive: true });
+updateHomepageProgress();
+
+const homepageSections = [...document.querySelectorAll("body > section[id]")];
+const navLinks = [...document.querySelectorAll(".nav-links a[href^='#']")];
+if("IntersectionObserver" in window){
+    const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if(entry.isIntersecting){
+                entry.target.classList.add("section-visible");
+                const active = navLinks.find(link => link.getAttribute("href") === "#" + entry.target.id);
+                if(active){
+                    navLinks.forEach(link => link.classList.remove("active"));
+                    active.classList.add("active");
+                }
+            }
+        });
+    }, { threshold: 0.16, rootMargin: "-10% 0px -55%" });
+    homepageSections.forEach(section => {
+        section.classList.add("section-reveal");
+        revealObserver.observe(section);
+    });
+}
+
+const heroPreview = document.querySelector(".dashboard-card");
+if(heroPreview && window.matchMedia("(pointer:fine)").matches){
+    heroPreview.addEventListener("pointermove", event => {
+        const box = heroPreview.getBoundingClientRect();
+        const x = (event.clientX - box.left) / box.width - .5;
+        const y = (event.clientY - box.top) / box.height - .5;
+        heroPreview.style.transform = `perspective(900px) rotateX(${-y * 3}deg) rotateY(${x * 4}deg) translateY(-3px)`;
+    });
+    heroPreview.addEventListener("pointerleave", () => {
+        heroPreview.style.transform = "";
+    });
+}
 
 
 
@@ -1029,28 +1220,44 @@ button.onclick=()=>{
 ================================ */
 
 
-const contactForm =
-document.querySelector(".contact-form");
+const contactForm = document.getElementById("feedbackForm");
 
 
 
-contactForm.addEventListener("submit",(e)=>{
-
-
-    e.preventDefault();
-
-
-
-    alert(
-    "Message Sent Successfully!"
-    );
-
-
-
-    contactForm.reset();
-
-
-
+contactForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = contactForm.querySelector("button[type=submit]");
+    const statusBox = document.getElementById("feedbackStatus");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Submitting...";
+    statusBox.className = "";
+    statusBox.textContent = "";
+    try {
+        const ratingValue = document.getElementById("feedbackRating").value;
+        const response = await fetch(API_BASE_URL + "/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: document.getElementById("feedbackName").value.trim(),
+                email: document.getElementById("feedbackEmail").value.trim(),
+                category: document.getElementById("feedbackCategory").value,
+                rating: ratingValue ? Number(ratingValue) : null,
+                message: document.getElementById("feedbackMessage").value.trim()
+            })
+        });
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.detail || "Feedback could not be submitted.");
+        statusBox.className = "success";
+        statusBox.textContent = data.message;
+        contactForm.reset();
+    } catch(error) {
+        statusBox.className = "error";
+        statusBox.textContent = error.message || "Unable to reach the server. Please try again.";
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
 });
 
 
@@ -1061,31 +1268,7 @@ contactForm.addEventListener("submit",(e)=>{
 
 
 
-/* ===============================
-        REMEMBER USER
-================================ */
-
-
 window.onload=()=>{
-
-
-    const user =
-    localStorage.getItem("rememberUser");
-
-
-
-    if(user){
-
-
-        console.log(
-        "Remembered user:",
-        user
-        );
-
-
-    }
-
-
     // Handle a return trip from Google OAuth (token/role/name in the URL)
     const handledGoogleRedirect = handleGoogleRedirectIfPresent();
 

@@ -37,7 +37,8 @@ import os
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
@@ -50,6 +51,9 @@ from app.models import (
     SessionStatusEnum,
     RecordingTypeEnum,
     InterviewStatusEnum,
+    InterviewShareConsent,
+    ShareStatusEnum,
+    RoleEnum,
     User,
 )
 from app.schemas import (
@@ -69,6 +73,7 @@ from app.auth import get_current_user
 from app.storage import storage
 from app.ml import engagement_engine
 from app.scoring import build_interview_assessment
+from app.assessment_tasks import enrich_completed_assessment
 
 router = APIRouter(prefix="/sessions", tags=["Interview Sessions (Module 4)"])
 
@@ -85,14 +90,37 @@ ALLOWED_RECORDING_MIME_TYPES = {
     "audio/ogg": "ogg",
 }
 
-AUTHORIZED_RECORDING_ROLES = {"recruiter", "admin"}
+
+def _recording_chunk_path(session_id: uuid.UUID, upload_id: str) -> str:
+    """Return a server-controlled temporary path for a streamed recording."""
+    try:
+        safe_upload_id = str(uuid.UUID(upload_id))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid recording upload id.")
+    chunks_dir = os.path.join(settings.MEDIA_ROOT, "recording_chunks")
+    os.makedirs(chunks_dir, exist_ok=True)
+    return os.path.join(chunks_dir, f"{session_id}-{safe_upload_id}.part")
 
 
-def _is_authorized_viewer(session: InterviewSession, current_user: User) -> bool:
-    """Owner candidate, or a recruiter/admin - i.e. 'authorized users'."""
+def _safe_candidate_uuid(value: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid candidate id.")
+
+def _is_authorized_viewer(session: InterviewSession, current_user: User, db: Session) -> bool:
+    """Owner, admin, or the exact recruiter holding active candidate consent."""
     if session.candidate_id == current_user.id:
         return True
-    return current_user.role is not None and current_user.role.value in AUTHORIZED_RECORDING_ROLES
+    if current_user.role == RoleEnum.admin:
+        return True
+    if current_user.role != RoleEnum.recruiter:
+        return False
+    return db.query(InterviewShareConsent).filter(
+        InterviewShareConsent.interview_id == session.interview_id,
+        InterviewShareConsent.recruiter_id == current_user.id,
+        InterviewShareConsent.status == ShareStatusEnum.active,
+    ).first() is not None
 
 
 def _get_session_or_404(session_id: str, db: Session) -> InterviewSession:
@@ -114,7 +142,7 @@ def _get_session_or_404(session_id: str, db: Session) -> InterviewSession:
 
 def _get_viewable_session(session_id: str, current_user: User, db: Session) -> InterviewSession:
     session = _get_session_or_404(session_id, db)
-    if not _is_authorized_viewer(session, current_user):
+    if not _is_authorized_viewer(session, current_user, db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this session.")
     return session
 
@@ -170,8 +198,8 @@ def create_session(
 
 # ---------------------------------------------------------------------------
 # GET /sessions
-# Candidates see only their own sessions. Recruiters/admins ("authorized
-# users") see every session, optionally filtered to one candidate.
+# Candidates see their own sessions, admins see all, and recruiters see only
+# sessions backed by an active candidate share addressed to them.
 # ---------------------------------------------------------------------------
 @router.get("", response_model=list[SessionOut])
 def list_sessions(
@@ -183,14 +211,22 @@ def list_sessions(
         joinedload(InterviewSession.recordings), joinedload(InterviewSession.interview)
     )
 
-    is_authorized_role = current_user.role is not None and current_user.role.value in AUTHORIZED_RECORDING_ROLES
-
-    if is_authorized_role:
+    if current_user.role == RoleEnum.admin:
         if candidate_id:
             try:
                 query = query.filter(InterviewSession.candidate_id == uuid.UUID(candidate_id))
             except ValueError:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid candidate id.")
+    elif current_user.role == RoleEnum.recruiter:
+        query = query.join(
+            InterviewShareConsent,
+            InterviewShareConsent.interview_id == InterviewSession.interview_id,
+        ).filter(
+            InterviewShareConsent.recruiter_id == current_user.id,
+            InterviewShareConsent.status == ShareStatusEnum.active,
+        )
+        if candidate_id:
+            query = query.filter(InterviewSession.candidate_id == _safe_candidate_uuid(candidate_id))
     else:
         query = query.filter(InterviewSession.candidate_id == current_user.id)
 
@@ -301,7 +337,7 @@ def _complete_interview(interview: Interview, db: Session) -> None:
     interview.status = InterviewStatusEnum.completed
     interview.completed_at = datetime.utcnow()
 
-    assessment_data = build_interview_assessment(interview)
+    assessment_data = build_interview_assessment(interview, use_ai_feedback=False)
     if assessment_data:
         assessment = interview.assessment or InterviewAssessment(interview_id=interview.id)
         for key, value in assessment_data.items():
@@ -316,6 +352,7 @@ def _complete_interview(interview: Interview, db: Session) -> None:
 @router.post("/{session_id}/end", response_model=SessionOut)
 def end_session(
     session_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -325,6 +362,7 @@ def end_session(
 
     db.commit()
     db.refresh(session)
+    background_tasks.add_task(enrich_completed_assessment, str(session.interview_id))
     return SessionOut.model_validate(session)
 
 
@@ -382,6 +420,7 @@ def update_device_status(
 @router.post("/{session_id}/violations", response_model=ViolationReportOut)
 def report_violation(
     session_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -405,6 +444,9 @@ def report_violation(
 
     db.commit()
     db.refresh(session)
+
+    if auto_submitted:
+        background_tasks.add_task(enrich_completed_assessment, str(session.interview_id))
 
     return ViolationReportOut(
         session=SessionOut.model_validate(session),
@@ -467,10 +509,83 @@ async def upload_recording(
     )
 
 
+# Small chunks are uploaded while the interview is running. This avoids
+# transferring the complete webcam recording while the candidate is stuck on
+# the final "wrapping up" screen. Chunks are appended in their original order
+# and registered as one recording by the finalize endpoint below.
+@router.post("/{session_id}/recording-chunks", status_code=status.HTTP_202_ACCEPTED)
+async def upload_recording_chunk(
+    session_id: str,
+    file: UploadFile = File(...),
+    upload_id: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _get_owned_session(session_id, current_user, db)
+    chunk = await file.read()
+    if not chunk:
+        raise HTTPException(status_code=400, detail="Empty recording chunk.")
+
+    part_path = _recording_chunk_path(session.id, upload_id)
+    existing_size = os.path.getsize(part_path) if os.path.exists(part_path) else 0
+    if existing_size + len(chunk) > settings.MAX_RECORDING_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Recording is too large (max "
+            + str(settings.MAX_RECORDING_SIZE_BYTES // (1024 * 1024))
+            + " MB).",
+        )
+    with open(part_path, "ab") as stream:
+        stream.write(chunk)
+    return {"message": "Recording chunk accepted.", "size_bytes": existing_size + len(chunk)}
+
+
+@router.post("/{session_id}/recording-chunks/finalize", response_model=RecordingUploadOut)
+def finalize_recording_chunks(
+    session_id: str,
+    upload_id: str = Form(...),
+    recording_type: str = Form("video"),
+    mime_type: str = Form("video/webm"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _get_owned_session(session_id, current_user, db)
+    part_path = _recording_chunk_path(session.id, upload_id)
+    if not os.path.isfile(part_path) or os.path.getsize(part_path) == 0:
+        raise HTTPException(status_code=404, detail="No uploaded recording chunks were found.")
+
+    clean_mime = (mime_type or "video/webm").split(";")[0].strip().lower()
+    extension = ALLOWED_RECORDING_MIME_TYPES.get(clean_mime, "webm")
+    try:
+        recording_type_enum = RecordingTypeEnum(recording_type)
+    except ValueError:
+        recording_type_enum = RecordingTypeEnum.video
+
+    file_name = f"{session.id}-{uuid.uuid4().hex[:8]}.{extension}"
+    recordings_dir = os.path.join(settings.MEDIA_ROOT, "recordings")
+    os.makedirs(recordings_dir, exist_ok=True)
+    final_path = os.path.join(recordings_dir, file_name)
+    os.replace(part_path, final_path)
+
+    recording = InterviewRecording(
+        session_id=session.id,
+        recording_type=recording_type_enum,
+        file_path="recordings/" + file_name,
+        mime_type=clean_mime,
+        size_bytes=os.path.getsize(final_path),
+    )
+    db.add(recording)
+    db.commit()
+    db.refresh(recording)
+    return RecordingUploadOut(
+        message="Streamed recording finalized.",
+        recording=InterviewRecordingOut.model_validate(recording),
+    )
+
+
 # ---------------------------------------------------------------------------
 # GET /sessions/{session_id}/recordings
-# "Allow authorized users to access recordings" - owner candidate, or a
-# recruiter/admin reviewing the session.
+# Owner candidate, admin, or the specifically consented recruiter.
 # ---------------------------------------------------------------------------
 @router.get("/{session_id}/recordings", response_model=list[InterviewRecordingOut])
 def list_recordings(
@@ -480,6 +595,36 @@ def list_recordings(
 ):
     session = _get_viewable_session(session_id, current_user, db)
     return [InterviewRecordingOut.model_validate(r) for r in session.recordings]
+
+
+@router.get("/{session_id}/recordings/{recording_id}/stream")
+def stream_recording(
+    session_id: str,
+    recording_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Authenticated playback; recruiter authorization disappears on revocation."""
+    session = _get_viewable_session(session_id, current_user, db)
+    try:
+        recording_uuid = uuid.UUID(recording_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid recording id.")
+    recording = next((r for r in session.recordings if r.id == recording_uuid), None)
+    if not recording:
+        raise HTTPException(status_code=404, detail="Recording not found.")
+
+    normalized = recording.file_path.replace("\\", "/").lstrip("/")
+    absolute = os.path.abspath(os.path.join(settings.MEDIA_ROOT, *normalized.split("/")))
+    media_root = os.path.abspath(settings.MEDIA_ROOT)
+    if os.path.commonpath([media_root, absolute]) != media_root or not os.path.isfile(absolute):
+        raise HTTPException(status_code=404, detail="Recording file is unavailable.")
+    return FileResponse(
+        absolute,
+        media_type=recording.mime_type or "application/octet-stream",
+        filename=os.path.basename(absolute),
+        content_disposition_type="inline",
+    )
 
 
 # ---------------------------------------------------------------------------

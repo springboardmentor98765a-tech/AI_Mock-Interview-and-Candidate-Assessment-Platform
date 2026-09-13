@@ -1,14 +1,12 @@
-# Python
-backend/venv/
-backend/__pycache__/
-**/__pycache__/
-*.pyc
+.env
+.env.production
 backend/.env
-
-# Media (recordings) - not source, don't commit candidate data
+.venv/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
 backend/media/
-
-# OS / editor
-.DS_Store
+*.dump
+*.backup
+*.log
 .vscode/
-.idea/

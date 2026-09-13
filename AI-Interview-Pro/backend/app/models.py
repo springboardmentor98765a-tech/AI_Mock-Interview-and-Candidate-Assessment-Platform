@@ -17,7 +17,7 @@ import os
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Boolean, DateTime, Enum, Integer, Float, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Enum, Integer, Float, Text, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import relationship
 
@@ -60,6 +60,9 @@ class User(Base):
     profile_picture = Column(String(500), nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
+    # Incremented after a password reset so every previously issued JWT is
+    # rejected without maintaining a server-side token blacklist.
+    auth_version = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
@@ -86,6 +89,34 @@ class User(Base):
     interviews = relationship(
         "Interview", back_populates="user", cascade="all, delete-orphan"
     )
+    granted_interview_shares = relationship(
+        "InterviewShareConsent", foreign_keys="InterviewShareConsent.candidate_id",
+        back_populates="candidate", cascade="all, delete-orphan",
+    )
+    received_interview_shares = relationship(
+        "InterviewShareConsent", foreign_keys="InterviewShareConsent.recruiter_id",
+        back_populates="recruiter", cascade="all, delete-orphan",
+    )
+
+
+class PasswordResetCode(Base):
+    """Short-lived, one-time password recovery challenge.
+
+    Neither the six-digit code nor the reset token is stored in plaintext.
+    """
+    __tablename__ = "password_reset_codes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    reset_token_hash = Column(String(64), nullable=True, unique=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    verified_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = relationship("User")
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +193,9 @@ class Interview(Base):
         back_populates="interview",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+    shares = relationship(
+        "InterviewShareConsent", back_populates="interview", cascade="all, delete-orphan"
     )
 
     @property
@@ -479,5 +513,54 @@ class InterviewRecording(Base):
 
     @property
     def recording_url(self) -> str:
-        from app.storage import storage
-        return storage.url_for(self.file_path)
+        # Module 8: this is an authenticated API URL, never a public disk URL.
+        return f"/sessions/{self.session_id}/recordings/{self.id}/stream"
+
+
+# ---------------------------------------------------------------------------
+# Module 8 - Candidate-controlled recruiter access
+# ---------------------------------------------------------------------------
+class ShareStatusEnum(str, enum.Enum):
+    active = "active"
+    revoked = "revoked"
+
+
+class InterviewShareConsent(Base):
+    """Auditable, revocable permission for one recruiter to view one interview."""
+
+    __tablename__ = "interview_share_consents"
+    __table_args__ = (
+        UniqueConstraint("interview_id", "recruiter_id", name="uq_interview_recruiter_share"),
+        Index("idx_share_candidate_status", "candidate_id", "status"),
+        Index("idx_share_recruiter_status", "recruiter_id", "status"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    interview_id = Column(UUID(as_uuid=True), ForeignKey("interviews.id", ondelete="CASCADE"), nullable=False)
+    candidate_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    recruiter_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    scope = Column(String(40), nullable=False, default="full_interview")
+    status = Column(Enum(ShareStatusEnum, name="share_status"), nullable=False, default=ShareStatusEnum.active)
+    granted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    interview = relationship("Interview", back_populates="shares")
+    candidate = relationship("User", foreign_keys=[candidate_id], back_populates="granted_interview_shares")
+    recruiter = relationship("User", foreign_keys=[recruiter_id], back_populates="received_interview_shares")
+
+
+class FeedbackSubmission(Base):
+    """Public product feedback retained for administrator review."""
+
+    __tablename__ = "feedback_submissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(150), nullable=False)
+    email = Column(String(255), nullable=False, index=True)
+    category = Column(String(40), nullable=False, default="general")
+    rating = Column(Integer, nullable=True)
+    message = Column(Text, nullable=False)
+    status = Column(String(30), nullable=False, default="new")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

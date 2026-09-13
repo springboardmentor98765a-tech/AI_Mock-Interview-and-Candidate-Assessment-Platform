@@ -117,7 +117,10 @@ def _generate_with_gemini(interview_type, domain, difficulty, num_questions, res
     prompt = _build_prompt(interview_type, domain, difficulty, num_questions, resume_skills)
 
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            request_options={"timeout": settings.AI_REQUEST_TIMEOUT_SECONDS},
+        )
         questions = _parse_gemini_response(response.text, difficulty)
         if len(questions) >= 1:
             return questions[:num_questions]

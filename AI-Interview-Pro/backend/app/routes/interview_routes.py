@@ -26,9 +26,10 @@ and keeps the question timer pause-aware.
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import settings
 from app.database import get_db
 from app.models import (
     Interview,
@@ -46,6 +47,7 @@ from app.schemas import (
     InterviewOut,
     InterviewDetailOut,
     InterviewQuestionOut,
+    AnswerSubmissionOut,
     InterviewSessionOut,
     SessionOut,
     AnswerSubmitRequest,
@@ -57,12 +59,14 @@ from app.auth import get_current_user
 from app.ai_question_generator import generate_questions
 from app.scoring import (
     analyze_answer,
+    apply_answer_quality_guardrails,
     apply_speech_metrics,
     apply_visual_confidence,
     build_interview_assessment,
 )
 from app.resume_parser import compute_resume_score
 from app.routes.session_routes import get_or_create_session, _end_session_internal
+from app.assessment_tasks import enrich_answer_score, enrich_completed_assessment
 
 router = APIRouter(prefix="/interviews", tags=["Interviews"])
 
@@ -129,8 +133,8 @@ def _get_owned_interview(interview_id: str, current_user: User, db: Session) -> 
     return interview
 
 
-def _save_module7_assessment(interview: Interview, db: Session):
-    data = build_interview_assessment(interview)
+def _save_module7_assessment(interview: Interview, db: Session, use_ai_feedback: bool = False):
+    data = build_interview_assessment(interview, use_ai_feedback=use_ai_feedback)
     if not data:
         return None
 
@@ -535,11 +539,12 @@ def delete_interview(
 # Saves the candidate's answer (typically the transcript of their spoken
 # answer, captured client-side via the browser's speech-to-text).
 # ---------------------------------------------------------------------------
-@router.put("/{interview_id}/questions/{question_id}/answer", response_model=InterviewQuestionOut)
+@router.put("/{interview_id}/questions/{question_id}/answer", response_model=AnswerSubmissionOut)
 def submit_answer(
     interview_id: str,
     question_id: str,
     payload: AnswerSubmitRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -590,6 +595,9 @@ def submit_answer(
     # webcam was on and samples have been collected so far.
     if interview.session:
         scores = apply_visual_confidence(scores, interview.session.avg_visual_confidence)
+    scores = apply_answer_quality_guardrails(scores, question.question_text, payload.answer_text)
+    if settings.BACKGROUND_AI_FEEDBACK_ENABLED and settings.GEMINI_API_KEY:
+        scores["scoring_method"] = "heuristic_pending"
 
     question.answer_text = payload.answer_text
     question.answered_at = answered_at
@@ -616,16 +624,29 @@ def submit_answer(
     # and compute its real overall score from the answered questions.
     db.flush()
     db.refresh(interview)
-    if all(q.answer_text for q in interview.questions):
+    completed_now = all(q.answer_text for q in interview.questions)
+    if completed_now:
         interview.status = InterviewStatusEnum.completed
         interview.completed_at = datetime.utcnow()
         if interview.session:
             _end_session_internal(interview.session, db)
         _save_module7_assessment(interview, db)
 
+    next_question = next((q for q in interview.questions if not q.answer_text), None)
+    _mark_question_shown(next_question)
     db.commit()
     db.refresh(question)
-    return InterviewQuestionOut.model_validate(question)
+    if settings.BACKGROUND_AI_FEEDBACK_ENABLED and settings.GEMINI_API_KEY:
+        background_tasks.add_task(enrich_answer_score, str(question.id))
+    return AnswerSubmissionOut(
+        answer=InterviewQuestionOut.model_validate(question),
+        total_questions=len(interview.questions),
+        answered_count=sum(1 for q in interview.questions if q.answer_text),
+        is_complete=completed_now,
+        current_question=(
+            InterviewQuestionOut.model_validate(next_question) if next_question else None
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -637,6 +658,7 @@ def submit_answer(
 @router.post("/{interview_id}/timeout", response_model=InterviewOut)
 def timeout_interview(
     interview_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -656,4 +678,5 @@ def timeout_interview(
 
     db.commit()
     db.refresh(interview)
+    background_tasks.add_task(enrich_completed_assessment, str(interview.id))
     return InterviewOut.model_validate(interview)

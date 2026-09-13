@@ -16,6 +16,9 @@
   </head>
 
   <body>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
+    <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close navigation"></button>
     <div class="recruiter-container">
       <!-- ================= SIDEBAR ================= -->
 
@@ -31,6 +34,8 @@
 
           <a href="#candidates"> 👥 Candidates </a>
 
+          <a href="#sharedInterviews"> 🔐 Shared Interviews </a>
+
           <a href="#screening"> 📄 Resume Screening </a>
 
           <a href="#interviews"> 🎤 Interview Management </a>
@@ -39,6 +44,7 @@
 
           <a href="#reports"> 📑 Reports </a>
 
+          <a href="notifications.html"> 🔔 Notifications &amp; Reports </a>
           <a href="#settings"> ⚙ Settings </a>
         </nav>
 
@@ -82,95 +88,121 @@
               <div class="icon">👥</div>
 
               <div>
-                <h3>12,540</h3>
+                <h3 id="sharedInterviewCount">0</h3>
 
-                <p>Total Candidates</p>
+                <p>Shared Interviews</p>
               </div>
 
-              <span class="growth"> +12% </span>
+              <span class="growth"> Consent only </span>
             </div>
 
             <div class="overview-card">
               <div class="icon">⭐</div>
 
               <div>
-                <h3>1,240</h3>
+                <h3 id="sharedCandidateCount">0</h3>
 
-                <p>Shortlisted Candidates</p>
+                <p>Shared Candidates</p>
               </div>
 
-              <span class="growth"> +8% </span>
+              <span class="growth"> Private </span>
             </div>
 
             <div class="overview-card">
               <div class="icon">🎤</div>
 
               <div>
-                <h3>85</h3>
+                <h3 id="sharedAverageScore">-</h3>
 
-                <p>Interviews Scheduled</p>
+                <p>Average Score</p>
               </div>
 
-              <span class="growth"> +15% </span>
+              <span class="growth"> Live data </span>
             </div>
 
             <div class="overview-card">
               <div class="icon">✅</div>
 
               <div>
-                <h3>42</h3>
+                <h3 id="sharedTopScore">-</h3>
 
-                <p>Successful Hires</p>
+                <p>Top Shared Score</p>
               </div>
 
-              <span class="growth"> +20% </span>
+              <span class="growth"> Live data </span>
             </div>
           </div>
 
           <!-- ================= HIRING PIPELINE ================= -->
 
           <div class="pipeline-card">
-            <h2>Candidate Pipeline</h2>
+            <h2>Consent-Safe Review Flow</h2>
 
             <div class="pipeline">
               <div>
-                <h3>Applied</h3>
+                <h3>Completed</h3>
 
-                <span> 12540 </span>
+                <span> Candidate finishes interview </span>
               </div>
 
               <div class="arrow">→</div>
 
               <div>
-                <h3>AI Screened</h3>
+                <h3>Permission</h3>
 
-                <span> 5400 </span>
+                <span> Candidate selects recruiter </span>
               </div>
 
               <div class="arrow">→</div>
 
               <div>
-                <h3>Shortlisted</h3>
+                <h3>Shared</h3>
 
-                <span> 1240 </span>
+                <span> Report becomes available </span>
               </div>
 
               <div class="arrow">→</div>
 
               <div>
-                <h3>Interview</h3>
+                <h3>Reviewed</h3>
 
-                <span> 85 </span>
+                <span> Recruiter views evidence </span>
               </div>
 
               <div class="arrow">→</div>
 
               <div>
-                <h3>Selected</h3>
+                <h3>Controlled</h3>
 
-                <span> 42 </span>
+                <span> Candidate may revoke </span>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ================= MODULE 8: SHARED INTERVIEWS ================= -->
+        <section id="sharedInterviews" class="section shared-interviews-section">
+          <div class="section-heading shared-heading">
+            <div>
+              <h2>🔐 Candidate-Shared Interviews</h2>
+              <p>Full reports appear only after explicit candidate permission</p>
+            </div>
+            <span class="privacy-pill">Consent protected</span>
+          </div>
+
+          <div class="shared-toolbar">
+            <input id="sharedSearch" type="search" placeholder="Search candidate, email or domain">
+            <select id="sharedTypeFilter"><option value="">All types</option><option value="technical">Technical</option><option value="hr">HR</option><option value="behavioral">Behavioral</option><option value="aptitude">Aptitude</option></select>
+            <select id="sharedDifficultyFilter"><option value="">All difficulties</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+            <select id="sharedSort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest score</option><option value="lowest">Lowest score</option></select>
+            <button id="clearSharedFilters" type="button">Clear</button>
+          </div>
+          <p id="sharedResultsStatus" class="shared-results-status">Loading authorized interviews…</p>
+          <div id="sharedInterviewGrid" class="shared-interview-grid"></div>
+
+          <div class="ranking-panel">
+            <div class="panel-title-row"><div><h3>🏆 Consent-scoped candidate ranking</h3><p>Only candidates who shared interviews with you are included</p></div></div>
+            <div class="ranking-table-wrap"><table class="ranking-table"><thead><tr><th>Rank</th><th>Candidate</th><th>Shared</th><th>Average</th><th>Best</th><th>Technical</th><th>Communication</th><th>Trend</th></tr></thead><tbody id="rankingTableBody"></tbody></table></div>
           </div>
         </section>
 
@@ -198,6 +230,7 @@
           </div>
 
           <p id="screeningStatus" class="hint">Loading resumes...</p>
+          <button type="button" id="refreshResumeScreening" class="skill-view-btn">Refresh resumes</button>
 
           <div class="screening-table">
             <table>
@@ -440,12 +473,12 @@ Completed
 
 
 <h2>
-📊 Hiring Analytics
+📊 Shared Portfolio Analytics
 </h2>
 
 
 <p>
-Insights powered by AI
+Calculated only from interviews candidates shared with you
 </p>
 
 
@@ -468,19 +501,19 @@ Insights powered by AI
 
 
 <h3>
-Hiring Success Rate
+Authorized Coverage
 </h3>
 
 
-<div class="big-number">
+<div class="big-number" id="analyticsCoverage">
 
-96%
+-
 
 </div>
 
 
 <p>
-Based on last 500 interviews
+Number of candidates represented
 
 </p>
 
@@ -497,19 +530,19 @@ Based on last 500 interviews
 
 
 <h3>
-Average Hiring Time
+Average Improvement
 </h3>
 
 
-<div class="big-number">
+<div class="big-number" id="analyticsGrowth">
 
-12 Days
+-
 
 </div>
 
 
 <p>
-35% faster using AI screening
+Across candidates with multiple shared interviews
 
 </p>
 
@@ -526,19 +559,19 @@ Average Hiring Time
 
 
 <h3>
-Candidate Quality Score
+Strongest Dimension
 </h3>
 
 
-<div class="big-number">
+<div class="big-number" id="analyticsStrongest">
 
-4.8 ⭐
+-
 
 </div>
 
 
 <p>
-Average candidate rating
+Based on consented score evidence
 
 </p>
 
@@ -561,7 +594,7 @@ Average candidate rating
 
 
 <h3>
-Department Hiring Distribution
+Shared Interview Skill Profile
 </h3>
 
 
@@ -572,10 +605,10 @@ Department Hiring Distribution
 <div>
 
 <span>
-Software
+Technical
 </span>
 
-<div class="bar software"></div>
+<div class="bar software" id="portfolioTechnicalBar"></div>
 
 </div>
 
@@ -585,10 +618,10 @@ Software
 <div>
 
 <span>
-Data Science
+Communication
 </span>
 
-<div class="bar data"></div>
+<div class="bar data" id="portfolioCommunicationBar"></div>
 
 </div>
 
@@ -599,10 +632,10 @@ Data Science
 <div>
 
 <span>
-Cloud
+Overall
 </span>
 
-<div class="bar cloud"></div>
+<div class="bar cloud" id="portfolioOverallBar"></div>
 
 </div>
 
@@ -893,6 +926,16 @@ Save Settings
   </div>
 </div>
 
+<div class="profile-modal-overlay shared-report-overlay" id="sharedReportOverlay" style="display:none;">
+  <div class="profile-modal shared-report-modal" role="dialog" aria-modal="true" aria-labelledby="sharedReportTitle">
+    <button id="closeSharedReportBtn" type="button" class="profile-modal-close">&times;</button>
+    <div id="sharedReportContent"><p class="hint">Loading authorized report…</p></div>
+  </div>
+</div>
+
+<div id="recruiterToast" class="recruiter-toast" role="status" aria-live="polite"></div>
+<button id="backToTop" class="back-to-top" type="button" aria-label="Back to top">↑</button>
+
 
 </main>
 
@@ -907,15 +950,14 @@ Save Settings
 
 
 
-<script src="auth-common.js"></script>
+    <link rel="stylesheet" href="dashboard-tools.css">
+    <link rel="stylesheet" href="dashboard-motion.css">
+    <script src="auth-common.js"></script>
+    <script src="dashboard-tools.js"></script>
 <script src="recruiter.js"></script>
 
 
 </body>
 
 
-</html>
-      </main>
-    </div>
-  </body>
 </html>

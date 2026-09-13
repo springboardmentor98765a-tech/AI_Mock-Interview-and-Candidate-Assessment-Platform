@@ -23,6 +23,7 @@ candidate submitted.
 
 import json
 import re
+from difflib import SequenceMatcher
 from statistics import mean
 
 from app.config import settings
@@ -83,7 +84,7 @@ MODULE7_WEIGHTS = {
     "technical_score": 0.30,
     "professionalism_score": 0.15,
 }
-SCORING_VERSION = "module7-v1"
+SCORING_VERSION = "module7-v3-echo-aware"
 
 
 def _clamp(value) -> float:
@@ -128,6 +129,33 @@ def _words(text: str) -> list[str]:
 
 def _keywords(text: str) -> set[str]:
     return {w for w in _words(text) if len(w) > 3 and w not in STOPWORDS}
+
+
+def _normalised_transcript(text: str) -> str:
+    """Normalise ASR text for question-echo comparison.
+
+    Character similarity is deliberately used alongside keyword overlap because
+    speech recognition commonly turns terms such as "interpreter" into
+    "inter better" and "PostgreSQL" into "postgray SQL".
+    """
+    return " ".join(_words(text))
+
+
+def _looks_like_question_echo(question_text: str, answer_text: str) -> bool:
+    question = _normalised_transcript(question_text)
+    answer = _normalised_transcript(answer_text)
+    if not question or not answer:
+        return False
+
+    question_words = question.split()
+    answer_words = answer.split()
+    transcript_similarity = SequenceMatcher(None, question, answer).ratio()
+
+    # A real answer can repeat technical nouns from the question. It should,
+    # however, add a meaningful explanation. Keep the gate limited to short
+    # transcripts that remain structurally close to the prompt.
+    similar_length = len(answer_words) <= len(question_words) + 8
+    return similar_length and transcript_similarity >= 0.68
 
 
 def _score_communication(answer_text: str) -> float:
@@ -286,6 +314,76 @@ def _question_feedback(scores: dict) -> str:
     return "Your strongest area was " + category_labels[strongest] + ". Improve " + category_labels[weakest] + " by giving a direct answer, supporting evidence, and a concise conclusion."
 
 
+LOW_INFORMATION_PATTERNS = (
+    r"\bi\s+(?:do\s*not|don't|dont)\s+know\b",
+    r"\bno\s+idea\b",
+    r"\bnot\s+sure\b",
+    r"\bi\s+cannot\s+answer\b",
+    r"\bskip(?:\s+this)?\b",
+)
+
+
+def apply_answer_quality_guardrails(scores: dict, question_text: str, answer_text: str) -> dict:
+    """Prevent fluent delivery or question repetition from faking knowledge.
+
+    Speech clarity is evidence about delivery, not correctness. These gates run
+    after speech/visual blending as well as during local text scoring so an
+    irrelevant but clearly spoken answer cannot receive a passing score.
+    """
+    result = dict(scores)
+    text = (answer_text or "").strip().lower()
+    words = _words(text)
+    answer_content = _keywords(text)
+    question_content = _keywords(question_text)
+    novel_content = answer_content - question_content
+    echo_ratio = (
+        len(answer_content & question_content) / max(1, len(answer_content))
+        if answer_content else 0.0
+    )
+
+    reason = None
+    caps = None
+    if not words or any(re.search(pattern, text) for pattern in LOW_INFORMATION_PATTERNS):
+        reason = "The response explicitly indicates that no answer was provided. Explain the concept in your own words and include one relevant example."
+        caps = {
+            "technical_score": 5.0,
+            "communication_score": 18.0,
+            "confidence_score": 12.0,
+            "professionalism_score": 28.0,
+            "grammar_score": 35.0,
+        }
+    elif len(words) < 5:
+        reason = "The response is too short to demonstrate understanding. Give a direct answer, explain why, and add one concrete example."
+        caps = {
+            "technical_score": 12.0,
+            "communication_score": 25.0,
+            "confidence_score": 25.0,
+            "professionalism_score": 35.0,
+            "grammar_score": 55.0,
+        }
+    elif _looks_like_question_echo(question_text, answer_text) or (
+        echo_ratio >= 0.58 and len(novel_content) <= 3
+    ):
+        reason = "The response repeats or closely paraphrases the question instead of answering it. Explain the concept in your own words, state the key difference or steps, and add one relevant example."
+        caps = {
+            "technical_score": 2.0,
+            "communication_score": 15.0,
+            "confidence_score": 18.0,
+            "professionalism_score": 25.0,
+            "grammar_score": 35.0,
+        }
+
+    if caps:
+        for key, cap in caps.items():
+            if key in result and result[key] is not None:
+                result[key] = round(min(float(result[key]), cap), 1)
+        result["overall_score"] = calculate_overall_score(result)
+        result["question_feedback"] = reason
+        result["scoring_method"] = "heuristic_guarded"
+
+    return result
+
+
 def _heuristic_analyze(
     question_text: str,
     answer_text: str,
@@ -310,7 +408,7 @@ def _heuristic_analyze(
     }
     overall = calculate_overall_score(final_scores)
 
-    return {
+    result = {
         **final_scores,
         "grammar_score": grammar,
         "overall_score": overall,
@@ -319,6 +417,7 @@ def _heuristic_analyze(
         "scoring_version": SCORING_VERSION,
         "question_feedback": _question_feedback(final_scores),
     }
+    return apply_answer_quality_guardrails(result, question_text, answer_text)
 
 
 # ---------------------------------------------------------------------------
@@ -420,16 +519,25 @@ def analyze_answer(
     domain: str = None,
     resume_skills=None,
     time_spent_seconds: int = None,
+    use_ai: bool = None,
 ) -> dict:
     """
     Score one candidate answer. Tries Gemini first (if configured),
     always falls back to the local heuristic analyzer so scoring never
     fails or produces a placeholder value.
     """
-    model = _get_gemini_model()
     heuristic = _heuristic_analyze(
         question_text, answer_text, domain, resume_skills, time_spent_seconds
     )
+
+    # A live answer submission is latency-sensitive. By default it is scored
+    # immediately with the evidence-based local analyzer; the completed
+    # interview feedback is enriched by Gemini after the response is sent.
+    should_use_ai = settings.REALTIME_AI_SCORING_ENABLED if use_ai is None else use_ai
+    if not should_use_ai:
+        return heuristic
+
+    model = _get_gemini_model()
 
     if model is None or not (answer_text or "").strip():
         return heuristic
@@ -452,7 +560,10 @@ def analyze_answer(
     )
 
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            request_options={"timeout": settings.AI_REQUEST_TIMEOUT_SECONDS},
+        )
         raw = (response.text or "").strip()
         raw = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
         data = json.loads(raw)
@@ -483,7 +594,7 @@ def analyze_answer(
         }
         overall = calculate_overall_score(final_scores)
 
-        return {
+        result = {
             **final_scores,
             "grammar_score": grammar,
             "overall_score": overall,
@@ -492,6 +603,7 @@ def analyze_answer(
             "scoring_version": SCORING_VERSION,
             "question_feedback": feedback,
         }
+        return apply_answer_quality_guardrails(result, question_text, answer_text)
     except Exception:
         return heuristic
 
@@ -592,7 +704,10 @@ def _enhance_interview_feedback(interview, category_scores: dict, fallback: dict
         "learning_resources (array). Evidence: " + json.dumps(evidence, default=str)
     )
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            request_options={"timeout": settings.AI_REQUEST_TIMEOUT_SECONDS},
+        )
         raw = re.sub(r"^```(json)?|```$", "", (response.text or "").strip(), flags=re.MULTILINE).strip()
         data = json.loads(raw)
         enhanced = dict(fallback)
@@ -606,7 +721,7 @@ def _enhance_interview_feedback(interview, category_scores: dict, fallback: dict
         return fallback, "heuristic"
 
 
-def build_interview_assessment(interview) -> dict:
+def build_interview_assessment(interview, use_ai_feedback: bool = True) -> dict:
     """Build and validate the stored Module 7 assessment from real session data."""
     answered = [q for q in interview.questions if q.answer_text and q.overall_score is not None]
     if not answered:
@@ -665,7 +780,10 @@ def build_interview_assessment(interview) -> dict:
     }
 
     fallback = _deterministic_interview_feedback(category_scores, interview)
-    feedback, feedback_method = _enhance_interview_feedback(interview, category_scores, fallback)
+    if use_ai_feedback:
+        feedback, feedback_method = _enhance_interview_feedback(interview, category_scores, fallback)
+    else:
+        feedback, feedback_method = fallback, "heuristic"
     answer_methods = {q.scoring_method for q in answered if q.scoring_method}
     scoring_method = "gemini" if "gemini" in answer_methods else "heuristic"
 

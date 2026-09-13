@@ -45,8 +45,10 @@ class LocalDiskStorage:
                 pass
 
     def url_for(self, relative_path: str) -> str:
-        """Public URL the frontend can play directly (served via the
-        StaticFiles mount in main.py).
+        """Legacy URL formatter retained for storage-backend compatibility.
+
+        Module 8 clients receive authenticated stream URLs from the recording
+        model instead of this public-style path.
 
         Normalizes BOTH slash directions, not just os.sep: older rows can
         have been written while this app was running on a different OS

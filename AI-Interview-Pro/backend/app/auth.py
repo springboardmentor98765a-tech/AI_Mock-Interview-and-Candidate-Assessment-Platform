@@ -89,6 +89,12 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated."
         )
+    if int(payload.get("auth_version", 0)) != int(user.auth_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your session is no longer valid. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return user
 

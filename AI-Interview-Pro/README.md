@@ -1,4 +1,104 @@
-# AI Interview Pro — Backend Integration
+# AI Interview Pro — Module 9 Dashboard Update
+
+## Secure forgot-password recovery
+
+The login screen now provides a complete three-step recovery flow for every
+active local-password account:
+
+1. Enter the registered email and request a six-digit verification code.
+2. Verify the one-time code within 10 minutes.
+3. Set and confirm a new password, then return to login.
+
+Recovery email uses the existing `SMTP_*` settings in `backend/.env`. Codes and
+reset tokens are stored only as secure hashes, requests are rate-limited, five
+incorrect attempts lock the code, and a successful reset invalidates previously
+issued login tokens. The API deliberately returns the same request message for
+known and unknown addresses so it does not expose registered accounts. Google-only
+accounts continue to use Google Sign-In. The recovery dialog includes direct
+actions for Google Sign-In and Google's own account-recovery page; this application
+never attempts to reset a password managed by Google.
+
+Existing PostgreSQL databases are upgraded automatically when the backend starts.
+Fresh databases can also be created from `backend/sql/create_db.sql`.
+
+Dashboard controls, notifications, reports and email preferences are included in
+the application. Retain your existing PostgreSQL database, backend `.env`, and
+media folder when upgrading.
+
+## Module 8 - Consent, Dashboard & Analytics
+
+This build adds a privacy-safe handoff from candidate practice to recruiter review.
+A completed interview is invisible to recruiters until the candidate selects a
+specific recruiter, reviews the disclosure, checks the consent box, and confirms.
+The candidate can revoke access at any time; the backend immediately blocks the
+report and its recordings.
+
+### Candidate experience
+
+- `Share with Recruiter` and `Manage Access` actions on completed interviews.
+- Searchable recruiter picker, explicit disclosure, consent checkbox, access history,
+  instant revoke, responsive modal, feedback toasts, and empty/error states.
+- Best/latest/readiness/growth KPIs, score trend chart, skill averages, and actionable
+  weak-area insights with a minimum evidence threshold.
+- No placeholder analytics: insufficient evidence is shown as unavailable.
+
+### Recruiter experience
+
+- `Shared Interviews` workspace containing only actively authorized reports.
+- Search, type/difficulty filters, sorting, live summary metrics, and consent badges.
+- Report tabs for overview, questions and answers, AI feedback, communication,
+  behavior/proctoring signals, and protected recordings.
+- Candidate rankings by average, best, technical, communication, and improvement;
+  only candidates who shared with that recruiter are included.
+
+### Privacy and authorization
+
+- New `interview_share_consents` audit table with active/revoked states.
+- Ownership, completed-interview, active-recruiter, duplicate-share, and
+  cross-recruiter checks are enforced in FastAPI.
+- Recruiter candidate/profile/session endpoints are consent-aware.
+- Recordings are no longer exposed through a public `/media` mount. They stream from
+  `GET /sessions/{session_id}/recordings/{recording_id}/stream` after authorization.
+- Resume details remain admin-only; interview consent does not silently expose a CV.
+
+### New API endpoints
+
+| Method | Endpoint | Role | Purpose |
+| --- | --- | --- | --- |
+| GET | `/sharing/recruiters` | Candidate | List active recruiters |
+| GET | `/interviews/{id}/shares` | Candidate | Review access history |
+| POST | `/interviews/{id}/shares` | Candidate | Grant explicit access |
+| DELETE | `/interviews/{id}/shares/{share_id}` | Candidate | Revoke access |
+| GET | `/analytics/dashboard` | Candidate | Module 8 analytics dataset |
+| GET | `/recruiter/shared-interviews` | Recruiter | Filter authorized interviews |
+| GET | `/recruiter/shared-interviews/{id}` | Recruiter | Full authorized report |
+| GET | `/recruiter/rankings` | Recruiter | Consent-scoped rankings |
+
+### Database upgrade
+
+```bash
+psql -U postgres -d AI_Interview_Pro -f backend/sql/module8_migration.sql
+```
+
+Fresh installations can use `backend/sql/create_db.sql`.
+
+### Tests
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+### Demonstration
+
+1. Register a candidate and recruiter.
+2. Complete an interview as the candidate.
+3. Open Interview History and select `Share with Recruiter`.
+4. Select the recruiter, review the disclosure, check consent, and confirm.
+5. Log in as the recruiter and open `Shared Interviews`.
+6. Revoke access as the candidate; the recruiter immediately loses report and media access.
+
+---
 
 This package adds a complete **FastAPI + PostgreSQL** authentication backend
 to your existing AI Interview Platform frontend, without redesigning any UI.
@@ -408,3 +508,8 @@ previously fake (`alert("Login Successful!")`) to call the real API.
   scores as a reasonable heuristic, not a certified assessment; the
   proctoring flags it confirms are informational for recruiter review
   and never auto-submit the interview.
+## Notifications and reports
+
+The recruiter resume-visibility fix and **Notifications & Reports** are included.
+Open that module from a dashboard sidebar. Email delivery uses the `SMTP_*`
+settings in `backend/.env`; in-app notifications continue to work without SMTP.

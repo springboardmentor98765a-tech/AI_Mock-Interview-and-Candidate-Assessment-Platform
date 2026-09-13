@@ -46,12 +46,27 @@ CREATE TABLE IF NOT EXISTS users (
     google_id          VARCHAR(255)  UNIQUE,
     profile_picture    VARCHAR(500),
     is_active          BOOLEAN       NOT NULL DEFAULT TRUE,
+    auth_version       INTEGER       NOT NULL DEFAULT 0,
     created_at         TIMESTAMP     NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 
 -- 5. Helpful index for fast lookups by email (also enforced unique above)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash        VARCHAR(64) NOT NULL,
+    reset_token_hash VARCHAR(64) UNIQUE,
+    attempts         INTEGER NOT NULL DEFAULT 0,
+    expires_at       TIMESTAMP NOT NULL,
+    verified_at      TIMESTAMP,
+    used_at          TIMESTAMP,
+    created_at       TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_codes (user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_expiry ON password_reset_codes (expires_at);
 
 -- ==========================================================
 -- 6. Module 2 - Resume Parsing & Analysis (columns on users)
@@ -132,6 +147,10 @@ ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS confidence_score    REA
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS grammar_score       REAL;
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS overall_score       REAL;
 ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS word_count          INTEGER;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS professionalism_score REAL;
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS scoring_method VARCHAR(30);
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS scoring_version VARCHAR(30);
+ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS question_feedback TEXT;
 
 -- ==========================================================
 -- 9. Module 4 - Interview Session Management
@@ -200,6 +219,32 @@ CREATE INDEX IF NOT EXISTS idx_interview_sessions_candidate  ON interview_sessio
 CREATE INDEX IF NOT EXISTS idx_interview_sessions_interview  ON interview_sessions (interview_id);
 CREATE INDEX IF NOT EXISTS idx_interview_recordings_session  ON interview_recordings (session_id);
 
+-- ==========================================================
+-- Module 8 - Candidate consent and recruiter sharing
+-- ==========================================================
+DO $$ BEGIN
+    CREATE TYPE share_status AS ENUM ('active', 'revoked');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS interview_share_consents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    interview_id UUID NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+    candidate_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recruiter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scope VARCHAR(40) NOT NULL DEFAULT 'full_interview',
+    status share_status NOT NULL DEFAULT 'active',
+    granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    revoked_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_interview_recruiter_share UNIQUE (interview_id, recruiter_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_candidate_status ON interview_share_consents(candidate_id, status);
+CREATE INDEX IF NOT EXISTS idx_share_recruiter_status ON interview_share_consents(recruiter_id, status);
+CREATE INDEX IF NOT EXISTS idx_share_interview ON interview_share_consents(interview_id);
+
 -- For existing databases where interview_sessions was already created
 -- by an earlier version of this migration (without this column):
 ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS fullscreen_violations INTEGER NOT NULL DEFAULT 0;
@@ -241,3 +286,62 @@ ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS eye_contact_count     IN
 ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS emotion_counts        JSON;             -- {"neutral": 12, "happy": 4, ...}
 ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS visual_confidence_sum REAL NOT NULL DEFAULT 0;
 ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS engagement_sum        REAL NOT NULL DEFAULT 0;
+
+-- ==========================================================
+-- 12. Module 6 - CNN + RNN Interview Behavior Analysis
+--     Latest reading from the backend RNN stage (app/ml/) run over a
+--     rolling window of per-tick CNN features - see
+--     POST /sessions/{id}/engagement-ticks. Warning counts are
+--     server-confirmed proctoring flags (consecutive bad ticks), shown
+--     to recruiters - they never auto-submit the interview.
+-- ==========================================================
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS latest_engagement_score      REAL;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS latest_disengagement_risk    REAL;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS latest_integrity_risk        REAL;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS eye_contact_warning_count    INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS no_face_warning_count        INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS multiple_faces_warning_count INTEGER NOT NULL DEFAULT 0;
+
+-- ==========================================================
+-- 13. Module 7 - AI Feedback & Scoring
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS interview_assessments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    interview_id UUID NOT NULL UNIQUE REFERENCES interviews(id) ON DELETE CASCADE,
+    communication_score REAL NOT NULL,
+    confidence_score REAL NOT NULL,
+    technical_score REAL NOT NULL,
+    professionalism_score REAL NOT NULL,
+    overall_score REAL NOT NULL,
+    performance_rating VARCHAR(40) NOT NULL,
+    feedback JSON NOT NULL,
+    sub_scores JSON NOT NULL,
+    missing_data JSON NOT NULL,
+    scoring_method VARCHAR(30) NOT NULL,
+    feedback_method VARCHAR(30) NOT NULL,
+    scoring_version VARCHAR(30) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_interview_assessments_interview_id
+    ON interview_assessments (interview_id);
+
+-- ==========================================================
+-- Public product feedback reviewed from the Admin dashboard
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS feedback_submissions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    category VARCHAR(40) NOT NULL DEFAULT 'general',
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    message TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'new',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_feedback_submissions_email
+    ON feedback_submissions (email);
+CREATE INDEX IF NOT EXISTS ix_feedback_submissions_created_at
+    ON feedback_submissions (created_at);

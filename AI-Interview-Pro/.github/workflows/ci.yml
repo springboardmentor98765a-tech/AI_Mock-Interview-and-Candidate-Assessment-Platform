@@ -1,0 +1,45 @@
+name: Module 10 validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: AI_Interview_Pro_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/AI_Interview_Pro_test
+      JWT_SECRET_KEY: test-only-jwt-secret-that-is-long-enough
+      SESSION_SECRET_KEY: test-only-session-secret-that-is-long-enough
+      NOTIFICATION_WORKER_ENABLED: "false"
+      REALTIME_AI_SCORING_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - run: python -m pytest backend/tests -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node --check frontend/dashboard-tools.js
+      - run: node --check frontend/candidate.js
+      - run: node --check frontend/recruiter.js
+      - run: node --check frontend/admin-live.js
+      - run: node frontend/test-logout.cjs
+      - run: node frontend/test-saved-logins.cjs
+      - run: docker compose -f docker-compose.yml config --quiet

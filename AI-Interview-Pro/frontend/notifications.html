@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notifications & Reports | AI Interview Pro</title>
+  <link rel="stylesheet" href="module9.css">
+  <link rel="stylesheet" href="module9-polish.css">
+  <link rel="stylesheet" href="module9-polish.css">
+</head>
+<body>
+  <div id="demoBanner" class="demo-banner" hidden>Private interactive preview · Sample data only · No emails are sent</div>
+  <header class="m9-header"><a class="brand" id="dashboardLink" href="candidate.html"><span class="brand-mark">AI</span> Interview Pro</a><a id="backLink" href="candidate.html">Back to dashboard ↗</a></header>
+  <main>
+    <div class="page-title"><div><p class="eyebrow">YOUR INTERVIEW WORKSPACE</p><h1>Notifications &amp; reports</h1><p class="muted">Stay on schedule. Turn your interview results into your next step.</p></div><button id="refreshAll" class="secondary">↻ Refresh</button></div>
+    <div id="statusMessage" role="status" aria-live="polite"></div>
+    <div class="metrics" aria-label="Performance summary">
+      <article><span>Unread notifications</span><strong id="unreadCount">—</strong><small>Your latest updates</small></article>
+      <article><span>Completed interviews</span><strong id="completedCount">—</strong><small>Available to your account</small></article>
+      <article><span>Average score</span><strong id="averageScore">—</strong><small>Scored interviews only</small></article>
+      <article><span>Best score</span><strong id="bestScore">—</strong><small>Your strongest result</small></article>
+    </div>
+    <nav class="tabs" aria-label="Workspace sections">
+      <button class="active" data-panel="inboxPanel" aria-current="page">Inbox <span id="inboxBadge">0</span></button>
+      <button data-panel="remindersPanel" id="remindersTab">Reminders</button>
+      <button data-panel="reportsPanel">Reports</button>
+      <button data-panel="preferencesPanel">Preferences</button>
+    </nav>
+    <section id="inboxPanel" class="workspace-panel">
+      <div class="panel-heading"><div><h2>Your updates</h2><p class="muted">Session alerts, reminders and completed reports.</p></div><button id="markAllRead" class="secondary">Mark all as read</button></div>
+      <div class="filters"><label>Show <select id="inboxFilter"><option value="all">All updates</option><option value="unread">Unread only</option><option value="reminder">Reminders</option><option value="session">Session alerts</option><option value="performance">Performance</option></select></label></div>
+      <div id="inboxList" class="stack"><p class="empty">Loading notifications…</p></div>
+    </section>
+    <section id="remindersPanel" class="workspace-panel" hidden>
+      <div class="two-column"><form id="reminderForm" class="surface"><p class="eyebrow">MAKE TIME FOR PRACTICE</p><h2>Schedule a reminder</h2>
+        <label for="reminderTitle">Practice session</label><input id="reminderTitle" maxlength="120" placeholder="e.g. Python technical interview" required>
+        <label for="reminderTime">Date &amp; time <small>(your local timezone)</small></label><input id="reminderTime" type="datetime-local" required>
+        <label for="reminderLead">Remind me</label><select id="reminderLead"><option value="0">At the scheduled time</option><option value="5">5 minutes before</option><option value="15" selected>15 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select>
+        <p class="muted small">Reminders appear in your inbox. Turn on email in Preferences for delivery outside the app.</p><button type="submit" class="primary">Schedule reminder</button>
+      </form><div><div class="panel-heading"><h2>Your schedule</h2></div><div id="reminderList" class="stack"></div></div></div>
+    </section>
+    <section id="reportsPanel" class="workspace-panel" hidden>
+      <div class="panel-heading"><div><h2>Performance library</h2><p class="muted" id="reportScope">Completed interviews and saved assessment evidence.</p></div><button id="downloadSummary" class="primary">↓ Performance summary</button></div>
+      <div id="skillSummary" class="skill-summary"></div>
+      <div class="filters"><label for="reportSearch">Find a report <input id="reportSearch" type="search" placeholder="Search candidate or domain"></label></div>
+      <div class="table-wrap"><table><thead><tr><th>Interview / candidate</th><th>Completed</th><th>Score</th><th>Rating</th><th>Download</th></tr></thead><tbody id="reportRows"></tbody></table></div>
+      <p class="muted small">HTML reports are printable: open a downloaded report and choose Print → Save as PDF. CSV files work in Excel.</p>
+    </section>
+    <section id="preferencesPanel" class="workspace-panel" hidden>
+      <form id="preferencesForm" class="surface preferences"><h2>Choose your updates</h2><p class="muted">Preferences are saved to your account.</p>
+        <label class="toggle-row"><span><strong>Email notifications</strong><small>Send updates to your registered email address.</small></span><input id="email_enabled" type="checkbox"></label>
+        <label class="toggle-row"><span><strong>Interview reminders</strong><small>Updates for your scheduled practice sessions.</small></span><input id="reminders_enabled" type="checkbox"></label>
+        <label class="toggle-row"><span><strong>Session alerts</strong><small>Let me know when an interview starts.</small></span><input id="session_alerts_enabled" type="checkbox"></label>
+        <label class="toggle-row"><span><strong>Performance updates</strong><small>Notify me when a completed interview report is ready.</small></span><input id="performance_enabled" type="checkbox"></label>
+        <p id="emailStatus" class="notice"></p><button type="submit" class="primary">Save preferences</button>
+      </form>
+    </section>
+    <footer>AI Interview Pro <span>Practice with purpose.</span></footer>
+  </main>
+  <script src="auth-common.js"></script><script src="module9.js"></script>
+</body>
+</html>

@@ -18,6 +18,7 @@
   </head>
 
   <body>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
     <!-- ================= NAVBAR ================= -->
 
     <header>
@@ -70,28 +71,28 @@
         </p>
 
         <div class="hero-buttons">
-          <button class="primary-btn">Get Started</button>
+          <button class="primary-btn" id="heroGetStarted">Get Started</button>
 
-          <button class="secondary-btn">Learn More</button>
+          <button class="secondary-btn" id="heroLearnMore">See How It Works</button>
         </div>
 
         <div class="hero-stats">
           <div class="mini-stat">
-            <h3>15K+</h3>
+            <h3>Candidate</h3>
 
-            <p>Candidates</p>
+            <p>Practice and improve</p>
           </div>
 
           <div class="mini-stat">
-            <h3>500+</h3>
+            <h3>Recruiter</h3>
 
-            <p>Recruiters</p>
+            <p>Review with permission</p>
           </div>
 
           <div class="mini-stat">
-            <h3>96%</h3>
+            <h3>Admin</h3>
 
-            <p>Accuracy</p>
+            <p>Monitor the platform</p>
           </div>
         </div>
       </div>
@@ -102,7 +103,7 @@
             <div>
               <h2>🤖 AI Interview Assistant</h2>
 
-              <p>Live Dashboard</p>
+              <p>Interactive product preview</p>
             </div>
 
             <span class="online"> ● Online </span>
@@ -182,13 +183,13 @@
         <h2>Login</h2>
 
         <form id="login-form" autocomplete="off">
-          <div class="email-box" style="position: relative;">
-            <input type="email" id="login-email" placeholder="Email" autocomplete="off" />
-            <div id="savedAccountsList" class="saved-accounts-list"></div>
+          <div class="email-box">
+            <input type="text" id="login-email" name="aiip_account_picker" placeholder="Email" autocomplete="one-time-code" autocapitalize="none" inputmode="email" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" aria-label="Email address" aria-controls="savedAccountsList" aria-expanded="false" />
+            <div id="savedAccountsList" class="saved-accounts-list" role="listbox" aria-label="Saved login credentials"></div>
           </div>
 
           <div class="password-box">
-            <input type="password" id="login-password" placeholder="Password" autocomplete="off" />
+            <input type="password" id="login-password" name="aiip_saved_secret" placeholder="Password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
 
             <span
               class="toggle-password"
@@ -218,6 +219,8 @@
             </label>
           </div>
 
+          <p class="password-manager-note">🔐 Remember Me saves your email, password and role on this browser.</p>
+
           <div class="forgot-password">
             <a href="#" id="forgot-link"> Forgot Password? </a>
           </div>
@@ -236,6 +239,29 @@
             Continue with Google
           </button>
         </form>
+      </div>
+    </div>
+
+    <div class="modal saved-logins-modal" id="savedLoginsModal" role="dialog" aria-modal="true" aria-labelledby="savedLoginsTitle">
+      <div class="modal-content saved-logins-manager-card">
+        <button type="button" class="close saved-manager-close" id="closeSavedLogins" aria-label="Close saved login manager">&times;</button>
+        <div class="saved-manager-heading">
+          <span class="saved-manager-shield">🔐</span>
+          <div>
+            <small>THIS BROWSER</small>
+            <h2 id="savedLoginsTitle">Saved logins</h2>
+            <p>Select an account to fill its email, password and role.</p>
+          </div>
+          <span id="savedLoginCount" class="saved-manager-count">0 accounts</span>
+        </div>
+        <div id="manageSavedAccountsList" class="saved-manager-list"></div>
+        <div class="saved-manager-security">
+          <span>⚠️</span><p>Saved credentials include passwords on this browser. Remove them before using a shared computer.</p>
+        </div>
+        <div class="saved-manager-actions">
+          <button type="button" id="clearAllSavedLogins" class="saved-manager-clear">Remove all</button>
+          <button type="button" id="doneSavedLogins" class="saved-manager-done">Done</button>
+        </div>
       </div>
     </div>
 
@@ -263,6 +289,7 @@
               <option value="recruiter">Recruiter</option>
 
               <option value="admin">Admin</option>
+
             </select>
           </div>
 
@@ -314,17 +341,59 @@
 
     <!-- ================= FORGOT PASSWORD MODAL ================= -->
 
-    <div class="modal" id="forgot-modal">
-      <div class="modal-content">
-        <span class="close" id="forgot-close"> &times; </span>
+    <div class="modal password-reset-modal" id="forgot-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+      <div class="modal-content password-reset-card">
+        <button type="button" class="close reset-close" id="forgot-close" aria-label="Close password reset">&times;</button>
 
-        <h2>Reset Password</h2>
+        <div class="reset-heading">
+          <span class="reset-heading-icon">🔐</span>
+          <div>
+            <small>SECURE ACCOUNT RECOVERY</small>
+            <h2 id="reset-title">Reset your password</h2>
+            <p>We’ll verify your registered email before allowing a password change.</p>
+          </div>
+        </div>
 
-        <p>Enter your registered email</p>
+        <ol class="reset-progress" aria-label="Password reset progress">
+          <li class="active" data-reset-progress="1"><span>1</span>Email</li>
+          <li data-reset-progress="2"><span>2</span>Verify</li>
+          <li data-reset-progress="3"><span>3</span>Password</li>
+        </ol>
 
-        <input type="email" id="reset-email" placeholder="Email Address" />
+        <div id="reset-status" class="reset-status" role="status" aria-live="polite"></div>
 
-        <button type="button" id="reset-submit">Send Verification Code</button>
+        <section class="reset-step active" data-reset-step="1">
+          <label for="reset-email">Registered email address</label>
+          <div class="reset-input-wrap"><span>✉</span><input type="email" id="reset-email" placeholder="name@example.com" autocomplete="email" /></div>
+          <p class="reset-help">A six-digit code will be sent only to active accounts created with an email and password.</p>
+          <button type="button" class="reset-primary" id="reset-submit">Send verification code <span>→</span></button>
+          <div class="reset-provider-divider"><span>Using a Google account?</span></div>
+          <div class="reset-google-actions">
+            <button type="button" id="reset-google-signin" class="reset-google-button"><span class="reset-google-mark">G</span>Continue with Google</button>
+            <a id="reset-google-recovery" href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener noreferrer">Recover Google password ↗</a>
+          </div>
+          <p class="reset-provider-note">AI Interview Pro never stores or resets the password of a Google Sign-In account.</p>
+        </section>
+
+        <section class="reset-step" data-reset-step="2" hidden>
+          <p class="reset-email-caption">Code sent for <strong id="reset-email-display"></strong></p>
+          <label for="reset-code">Six-digit verification code</label>
+          <input class="reset-code-input" type="text" id="reset-code" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+          <div class="reset-inline-actions">
+            <button type="button" class="reset-secondary" id="reset-back-email">Change email</button>
+            <button type="button" class="reset-link-button" id="resend-reset-code" disabled>Resend in <span id="reset-resend-countdown">60s</span></button>
+          </div>
+          <button type="button" class="reset-primary" id="verify-reset-code">Verify code <span>→</span></button>
+        </section>
+
+        <section class="reset-step" data-reset-step="3" hidden>
+          <label for="reset-new-password">New password</label>
+          <input type="password" id="reset-new-password" placeholder="At least 6 characters" autocomplete="new-password" />
+          <label for="reset-confirm-password">Confirm new password</label>
+          <input type="password" id="reset-confirm-password" placeholder="Enter it again" autocomplete="new-password" />
+          <div class="reset-requirements"><span>✓</span> Use at least one letter and one number.</div>
+          <button type="button" class="reset-primary" id="complete-password-reset">Update password securely</button>
+        </section>
       </div>
     </div>
 
@@ -677,83 +746,81 @@
 
     <section class="contact" id="contact">
       <div class="section-title">
-        <h2>Contact Us</h2>
+        <h2>Share Your Feedback</h2>
 
-        <p>We'd love to hear from you.</p>
+        <p>Help us improve the interview experience.</p>
       </div>
 
       <div class="contact-container">
         <div class="contact-info">
-          <h3>AI Interview Pro</h3>
-
-          <p>📍 Hyderabad, Telangana</p>
-
-          <p>📞 +91 9876543210</p>
-
-          <p>📧 support@aiinterviewpro.com</p>
+          <span class="feedback-kicker">PRODUCT FEEDBACK</span>
+          <h3>Your experience shapes the platform</h3>
+          <p>💡 Suggest a useful improvement</p>
+          <p>🛠 Report something that is not working</p>
+          <p>🎯 Tell us how accurate your interview feedback felt</p>
+          <small>Submissions are stored securely and can be reviewed by platform administrators.</small>
         </div>
 
-        <form class="contact-form">
-          <input type="text" placeholder="Your Name" />
-
-          <input type="email" placeholder="Email Address" />
-
-          <textarea rows="5" placeholder="Your Message"> </textarea>
-
-          <button type="submit">Send Message</button>
+        <form class="contact-form" id="feedbackForm">
+          <div class="feedback-row">
+            <label>Your name<input id="feedbackName" type="text" maxlength="150" placeholder="Enter your name" autocomplete="name" required /></label>
+            <label>Email address<input id="feedbackEmail" type="email" maxlength="255" placeholder="name@example.com" autocomplete="email" required /></label>
+          </div>
+          <div class="feedback-row">
+            <label>Feedback about<select id="feedbackCategory" required><option value="general">General experience</option><option value="suggestion">Feature suggestion</option><option value="bug">Problem or bug</option><option value="interview">Interview experience</option><option value="dashboard">Dashboard</option></select></label>
+            <label>Rating<select id="feedbackRating"><option value="">Not selected</option><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Poor</option><option value="1">1 — Very poor</option></select></label>
+          </div>
+          <label>Your feedback<textarea id="feedbackMessage" rows="5" maxlength="2000" minlength="10" placeholder="Describe your suggestion or problem clearly..." required></textarea></label>
+          <div class="feedback-submit-row"><p id="feedbackStatus" role="status" aria-live="polite"></p><button type="submit">Submit Feedback</button></div>
         </form>
       </div>
     </section>
 
     <!-- ================= FOOTER ================= -->
 
-    <footer>
-      <div class="footer-container">
-        <div class="footer-about">
-          <h2>🤖 AI Interview Pro</h2>
-
-          <p>
-            Smart AI-powered interview preparation and recruitment platform.
-          </p>
+    <footer class="site-footer">
+      <div class="footer-glow" aria-hidden="true"></div>
+      <div class="footer-cta">
+        <div>
+          <span class="footer-eyebrow">READY FOR YOUR NEXT INTERVIEW?</span>
+          <h2>Practice with evidence. Improve with clarity.</h2>
+          <p>Start an AI-assisted mock interview or explore how permission-controlled recruiter sharing works.</p>
         </div>
-
-        <div class="footer-links">
-          <h3>Quick Links</h3>
-
-          <a href="#home"> Home </a>
-
-          <a href="#features"> Features </a>
-
-          <a href="#contact"> Contact </a>
-        </div>
-
-        <div class="footer-links">
-          <h3>Dashboards</h3>
-
-          <a href="candidate.html"> Candidate </a>
-
-          <a href="recruiter.html"> Recruiter </a>
-
-          <a href="admin.html"> Admin </a>
-        </div>
-
-        <div class="footer-links">
-          <h3>Follow Us</h3>
-
-          <a href="#"> LinkedIn </a>
-
-          <a href="#"> GitHub </a>
-
-          <a href="#"> Twitter </a>
+        <div class="footer-cta-actions">
+          <button type="button" id="footerRegister">Create Account</button>
+          <button type="button" id="footerLogin">Sign In</button>
         </div>
       </div>
-
-      <hr />
-
-      <p class="copyright">© 2026 AI Interview Pro. All Rights Reserved.</p>
+      <div class="footer-container">
+        <div class="footer-about">
+          <a class="footer-brand" href="#home"><span>🤖</span><strong>AI Interview Pro</strong></a>
+          <p>AI-assisted interview practice, evidence-based feedback and candidate-controlled recruiter access.</p>
+          <div class="footer-trust"><span></span> Three role-based workspaces</div>
+        </div>
+        <div class="footer-links">
+          <h3>Platform</h3>
+          <a href="#features">Features</a><a href="#how">How It Works</a><a href="#statistics">Platform Overview</a><a href="#faq">FAQ</a>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="#testimonials">User Experiences</a><a href="#contact">Share Feedback</a><button type="button" id="footerOpenLogin">Saved Logins</button>
+        </div>
+        <div class="footer-role-card">
+          <span>PRIVACY CONTROL</span>
+          <strong>Candidates decide what recruiters can review.</strong>
+          <p>Interview evidence remains private until explicit access is granted and can be revoked later.</p>
+          <a href="#how">View sharing flow →</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© <span id="footerYear">2026</span> AI Interview Pro</p>
+        <div><span>FastAPI</span><span>PostgreSQL</span><span>AI-assisted</span></div>
+        <a href="#home" class="back-to-top" aria-label="Back to top">↑</a>
+      </div>
     </footer>
 
     <script src="auth-common.js"></script>
+    <script src="saved-login-store.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

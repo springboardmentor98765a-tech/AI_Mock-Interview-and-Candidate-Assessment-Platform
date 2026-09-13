@@ -63,6 +63,46 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def six_digit_code(cls, value: str) -> str:
+        value = value.strip()
+        if not re.fullmatch(r"\d{6}", value):
+            raise ValueError("Enter the six-digit verification code")
+        return value
+
+
+class PasswordResetCompleteRequest(BaseModel):
+    email: EmailStr
+    reset_token: str
+    password: str
+    confirm_password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, value: str) -> str:
+        return validate_password_strength(value)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
+class PasswordResetVerifyResponse(BaseModel):
+    reset_token: str
+    expires_in: int = 600
+
 # ---------------------------------------------------------------------------
 # Google role selection
 # ---------------------------------------------------------------------------
@@ -204,6 +244,15 @@ class InterviewQuestionOut(BaseModel):
     speaking_pace_wpm: Optional[float] = None
     pronunciation_score: Optional[float] = None
     speech_duration_seconds: Optional[int] = None
+
+
+class AnswerSubmissionOut(BaseModel):
+    """Answer result plus the next navigation state in one response."""
+    answer: InterviewQuestionOut
+    total_questions: int
+    answered_count: int
+    is_complete: bool
+    current_question: Optional[InterviewQuestionOut] = None
 
 
 class InterviewAssessmentOut(BaseModel):
@@ -590,3 +639,133 @@ class CandidateProfileOut(BaseModel):
     analytics: AnalyticsOut
     interviews: list[InterviewOut] = []
     recordings: list[ProfileRecordingOut] = []
+
+
+# ---------------------------------------------------------------------------
+# Module 8 - Consent, dashboards, trends, weak-area insights, and rankings
+# ---------------------------------------------------------------------------
+ShareStatus = Literal["active", "revoked"]
+
+
+class RecruiterOptionOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: EmailStr
+    profile_picture: Optional[str] = None
+
+
+class InterviewShareCreateRequest(BaseModel):
+    recruiter_id: uuid.UUID
+    consent_acknowledged: bool
+
+    @model_validator(mode="after")
+    def consent_is_explicit(self):
+        if not self.consent_acknowledged:
+            raise ValueError("Explicit consent acknowledgement is required")
+        return self
+
+
+class InterviewShareBatchCreateRequest(BaseModel):
+    recruiter_ids: list[uuid.UUID]
+    consent_acknowledged: bool
+
+    @field_validator("recruiter_ids")
+    @classmethod
+    def validate_recruiter_selection(cls, values):
+        unique = list(dict.fromkeys(values))
+        if not unique:
+            raise ValueError("Select at least one recruiter")
+        if len(unique) > 25:
+            raise ValueError("A maximum of 25 recruiters can be selected at once")
+        return unique
+
+    @model_validator(mode="after")
+    def consent_is_explicit(self):
+        if not self.consent_acknowledged:
+            raise ValueError("Explicit consent acknowledgement is required")
+        return self
+
+
+class InterviewShareOut(BaseModel):
+    id: uuid.UUID
+    interview_id: uuid.UUID
+    candidate_id: uuid.UUID
+    recruiter: RecruiterOptionOut
+    scope: str
+    status: ShareStatus
+    granted_at: datetime
+    revoked_at: Optional[datetime] = None
+
+
+class ScoreTrendPointOut(BaseModel):
+    interview_id: uuid.UUID
+    date: datetime
+    label: str
+    interview_type: str
+    domain: str
+    overall_score: float
+
+
+class SkillMetricOut(BaseModel):
+    key: str
+    label: str
+    average: Optional[float] = None
+    sample_size: int = 0
+
+
+class WeakAreaOut(BaseModel):
+    key: str
+    label: str
+    average: float
+    sample_size: int
+    reason: str
+    recommendation: str
+
+
+class DashboardAnalyticsOut(BaseModel):
+    completed_interviews: int = 0
+    average_score: Optional[float] = None
+    latest_score: Optional[float] = None
+    best_score: Optional[float] = None
+    interview_readiness: Optional[float] = None
+    growth_percent: float = 0.0
+    trend: list[ScoreTrendPointOut] = []
+    skills: list[SkillMetricOut] = []
+    weak_areas: list[WeakAreaOut] = []
+    data_note: str
+
+
+class SharedInterviewListItemOut(BaseModel):
+    share_id: uuid.UUID
+    interview_id: uuid.UUID
+    candidate_id: uuid.UUID
+    candidate_name: str
+    candidate_email: EmailStr
+    candidate_picture: Optional[str] = None
+    interview_type: str
+    domain: str
+    difficulty: str
+    completed_at: Optional[datetime] = None
+    overall_score: Optional[float] = None
+    performance_rating: Optional[str] = None
+    granted_at: datetime
+
+
+class SharedInterviewDetailOut(BaseModel):
+    share: InterviewShareOut
+    candidate: UserOut
+    interview: InterviewDetailOut
+    session: Optional[SessionOut] = None
+
+
+class RecruiterRankingOut(BaseModel):
+    rank: int
+    candidate_id: uuid.UUID
+    candidate_name: str
+    candidate_email: EmailStr
+    shared_interviews: int
+    average_score: Optional[float] = None
+    best_score: Optional[float] = None
+    technical_average: Optional[float] = None
+    communication_average: Optional[float] = None
+    improvement: float = 0.0

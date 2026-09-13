@@ -6,8 +6,13 @@
    Load this file BEFORE script.js / candidate.js / recruiter.js / admin.js
 ========================================================== */
 
-// Change this if your backend runs on a different host/port.
-const API_BASE_URL = "http://127.0.0.1:8000";
+// Local development uses port 8000. Production is served through the
+// frontend reverse proxy at /api, so no source-code edit is required.
+const API_BASE_URL = window.AIIP_API_BASE_URL || (
+  ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8000"
+    : window.location.origin + "/api"
+);
 
 const AUTH_TOKEN_KEY = "aiip_token";
 const AUTH_USER_KEY = "aiip_user";
@@ -94,8 +99,9 @@ function wireLogoutButton(selector) {
   if (btn) {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      logoutUser();
-    });
+      e.stopImmediatePropagation();
+      if (window.confirm("Are you sure you want to logout?")) logoutUser();
+    }, true);
   }
 }
 
@@ -151,7 +157,7 @@ async function requireAuth(expectedRole) {
 function applyWelcomeName(fullName) {
   const el = document.getElementById("welcomeUser");
   if (el && fullName) {
-    el.innerHTML = "Welcome, " + fullName + " 👋";
+    el.textContent = "Welcome, " + fullName + " 👋";
   }
 }
 
@@ -169,8 +175,8 @@ function handleGoogleRedirectIfPresent() {
   const authError = params.get("auth_error");
 
   if (authError) {
-    alert("Google sign-in failed. Please try again.");
     window.history.replaceState({}, document.title, window.location.pathname);
+    alert(authError === "account_disabled" ? "This account is disabled." : "Google sign-in failed. Please try again.");
     return false;
   }
 
@@ -251,7 +257,6 @@ document
           data.detail || "Unable to update role.";
         return;
       }
-
 
       saveSession(
         data.access_token,

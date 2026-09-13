@@ -59,7 +59,11 @@ const deviceState = {
   permissionRequested: false,
   recorder: null,
   recordedChunks: [],
+  pendingRecordingChunks: [],
   recordingMimeType: null,
+  recordingUploadId: null,
+  recordingUploadChain: Promise.resolve(),
+  recordingChunkUploadFailed: false,
 };
 
 function updateDeviceStatusUI() {
@@ -456,6 +460,12 @@ window.addEventListener("beforeunload", () => {
 
 function startSessionRecording() {
   deviceState.recordedChunks = [];
+  deviceState.pendingRecordingChunks = [];
+  deviceState.recordingUploadId = window.crypto && crypto.randomUUID
+    ? crypto.randomUUID()
+    : "00000000-0000-4000-8000-" + Date.now().toString().padStart(12, "0").slice(-12);
+  deviceState.recordingUploadChain = Promise.resolve();
+  deviceState.recordingChunkUploadFailed = false;
 
   const cameraBox = document.getElementById("sessionCameraBox");
   const cameraPreview = document.getElementById("sessionCameraPreview");
@@ -482,9 +492,12 @@ function startSessionRecording() {
   );
 
   try {
-    deviceState.recorder = supportedMime
-      ? new MediaRecorder(deviceState.stream, { mimeType: supportedMime })
-      : new MediaRecorder(deviceState.stream);
+    const recorderOptions = {
+      videoBitsPerSecond: 450000,
+      audioBitsPerSecond: 64000,
+    };
+    if (supportedMime) recorderOptions.mimeType = supportedMime;
+    deviceState.recorder = new MediaRecorder(deviceState.stream, recorderOptions);
     deviceState.recordingMimeType = deviceState.recorder.mimeType || supportedMime || "video/webm";
   } catch (err) {
     console.warn("Could not start MediaRecorder:", err);
@@ -495,6 +508,10 @@ function startSessionRecording() {
   deviceState.recorder.ondataavailable = (event) => {
     if (event.data && event.data.size > 0) {
       deviceState.recordedChunks.push(event.data);
+      deviceState.pendingRecordingChunks.push(event.data);
+      if (deviceState.pendingRecordingChunks.length >= 8) {
+        queuePendingRecordingChunks();
+      }
     }
   };
 
@@ -518,6 +535,29 @@ function stopSessionRecording() {
 async function uploadSessionRecording(sessionId) {
   if (!sessionId || deviceState.recordedChunks.length === 0) return;
 
+  queuePendingRecordingChunks();
+  await deviceState.recordingUploadChain;
+
+  if (!deviceState.recordingChunkUploadFailed && deviceState.recordingUploadId) {
+    const finalizeData = new FormData();
+    finalizeData.append("upload_id", deviceState.recordingUploadId);
+    finalizeData.append("recording_type", deviceState.cameraGranted ? "video" : "audio");
+    finalizeData.append("mime_type", deviceState.recordingMimeType || "video/webm");
+    try {
+      const finalized = await fetch(
+        API_BASE_URL + "/sessions/" + sessionId + "/recording-chunks/finalize",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer " + getToken() },
+          body: finalizeData,
+        }
+      );
+      if (finalized.ok) return;
+    } catch (err) {
+      console.warn("Could not finalize streamed recording; using full upload fallback.", err);
+    }
+  }
+
   const blob = new Blob(deviceState.recordedChunks, {
     type: deviceState.recordingMimeType || "video/webm",
   });
@@ -535,6 +575,34 @@ async function uploadSessionRecording(sessionId) {
   } catch (err) {
     console.warn("Could not upload session recording:", err);
   }
+}
+
+function queuePendingRecordingChunks() {
+  if (!state.sessionId || !deviceState.recordingUploadId || deviceState.pendingRecordingChunks.length === 0) return;
+  const chunks = deviceState.pendingRecordingChunks.splice(0);
+  const blob = new Blob(chunks, { type: deviceState.recordingMimeType || "video/webm" });
+
+  deviceState.recordingUploadChain = deviceState.recordingUploadChain
+    .catch(() => {})
+    .then(async () => {
+      const formData = new FormData();
+      formData.append("upload_id", deviceState.recordingUploadId);
+      formData.append("file", blob, "recording-chunk.webm");
+      try {
+        const response = await fetch(
+          API_BASE_URL + "/sessions/" + state.sessionId + "/recording-chunks",
+          {
+            method: "POST",
+            headers: { Authorization: "Bearer " + getToken() },
+            body: formData,
+          }
+        );
+        if (!response.ok) throw new Error("Chunk upload failed with status " + response.status);
+      } catch (err) {
+        deviceState.recordingChunkUploadFailed = true;
+        console.warn("Recording chunk upload failed; full recording will be retried at completion.", err);
+      }
+    });
 }
 
 async function reportDeviceStatus(sessionId) {
@@ -1594,7 +1662,17 @@ if (submitAnswerBtnEl) {
         throw new Error(data.detail || "Could not save your answer.");
       }
 
-      await loadSession(state.interviewId);
+      if (data.is_complete) {
+        await finalizeAndRedirect("Nice work - you answered every question!");
+      } else if (data.current_question) {
+        renderQuestion({
+          current_question: data.current_question,
+          answered_count: data.answered_count,
+          total_questions: data.total_questions,
+        });
+      } else {
+        await loadSession(state.interviewId);
+      }
 
     } catch (err) {
       answerErrorEl.textContent = err.message || "Something went wrong saving your answer.";
@@ -1637,7 +1715,7 @@ async function finalizeAndRedirect(message) {
 
   setTimeout(() => {
     window.location.href = "candidate.html?completed_interview=" + state.interviewId + "#analytics";
-  }, 1200);
+  }, 250);
 }
 
 /* ==========================================================
