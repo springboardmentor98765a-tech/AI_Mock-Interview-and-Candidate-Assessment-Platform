@@ -15,10 +15,10 @@
 </p>
 
 [Quick Start](#-quick-start) •
-[Architecture](#-system-architecture) •
+[System Architecture (Deep Dive)](SYSTEM_ARCHITECTURE.md) •
+[Functionalities & Pages Guide](FUNCTIONALITIES.md) •
 [Core Capabilities](#-core-capabilities) •
 [API Reference](#-api-specification) •
-[Configuration](#-environment-configuration) •
 [Testing](#-testing--quality-assurance) •
 [Docker Deployment](#-containerized-deployment)
 

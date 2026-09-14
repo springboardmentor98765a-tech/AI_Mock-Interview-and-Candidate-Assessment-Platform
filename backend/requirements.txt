@@ -11,3 +11,4 @@ numpy>=2.0
 opencv-python-headless>=4.10
 mediapipe>=1.0.1
 tensorflow>=2.15
+python-multipart>=0.0.18
