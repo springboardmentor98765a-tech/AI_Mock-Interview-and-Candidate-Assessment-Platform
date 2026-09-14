@@ -109,9 +109,7 @@ def list_module6_behavior_reports(
     )
 
     if current_user.role == "RECRUITER":
-        query = query.filter(
-            (Interview.recruiter_id == current_user.id) | (Interview.candidate_id != None)
-        )
+        query = query.filter(Interview.recruiter_id == current_user.id)
 
     sort_map = {
         "candidate_name": UserModel.name,

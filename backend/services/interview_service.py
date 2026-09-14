@@ -735,6 +735,27 @@ def finalize_session_pipeline(
     7. Mark session completed
     8. Return success payload
     """
+    st = (session_rec.status or "").upper()
+    if st in ["COMPLETED", "ENDED", "TERMINATED"]:
+        logger.info(f"[FINALIZE PIPELINE SKIPPED] Session #{session_rec.id} is already in terminal state ({st})")
+        total_q = len(interview.questions) if (interview and interview.questions) else (len(session_rec.answers_json) if session_rec.answers_json else 1)
+        answered_q = len([a for a in (session_rec.answers_json or []) if isinstance(a, dict) and a.get("correctness") != "Unanswered"])
+        final_int_status = "Completed" if st in ["COMPLETED", "ENDED"] else "Terminated"
+        if interview and interview.status != final_int_status:
+            interview.status = final_int_status
+            db.commit()
+        return {
+            "interview_id": interview.id,
+            "session_id": session_rec.id,
+            "status": final_int_status,
+            "score": session_rec.score,
+            "answered_questions": answered_q,
+            "total_questions": total_q,
+            "time_taken_seconds": session_rec.duration or time_taken_seconds,
+            "termination_reason": termination_reason,
+            "already_completed": True
+        }
+
     # 1. Update session status to COMPLETED / TERMINATED
     final_status = "TERMINATED" if termination_reason else "COMPLETED"
     final_interview_status = "Terminated" if termination_reason else "Completed"
@@ -872,7 +893,7 @@ def list_interviews_service(current_user: User, db: Session) -> List[InterviewSu
         query = query.filter(Interview.candidate_id == current_user.id)
     elif current_user.role == "RECRUITER":
         query = query.filter(
-            (Interview.recruiter_id == current_user.id) | (Interview.candidate_id == current_user.id)
+            Interview.recruiter_id == current_user.id
         )
 
     interviews = query.order_by(Interview.created_at.desc()).all()
@@ -886,11 +907,36 @@ def list_interviews_service(current_user: User, db: Session) -> List[InterviewSu
         effective_status = i.status
         if session_rec:
             st = (session_rec.status or "").upper()
+            now_utc = datetime.datetime.utcnow()
+            dur_mins = i.duration_mins or 30
+
+            # Auto-finalize stale abandoned IN_PROGRESS / PAUSED sessions past duration
+            if st in ["IN_PROGRESS", "PAUSED"] and session_rec.started_at:
+                elapsed_secs = (now_utc - session_rec.started_at).total_seconds()
+                if elapsed_secs > (dur_mins * 60 + 600):
+                    session_rec.status = "ENDED"
+                    session_rec.ended_at = now_utc
+                    if (i.status or "").upper() in ["NOT_STARTED", "CREATED", "IN_PROGRESS", "PAUSED"]:
+                        i.status = "Completed"
+                    db.commit()
+                    db.refresh(session_rec)
+                    db.refresh(i)
+                    st = "ENDED"
+
             if st in ["COMPLETED", "ENDED"]:
                 effective_status = "Completed"
                 if i.status != "Completed":
                     i.status = "Completed"
                     db.commit()
+
+                # Ensure report exists for completed session
+                rep = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session_rec.id).first()
+                if not rep:
+                    try:
+                        generate_and_save_candidate_performance_report(db, session_rec)
+                    except Exception as e:
+                        logger.error(f"[LIST INTERVIEWS] Auto report generation error: {e}")
+
             elif st in ["TERMINATED"]:
                 effective_status = "Terminated"
                 if i.status != "Terminated":
@@ -1241,6 +1287,8 @@ def end_session_service(current_user: User, session_id: int, db: Session, remark
     logger.info(f"[SESSION END REQUEST] session_id={session_id}, user_id={current_user.id}, remarks={remarks}")
     session_rec = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
     if not session_rec:
+        session_rec = db.query(InterviewSession).filter(InterviewSession.interview_id == session_id).order_by(InterviewSession.created_at.desc()).first()
+    if not session_rec:
         logger.error(f"[SESSION END FAILURE] Session #{session_id} not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview session not found.")
 
@@ -1444,8 +1492,12 @@ def get_performance_report_service(current_user: User, target_id: int, db: Sessi
     if is_session:
         session = db.query(InterviewSession).filter(InterviewSession.id == target_id).first()
     else:
-        # Search by interview_id first (latest session)
-        session = db.query(InterviewSession).filter(InterviewSession.interview_id == target_id).order_by(InterviewSession.created_at.desc()).first()
+        # Search using prioritized session lookup (terminal states take precedence)
+        cand_id = current_user.id if current_user.role == "CANDIDATE" else None
+        session = get_prioritized_session_for_interview(db, target_id, cand_id)
+        if not session:
+            # Fallback search by interview_id without candidate_id constraint
+            session = get_prioritized_session_for_interview(db, target_id)
         if not session:
             # Fallback if caller passed session_id to interview_id route
             session = db.query(InterviewSession).filter(InterviewSession.id == target_id).first()
@@ -1455,6 +1507,20 @@ def get_performance_report_service(current_user: User, target_id: int, db: Sessi
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No interview session found for ID {target_id}.")
 
     logger.info(f"[REPORT SESSION RESOLVED] Resolved session_id={session.id}, status={session.status}, candidate_id={session.candidate_id}")
+
+    # Auto-finalize stale abandoned IN_PROGRESS / PAUSED sessions that exceeded duration
+    if session and (session.status or "").upper() in ["IN_PROGRESS", "PAUSED"] and session.started_at:
+        interview_obj = db.query(Interview).filter(Interview.id == session.interview_id).first()
+        dur_mins = (interview_obj.duration_mins if interview_obj and interview_obj.duration_mins else 30)
+        now_utc = datetime.datetime.utcnow()
+        elapsed_secs = (now_utc - session.started_at).total_seconds()
+        if elapsed_secs > (dur_mins * 60 + 600):
+            session.status = "ENDED"
+            session.ended_at = now_utc
+            if interview_obj and (interview_obj.status or "").upper() in ["NOT_STARTED", "CREATED", "IN_PROGRESS", "PAUSED"]:
+                interview_obj.status = "Completed"
+            db.commit()
+            db.refresh(session)
 
     # 2. Authorization guard
     if current_user.role == "CANDIDATE" and session.candidate_id != current_user.id:
@@ -1472,7 +1538,7 @@ def get_performance_report_service(current_user: User, target_id: int, db: Sessi
             )
 
     # 3. Confirm session is terminal
-    if session.status not in ["COMPLETED", "ENDED", "TERMINATED"]:
+    if (session.status or "").upper() not in ["COMPLETED", "ENDED", "TERMINATED"]:
         logger.warning(f"[REPORT REQUEST] Session #{session.id} is not in terminal state (status={session.status})")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1668,6 +1734,7 @@ def _format_session_response(session_rec: InterviewSession, interview: Optional[
 
     return {
         "success": True,
+        "status": session_rec.status,
         "session": {
             "id": session_rec.id,
             "interview_id": session_rec.interview_id,

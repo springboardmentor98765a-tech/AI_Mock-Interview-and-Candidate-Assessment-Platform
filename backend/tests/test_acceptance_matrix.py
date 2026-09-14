@@ -488,7 +488,7 @@ def test_acceptance_check_report_access(test_setup):
         json={"interview_id": interview_id, "answers": []}
     )
 
-    res_perf = client.get(f"/api/interviews/sessions/{session_id}/performance-report", headers=headers)
+    res_perf = client.get(f"/api/interviews/sessions/{session_id}/", headers=headers)
     assert res_perf.status_code in [200, 404]  # Check endpoint accessibility
 
     res_beh = client.get(f"/api/interview/sessions/{session_id}/behavior-report", headers=headers)

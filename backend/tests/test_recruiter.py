@@ -27,6 +27,8 @@ def test_get_candidate_rankings():
     assert len(rankings) > 0
     first = rankings[0]
     assert "overall_score" in first
-    # Verify overall score formula: 0.7*ATS + 0.3*Interview
-    expected = round((0.70 * first["ats_score"]) + (0.30 * first["interview_score"]), 2)
-    assert first["overall_score"] == expected
+    if first.get("consent_given") and first.get("ats_score") is not None and first.get("interview_score") is not None:
+        expected = round((0.70 * first["ats_score"]) + (0.30 * first["interview_score"]), 2)
+        assert first["overall_score"] == expected
+    else:
+        assert first["overall_score"] is None

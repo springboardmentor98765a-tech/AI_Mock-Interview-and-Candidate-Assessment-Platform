@@ -1441,7 +1441,7 @@ function renderCandidateHistoryTable() {
   filterCandidateHistoryTable();
 }
 
-function filterCandidateHistoryTable() {
+async function filterCandidateHistoryTable() {
   const tbody = document.getElementById('candidate-history-table-body');
   if (!tbody) return;
 
@@ -1453,61 +1453,103 @@ function filterCandidateHistoryTable() {
   const statusFilter = statusEl ? statusEl.value : 'ALL';
   const sortFilter = sortEl ? sortEl.value : 'DATE_DESC';
 
-  let history = JSON.parse(localStorage.getItem('smarthire_interview_history') || '[]');
-
-  if (statusFilter !== 'ALL') {
-    history = history.filter(h => h.status === statusFilter);
-  }
-
-  if (query) {
-    history = history.filter(h =>
-      h.target_role.toLowerCase().includes(query) ||
-      h.session_type.toLowerCase().includes(query)
-    );
-  }
-
-  // Sorting Logic
-  if (sortFilter === 'DATE_DESC') {
-    history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  } else if (sortFilter === 'DATE_ASC') {
-    history.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  } else if (sortFilter === 'SCORE_DESC') {
-    history.sort((a, b) => b.ats_score - a.ats_score);
-  } else if (sortFilter === 'SCORE_ASC') {
-    history.sort((a, b) => a.ats_score - b.ats_score);
-  }
-
-  const totalItems = history.length;
-  const totalPages = Math.ceil(totalItems / CAND_HIST_PER_PAGE) || 1;
-  if (candHistCurrentPage > totalPages) candHistCurrentPage = totalPages;
-  if (candHistCurrentPage < 1) candHistCurrentPage = 1;
-
-  const startIndex = (candHistCurrentPage - 1) * CAND_HIST_PER_PAGE;
-  const pageItems = history.slice(startIndex, startIndex + CAND_HIST_PER_PAGE);
-
-  const showingEl = document.getElementById('cand-hist-showing');
-  if (showingEl) {
-    showingEl.textContent = totalItems === 0 ? 'No sessions found' : `Showing ${startIndex + 1}-${Math.min(startIndex + CAND_HIST_PER_PAGE, totalItems)} of ${totalItems} sessions`;
-  }
-
-  if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No interview sessions match the specified filters.</td></tr>`;
+  const token = SmartHireAuth.getToken();
+  if (!token) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Please log in to view candidate reports.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = pageItems.map(item => `
-    <tr>
-      <td>${item.created_at}</td>
-      <td><strong>${item.target_role}</strong></td>
-      <td>${item.session_type}</td>
-      <td>${item.duration_mins} mins</td>
-      <td><strong style="color: var(--primary);">${item.ats_score}%</strong></td>
-      <td><span class="badge-status success">${item.status}</span></td>
-      <td>
-        <button class="btn btn-secondary btn-sm" onclick="viewInterviewReportDetail(${item.id})"><i class="fa-solid fa-eye"></i> View Report</button>
-      </td>
-    </tr>
-  `).join('');
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/analytics/history`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Failed to fetch interview reports.</td></tr>`;
+      return;
+    }
+
+    const json = await res.json();
+    let history = json.data || json.history || [];
+
+    if (statusFilter !== 'ALL') {
+      history = history.filter(h => {
+        const s = String(h.status || '').toUpperCase();
+        if (statusFilter === 'COMPLETED') return s === 'COMPLETED' || s === 'ENDED' || s === 'FINISHED';
+        if (statusFilter === 'TERMINATED') return s === 'TERMINATED' || s === 'CANCELLED';
+        if (statusFilter === 'IN_PROGRESS') return s === 'IN_PROGRESS' || s === 'PAUSED';
+        return s === statusFilter;
+      });
+    }
+
+    if (query) {
+      history = history.filter(h =>
+        (h.target_role || h.role || '').toLowerCase().includes(query) ||
+        (h.session_type || h.interview_type || '').toLowerCase().includes(query)
+      );
+    }
+
+    // Sorting Logic
+    if (sortFilter === 'DATE_DESC') {
+      history.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
+    } else if (sortFilter === 'DATE_ASC') {
+      history.sort((a, b) => new Date(a.date || a.created_at || 0) - new Date(b.date || b.created_at || 0));
+    } else if (sortFilter === 'SCORE_DESC') {
+      history.sort((a, b) => ((b.score_numeric !== null && b.score_numeric !== undefined) ? b.score_numeric : (b.ats_score || 0)) - ((a.score_numeric !== null && a.score_numeric !== undefined) ? a.score_numeric : (a.ats_score || 0)));
+    } else if (sortFilter === 'SCORE_ASC') {
+      history.sort((a, b) => ((a.score_numeric !== null && a.score_numeric !== undefined) ? a.score_numeric : (a.ats_score || 0)) - ((b.score_numeric !== null && b.score_numeric !== undefined) ? b.score_numeric : (b.ats_score || 0)));
+    }
+
+    const totalItems = history.length;
+    const totalPages = Math.ceil(totalItems / CAND_HIST_PER_PAGE) || 1;
+    if (candHistCurrentPage > totalPages) candHistCurrentPage = totalPages;
+    if (candHistCurrentPage < 1) candHistCurrentPage = 1;
+
+    const startIndex = (candHistCurrentPage - 1) * CAND_HIST_PER_PAGE;
+    const pageItems = history.slice(startIndex, startIndex + CAND_HIST_PER_PAGE);
+
+    const showingEl = document.getElementById('cand-hist-showing');
+    if (showingEl) {
+      showingEl.textContent = totalItems === 0 ? 'No sessions found' : `Showing ${startIndex + 1}-${Math.min(startIndex + CAND_HIST_PER_PAGE, totalItems)} of ${totalItems} sessions`;
+    }
+
+    if (pageItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No interview sessions match the specified filters.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = pageItems.map(item => {
+      const scoreVal = (item.score_numeric !== null && item.score_numeric !== undefined) ? item.score_numeric : (item.ats_score || null);
+      const displayScore = scoreVal !== null ? `${scoreVal}%` : (item.score || 'N/A');
+      const stUpper = String(item.status || '').toUpperCase();
+      const isTerminal = ['COMPLETED', 'ENDED', 'TERMINATED', 'FINISHED'].includes(stUpper) || item.report_available;
+      
+      let statusBadge = '<span class="badge-status info">Not Started</span>';
+      if (['COMPLETED', 'ENDED', 'FINISHED'].includes(stUpper)) {
+        statusBadge = '<span class="badge-status success">Completed</span>';
+      } else if (['TERMINATED', 'CANCELLED'].includes(stUpper)) {
+        statusBadge = '<span class="badge-status danger">Terminated</span>';
+      } else if (stUpper === 'IN_PROGRESS' || stUpper === 'PAUSED') {
+        statusBadge = '<span class="badge-status warning">In Progress</span>';
+      }
+
+      const reportBtn = isTerminal ? `<button class="btn btn-secondary btn-sm" onclick="viewAssignedInterviewResults(${item.interview_id || item.id || item.session_id})"><i class="fa-solid fa-file-invoice"></i> View Report</button>` : `<span style="color: var(--text-muted); font-size: 0.85rem;">Pending</span>`;
+
+      return `
+        <tr>
+          <td>${item.date || item.created_at || 'N/A'}</td>
+          <td><strong>${item.target_role || item.role || 'Technical Interview'}</strong></td>
+          <td>${item.session_type || item.interview_type || 'General'}</td>
+          <td>${item.duration_mins || 30} mins</td>
+          <td><strong style="color: var(--primary);">${displayScore}</strong></td>
+          <td>${statusBadge}</td>
+          <td>${reportBtn}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Error fetching candidate history:', err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">Failed to load candidate interview history.</td></tr>`;
+  }
 }
 
 function changeCandidateHistoryPage(direction) {
@@ -3300,27 +3342,27 @@ async function loadRecruiterRankings() {
         <td style="text-align: center;"><strong>#${r.rank || (idx + 1)}</strong></td>
         <td>
           <strong>${r.candidate_name}</strong><br>
-          <small style="color: var(--text-muted);">${r.candidate_email}</small>
+          <small style="color: var(--text-muted);">${r.candidate_email || r.email || ''}</small>
         </td>
-        <td>${r.role}</td>
+        <td>${r.role || r.preferred_role || 'Software Engineer'}</td>
         <td style="text-align: center;">
-          ${r.consent_given && r.technical_score !== null 
+          ${r.consent_given && r.technical_score !== null && r.technical_score !== undefined
             ? `<strong style="color: var(--primary);">${r.technical_score}%</strong>` 
             : `<span style="color: var(--text-muted); font-size: 0.85rem;">Private</span>`}
         </td>
         <td style="text-align: center;">
-          ${r.consent_given && r.communication_score !== null 
+          ${r.consent_given && r.communication_score !== null && r.communication_score !== undefined
             ? `<strong style="color: var(--secondary);">${r.communication_score}%</strong>` 
             : `<span style="color: var(--text-muted); font-size: 0.85rem;">Private</span>`}
         </td>
         <td style="text-align: center;">
-          ${r.consent_given && r.overall_score !== null 
+          ${r.consent_given && r.overall_score !== null && r.overall_score !== undefined
             ? `<span class="badge-status success">${r.overall_score}%</span>` 
             : `<span style="color: var(--text-muted); font-size: 0.85rem;">Scores Private</span>`}
         </td>
         <td style="text-align: right;">
           <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
-            ${r.consent_given 
+            ${r.consent_given && r.interview_id
               ? `<button class="btn btn-primary btn-sm" onclick="fetchRecruiterCandidateReport(${r.interview_id})"><i class="fa-solid fa-file-invoice"></i> View Report</button>
                  <button class="btn btn-secondary btn-sm" onclick="downloadCandidateReportPDF(${r.interview_id})"><i class="fa-solid fa-file-pdf"></i> Report</button>`
               : `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.5; cursor: not-allowed;" title="Candidate has kept scores private"><i class="fa-solid fa-lock"></i> Private</button>`}
@@ -3747,7 +3789,7 @@ async function loadCandidateAssignedInterviews() {
         actionBtn = `<button class="btn btn-secondary btn-sm" disabled><i class="fa-solid fa-spinner fa-spin"></i> Finalizing...</button>`;
       } else if (normStatus === 'IN_PROGRESS') {
         statusBadge = '<span class="badge-status warning">In Progress</span>';
-        actionBtn = `<button class="btn btn-warning btn-sm" onclick="startAssignedInterviewSession(${item.interview_id}, ${item.duration_mins})"><i class="fa-solid fa-play"></i> Resume Session</button>`;
+        actionBtn = ``;
       }
 
       return `
@@ -4627,7 +4669,6 @@ function updateSessionUiState(session, durationMins) {
       `;
     } else if (status === 'PAUSED') {
       buttonsContainer.innerHTML = `
-        <button class="btn btn-primary btn-sm" id="btnResumeSession" onclick="triggerResumeSession()"><i class="fa-solid fa-play"></i> Resume</button>
         <button class="btn btn-sm" id="btnEndSession" onclick="triggerEndSession()" style="background: #EF4444; color: white;"><i class="fa-solid fa-stop"></i> End Interview</button>
       `;
     } else if (status === 'COMPLETED' || status === 'ENDED') {
@@ -4820,86 +4861,15 @@ async function saveCurrentQuestionAttempt() {
 }
 
 async function triggerEndSession() {
-  if (!activeSessionRecord || isAsyncActionPending) return;
+  if (!activeSessionRecord || isSubmissionInProgress || isFinishingInterview || currentSessionLifecycleState === 'completed') return;
 
-  isAsyncActionPending = true;
   const endBtn = document.getElementById('btnEndSession');
   if (endBtn) {
     endBtn.disabled = true;
     endBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...';
   }
 
-  stopActiveSessionTimers();
-
-  // 1. Finalize current question attempt
-  await saveCurrentQuestionAttempt();
-
-  // 2. Stop MediaRecorder and wait for final Blob
-  let recordingBlob = null;
-  if (interviewMediaRecorder && interviewMediaRecorder.state !== 'inactive') {
-    recordingBlob = await new Promise((resolve) => {
-      interviewMediaRecorder.onstop = () => {
-        const blob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
-        resolve(blob);
-      };
-      try {
-        interviewMediaRecorder.stop();
-      } catch (e) {
-        resolve(null);
-      }
-    });
-  } else if (interviewRecordedChunks.length > 0) {
-    recordingBlob = new Blob(interviewRecordedChunks, { type: selectedRecordingMimeType });
-  }
-
-  // 3. Upload recording file
-  const token = SmartHireAuth.getToken();
-  if (recordingBlob && recordingBlob.size > 0) {
-    try {
-      const formData = new FormData();
-      const ext = selectedRecordingMimeType.includes('mp4') ? 'mp4' : 'webm';
-      formData.append('file', recordingBlob, `session_${activeSessionRecord.id}.${ext}`);
-      formData.append('duration', activeSessionTotalActiveSeconds);
-
-      const uploadRes = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/recordings`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok || !uploadData.success) {
-        showDemoToast(uploadData.message || 'Recording upload failed. Session preserved.', 'error');
-        if (endBtn) {
-          endBtn.disabled = false;
-          endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
-        }
-        isAsyncActionPending = false;
-        return;
-      }
-    } catch (uploadErr) {
-      console.error('Recording upload error:', uploadErr);
-      showDemoToast('Network error during recording upload. Session preserved.', 'error');
-      if (endBtn) {
-        endBtn.disabled = false;
-        endBtn.innerHTML = '<i class="fa-solid fa-stop"></i> End Interview';
-      }
-      isAsyncActionPending = false;
-      return;
-    }
-  }
-
-  // 4. Update session status to COMPLETED ONLY AFTER successful upload
-  try {
-    const endRes = await fetch(`${SmartHireAuth.API_BASE}/api/interview/sessions/${activeSessionRecord.id}/end`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-  } catch (err) {
-    showDemoToast('Error starting session.', 'error');
-  } finally {
-    isAsyncActionPending = false;
-  }
+  await finishInterview('MANUAL_END');
 }
 
 async function triggerPauseSession() {
@@ -5575,8 +5545,20 @@ async function openRecruiterBehaviorReportModal(sessionId) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const resData = await res.json();
+    if (res.status === 403) {
+      body.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 1rem;">
+          <div style="font-size: 2.5rem; color: #EF4444; margin-bottom: 0.75rem;"><i class="fa-solid fa-lock"></i></div>
+          <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">Scores Private</h4>
+          <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto; font-size: 0.9rem;">
+            ${resData.detail || resData.message || 'Candidate score-sharing consent is absent or revoked.'}
+          </p>
+        </div>
+      `;
+      return;
+    }
     if (!res.ok || !resData.success || !resData.data) {
-      body.innerHTML = `<div class="alert alert-danger">Could not load performance report (${resData.message || res.statusText || 'Error'}).</div>`;
+      body.innerHTML = `<div class="alert alert-danger">Could not load performance report (${resData.detail || resData.message || res.statusText || 'Error'}).</div>`;
       return;
     }
 
@@ -5786,6 +5768,56 @@ function renderSmartHirePerformanceReportHTML(r) {
 
 let pendingConsentInterviewId = null;
 
+window.showScoreSharingConsentModal = function(interviewId) {
+  pendingConsentInterviewId = interviewId;
+  const modal = document.getElementById('scoreSharingConsentModal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.submitConsentChoiceUI = async function(choiceBool) {
+  const modal = document.getElementById('scoreSharingConsentModal');
+  const token = SmartHireAuth.getToken();
+  const interviewId = pendingConsentInterviewId;
+
+  if (modal) modal.style.display = 'none';
+
+  if (!token || !interviewId) {
+    if (!token) showDemoToast('Authentication required. Please log in again.', 'danger');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SmartHireAuth.API_BASE}/api/candidate/consent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        interview_id: Number(interviewId),
+        consent_given: Boolean(choiceBool)
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showDemoToast(
+        choiceBool
+          ? 'Score sharing preference saved: Report is now shared with recruiter.'
+          : 'Score sharing preference saved: Report is kept private.',
+        choiceBool ? 'success' : 'info'
+      );
+      if (typeof loadCandidatePrivacyTableUI === 'function') loadCandidatePrivacyTableUI();
+      if (typeof filterCandidateHistoryTable === 'function') filterCandidateHistoryTable();
+      if (typeof loadReportInlineConsentUI === 'function') loadReportInlineConsentUI(interviewId);
+    } else {
+      showDemoToast(data.message || 'Failed to update consent preference.', 'warning');
+    }
+  } catch (err) {
+    console.error('Error submitting consent choice:', err);
+    showDemoToast('Error saving consent choice: ' + (err.message || err), 'danger');
+  }
+};
+
 function toggleNotificationDropdown(role) {
   const dropdown = document.getElementById(role.toLowerCase() + '-notif-dropdown');
   if (!dropdown) return;
@@ -5889,7 +5921,7 @@ async function loadReportInlineConsentUI(interviewId) {
     const resData = await res.json();
     const items = resData.data || [];
     const match = items.find(i => Number(i.interview_id) === Number(interviewId));
-    const isShared = match && match.consent_given && match.consent_timestamp ? true : false;
+    const isShared = match && match.consent_given && !match.revoked_at ? true : false;
     renderReportSharingCardHTML(container, interviewId, isShared);
   } catch (err) {
     console.warn('Error fetching report inline consent status:', err);

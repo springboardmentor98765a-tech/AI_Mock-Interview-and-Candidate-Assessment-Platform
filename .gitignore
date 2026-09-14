@@ -20,7 +20,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.venv
+.venv/
 
 # Database
 *.db
@@ -45,3 +45,6 @@ Thumbs.db
 uploads/
 node_modules/
 FRONTEND/css/fontawesome/
+.pytest_cache/
+__pycache__/
+*.pyc

@@ -53,14 +53,18 @@ class CandidateRankingItem(BaseModel):
     user_id: int
     candidate_name: str
     email: str
-    ats_score: float
-    interview_score: float
-    overall_score: float
+    ats_score: Optional[float] = None
+    interview_score: Optional[float] = None
+    overall_score: Optional[float] = None
     preferred_role: Optional[str] = None
     skills: Optional[str] = None
     college: Optional[str] = None
     degree: Optional[str] = None
     resume: Optional[str] = None
+    interview_id: Optional[int] = None
+    consent_given: bool = False
+    technical_score: Optional[float] = None
+    communication_score: Optional[float] = None
 
     class Config:
         from_attributes = True

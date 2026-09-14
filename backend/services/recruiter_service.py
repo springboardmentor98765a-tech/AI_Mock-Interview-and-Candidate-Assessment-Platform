@@ -72,13 +72,15 @@ def update_recruiter_profile_service(current_user: User, data: RecruiterProfileU
 
 def get_candidate_rankings_service(
     db: Session,
+    current_user: Optional[User] = None,
     search: Optional[str] = None,
     role_filter: Optional[str] = None,
     min_score: Optional[float] = 0.0,
     sort_by: Optional[str] = "overall"
 ) -> List[CandidateRankingItem]:
     from models.consent import InterviewConsent
-    from models.interview import Interview
+    from models.interview import Interview, InterviewSession, CandidatePerformanceReport
+    from services.consent_service import check_recruiter_score_access
 
     candidates_query = db.query(User, CandidateProfile).outerjoin(
         CandidateProfile, User.id == CandidateProfile.user_id
@@ -88,30 +90,52 @@ def get_candidate_rankings_service(
     ranking_items: List[dict] = []
 
     for user, profile in results:
-        ats = profile.ats_score if (profile and profile.ats_score is not None) else None
-        interview = profile.interview_score if (profile and profile.interview_score is not None) else None
+        interview_obj = db.query(Interview).filter(
+            Interview.candidate_id == user.id,
+            Interview.is_deleted == False
+        ).order_by(Interview.created_at.desc()).first()
 
-        # Check candidate score-sharing consent for most recent interview
-        interview_obj = db.query(Interview).filter(Interview.candidate_id == user.id).order_by(Interview.created_at.desc()).first()
+        has_active_consent = False
         if interview_obj:
-            consent = db.query(InterviewConsent).filter(
-                InterviewConsent.interview_id == interview_obj.id,
-                InterviewConsent.candidate_id == user.id
-            ).first()
-            has_consent = bool(consent and consent.consent_given and consent.revoked_at is None)
-            if not has_consent:
-                interview = None
+            if current_user:
+                has_active_consent = check_recruiter_score_access(db, current_user, interview_obj.id)
+            else:
+                consent = db.query(InterviewConsent).filter(
+                    InterviewConsent.interview_id == interview_obj.id,
+                    InterviewConsent.candidate_id == user.id
+                ).first()
+                has_active_consent = bool(consent and consent.consent_given and consent.revoked_at is None)
 
-        raw_ats = profile.ats_score if (profile and profile.ats_score is not None) else 0.0
-        raw_int = profile.interview_score if (profile and profile.interview_score is not None) else 0.0
-        overall = round((0.70 * raw_ats) + (0.30 * raw_int), 2)
+        report = None
+        if interview_obj and has_active_consent:
+            report = db.query(CandidatePerformanceReport).filter(
+                (CandidatePerformanceReport.interview_id == interview_obj.id) |
+                (CandidatePerformanceReport.session_id.in_(db.query(InterviewSession.id).filter(InterviewSession.interview_id == interview_obj.id)))
+            ).first()
+
+        if has_active_consent:
+            raw_ats = profile.ats_score if (profile and profile.ats_score is not None) else None
+            raw_int = profile.interview_score if (profile and profile.interview_score is not None) else None
+            if raw_ats is not None or raw_int is not None:
+                overall = round((0.70 * (raw_ats or 0.0)) + (0.30 * (raw_int or 0.0)), 2)
+            else:
+                overall = None
+            tech_score = report.technical_relevance_score if (report and report.technical_relevance_score is not None) else None
+            comm_score = report.communication_score if (report and report.communication_score is not None) else None
+        else:
+            # STRICT PRIVACY: Scores set to None (null in JSON), NOT 0.0
+            raw_ats = None
+            raw_int = None
+            overall = None
+            tech_score = None
+            comm_score = None
 
         pref_role = (profile.preferred_role if profile and profile.preferred_role else "Software Engineer")
         skills = profile.skills if profile else None
         college = profile.college if profile else None
         degree = profile.degree if profile else None
 
-        if min_score and min_score > 0 and overall < min_score:
+        if min_score and min_score > 0 and (overall is None or overall < min_score):
             continue
 
         if role_filter and role_filter.upper() != "ALL":
@@ -138,24 +162,27 @@ def get_candidate_rankings_service(
             "skills": skills,
             "college": college,
             "degree": degree,
-            "resume": profile.resume if (profile and profile.resume) else None
+            "resume": profile.resume if (profile and profile.resume) else None,
+            "interview_id": interview_obj.id if interview_obj else None,
+            "consent_given": has_active_consent,
+            "technical_score": tech_score,
+            "communication_score": comm_score
         })
 
-    if sort_by == "ats":
-        ranking_items.sort(key=lambda x: x["ats_score"], reverse=True)
-    elif sort_by == "interview":
-        ranking_items.sort(key=lambda x: x["interview_score"], reverse=True)
-    elif sort_by == "name":
-        ranking_items.sort(key=lambda x: x["candidate_name"].lower())
-    else:
-        ranking_items.sort(key=lambda x: x["overall_score"], reverse=True)
+    def safe_sort_key(x):
+        val = x.get(sort_by if sort_by in ["ats_score", "interview_score", "overall_score"] else "overall_score")
+        if sort_by == "name" or sort_by == "candidate_name":
+            return x.get("candidate_name", "").lower()
+        return -999.0 if val is None else float(val)
 
-    final_rankings: List[CandidateRankingItem] = []
-    for idx, item in enumerate(ranking_items, start=1):
+    ranking_items.sort(key=safe_sort_key, reverse=(sort_by != "name" and sort_by != "candidate_name"))
+
+    final_results = []
+    for idx, item in enumerate(ranking_items, 1):
         item["rank"] = idx
-        final_rankings.append(CandidateRankingItem(**item))
+        final_results.append(CandidateRankingItem(**item))
 
-    return final_rankings
+    return final_results
 
 # --- Template CRUD Services ---
 

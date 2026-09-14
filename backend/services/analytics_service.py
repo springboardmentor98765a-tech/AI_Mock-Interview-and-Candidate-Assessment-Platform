@@ -124,16 +124,25 @@ def get_candidate_dashboard_analytics(db: Session, candidate_id: int) -> Dict[st
 
 def get_candidate_interview_history(db: Session, candidate_id: int) -> List[Dict[str, Any]]:
     """Retrieve complete interview history for candidate."""
+    from services.interview_service import get_prioritized_session_for_interview, generate_and_save_candidate_performance_report
+
+    sessions = db.query(InterviewSession).filter(
+        InterviewSession.candidate_id == candidate_id
+    ).order_by(InterviewSession.created_at.desc()).all()
+
+    session_interview_ids = [s.interview_id for s in sessions if s.interview_id]
+
     interviews = db.query(Interview).filter(
-        Interview.candidate_id == candidate_id,
+        (Interview.candidate_id == candidate_id) | (Interview.id.in_(session_interview_ids) if session_interview_ids else False),
         Interview.is_deleted == False
     ).order_by(Interview.created_at.desc()).all()
 
     history = []
+    seen_interview_ids = set()
+
     for interview in interviews:
-        session = db.query(InterviewSession).filter(
-            InterviewSession.interview_id == interview.id
-        ).order_by(InterviewSession.created_at.desc()).first()
+        seen_interview_ids.add(interview.id)
+        session = get_prioritized_session_for_interview(db, interview.id, candidate_id)
 
         questions_count = len(interview.questions) if interview.questions else 0
         answered_count = 0
@@ -142,12 +151,35 @@ def get_candidate_interview_history(db: Session, candidate_id: int) -> List[Dict
 
         if session:
             status_str = session.status
+            st_upper = (session.status or "").upper()
+            dur_mins = interview.duration_mins or 30
+            now_utc = datetime.datetime.utcnow()
+
+            # Auto-finalize stale abandoned IN_PROGRESS / PAUSED sessions that exceeded duration
+            if st_upper in ["IN_PROGRESS", "PAUSED"] and session.started_at:
+                elapsed_secs = (now_utc - session.started_at).total_seconds()
+                if elapsed_secs > (dur_mins * 60 + 600):
+                    session.status = "ENDED"
+                    session.ended_at = now_utc
+                    if (interview.status or "").upper() in ["NOT_STARTED", "CREATED", "IN_PROGRESS", "PAUSED"]:
+                        interview.status = "Completed"
+                    db.commit()
+                    db.refresh(session)
+                    status_str = "ENDED"
+                    st_upper = "ENDED"
+
             answered_count = len(session.answers_json) if isinstance(session.answers_json, list) else 0
             if not answered_count:
                 attempts = db.query(InterviewQuestionAttempt).filter(InterviewQuestionAttempt.session_id == session.id).all()
                 answered_count = sum(1 for a in attempts if a.attempted and a.answer)
 
             report = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session.id).first()
+            if not report and st_upper in ["COMPLETED", "ENDED", "TERMINATED"]:
+                try:
+                    report = generate_and_save_candidate_performance_report(db, session)
+                except Exception as e:
+                    logger.error(f"[ANALYTICS HISTORY] Failed to auto-generate report for session #{session.id}: {e}")
+
             if report and report.overall_score is not None:
                 score = round(report.overall_score, 1)
 
@@ -164,20 +196,28 @@ def get_candidate_interview_history(db: Session, candidate_id: int) -> List[Dict
 
         date_str = date_obj.strftime("%d %b %Y") if (date_obj and hasattr(date_obj, "strftime")) else None
 
+        st_upper = (status_str or "").upper()
+        report_avail = bool((session and st_upper in ["COMPLETED", "ENDED", "TERMINATED"]) or (interview and (interview.status or "").upper() in ["COMPLETED", "ENDED", "TERMINATED", "FINISHED"]))
+
         history.append({
+            "id": interview.id,
             "interview_id": interview.id,
             "session_id": session.id if session else None,
             "date": date_str,
+            "created_at": date_str,
             "role": interview.domain,
+            "target_role": interview.domain,
             "interview_type": interview.interview_type,
+            "session_type": interview.interview_type,
             "difficulty": interview.difficulty,
             "duration_mins": interview.duration_mins,
             "questions_count": questions_count,
             "questions_answered": f"{answered_count}/{questions_count}",
             "status": status_str,
             "score": f"{score}%" if score is not None else "N/A",
+            "ats_score": score if score is not None else 0,
             "score_numeric": score,
-            "report_available": bool(session and session.status in ["COMPLETED", "ENDED", "TERMINATED"]),
+            "report_available": report_avail,
             "consent_status": "Shared" if (consent and consent.consent_given and not consent.revoked_at) else "Private"
         })
 
@@ -387,7 +427,7 @@ def get_recruiter_candidate_rankings(
 
     if recruiter_user.role == "RECRUITER":
         query = query.filter(
-            (Interview.recruiter_id == recruiter_user.id) | (Interview.recruiter_id == None)
+            Interview.recruiter_id == recruiter_user.id
         )
 
     if role_filter:
@@ -407,9 +447,8 @@ def get_recruiter_candidate_rankings(
         cand = db.query(User).filter(User.id == interview.candidate_id).first()
         cand_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == interview.candidate_id).first() if cand else None
 
-        session = db.query(InterviewSession).filter(
-            InterviewSession.interview_id == interview.id
-        ).order_by(InterviewSession.created_at.desc()).first()
+        from services.interview_service import get_prioritized_session_for_interview
+        session = get_prioritized_session_for_interview(db, interview.id)
 
         status_str = interview.status
         if session:
@@ -420,17 +459,21 @@ def get_recruiter_candidate_rankings(
         else:
             pending_interviews += 1
 
-        # Check Candidate Consent
-        consent = db.query(InterviewConsent).filter(
-            InterviewConsent.interview_id == interview.id,
-            InterviewConsent.candidate_id == interview.candidate_id
-        ).first()
-
-        has_active_consent = bool(consent and consent.consent_given and consent.revoked_at is None)
+        # Check Candidate Consent via check_recruiter_score_access
+        from services.consent_service import check_recruiter_score_access
+        has_active_consent = check_recruiter_score_access(db, recruiter_user, interview.id)
 
         report = None
-        if session and has_active_consent:
-            report = db.query(CandidatePerformanceReport).filter(CandidatePerformanceReport.session_id == session.id).first()
+        if has_active_consent:
+            report_query = db.query(CandidatePerformanceReport).filter(
+                (CandidatePerformanceReport.interview_id == interview.id)
+            )
+            if session:
+                report_query = db.query(CandidatePerformanceReport).filter(
+                    (CandidatePerformanceReport.interview_id == interview.id) |
+                    (CandidatePerformanceReport.session_id == session.id)
+                )
+            report = report_query.order_by(CandidatePerformanceReport.created_at.desc()).first()
 
         if report and report.overall_score is not None:
             accessible_scores.append(report.overall_score)
@@ -458,13 +501,17 @@ def get_recruiter_candidate_rankings(
             item["technical_score"] = round(report.technical_relevance_score, 1) if report.technical_relevance_score is not None else None
             item["communication_score"] = round(report.communication_score, 1) if report.communication_score is not None else None
             item["confidence_score"] = round(report.confidence_score, 1) if report.confidence_score is not None else None
+            item["ats_score"] = cand_profile.ats_score if (cand_profile and cand_profile.ats_score is not None) else None
+            item["interview_score"] = session.score if (session and session.score is not None) else None
             item["performance_rating"] = report.performance_rating
         else:
-            # PROTECTED: Do not expose private scores
+            # PROTECTED: Do not expose private scores as 0.0, set explicitly to None
             item["overall_score"] = None
             item["technical_score"] = None
             item["communication_score"] = None
             item["confidence_score"] = None
+            item["ats_score"] = None
+            item["interview_score"] = None
             item["performance_rating"] = "Scores Private"
 
         rankings.append(item)

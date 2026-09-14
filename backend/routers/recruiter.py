@@ -54,6 +54,7 @@ def get_candidate_rankings(
 ):
     return get_candidate_rankings_service(
         db=db,
+        current_user=current_user,
         search=search,
         role_filter=role,
         min_score=min_score,
