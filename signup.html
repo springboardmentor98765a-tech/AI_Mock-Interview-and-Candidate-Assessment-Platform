@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SmartHire AI - Sign Up</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f3f6fb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 15px;
+        }
+
+        /* Main signup card */
+        .auth-container {
+            width: 100%;
+            max-width: 920px;
+            background: white;
+            border-radius: 28px;
+            padding: 55px 70px;
+            box-shadow: 0 15px 40px rgba(35, 55, 85, 0.08);
+        }
+
+        /* Logo */
+        .brand {
+            text-align: center;
+            margin-bottom: 42px;
+        }
+
+        .brand h1 {
+            font-size: 48px;
+            font-weight: 700;
+            color: #17365d;
+            letter-spacing: -1px;
+        }
+
+        .brand h1 span {
+            color: #5146e5;
+        }
+
+        /* Heading */
+        .auth-header {
+            text-align: center;
+            margin-bottom: 42px;
+        }
+
+        .auth-header h2 {
+            font-size: 40px;
+            color: #17365d;
+            margin-bottom: 10px;
+        }
+
+        .auth-header p {
+            font-size: 20px;
+            color: #65758b;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 27px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 20px;
+            font-weight: 600;
+            color: #17365d;
+            margin-bottom: 10px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            height: 62px;
+            border: 1.5px solid #cbd6e5;
+            border-radius: 15px;
+            padding: 0 58px 0 60px;
+            font-size: 18px;
+            color: #243b5a;
+            outline: none;
+            background: #ffffff;
+            transition: 0.2s;
+        }
+
+        .input-wrapper input::placeholder {
+            color: #8b9bb0;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #5146e5;
+            box-shadow: 0 0 0 3px rgba(81, 70, 229, 0.08);
+        }
+
+        /* Input icons */
+        .input-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #718198;
+            font-size: 23px;
+            pointer-events: none;
+        }
+
+        /* Password eye button */
+        .toggle-password {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: #718198;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .toggle-password:hover {
+            color: #5146e5;
+        }
+
+        /* Create account button */
+        .auth-btn {
+            width: 100%;
+            height: 64px;
+            border: none;
+            border-radius: 15px;
+            background: linear-gradient(
+                90deg,
+                #5146e5,
+                #5146e5
+            );
+            color: white;
+            font-size: 22px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 5px;
+            transition: 0.2s;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(81, 70, 229, 0.25);
+        }
+
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Message */
+        #signupMessage {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 16px;
+            color: #5146e5;
+        }
+
+        /* Login link */
+        .auth-link {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 18px;
+            color: #718198;
+        }
+
+        .auth-link a {
+            color: #5146e5;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile */
+        @media (max-width: 700px) {
+
+            body {
+                padding: 15px;
+            }
+
+            .auth-container {
+                padding: 40px 25px;
+                border-radius: 22px;
+            }
+
+            .brand h1 {
+                font-size: 36px;
+            }
+
+            .auth-header h2 {
+                font-size: 32px;
+            }
+
+            .auth-header p {
+                font-size: 17px;
+            }
+
+            .form-group label {
+                font-size: 18px;
+            }
+
+            .input-wrapper input {
+                height: 58px;
+                font-size: 16px;
+            }
+
+            .auth-btn {
+                height: 58px;
+                font-size: 19px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-container">
+
+        <!-- SmartHire AI Logo -->
+        <div class="brand">
+            <h1>
+                SmartHire <span>AI</span>
+            </h1>
+        </div>
+
+        <!-- Heading -->
+        <div class="auth-header">
+            <h2>Create Account</h2>
+            <p>Create your candidate account to get started.</p>
+        </div>
+
+        <!-- Signup Form -->
+        <form id="signupForm">
+
+            <!-- Full Name -->
+            <div class="form-group">
+
+                <label for="name">
+                    Full Name
+                </label>
+
+                <div class="input-wrapper">
+
+                    <span class="input-icon">♙</span>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Enter your name"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Email -->
+            <div class="form-group">
+
+                <label for="email">
+                    Email Address
+                </label>
+
+                <div class="input-wrapper">
+
+                    <span class="input-icon">✉</span>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Password -->
+            <div class="form-group">
+
+                <label for="password">
+                    Password
+                </label>
+
+                <div class="input-wrapper">
+
+                    <span class="input-icon">♙</span>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Create a password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="toggle-password"
+                        onclick="togglePassword('password', this)"
+                    >
+                        ◉
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Confirm Password -->
+            <div class="form-group">
+
+                <label for="confirmPassword">
+                    Confirm Password
+                </label>
+
+                <div class="input-wrapper">
+
+                    <span class="input-icon">♙</span>
+
+                    <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        placeholder="Re-enter your password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="toggle-password"
+                        onclick="togglePassword('confirmPassword', this)"
+                    >
+                        ◉
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Candidate role -->
+            <input
+                type="hidden"
+                id="role"
+                value="candidate"
+            >
+
+
+            <!-- Create Account -->
+            <button
+                type="submit"
+                class="auth-btn"
+            >
+                Create Account
+            </button>
+
+        </form>
+
+
+        <!-- Signup message -->
+        <p id="signupMessage"></p>
+
+
+        <!-- Login -->
+        <p class="auth-link">
+            Already have an account?
+            <a href="login.html">Login</a>
+        </p>
+
+    </div>
+
+
+    <script>
+
+        // ============================================================
+        // SHOW / HIDE PASSWORD
+        // ============================================================
+
+        function togglePassword(inputId, button) {
+
+            const input = document.getElementById(inputId);
+
+            if (input.type === "password") {
+
+                input.type = "text";
+
+                button.textContent = "◉";
+
+            } else {
+
+                input.type = "password";
+
+                button.textContent = "◉";
+            }
+        }
+
+
+        // ============================================================
+        // SIGNUP
+        // ============================================================
+
+        document
+            .getElementById("signupForm")
+            .addEventListener("submit", async function(event) {
+
+                event.preventDefault();
+
+                const name =
+                    document
+                        .getElementById("name")
+                        .value
+                        .trim();
+
+                const email =
+                    document
+                        .getElementById("email")
+                        .value
+                        .trim();
+
+                const password =
+                    document
+                        .getElementById("password")
+                        .value;
+
+                const confirmPassword =
+                    document
+                        .getElementById("confirmPassword")
+                        .value;
+
+                const message =
+                    document.getElementById(
+                        "signupMessage"
+                    );
+
+
+                // Check passwords
+                if (password !== confirmPassword) {
+
+                    message.textContent =
+                        "Passwords do not match.";
+
+                    return;
+                }
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "http://127.0.0.1:8001/signup",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+
+                                    name: name,
+
+                                    email: email,
+
+                                    password: password,
+
+                                    role: "candidate"
+
+                                })
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        message.textContent =
+                            data.detail ||
+                            "Signup failed.";
+
+                        return;
+                    }
+
+
+                    message.textContent =
+                        "Account created successfully! Redirecting to login...";
+
+
+                    setTimeout(function() {
+
+                        window.location.href =
+                            "login.html";
+
+                    }, 1200);
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Signup error:",
+                        error
+                    );
+
+                    message.textContent =
+                        "Unable to connect to the server.";
+                }
+
+            });
+
+    </script>
+
+</body>
+</html>

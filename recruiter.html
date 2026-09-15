@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SmartHire AI - Recruiter Dashboard</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+
+<header class="topbar">
+
+    <div class="logo">
+        SmartHire <span>AI</span>
+    </div>
+
+    <div class="user-info">
+        <span>Recruiter</span>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+</header>
+
+
+<!-- ================= LAYOUT ================= -->
+
+<div class="dashboard-layout">
+
+
+    <!-- ================= SIDEBAR ================= -->
+
+    <aside class="sidebar">
+
+        <h2>Recruiter</h2>
+
+        <button onclick="showSection('recruiter-dashboard')">
+            Dashboard
+        </button>
+
+        <button onclick="showSection('candidate-analytics')">
+            Candidate Analytics
+        </button>
+
+        <button onclick="showSection('candidate-reports')">
+            Candidate Reports
+        </button>
+
+        <button onclick="showSection('compare-candidates')">
+            Compare Candidates
+        </button>
+
+        <button onclick="showSection('interview-templates')">
+            Interview Templates
+        </button>
+
+        <button onclick="showSection('interview-sessions')">
+            Interview Sessions
+        </button>
+
+    </aside>
+
+
+    <!-- ================= MAIN CONTENT ================= -->
+
+    <main class="main-content">
+
+
+        <!-- ================= RECRUITER OVERVIEW ================= -->
+
+        <section id="recruiter-dashboard"
+                 class="dashboard-section">
+
+            <h1>Recruiter Dashboard</h1>
+
+            <p class="subtitle">
+                Manage candidates, interviews and hiring insights.
+            </p>
+
+
+            <!-- STAT CARDS -->
+
+            <div class="stats-container">
+
+                <div class="stat-card">
+
+                    <h3>Total Candidates</h3>
+
+                    <strong id="totalCandidates">--</strong>
+
+                    <p>Active candidates</p>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <h3>Interviews</h3>
+
+                    <strong id="totalInterviews">--</strong>
+
+                    <p>This month</p>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <h3>Average Score</h3>
+
+                    <strong id="averageScore">--</strong>
+
+                    <p>Candidate average</p>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <h3>Shortlisted</h3>
+
+                    <strong>34</strong>
+
+                    <p>Strong candidates</p>
+
+                </div>
+
+            </div>
+
+
+            <!-- RECENT CANDIDATES -->
+
+            <div class="card">
+
+                <div class="section-heading">
+
+                    <div>
+
+                        <h2>Recent Candidates</h2>
+
+                        <p>
+                            Recently evaluated candidates
+                        </p>
+
+                    </div>
+
+                    <button
+                        class="primary-btn"
+                        onclick="showSection('candidate-analytics')">
+
+                        View Analytics
+
+                    </button>
+
+                </div>
+
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Candidate</th>
+                            <th>Role</th>
+                            <th>Score</th>
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <tbody id="recentCandidatesBody">
+
+                            <tr>
+                                <td colspan="4">Loading candidates...</td>
+                            </tr>
+
+                        </tbody>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <!-- QUICK ACTIONS -->
+
+            <div class="stats-container">
+
+                <div class="card quick-card">
+
+                    <h2>Candidate Analytics</h2>
+
+                    <p>
+                        View performance and evaluation metrics.
+                    </p>
+
+                    <button
+                        class="primary-btn"
+                        onclick="showSection('candidate-analytics')">
+
+                        Open Analytics
+
+                    </button>
+
+                </div>
+
+
+                <div class="card quick-card">
+
+                    <h2>Compare Candidates</h2>
+
+                    <p>
+                        Compare multiple candidates side by side.
+                    </p>
+
+                    <button
+                        class="primary-btn"
+                        onclick="showSection('compare-candidates')">
+
+                        Compare
+
+                    </button>
+
+                </div>
+
+
+                <div class="card quick-card">
+
+                    <h2>Interview Sessions</h2>
+
+                    <p>
+                        Manage upcoming and completed interviews.
+                    </p>
+
+                    <button
+                        class="primary-btn"
+                        onclick="showSection('interview-sessions')">
+
+                        View Sessions
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= CANDIDATE ANALYTICS ================= -->
+
+        <section id="candidate-analytics"
+                 class="dashboard-section hidden">
+
+            <h1>Candidate Analytics</h1>
+
+            <p class="subtitle">
+                Analyze candidate performance.
+            </p>
+
+
+            <div class="analytics-container">
+
+                <div class="analytics-card">
+
+                    <h3>Technical Skills</h3>
+
+                    <strong id="recruiterTechnicalScore">--</strong>
+
+                    <p>Average score</p>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <h3>Communication</h3>
+
+                    <strong id="recruiterCommunicationScore">--</strong>
+
+                    <p>Average score</p>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <h3>Technical Relevance</h3>
+                    <strong id="analyticsTechnicalRelevance">0%</strong>
+                    <p>Average score</p>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <h3>Confidence</h3>
+
+                    <strong id="recruiterConfidenceScore">--</strong>
+
+                    <p>Average score</p>
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h2>Candidate Performance</h2>
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Candidate</th>
+                            <th>Technical</th>
+                            <th>Communication</th>
+                            <th>Overall</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="candidateAnalyticsBody">
+                        <tr>
+                            <td colspan="4">
+                                Loading candidate analytics...
+                            </td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= CANDIDATE REPORTS ================= -->
+
+        <section id="candidate-reports"
+                 class="dashboard-section hidden">
+
+            <h1>Candidate Reports</h1>
+
+            <p class="subtitle">
+                Review candidate assessment reports.
+            </p>
+
+
+            <div class="card">
+
+                <h2>Assessment Reports</h2>
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Candidate</th>
+                            <th>Role</th>
+                            <th>Score</th>
+                            <th>Recommendation</th>
+                            <th>Action</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="candidateReportsBody">
+
+                        <tr>
+                            <td colspan="5">
+                                Loading reports...
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= COMPARE ================= -->
+<section id="compare-candidates"
+         class="dashboard-section hidden">
+
+    <h1>Compare Candidates</h1>
+
+    <p class="subtitle">
+        Compare candidates based on interview performance.
+    </p>
+
+    <div class="card">
+
+        <h2>Candidate Comparison</h2>
+
+        <!-- Candidate Selection -->
+
+        <div style="
+            display: flex;
+            gap: 20px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        ">
+
+            <div style="flex: 1; min-width: 220px;">
+
+                <label for="compareCandidate1">
+                    Candidate 1
+                </label>
+
+                <select
+                    id="compareCandidate1"
+                    style="
+                        width: 100%;
+                        padding: 12px;
+                        margin-top: 8px;
+                        border: 1px solid #cbd6e5;
+                        border-radius: 10px;
+                        font-size: 16px;
+                    "
+                >
+                    <option value="">
+                        Select candidate
+                    </option>
+                </select>
+
+            </div>
+
+
+            <div style="flex: 1; min-width: 220px;">
+
+                <label for="compareCandidate2">
+                    Candidate 2
+                </label>
+
+                <select
+                    id="compareCandidate2"
+                    style="
+                        width: 100%;
+                        padding: 12px;
+                        margin-top: 8px;
+                        border: 1px solid #cbd6e5;
+                        border-radius: 10px;
+                        font-size: 16px;
+                    "
+                >
+                    <option value="">
+                        Select candidate
+                    </option>
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <!-- Comparison Table -->
+
+        <table class="history-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Metric</th>
+
+                    <th id="compareName1">
+                        Candidate 1
+                    </th>
+
+                    <th id="compareName2">
+                        Candidate 2
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                <tr>
+                    <td>Technical Skills</td>
+                    <td id="compareTechnical1">--</td>
+                    <td id="compareTechnical2">--</td>
+                </tr>
+
+                <tr>
+                    <td>Communication</td>
+                    <td id="compareCommunication1">--</td>
+                    <td id="compareCommunication2">--</td>
+                </tr>
+
+                <tr>
+                    <td>Technical Relevance</td>
+                    <td id="compareRelevance1">--</td>
+                    <td id="compareRelevance2">--</td>
+                </tr>
+
+                <tr>
+                    <td>Confidence</td>
+                    <td id="compareConfidence1">--</td>
+                    <td id="compareConfidence2">--</td>
+                </tr>
+
+                <tr>
+                    <td>Professionalism</td>
+                    <td id="compareProfessionalism1">--</td>
+                    <td id="compareProfessionalism2">--</td>
+                </tr>
+
+                <tr>
+
+                    <td>Overall Score</td>
+
+                    <td>
+                        <strong id="compareOverall1">
+                            --
+                        </strong>
+                    </td>
+
+                    <td>
+                        <strong id="compareOverall2">
+                            --
+                        </strong>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+        <!-- ================= INTERVIEW TEMPLATES ================= -->
+
+        <section id="interview-templates"
+                 class="dashboard-section hidden">
+
+            <h1>Interview Templates</h1>
+
+            <p class="subtitle">
+                Create and manage interview templates.
+            </p>
+
+
+            <div class="card">
+
+                <h2>Create Interview Template</h2>
+
+                <label>Template Name</label>
+
+                <input
+                    type="text"
+                    id="templateName"
+                    placeholder="e.g. Data Science Interview">
+
+
+                <label>Role</label>
+
+                <select id="templateRole">
+
+                    <option>Software Engineer</option>
+                    <option>Data Scientist</option>
+                    <option>Data Analyst</option>
+                    <option>Frontend Developer</option>
+
+                </select>
+
+
+                <label>Difficulty</label>
+
+                <select id="templateDifficulty">
+
+                    <option>Junior</option>
+                    <option>Mid</option>
+                    <option>Senior</option>
+
+                </select>
+
+
+                <label>Number of Questions</label>
+
+                <select id="templateQuestions">
+
+                    <option>5</option>
+                    <option>10</option>
+                    <option>15</option>
+
+                </select>
+
+
+                <button
+                    class="primary-btn"
+                    onclick="createTemplate()">
+
+                    Create Template
+
+                </button>
+
+                <p id="templateMessage"></p>
+
+            </div>
+
+
+            <div class="card">
+
+                <h2>Existing Templates</h2>
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Template</th>
+                            <th>Role</th>
+                            <th>Difficulty</th>
+                            <th>Questions</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="templatesBody">
+                        <tr>
+                            <td colspan="4">
+                                Loading templates...
+                            </td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= INTERVIEW SESSIONS ================= -->
+
+        <section id="interview-sessions"
+                class="dashboard-section hidden">
+
+            <h1>Interview Sessions</h1>
+
+            <p class="subtitle">
+                Manage scheduled and completed interviews.
+            </p>
+
+            <div class="card">
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>Candidate</th>
+                            <th>Role</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Action</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="interviewSessionsBody">
+
+                        <tr>
+                            <td colspan="7">
+                                Loading interview sessions...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>

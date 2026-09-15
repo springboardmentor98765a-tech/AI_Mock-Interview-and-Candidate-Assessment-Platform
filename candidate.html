@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>SmartHire AI - Candidate Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     TOP BAR
+========================================================= -->
+
+<header class="topbar">
+
+    <div class="logo">
+        SmartHire <span>AI</span>
+    </div>
+
+
+    <div class="user-info">
+
+        <span id="candidateName">
+            Candidate
+        </span>
+
+        <button onclick="logout()">
+            Logout
+        </button>
+
+    </div>
+
+</header>
+
+
+
+<div class="dashboard-layout">
+
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <h3>
+            Candidate
+        </h3>
+
+
+        <button
+            onclick="showSection('overview')"
+        >
+            Dashboard
+        </button>
+
+
+        <button
+            onclick="showSection('resume')"
+        >
+            Resume
+        </button>
+
+
+        <button
+            onclick="showSection('interview')"
+        >
+            Mock Interview
+        </button>
+
+
+        <button
+            onclick="showSection('history')"
+        >
+            Interview History
+        </button>
+
+
+        <button
+            onclick="showSection('analytics')"
+        >
+            Analytics
+        </button>
+
+
+        <button
+            onclick="showSection('reports')"
+        >
+            Reports
+        </button>
+
+
+        <button
+            onclick="showSection('progress')"
+        >
+            Progress
+        </button>
+
+    </aside>
+
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main class="dashboard-content">
+
+
+        <!-- =================================================
+             OVERVIEW
+        ================================================== -->
+
+        <section
+            id="overview"
+            class="dashboard-section"
+        >
+
+            <h1>
+                Candidate Dashboard
+            </h1>
+
+
+            <p class="subtitle">
+                Welcome back. Here's your interview preparation overview.
+            </p>
+
+
+
+            <div class="card-grid">
+
+
+                <div class="card">
+
+                    <h3>
+                        Resume Match
+                    </h3>
+
+                    <p class="big-number">
+                        --
+                    </p>
+
+                    <p>
+                        ATS compatibility
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Average Score
+                    </h3>
+
+                    <p class="big-number">
+                        --
+                    </p>
+
+                    <p>
+                        Across completed interviews
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Interviews
+                    </h3>
+
+                    <p class="big-number">
+                        --
+                    </p>
+
+                    <p>
+                        Completed
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Readiness
+                    </h3>
+
+                    <p class="big-number">
+                        --
+                    </p>
+
+                    <p>
+                        Based on actual performance
+                    </p>
+
+                </div>
+
+
+            </div>
+
+
+
+            <div class="dashboard-row">
+
+
+                <div class="large-card">
+
+                    <h2>
+                        Weekly Skill Progress
+                    </h2>
+
+                    <p>
+                        Your real skill progress will appear here after interview evaluation is implemented.
+                    </p>
+
+                </div>
+
+
+
+                <div class="large-card">
+
+                    <h2>
+                        Next Practice Session
+                    </h2>
+
+
+                    <h3>
+                        AI Mock Interview
+                    </h3>
+
+
+                    <p>
+                        Practice personalized interview questions generated from your resume.
+                    </p>
+
+
+                    <button
+                        class="primary-btn"
+                        onclick="showSection('interview')"
+                    >
+                        Start Interview
+                    </button>
+
+                </div>
+                <!-- =================================================
+                    SCHEDULE INTERVIEW
+                ================================================== -->
+
+                <div class="large-card">
+
+                    <h2>📅 Schedule Interview</h2>
+
+                    <p>
+                        Schedule your next AI mock interview and receive a reminder.
+                    </p>
+
+                    <label for="scheduledInterviewDate">
+                        Date
+                    </label>
+
+                    <input
+                        type="date"
+                        id="scheduledInterviewDate"
+                    >
+
+                    <label for="scheduledInterviewTime">
+                        Time
+                    </label>
+
+                    <input
+                        type="time"
+                        id="scheduledInterviewTime"
+                    >
+
+                    <br><br>
+
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        onclick="scheduleInterview()"
+                    >
+                        📅 Schedule Interview
+                    </button>
+
+                    <p id="scheduleMessage"></p>
+
+                </div>
+                <!-- =================================================
+                    UPCOMING INTERVIEW
+                ================================================== -->
+
+                <div class="large-card" id="upcomingInterviewCard">
+
+                    <h2>⏰ Upcoming Interview</h2>
+
+                    <div id="upcomingInterview">
+                        <p>Loading upcoming interview...</p>
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             RESUME
+        ================================================== -->
+
+        <section
+            id="resume"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                Resume Analysis
+            </h1>
+
+
+            <!-- RESUME UPLOAD -->
+
+            <div class="large-card">
+
+                <h2>
+                    Upload Your Resume
+                </h2>
+
+
+                <p>
+                    Upload your PDF or DOCX resume to analyze your skills and prepare a personalized interview.
+                </p>
+
+
+                <input
+                    type="file"
+                    id="resumeFile"
+                    accept=".pdf,.docx"
+                >
+
+
+                <button
+                    type="button"
+                    class="primary-btn"
+                    id="uploadResumeButton">
+                    Upload Resume
+                </button>
+                <script>
+                    document.getElementById("uploadResumeButton").addEventListener("click", function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        uploadResume();
+                    });
+                </script>
+
+
+                <p id="uploadMessage"></p>
+
+            </div>
+            <div class="large-card">
+
+                <h2>🎯 ATS Resume Match</h2>
+
+                <p>
+                    Paste a job description to check how well your resume matches the role.
+                </p>
+
+                <textarea
+                    id="jobDescription"
+                    rows="8"
+                    placeholder="Paste the job description here..."
+                    style="width: 100%; padding: 12px; margin-top: 10px;"
+                ></textarea>
+
+                <br><br>
+
+                <button
+                    type="button"
+                    class="primary-btn"
+                    onclick="checkATSMatch()"
+                >
+                    🎯 Check ATS Match
+                </button>
+
+                <p id="atsMessage"></p>
+
+            </div>
+
+
+
+            <!-- AI RESUME ANALYSIS -->
+
+            <div class="large-card">
+
+                <h2>
+                    🧠 AI Resume Analysis
+                </h2>
+
+                <p>
+                    Gemini AI analyzes your actual resume and extracts
+                    your skills, experience, education, and professional summary.
+                </p>
+
+                <button
+                    class="primary-btn"
+                    onclick="analyzeResumeWithAI()"
+                >
+                    Analyze Resume with AI
+                </button>
+
+                <p id="aiResumeMessage"></p>
+
+            </div>
+
+
+
+            <!-- AI RESULT -->
+
+            <div
+                class="large-card"
+                id="aiResumeResult"
+                style="display: none;"
+            >
+
+                <h2>
+                    Detected Skills
+                </h2>
+
+                <div id="skillsContainer">
+
+                    <p>
+                        Loading skills...
+                    </p>
+
+                </div>
+
+
+                <h2>
+                    Experience
+                </h2>
+
+                <div id="experienceContainer">
+
+                    <p>
+                        No experience information available.
+                    </p>
+
+                </div>
+
+
+                <h2>
+                    Education
+                </h2>
+
+                <div id="educationContainer">
+
+                    <p>
+                        No education information available.
+                    </p>
+
+                </div>
+
+
+                <h2>
+                    AI Professional Summary
+                </h2>
+
+                <p id="resumeSummary">
+                    No summary available.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             AI MOCK INTERVIEW
+        ================================================== -->
+
+        <section
+            id="interview"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                AI Mock Interview
+            </h1>
+
+
+
+            <!-- =============================================
+                 INTERVIEW SETUP
+            ============================================== -->
+
+            <div
+                class="large-card"
+                id="interviewSetup"
+            >
+
+                <h2>
+                    Interview Setup
+                </h2>
+
+
+                <p>
+                    Generate a personalized interview using your resume skills.
+                </p>
+
+
+
+                <label for="interviewType">
+                    Interview Type
+                </label>
+
+
+                <select id="interviewType">
+
+                    <option value="technical">
+                        Technical
+                    </option>
+
+                    <option value="behavioral">
+                        Behavioral
+                    </option>
+
+                    <option value="hr">
+                        HR
+                    </option>
+
+                    <option value="aptitude">
+                        Aptitude
+                    </option>
+
+                </select>
+
+
+
+                <label for="interviewDomain">
+                    Domain
+                </label>
+
+
+                <select id="interviewDomain">
+
+                    <option value="Data Science">
+                        Data Science
+                    </option>
+
+                    <option value="Machine Learning">
+                        Machine Learning
+                    </option>
+
+                    <option value="Python">
+                        Python
+                    </option>
+
+                    <option value="Software Development">
+                        Software Development
+                    </option>
+
+                    <option value="General">
+                        General
+                    </option>
+
+                </select>
+
+
+
+                <label for="interviewDifficulty">
+                    Difficulty
+                </label>
+
+
+                <select id="interviewDifficulty">
+
+                    <option value="easy">
+                        Easy
+                    </option>
+
+                    <option
+                        value="medium"
+                        selected
+                    >
+                        Medium
+                    </option>
+
+                    <option value="hard">
+                        Hard
+                    </option>
+
+                </select>
+
+
+
+                <label for="questionCount">
+                    Number of Questions
+                </label>
+
+
+                <select id="questionCount">
+
+                    <option value="5">
+                        5
+                    </option>
+
+                    <option value="10">
+                        10
+                    </option>
+
+                    <option value="15">
+                        15
+                    </option>
+
+                </select>
+
+
+
+                <button
+                    class="primary-btn"
+                    onclick="generateInterview()"
+                >
+                    Generate Interview
+                </button>
+
+
+                <p id="interviewMessage"></p>
+
+            </div>
+            
+
+
+
+            <!-- =============================================
+                 GENERATED INTERVIEW
+            ============================================== -->
+
+            <div
+                class="large-card hidden"
+                id="generatedInterview"
+            >
+
+                <h2>
+                    Your AI Interview
+                </h2>
+
+
+                <p id="interviewDetails"></p>
+
+
+                <div id="questionContainer"></div>
+
+
+                <button
+                    class="primary-btn"
+                    onclick="startInterviewSession()"
+                >
+                    Start Interview
+                </button>
+
+            </div>
+
+            <!-- ============================================================
+         CAMERA + MICROPHONE
+    ============================================================ -->
+
+    <div id="mediaControls" style="margin-top: 20px;">
+
+        <h3>Interview Camera & Microphone</h3>
+
+        <!-- Live webcam preview -->
+        <video
+            id="interviewCamera"
+            autoplay
+            muted
+            playsinline
+            width="400"
+            style="border-radius: 12px; display: block; margin-bottom: 15px;"
+        ></video>
+        <!-- Hidden canvas used to capture webcam frames for Visual AI -->
+        <canvas
+            id="visualAnalysisCanvas"
+            style="display: none;">
+        </canvas>
+
+        <!-- Media status -->
+        <p id="mediaStatus">
+            Camera and microphone are not connected.
+        </p>
+
+        <!-- Start media button -->
+        <button
+            type="button"
+            onclick="startInterviewMedia()"
+            class="primary-btn"
+        >
+            🎥 Start Camera & Microphone
+        </button>
+
+        <!-- Stop media button -->
+        <button
+            type="button"
+            onclick="stopInterviewMedia()"
+            class="secondary-btn"
+        >
+            ⏹ Stop Camera & Microphone
+        </button>
+
+    </div>
+
+
+            <!-- =============================================
+     ACTIVE INTERVIEW
+============================================= -->
+
+<div
+    class="large-card hidden"
+    id="activeInterview"
+>
+
+    <h2>
+        Live Mock Interview
+    </h2>
+
+
+    <p id="questionNumber"></p>
+
+
+    <h3 id="currentQuestion"></h3>
+
+    <!-- ============================================================
+     SPEECH TO TEXT
+============================================================ -->
+
+<div id="speechControls" style="margin-top: 20px;">
+
+    <h3>🎤 Speech-to-Text</h3>
+
+    <p id="speechStatus">
+        Click the button and speak your answer.
+    </p>
+
+    <button
+        type="button"
+        id="speechStartButton"
+        class="primary-btn"
+        onclick="startSpeechRecognition()"
+    >
+        🎤 Start Speaking
+    </button>
+
+    <button
+        type="button"
+        id="speechStopButton"
+        class="secondary-btn"
+        onclick="stopSpeechRecognition()"
+        disabled
+    >
+        ⏹ Stop Speaking
+    </button>
+
+</div>
+    
+
+    <textarea
+        id="answerBox"
+        rows="6"
+        placeholder="Type your answer here..."
+    ></textarea>
+
+
+    <br>
+    <br>
+
+
+    <button
+        id="interviewActionButton"
+        class="primary-btn"
+        onclick="nextInterviewQuestion()"
+    >
+        Next Question
+    </button>
+
+
+    <p id="sessionMessage"></p>
+
+</div>
+</section>
+        <!-- =================================================
+             INTERVIEW HISTORY
+        ================================================== -->
+
+        <section
+            id="history"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                Interview History
+            </h1>
+
+
+            <div class="large-card">
+
+                <p>
+                    Your completed interviews will appear here after the real session and evaluation APIs are connected.
+                </p>
+
+
+                <table class="history-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Type
+                            </th>
+
+                            <th>
+                                Score
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="historyTableBody">
+
+                        <tr>
+
+                            <td colspan="4">
+                                No completed interviews yet.
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             ANALYTICS
+        ================================================== -->
+
+        <section
+            id="analytics"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                Performance Analytics
+            </h1>
+            <div class="analytics-section">
+                <h2>Visual AI Analytics</h2>
+
+                <div class="analytics-cards">
+                    <div class="analytics-card">
+                        <h3>Eye Contact</h3>
+                        <div id="eyeContactAnalytics">0/100</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Attention</h3>
+                        <div id="attentionAnalytics">0/100</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Facial Engagement</h3>
+                        <div id="facialEngagementAnalytics">0/100</div>
+                    </div>
+                </div>
+            </div>
+            <div class="analytics-section">
+                <h2>Question Analysis</h2>
+
+                <div class="analytics-cards">
+                    <div class="analytics-card">
+                        <h3>Technical Depth</h3>
+                        <div id="questionTechnicalDepth">0/100</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Answer Quality</h3>
+                        <div id="questionAnswerQuality">0/100</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Relevance</h3>
+                        <div id="questionRelevance">0/100</div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="card-grid">
+
+
+                <div class="card">
+
+                    <h3>
+                        Technical Depth
+                    </h3>
+
+                    <p
+                        class="big-number"
+                        id="technicalScore"
+                    >
+                        --
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Communication
+                    </h3>
+
+                    <p
+                        class="big-number"
+                        id="communicationScore"
+                    >
+                        --
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Overall Performance
+                    </h3>
+
+                    <p
+                        class="big-number"
+                        id="problemSolvingScore"
+                    >
+                        --
+                    </p>
+
+                </div>
+
+
+
+                <div class="card">
+
+                    <h3>
+                        Confidence
+                    </h3>
+
+                    <p
+                        class="big-number"
+                        id="confidenceScore"
+                    >
+                        --
+                    </p>
+
+                </div>
+
+
+            </div>
+            <!-- =================================================
+                PERFORMANCE TRENDS
+            ================================================== -->
+
+            <div class="analytics-section">
+
+                <h2>Performance Trends</h2>
+
+                <div class="analytics-cards">
+
+                    <div class="analytics-card">
+                        <h3>Latest Overall Score</h3>
+                        <div id="trendOverallScore">--</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Previous Overall Score</h3>
+                        <div id="trendPreviousScore">--</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Score Change</h3>
+                        <div id="trendScoreChange">--</div>
+                    </div>
+
+                </div>
+
+                <div class="card">
+                    <h3>Performance Trend</h3>
+
+                    <p id="performanceTrendText">
+                        Complete more interviews to see your performance trend.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                WEAK AREA PREDICTION
+            ================================================== -->
+
+            <div class="analytics-section">
+
+                <h2>Weak Area Prediction</h2>
+
+                <div class="card">
+
+                    <h3>Areas Needing Improvement</h3>
+
+                    <div id="weakAreasContainer">
+
+                        <p>
+                            Complete an interview to identify your weak areas.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        
+
+        </section>
+
+
+
+        <!-- =================================================
+             REPORTS
+        ================================================== -->
+
+        <section
+            id="reports"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                Reports
+            </h1>
+
+
+            <div
+                class="large-card"
+                id="reportContainer"
+            >
+
+                <h2>
+                    Interview Assessment
+                </h2>
+
+
+                <p>
+                    Complete an interview to generate your assessment report.
+                </p>
+
+
+                <button
+                    class="primary-btn"
+                    onclick="generateReport()">
+                    View Latest Report
+                </button>
+
+                <button
+                    class="primary-btn"
+                    onclick="downloadReport()">
+                    Download Report
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             PROGRESS
+        ================================================== -->
+
+        <section
+            id="progress"
+            class="dashboard-section hidden"
+        >
+
+            <h1>
+                Improvement Progress
+            </h1>
+
+
+            <div class="large-card">
+
+                <h2>
+                    Technical Development
+                </h2>
+
+
+                <p id="technicalProgressCurrent">
+                    Current: --
+                </p>
+
+                <p id="technicalProgressTarget">
+                    Target: --
+                </p>
+
+                <progress
+                    id="technicalProgressBar"
+                    value="0"
+                    max="100"
+                ></progress>
+
+            </div>
+
+
+
+            <div class="large-card">
+
+                <h2>
+                    Behavioral Communication
+                </h2>
+
+
+                <p id="communicationProgressCurrent">
+                    Current: --
+                </p>
+
+                <p id="communicationProgressTarget">
+                    Target: --
+                </p>
+
+                <progress
+                    id="communicationProgressBar"
+                    value="0"
+                    max="100"
+                ></progress>
+            </div>
+            
+
+        </section>
+        
+
+
+
+    </main>
+
+</div>
+
+
+<script src="js/script.js"></script>
+
+
+
+</body>
+
+</html>
