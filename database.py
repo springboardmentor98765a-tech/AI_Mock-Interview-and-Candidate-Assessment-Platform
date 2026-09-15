@@ -8,7 +8,48 @@ class InMemoryDB:
         self.interviews = {}
         self.assessments = {}
         self.speech_sessions = {}
+        self.notifications = {}
+        self.reminders = {}
+        self.email_logs = {}
+        self.reports = {}
+        self.scheduled_interviews = {}
+        self.activity_logs = {}
+        self.ai_telemetry = {}
+        self.system_metrics = {}
+        self.detection_events = {}
+        self.detection_summaries = {}
         self._seed_data()
+
+    def log_activity(self, user_id: str, action: str, entity_type: str, entity_id: str, details: dict = None):
+        log_id = f"act_{uuid.uuid4().hex[:10]}"
+        now_iso = datetime.datetime.now().isoformat()
+        record = {
+            "id": log_id,
+            "user_id": user_id,
+            "action": action,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "details": details or {},
+            "timestamp": now_iso
+        }
+        self.activity_logs[log_id] = record
+        return record
+
+    def log_ai_telemetry(self, session_id: str, service_name: str, status: str, duration_seconds: float, error_message: str = None, metadata: dict = None):
+        telemetry_id = f"ai_tel_{uuid.uuid4().hex[:10]}"
+        now_iso = datetime.datetime.now().isoformat()
+        record = {
+            "id": telemetry_id,
+            "session_id": session_id,
+            "service_name": service_name,
+            "status": status,  # "success", "failed"
+            "duration_seconds": round(duration_seconds, 3),
+            "error_message": error_message,
+            "metadata": metadata or {},
+            "timestamp": now_iso
+        }
+        self.ai_telemetry[telemetry_id] = record
+        return record
 
     def _seed_data(self):
         # Pre-seeded password hashes (password: "password123")
@@ -142,4 +183,91 @@ class InMemoryDB:
             "created_at": datetime.datetime.now().isoformat()
         }
 
+        # Pre-seed upcoming scheduled interview for Alex Mercer (tomorrow)
+        upcoming_time = (datetime.datetime.now() + datetime.timedelta(days=1, hours=2)).replace(microsecond=0)
+        sched_id = "sched_sample_101"
+        self.scheduled_interviews[sched_id] = {
+            "id": sched_id,
+            "user_id": cand_id,
+            "candidate_name": "Alex Mercer",
+            "candidate_email": "candidate@example.com",
+            "title": "Full Stack Senior Engineer Mock Interview",
+            "domain": "Full Stack",
+            "difficulty": "Hard",
+            "type": "Technical",
+            "scheduled_time": upcoming_time.isoformat(),
+            "duration_minutes": 45,
+            "status": "Scheduled", # Scheduled, Completed, Cancelled, Rescheduled
+            "reminder_preferences": ["24h", "1h", "15m"],
+            "created_at": datetime.datetime.now().isoformat()
+        }
+
+        # Pre-seed reminders for scheduled interview
+        rem_24h_id = f"rem_{uuid.uuid4().hex[:8]}"
+        self.reminders[rem_24h_id] = {
+            "id": rem_24h_id,
+            "user_id": cand_id,
+            "interview_id": sched_id,
+            "reminder_type": "24h",
+            "scheduled_time": (upcoming_time - datetime.timedelta(hours=24)).isoformat(),
+            "target_interview_time": upcoming_time.isoformat(),
+            "status": "pending", # pending, sent, failed, cancelled
+            "sent_at": None,
+            "created_at": datetime.datetime.now().isoformat()
+        }
+
+        rem_1h_id = f"rem_{uuid.uuid4().hex[:8]}"
+        self.reminders[rem_1h_id] = {
+            "id": rem_1h_id,
+            "user_id": cand_id,
+            "interview_id": sched_id,
+            "reminder_type": "1h",
+            "scheduled_time": (upcoming_time - datetime.timedelta(hours=1)).isoformat(),
+            "target_interview_time": upcoming_time.isoformat(),
+            "status": "pending",
+            "sent_at": None,
+            "created_at": datetime.datetime.now().isoformat()
+        }
+
+        # Pre-seed realistic notifications for Alex Mercer
+        notif_1 = f"notif_{uuid.uuid4().hex[:8]}"
+        self.notifications[notif_1] = {
+            "id": notif_1,
+            "user_id": cand_id,
+            "title": "Mock Interview Scheduled",
+            "message": f"Your Full Stack Technical interview is scheduled for {upcoming_time.strftime('%b %d, %Y at %I:%M %p')}.",
+            "type": "reminder",
+            "is_read": False,
+            "related_id": sched_id,
+            "action_url": f"#upcoming",
+            "created_at": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat()
+        }
+
+        notif_2 = f"notif_{uuid.uuid4().hex[:8]}"
+        self.notifications[notif_2] = {
+            "id": notif_2,
+            "user_id": cand_id,
+            "title": "Assessment Ready",
+            "message": "AI Evaluation for Full Stack Interview (int_sample_001) completed with score 85/100.",
+            "type": "assessment",
+            "is_read": False,
+            "related_id": sample_int_id,
+            "action_url": f"#assessment",
+            "created_at": (datetime.datetime.now() - datetime.timedelta(hours=1)).isoformat()
+        }
+
+        # Pre-seed initial email logs
+        log_1 = f"email_{uuid.uuid4().hex[:8]}"
+        self.email_logs[log_1] = {
+            "id": log_1,
+            "user_id": cand_id,
+            "notification_type": "interview_scheduled",
+            "recipient_email": "candidate@example.com",
+            "subject": "Interview Scheduled: Full Stack Senior Engineer Mock Interview",
+            "status": "sent",
+            "sent_at": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat(),
+            "error_message": None
+        }
+
 db = InMemoryDB()
+

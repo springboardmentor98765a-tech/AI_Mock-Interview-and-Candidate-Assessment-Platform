@@ -12,13 +12,19 @@ from backend.routers import (
     analytics_router,
     speech_router,
     interview_analysis_router,
-    assessment_router
+    assessment_router,
+    notification_router,
+    report_router,
+    candidate_router,
+    recruiter_router,
+    admin_router,
+    detection_router
 )
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Full-Stack AI-Driven Interview Platform, Speech Communication & Assessment Scoring Module powered by Google Gemini 2.5 Flash API & FastAPI.",
-    version="2.2.0"
+    description="Full-Stack AI-Driven Interview Platform, Speech Communication, Vision Behavioral Telemetry & Real-Time Electronic Device Detection Module.",
+    version="2.4.0"
 )
 
 # CORS Middleware setup
@@ -37,12 +43,22 @@ app.include_router(interview_router.router)
 app.include_router(analytics_router.router)
 app.include_router(speech_router.router)
 app.include_router(interview_analysis_router.router)
+app.include_router(detection_router.router)
 app.include_router(assessment_router.router)
+app.include_router(notification_router.router)
+app.include_router(report_router.router)
+app.include_router(candidate_router.router)
+app.include_router(recruiter_router.router)
+app.include_router(admin_router.router)
 
 # Mount frontend static files if available
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RECORDINGS_DIR = os.path.join(BASE_DIR, "recordings")
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+STORAGE_DETECTION_DIR = os.path.join(BASE_DIR, "storage", "detection_events")
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
+os.makedirs(STORAGE_DETECTION_DIR, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=RECORDINGS_DIR), name="recordings")
 
 @app.get("/")
