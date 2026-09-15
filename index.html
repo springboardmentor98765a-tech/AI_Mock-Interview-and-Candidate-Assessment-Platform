@@ -140,129 +140,366 @@
     <section id="view-candidate" class="view-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h2>Candidate Interview Portal</h2>
-          <p>Upload your resume and launch AI-guided mock assessments</p>
+          <h2>Candidate Performance Dashboard</h2>
+          <p>Real-time mock interview telemetry, score breakdowns, skill analytics & AI feedback</p>
         </div>
-        <span class="badge badge-candidate" id="cand-user-badge">Alex Mercer</span>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button class="btn btn-outline" style="border-color: var(--secondary); color: var(--secondary); font-size: 0.85rem;" onclick="loadCandidateDashboard()">
+            🔄 Refresh Metrics
+          </button>
+          <span class="badge badge-candidate" id="cand-user-badge">Candidate</span>
+        </div>
       </div>
 
-      <!-- Enabled Features Banner -->
-      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; background: rgba(255,255,255,0.02); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-        <span class="badge badge-candidate">📹 Live Webcam & Mic Studio</span>
-        <span class="badge badge-success">🎙️ MediaRecorder Video Capture</span>
-        <span class="badge badge-recruiter">⏱️ Timer-Based Workflow Engine</span>
-        <span class="badge badge-admin">📌 Session Storage & Analytics</span>
-        <span class="badge badge-success">📥 Download Video Recording (.webm)</span>
+      <!-- Candidate Sub-Navigation Tabs -->
+      <div class="dashboard-subnav">
+        <button id="cand-tab-overview" class="dash-tab-btn active" onclick="switchCandidateTab('overview')">
+          📊 Performance Overview
+        </button>
+        <button id="cand-tab-history" class="dash-tab-btn" onclick="switchCandidateTab('history')">
+          📑 Interview History
+        </button>
+        <button id="cand-tab-skills" class="dash-tab-btn" onclick="switchCandidateTab('skills')">
+          🎯 Skill Analytics
+        </button>
+        <button id="cand-tab-weak-areas" class="dash-tab-btn" onclick="switchCandidateTab('weak-areas')">
+          🔍 Weak Areas
+        </button>
+        <button id="cand-tab-trends" class="dash-tab-btn" onclick="switchCandidateTab('trends')">
+          📈 Performance Trends
+        </button>
+        <button id="cand-tab-feedback" class="dash-tab-btn" onclick="switchCandidateTab('feedback')">
+          💬 AI Feedback
+        </button>
+        <button id="cand-tab-integrity" class="dash-tab-btn" onclick="switchCandidateTab('integrity')">
+          🛡️ Integrity & Devices
+        </button>
+        <button id="cand-tab-reports" class="dash-tab-btn" onclick="switchCandidateTab('reports')">
+          📄 Reports
+        </button>
+        <button id="cand-tab-practice" class="dash-tab-btn" onclick="switchCandidateTab('practice')">
+          🚀 Practice Interview
+        </button>
       </div>
 
-      <!-- Top Row: Resume Parser & AI Config -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-        
-        <!-- Module 2: Resume Dropzone & Parsing Viewer -->
+      <!-- TAB 1: Performance Overview & Hero ScoreCard -->
+      <div id="cand-panel-overview" class="cand-dash-panel">
+        <div id="cand-score-hero-container">
+          <!-- Populated dynamically by renderCandidateHeroScore -->
+        </div>
+
+        <h3 style="margin-bottom: 1rem; color: var(--secondary);">📐 Category Score Breakdown</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Calculated using formula: Overall Score = Communication (30%) + Confidence (25%) + Technical Relevance (30%) + Professionalism (15%).
+        </p>
+        <div id="cand-category-grid" class="category-breakdown-grid">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="cand-latest-feedback-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 2: Interview History -->
+      <div id="cand-panel-history" class="cand-dash-panel" style="display: none;">
         <div class="glass-card">
-          <h3 style="margin-bottom: 1rem;">📄 Resume Upload & AI Parsing</h3>
-          
-          <div class="dropzone" id="resume-dropzone" onclick="document.getElementById('resume-file-input').click()">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📥</div>
-            <h4 style="margin-bottom: 0.25rem;">Drop PDF Resume Here</h4>
-            <p style="font-size: 0.85rem;">or click to browse files (PDF only)</p>
-            <input type="file" id="resume-file-input" accept=".pdf" style="display: none;" onchange="handleResumeUpload(event)" />
-          </div>
-
-          <div id="resume-parsed-output" style="margin-top: 1.5rem; display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-              <h4 id="resume-cand-name" style="color: var(--secondary);">Parsed Resume Data</h4>
-              <span class="badge badge-success" id="resume-seniority">Mid-Senior</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3>📑 Personal Mock Interview History</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Real completed and in-progress sessions recorded in database</p>
             </div>
-            <p id="resume-summary" style="font-size: 0.9rem; margin-bottom: 1rem;"></p>
-            
-            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Extracted Skills:</label>
-            <div id="resume-skills-list" style="margin-top: 0.35rem; margin-bottom: 1rem;"></div>
-          </div>
-        </div>
-
-        <!-- Module 3: Interview Setup Generator -->
-        <div class="glass-card">
-          <h3 style="margin-bottom: 1rem;">🎯 Launch AI Interview</h3>
-          <form onsubmit="handleStartInterview(event)">
-            <div class="form-group">
-              <label>Domain / Specialization</label>
-              <select id="int-domain" class="form-control">
-                <option value="Full Stack">Full Stack Development</option>
-                <option value="Frontend Engineering">Frontend Engineering</option>
-                <option value="Backend Engineering">Backend Engineering</option>
-                <option value="Data Science & AI">Data Science & AI/ML</option>
-                <option value="DevOps & Cloud">DevOps & Cloud</option>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" id="cand-history-search" class="form-control" placeholder="🔍 Search domain, ID..." style="max-width: 220px; font-size: 0.85rem;" oninput="debounceCandidateHistorySearch()" />
+              <select id="cand-history-sort" class="form-control" style="width: auto; font-size: 0.85rem;" onchange="changeCandidateHistorySort(this.value)">
+                <option value="date_desc">Latest Date First</option>
+                <option value="date_asc">Oldest Date First</option>
+                <option value="score_desc">Highest Score</option>
+                <option value="score_asc">Lowest Score</option>
               </select>
             </div>
+          </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div style="overflow-x: auto;">
+            <table class="custom-table" id="cand-history-table">
+              <thead>
+                <tr>
+                  <th>Interview ID</th>
+                  <th>Domain & Track</th>
+                  <th>Date</th>
+                  <th>Difficulty</th>
+                  <th>Questions</th>
+                  <th>Duration</th>
+                  <th>Overall Score</th>
+                  <th>Performance Level</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="cand-history-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-toolbar" id="cand-history-pagination">
+            <div id="cand-history-page-info" style="font-size: 0.82rem; color: var(--text-dim);">Showing 0-0 of 0 records</div>
+            <div class="pagination-pages-flex">
+              <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" id="cand-btn-prev" onclick="goToCandidateHistoryPage(-1)">◀ Prev</button>
+              <span id="cand-page-current" style="font-size: 0.85rem; font-weight: 600; padding: 0 0.5rem;">Page 1 of 1</span>
+              <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" id="cand-btn-next" onclick="goToCandidateHistoryPage(1)">Next ▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Skill Analytics -->
+      <div id="cand-panel-skills" class="cand-dash-panel" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <div>
+                <h3 style="color: var(--secondary);">🎯 Competency Radar</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Skill geometry derived from actual question evaluations</p>
+              </div>
+              <span class="badge badge-candidate">Radar Geometry</span>
+            </div>
+            <div id="cand-skill-radar-box" style="display: flex; justify-content: center; align-items: center; min-height: 260px;">
+              <canvas id="cand-skill-radar-canvas" width="360" height="260" style="max-width: 100%;"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <div>
+                <h3 style="color: var(--primary);">📊 Skill Proficiency Breakdown</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Extracted directly from candidate assessments</p>
+              </div>
+              <span class="badge badge-outline">Taxonomy</span>
+            </div>
+            <div id="cand-skill-bars-box" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 320px; overflow-y: auto;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Weak Areas -->
+      <div id="cand-panel-weak-areas" class="cand-dash-panel" style="display: none;">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3 style="color: var(--accent-warning);">🎯 Algorithmic Weak-Area Identification</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted);">
+                Classified by actual evaluation score thresholds: Score &lt;60 = Weak (Critical), 60–74 = Needs Improvement, 75+ = Satisfactory.
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <span class="severity-pill-critical">Critical (&lt;60%)</span>
+              <span class="severity-pill-warning">Needs Improvement (60–74%)</span>
+            </div>
+          </div>
+          <div id="cand-weak-areas-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Performance Trends -->
+      <div id="cand-panel-trends" class="cand-dash-panel" style="display: none;">
+        <div class="analytics-chart-card">
+          <div class="chart-header-flex">
+            <div>
+              <h3 style="color: var(--secondary); margin-bottom: 0.25rem;">📈 Performance Trajectory Over Time</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted);">Time-series analysis across completed mock interviews.</p>
+            </div>
+            <div class="time-period-selector" id="cand-trend-periods">
+              <button class="period-btn" data-period="7d" onclick="switchCandTrendPeriod('7d')">7D</button>
+              <button class="period-btn" data-period="30d" onclick="switchCandTrendPeriod('30d')">30D</button>
+              <button class="period-btn" data-period="3m" onclick="switchCandTrendPeriod('3m')">3M</button>
+              <button class="period-btn active" data-period="all" onclick="switchCandTrendPeriod('all')">ALL</button>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div style="display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: 0.82rem;">
+            <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; color: #6366f1;">
+              <input type="checkbox" id="cand-chk-overall" checked onchange="redrawCandTrendChart()" style="accent-color: #6366f1;" />
+              <strong>● Overall</strong>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; color: #10b981;">
+              <input type="checkbox" id="cand-chk-technical" checked onchange="redrawCandTrendChart()" style="accent-color: #10b981;" />
+              <strong>● Technical</strong>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; color: #06b6d4;">
+              <input type="checkbox" id="cand-chk-communication" checked onchange="redrawCandTrendChart()" style="accent-color: #06b6d4;" />
+              <strong>● Communication</strong>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; color: #f59e0b;">
+              <input type="checkbox" id="cand-chk-confidence" checked onchange="redrawCandTrendChart()" style="accent-color: #f59e0b;" />
+              <strong>● Confidence</strong>
+            </label>
+          </div>
+
+          <div id="cand-trend-wrapper" style="position: relative; width: 100%; min-height: 280px;">
+            <canvas id="cand-trend-canvas" width="900" height="280" style="width: 100%; height: 280px;"></canvas>
+          </div>
+          <div id="cand-trend-summary-bar" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 6: AI Feedback & Improvement Tracking -->
+      <div id="cand-panel-feedback" class="cand-dash-panel" style="display: none;">
+        <div id="cand-full-feedback-box">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- TAB 7: Download Reports -->
+      <div id="cand-panel-reports" class="cand-dash-panel" style="display: none;">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3>📄 Official Assessment & Performance Reports</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Download branded ReportLab PDF reports and export raw telemetry to CSV.</p>
+            </div>
+            <button class="btn btn-primary" onclick="exportAnalyticsCSV()">📥 Export All Data (CSV)</button>
+          </div>
+          <div id="cand-reports-list-container" class="nr-grid-cards">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 8: Practice Mode & Resume Upload -->
+      <div id="cand-panel-practice" class="cand-dash-panel" style="display: none;">
+        <!-- Enabled Features Banner -->
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; background: rgba(255,255,255,0.02); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <span class="badge badge-candidate">📹 Live Webcam & Mic Studio</span>
+          <span class="badge badge-success">🎙️ MediaRecorder Video Capture</span>
+          <span class="badge badge-recruiter">⏱️ Timer-Based Workflow Engine</span>
+          <span class="badge badge-admin">📌 Session Storage & Analytics</span>
+          <span class="badge badge-success">📥 Download Video Recording (.webm)</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <!-- Resume Dropzone -->
+          <div class="glass-card">
+            <h3 style="margin-bottom: 1rem;">📄 Resume Upload & AI Parsing</h3>
+            <div class="dropzone" id="resume-dropzone" onclick="document.getElementById('resume-file-input').click()">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">📥</div>
+              <h4 style="margin-bottom: 0.25rem;">Drop PDF Resume Here</h4>
+              <p style="font-size: 0.85rem;">or click to browse files (PDF only)</p>
+              <input type="file" id="resume-file-input" accept=".pdf" style="display: none;" onchange="handleResumeUpload(event)" />
+            </div>
+
+            <div id="resume-parsed-output" style="margin-top: 1.5rem; display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <h4 id="resume-cand-name" style="color: var(--secondary);">Parsed Resume Data</h4>
+                <span class="badge badge-success" id="resume-seniority">Mid-Senior</span>
+              </div>
+              <p id="resume-summary" style="font-size: 0.9rem; margin-bottom: 1rem;"></p>
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">Extracted Skills:</label>
+              <div id="resume-skills-list" style="margin-top: 0.35rem; margin-bottom: 1rem;"></div>
+            </div>
+          </div>
+
+          <!-- Interview Setup Generator -->
+          <div class="glass-card">
+            <h3 style="margin-bottom: 1rem;">🎯 Launch AI Interview</h3>
+            <form onsubmit="handleStartInterview(event)">
               <div class="form-group">
-                <label>Difficulty</label>
-                <select id="int-difficulty" class="form-control">
-                  <option value="Easy">Easy</option>
-                  <option value="Medium" selected>Medium</option>
-                  <option value="Hard">Hard</option>
+                <label>Domain / Specialization</label>
+                <select id="int-domain" class="form-control">
+                  <option value="Full Stack">Full Stack Development</option>
+                  <option value="Frontend Engineering">Frontend Engineering</option>
+                  <option value="Backend Engineering">Backend Engineering</option>
+                  <option value="Data Science & AI">Data Science & AI/ML</option>
+                  <option value="DevOps & Cloud">DevOps & Cloud</option>
                 </select>
               </div>
 
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                  <label>Difficulty</label>
+                  <select id="int-difficulty" class="form-control">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Question Type</label>
+                  <select id="int-type" class="form-control">
+                    <option value="Technical" selected>Technical</option>
+                    <option value="Behavioral">Behavioral</option>
+                    <option value="HR">HR / Culture Fit</option>
+                    <option value="Aptitude">Aptitude & Logic</option>
+                  </select>
+                </div>
+              </div>
+
               <div class="form-group">
-                <label>Question Type</label>
-                <select id="int-type" class="form-control">
-                  <option value="Technical" selected>Technical</option>
-                  <option value="Behavioral">Behavioral</option>
-                  <option value="HR">HR / Culture Fit</option>
-                  <option value="Aptitude">Aptitude & Logic</option>
+                <label>Questions Count</label>
+                <select id="int-count" class="form-control">
+                  <option value="3">3 Questions (Express)</option>
+                  <option value="4" selected>4 Questions (Standard)</option>
+                  <option value="5">5 Questions (Deep Assessment)</option>
                 </select>
               </div>
-            </div>
 
-            <div class="form-group">
-              <label>Questions Count</label>
-              <select id="int-count" class="form-control">
-                <option value="3">3 Questions (Express)</option>
-                <option value="4" selected>4 Questions (Standard)</option>
-                <option value="5">5 Questions (Deep Assessment)</option>
-              </select>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-full" style="margin-top: 0.5rem;">
-              ⚡ Generate AI Questions
-            </button>
-          </form>
+              <button type="submit" class="btn btn-primary btn-full" style="margin-top: 0.5rem;">
+                ⚡ Generate AI Questions
+              </button>
+            </form>
+          </div>
         </div>
 
+        <div id="candidate-interview-section"></div>
       </div>
 
-      <!-- Active Interview Room & Performance Report Container -->
-      <div id="candidate-interview-section"></div>
+      <!-- TAB 8: Integrity & Electronic Device Monitoring -->
+      <div id="cand-panel-integrity" class="cand-dash-panel" style="display: none;">
+        <div id="cand-integrity-container">
+          <!-- Dynamically populated from real session detection events -->
+        </div>
+      </div>
 
     </section>
 
     <!-- 4. RECRUITER DASHBOARD -->
     <section id="view-recruiter" class="view-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h2>Recruiter Talent Portal</h2>
-          <p>Review candidate resume skills, interview scores, and AI hiring suggestions</p>
+          <h2>Recruiter Talent & Assessment Dashboard</h2>
+          <p>Multi-candidate benchmarking, side-by-side comparison, algorithmic ranking & shortlisting insights</p>
         </div>
-        <span class="badge badge-recruiter" id="rec-company-badge">TechNova Dynamics</span>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button class="btn btn-outline" style="border-color: var(--secondary); color: var(--secondary); font-size: 0.85rem;" onclick="loadRecruiterDashboard()">
+            🔄 Refresh Data
+          </button>
+          <span class="badge badge-recruiter" id="rec-company-badge">Recruiter Portal</span>
+        </div>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="stats-grid">
+      <!-- Recruiter KPI Stats Grid -->
+      <div class="stats-grid" style="margin-bottom: 1.75rem;">
         <div class="stat-card">
           <div>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Total Candidates</p>
-            <div class="stat-value" id="rec-stat-total">12</div>
+            <div class="stat-value" id="rec-stat-total">0</div>
           </div>
           <div style="font-size: 2rem; color: var(--primary);">👥</div>
         </div>
 
         <div class="stat-card">
           <div>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Interviews Completed</p>
-            <div class="stat-value" id="rec-stat-completed">8</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Assessments Completed</p>
+            <div class="stat-value" id="rec-stat-completed">0</div>
           </div>
           <div style="font-size: 2rem; color: var(--secondary);">✅</div>
         </div>
@@ -270,50 +507,229 @@
         <div class="stat-card">
           <div>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Average Benchmark Score</p>
-            <div class="stat-value" id="rec-stat-avg">84%</div>
+            <div class="stat-value" id="rec-stat-avg">0%</div>
           </div>
           <div style="font-size: 2rem; color: var(--accent-success);">📊</div>
         </div>
       </div>
 
-      <!-- Candidates Table -->
-      <div class="glass-card">
-        <h3 style="margin-bottom: 1rem;">Candidate Assessments & Recommendations</h3>
-        <div style="overflow-x: auto;">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>Candidate Name</th>
-                <th>Parsed Skills</th>
-                <th>AI Score</th>
-                <th>Recommendation</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="rec-candidates-tbody">
-              <!-- Dynamically populated -->
-            </tbody>
-          </table>
+      <!-- Recruiter Sub-Navigation Tabs -->
+      <div class="dashboard-subnav">
+        <button id="rec-tab-candidates" class="dash-tab-btn active" onclick="switchRecruiterTab('candidates')">
+          👥 Candidate Overview
+        </button>
+        <button id="rec-tab-comparison" class="dash-tab-btn" onclick="switchRecruiterTab('comparison')">
+          ⚖️ Candidate Comparison
+        </button>
+        <button id="rec-tab-ranking" class="dash-tab-btn" onclick="switchRecruiterTab('ranking')">
+          🏆 Ranking Leaderboard
+        </button>
+        <button id="rec-tab-skills" class="dash-tab-btn" onclick="switchRecruiterTab('skills')">
+          🎯 Skill-Wise Analytics
+        </button>
+        <button id="rec-tab-shortlisting" class="dash-tab-btn" onclick="switchRecruiterTab('shortlisting')">
+          💡 Shortlisting Insights
+        </button>
+        <button id="rec-tab-integrity" class="dash-tab-btn" onclick="switchRecruiterTab('integrity')">
+          🛡️ Anti-Cheating & Integrity
+        </button>
+        <button id="rec-tab-trends" class="dash-tab-btn" onclick="switchRecruiterTab('trends')">
+          📈 Performance Trends
+        </button>
+      </div>
+
+      <!-- TAB 1: Candidates Overview Table -->
+      <div id="rec-panel-candidates" class="rec-dash-panel">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3>Candidate Assessment Records</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Authorized candidate roster with real performance metrics</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" id="rec-candidate-search" class="form-control" placeholder="🔍 Search name, email..." style="max-width: 220px; font-size: 0.85rem;" oninput="debounceRecruiterCandidateSearch()" />
+              <button class="btn btn-primary" style="font-size: 0.85rem;" onclick="triggerCandidateComparisonFromOverview()">
+                ⚖️ Compare Selected
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px;"><input type="checkbox" id="rec-chk-all-cands" onchange="toggleSelectAllCandidates(this.checked)" /></th>
+                  <th>Candidate Name</th>
+                  <th>Resume Skills</th>
+                  <th>Interviews</th>
+                  <th>Latest Date</th>
+                  <th>Latest Score</th>
+                  <th>Average Score</th>
+                  <th>Strongest Skill</th>
+                  <th>Weakest Skill</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rec-candidates-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Multi-Candidate Comparison Tool -->
+      <div id="rec-panel-comparison" class="rec-dash-panel" style="display: none;">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="color: var(--secondary);">⚖️ Side-by-Side Candidate Comparison</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Select 2 or more candidates to compare multidimensional scoring, skill competencies and trend lines.</p>
+            </div>
+            <div id="rec-comparison-selector-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+              <!-- Candidate selection pills dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <div id="rec-comparison-results-container">
+          <div class="empty-state-box">
+            <div class="empty-state-icon">⚖️</div>
+            <h4 class="empty-state-title">No Candidates Selected for Comparison</h4>
+            <p class="empty-state-desc">Select checkboxes next to candidates in the Candidate Overview tab or use the selector above to compare side-by-side.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Candidate Ranking Leaderboard -->
+      <div id="rec-panel-ranking" class="rec-dash-panel" style="display: none;">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3 style="color: var(--secondary);">🏆 Deterministic Candidate Ranking Leaderboard</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted);">
+                Deterministic algorithm: Primary Ranking = Overall Score (40%) + Technical Relevance (25%) + Communication (20%) + Confidence (10%) + Professionalism (5%).
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Sort Criteria:</label>
+              <select id="rec-ranking-sort-select" class="form-control" style="width: auto; font-size: 0.82rem;" onchange="changeRecruiterRankingSort(this.value)">
+                <option value="rank">Rank (#1 first)</option>
+                <option value="overall">Overall Score</option>
+                <option value="technical">Technical Mastery</option>
+                <option value="communication">Communication</option>
+                <option value="confidence">Confidence</option>
+                <option value="interviews">Interview Volume</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="custom-table" id="rec-ranking-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">Rank</th>
+                  <th>Candidate</th>
+                  <th>Ranking Score</th>
+                  <th>Overall Avg</th>
+                  <th>Technical (30%)</th>
+                  <th>Communication (30%)</th>
+                  <th>Confidence (25%)</th>
+                  <th>Interviews</th>
+                  <th>Strongest Skill</th>
+                  <th>Performance Tier</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rec-ranking-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Skill-Wise Analytics -->
+      <div id="rec-panel-skills" class="rec-dash-panel" style="display: none;">
+        <div class="glass-card">
+          <h3 style="color: var(--primary); margin-bottom: 0.5rem;">🎯 Recruiter Group Skill Analytics</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">Aggregated across all completed candidate interviews</p>
+          <div id="rec-skills-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Shortlisting Insights -->
+      <div id="rec-panel-shortlisting" class="rec-dash-panel" style="display: none;">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <h3 style="color: var(--accent-success); margin-bottom: 0.5rem;">💡 Data-Driven Shortlisting Thresholds</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Configure baseline quality thresholds. Candidates matching all benchmarks are marked <strong>"Recommended for Shortlisting"</strong> with transparent criteria evidence.
+          </p>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; background: rgba(0,0,0,0.25); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Min Overall Score: <strong id="val-min-overall" style="color: var(--secondary);">75%</strong></label>
+              <input type="range" id="slider-min-overall" min="50" max="95" value="75" class="form-control" style="padding:0; height:auto; margin-top:0.35rem;" oninput="updateShortlistingThresholds()" />
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Min Technical Relevance: <strong id="val-min-tech" style="color: var(--accent-success);">70%</strong></label>
+              <input type="range" id="slider-min-tech" min="50" max="95" value="70" class="form-control" style="padding:0; height:auto; margin-top:0.35rem;" oninput="updateShortlistingThresholds()" />
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Min Communication: <strong id="val-min-comm" style="color: var(--primary);">65%</strong></label>
+              <input type="range" id="slider-min-comm" min="40" max="90" value="65" class="form-control" style="padding:0; height:auto; margin-top:0.35rem;" oninput="updateShortlistingThresholds()" />
+            </div>
+          </div>
+        </div>
+
+        <div id="rec-shortlisting-results-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- TAB 6: Anti-Cheating & Electronic Device Monitoring -->
+      <div id="rec-panel-integrity" class="rec-dash-panel" style="display: none;">
+        <div id="rec-integrity-container">
+          <!-- Dynamically populated from real candidate telemetry -->
+        </div>
+      </div>
+
+      <!-- TAB 7: Recruiter Group Trends -->
+      <div id="rec-panel-trends" class="rec-dash-panel" style="display: none;">
+        <div class="analytics-chart-card">
+          <h3 style="color: var(--secondary); margin-bottom: 0.5rem;">📈 Candidate Benchmark Trends</h3>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">Historical score trajectories across all evaluated candidate cohorts.</p>
+          <div id="rec-trends-chart-wrapper" style="position: relative; width: 100%; min-height: 280px;">
+            <canvas id="rec-trend-canvas" width="900" height="280" style="width: 100%; height: 280px;"></canvas>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 5. ADMIN DASHBOARD -->
     <section id="view-admin" class="view-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h2>System Control Panel</h2>
-          <p>Global platform usage, user management, and system metrics</p>
+          <h2>System Control Panel & Governance Dashboard</h2>
+          <p>User management, platform activity telemetry, AI pipeline diagnostics & live system health</p>
         </div>
-        <span class="badge badge-admin">Administrator</span>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button class="btn btn-outline" style="border-color: var(--accent-success); color: var(--accent-success); font-size: 0.85rem;" onclick="loadAdminDashboard()">
+            🔄 Run Live Diagnostics
+          </button>
+          <span class="badge badge-admin">System Admin</span>
+        </div>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="stats-grid">
+      <!-- Admin Stats Grid -->
+      <div class="stats-grid" style="margin-bottom: 1.75rem;">
         <div class="stat-card">
           <div>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Total Users</p>
-            <div class="stat-value" id="admin-stat-users">15</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Registered Users</p>
+            <div class="stat-value" id="admin-stat-users">0</div>
           </div>
           <div style="font-size: 2rem; color: var(--primary);">👤</div>
         </div>
@@ -321,41 +737,157 @@
         <div class="stat-card">
           <div>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Resumes Parsed</p>
-            <div class="stat-value" id="admin-stat-resumes">9</div>
+            <div class="stat-value" id="admin-stat-resumes">0</div>
           </div>
           <div style="font-size: 2rem; color: var(--secondary);">📄</div>
         </div>
 
         <div class="stat-card">
           <div>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Total AI Sessions</p>
-            <div class="stat-value" id="admin-stat-interviews">14</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Total Mock Sessions</p>
+            <div class="stat-value" id="admin-stat-interviews">0</div>
           </div>
           <div style="font-size: 2rem; color: var(--accent-warning);">⚡</div>
         </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">System Health State</p>
+            <div class="stat-value" id="admin-stat-health" style="font-size: 1.4rem; color: var(--accent-success);">Checking...</div>
+          </div>
+          <div style="font-size: 2rem; color: var(--accent-success);">🩺</div>
+        </div>
       </div>
 
-      <!-- User Management Table -->
-      <div class="glass-card">
-        <h3 style="margin-bottom: 1rem;">Platform User Directory & Role Controls</h3>
-        <div style="overflow-x: auto;">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>Name & Email</th>
-                <th>Role</th>
-                <th>Account Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-users-tbody">
-              <!-- Dynamically populated -->
-            </tbody>
-          </table>
+      <!-- Admin Sub-Navigation Tabs -->
+      <div class="dashboard-subnav">
+        <button id="admin-tab-users" class="dash-tab-btn active" onclick="switchAdminTab('users')">
+          👤 User Directory
+        </button>
+        <button id="admin-tab-interviews" class="dash-tab-btn" onclick="switchAdminTab('interviews')">
+          📊 Interview Activity
+        </button>
+        <button id="admin-tab-ai" class="dash-tab-btn" onclick="switchAdminTab('ai')">
+          🤖 AI Pipeline Telemetry
+        </button>
+        <button id="admin-tab-device-detection" class="dash-tab-btn" onclick="switchAdminTab('device-detection')">
+          🛡️ Device Detection AI
+        </button>
+        <button id="admin-tab-health" class="dash-tab-btn" onclick="switchAdminTab('health')">
+          🩺 System Health Diagnostics
+        </button>
+        <button id="admin-tab-usage" class="dash-tab-btn" onclick="switchAdminTab('usage')">
+          📈 Platform Usage Analytics
+        </button>
+      </div>
+
+      <!-- TAB 1: User & Recruiter Management -->
+      <div id="admin-panel-users" class="admin-dash-panel">
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h3>Platform User Directory & Role Controls</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Manage candidate, recruiter, and administrator accounts (credentials secured)</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" id="admin-user-search" class="form-control" placeholder="🔍 Search name, email, ID..." style="max-width: 220px; font-size: 0.85rem;" oninput="debounceAdminUserSearch()" />
+              <select id="admin-role-filter" class="form-control" style="width: auto; font-size: 0.85rem;" onchange="filterAdminUsers()">
+                <option value="all">All Roles</option>
+                <option value="candidate">Candidates</option>
+                <option value="recruiter">Recruiters</option>
+                <option value="admin">Admins</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Name & Email</th>
+                  <th>Role</th>
+                  <th>Account Status</th>
+                  <th>Registered Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody">
+                <!-- Dynamically populated from real API -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Interview Activity Monitoring -->
+      <div id="admin-panel-interviews" class="admin-dash-panel" style="display: none;">
+        <div id="admin-interview-activity-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 3: AI Evaluation Pipeline Monitoring -->
+      <div id="admin-panel-ai" class="admin-dash-panel" style="display: none;">
+        <div id="admin-ai-monitoring-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 4: System Health Diagnostics -->
+      <div id="admin-panel-health" class="admin-dash-panel" style="display: none;">
+        <div id="admin-health-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 5: Platform Usage Analytics -->
+      <div id="admin-panel-usage" class="admin-dash-panel" style="display: none;">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="color: var(--secondary);">Platform Adoption & Activity Volume</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time activity aggregates calculated from database records</p>
+            </div>
+            <div class="time-period-selector" id="admin-usage-periods">
+              <button class="period-btn active" data-period="all" onclick="filterAdminUsage('all')">ALL</button>
+              <button class="period-btn" data-period="today" onclick="filterAdminUsage('today')">Today</button>
+              <button class="period-btn" data-period="7d" onclick="filterAdminUsage('7d')">7D</button>
+              <button class="period-btn" data-period="30d" onclick="filterAdminUsage('30d')">30D</button>
+              <button class="period-btn" data-period="90d" onclick="filterAdminUsage('90d')">90D</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="admin-usage-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TAB 6: Prohibited Electronic Device Detection Monitoring -->
+      <div id="admin-panel-device-detection" class="admin-dash-panel" style="display: none;">
+        <div id="admin-device-detection-container">
+          <!-- Populated dynamically from real CV model stats -->
         </div>
       </div>
     </section>
+
+    <!-- Candidate Profile Dossier Modal (Recruiter / Admin) -->
+    <div id="candidate-dossier-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000; overflow-y: auto; padding: 2rem 1rem;">
+      <div class="glass-card" style="max-width: 850px; margin: 0 auto; background: #0f172a; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.5rem;">🎓</span>
+            <h3 id="dossier-cand-name" style="margin: 0;">Candidate Dossier</h3>
+          </div>
+          <button class="btn btn-outline" style="padding: 0.3rem 0.6rem;" onclick="closeCandidateDossierModal()">✕</button>
+        </div>
+        <div id="dossier-modal-content">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
 
     <!-- 6. SPEECH-TO-TEXT & COMMUNICATION ANALYSIS VIEW -->
     <section id="view-speech-analysis" class="view-section">
@@ -557,6 +1089,7 @@
 
             <div class="webcam-container" style="margin-top: 1rem;">
               <video id="bs-webcam-preview" class="webcam-video" autoplay muted playsinline style="display: none;"></video>
+              <canvas id="bs-device-detection-overlay" class="device-detection-canvas-overlay" width="640" height="480"></canvas>
               <div id="bs-webcam-placeholder" class="webcam-placeholder" style="display: flex;">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📷</div>
                 <h4 style="margin-bottom: 0.25rem;">Camera Offline</h4>
@@ -564,6 +1097,15 @@
                   Click "Start Camera Analysis" to test the real-time ML vision pipeline.
                 </p>
               </div>
+            </div>
+
+            <!-- Live Electronic Device Detection & Anti-Cheating Alert Banner (Studio) -->
+            <div id="bs-live-device-alert-banner" class="device-alert-banner state-normal" style="margin-top: 0.75rem;">
+              <div class="device-alert-details">
+                <div class="device-alert-title" id="bs-live-device-alert-title">🟢 Monitoring Active</div>
+                <div class="device-alert-subtitle" id="bs-live-device-alert-sub">AI Anti-Cheating & Prohibited Device Monitoring Active</div>
+              </div>
+              <span class="device-meta-badge badge-alert-success" id="bs-live-device-alert-badge">NORMAL</span>
             </div>
 
             <div class="recorder-controls-toolbar" style="margin-top: 1.25rem;">
@@ -750,7 +1292,252 @@
       </div>
     </section>
 
+    <!-- 9. NOTIFICATIONS & REPORTS MODULE (Production Zero Dummy Data) -->
+    <section id="view-notifications-reports" class="view-section">
+      <div class="reports-page-wrapper" style="max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem;">
+        
+        <!-- Header Banner -->
+        <div class="analytics-header-banner" style="margin-bottom: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span class="badge badge-candidate" id="nr-user-role-badge">Candidate Portal</span>
+                <span class="badge badge-success">● Real Data Telemetry</span>
+              </div>
+              <h1 style="font-size: 2.2rem; margin-bottom: 0.25rem;">Notifications & Performance Reports</h1>
+              <p style="color: var(--text-muted);">
+                Scheduled mock interview reminders, automated email notifications, session alerts, dynamic ReportLab PDF reports, and real historical performance summaries.
+              </p>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <button class="btn btn-outline" style="font-size: 0.85rem;" onclick="routeRoleDashboard()">
+                ⬅️ Back to Portal
+              </button>
+              <button class="btn btn-primary" style="font-size: 0.85rem;" onclick="showScheduleModal()">
+                📅 Schedule Interview
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Navigation Bar -->
+        <div class="nr-tabs-bar" style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.25rem;">
+          <button id="nr-tab-upcoming" class="nr-tab-btn active" onclick="switchNRTab('upcoming')">
+            ⏰ Upcoming & Reminders <span id="nr-badge-upcoming-count" class="nr-tab-pill">0</span>
+          </button>
+          <button id="nr-tab-reports" class="nr-tab-btn" onclick="switchNRTab('reports')">
+            📄 Downloadable Reports <span id="nr-badge-reports-count" class="nr-tab-pill">0</span>
+          </button>
+          <button id="nr-tab-performance" class="nr-tab-btn" onclick="switchNRTab('performance')">
+            📊 Performance Summary
+          </button>
+          <button id="nr-tab-notifs" class="nr-tab-btn" onclick="switchNRTab('notifs')">
+            🔔 Notification & Email Logs <span id="nr-badge-notif-unread" class="nr-tab-pill unread-pill">0</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: UPCOMING INTERVIEWS & REMINDERS -->
+        <div id="nr-panel-upcoming" class="nr-tab-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3>Upcoming Scheduled Mock Interviews</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Automated reminders trigger 24h, 1h, and 15m prior to scheduled start time.</p>
+            </div>
+            <button class="btn btn-primary" onclick="showScheduleModal()">
+              ➕ Schedule New Mock Session
+            </button>
+          </div>
+
+          <div id="nr-upcoming-list" class="nr-grid-cards">
+            <!-- Dynamically populated from real API -->
+          </div>
+        </div>
+
+        <!-- TAB 2: DOWNLOADABLE REPORTS -->
+        <div id="nr-panel-reports" class="nr-tab-panel" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3>Official Assessment & Performance Reports</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Generate branded PDF performance reports and export raw metrics to CSV.</p>
+            </div>
+          </div>
+
+          <div id="nr-reports-list" class="nr-grid-cards">
+            <!-- Dynamically populated from real API -->
+          </div>
+        </div>
+
+        <!-- TAB 3: DYNAMIC PERFORMANCE SUMMARY (ZERO DUMMY DATA) -->
+        <div id="nr-panel-performance" class="nr-tab-panel" style="display: none;">
+          <!-- Populated dynamically by renderPerformanceSummaryView() -->
+          <div id="nr-performance-container"></div>
+        </div>
+
+        <!-- TAB 4: NOTIFICATION CENTER & EMAIL LOGS -->
+        <div id="nr-panel-notifs" class="nr-tab-panel" style="display: none;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+            
+            <!-- In-App Notification Center Card -->
+            <div class="glass-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                  <h3 style="margin-bottom: 0.2rem;">🔔 In-App Notification Center</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted);">Real-time alerts for your mock sessions</p>
+                </div>
+                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="markAllNotificationsReadAction()">
+                  ✓ Mark All Read
+                </button>
+              </div>
+
+              <div id="nr-notifs-stream" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 520px; overflow-y: auto;">
+                <!-- Dynamically populated from real API -->
+              </div>
+            </div>
+
+            <!-- Email Notification Audit Log Card -->
+            <div class="glass-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                  <h3 style="margin-bottom: 0.2rem;">✉️ Email Notification Logs</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted);">Audit log of automated SMTP email dispatches</p>
+                </div>
+                <span class="badge badge-success" style="font-size: 0.75rem;">SMTP / Secure</span>
+              </div>
+
+              <div id="nr-email-logs-table-container" style="overflow-x: auto; max-height: 520px;">
+                <table class="custom-table" style="font-size: 0.85rem;">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Recipient</th>
+                      <th>Status</th>
+                      <th>Sent At</th>
+                    </tr>
+                  </thead>
+                  <tbody id="nr-email-logs-tbody">
+                    <!-- Dynamically populated from real API -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
+
+  <!-- Schedule Interview Modal -->
+  <div id="schedule-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; overflow-y: auto; padding: 2rem 1rem;">
+    <div class="glass-card" style="max-width: 540px; margin: 0 auto; background: #0f172a; border: 1px solid var(--border-color);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.5rem;">📅</span>
+          <h3 style="margin: 0;">Schedule Mock Interview</h3>
+        </div>
+        <button class="btn btn-outline" style="padding: 0.3rem 0.6rem;" onclick="closeScheduleModal()">✕</button>
+      </div>
+
+      <form onsubmit="handleScheduleInterviewSubmit(event)">
+        <div class="form-group">
+          <label>Session Title</label>
+          <input type="text" id="sched-title" class="form-control" required value="Full Stack Senior Mock Assessment" placeholder="e.g. Full Stack Technical Interview" />
+        </div>
+
+        <div class="form-group">
+          <label>Domain / Track</label>
+          <select id="sched-domain" class="form-control">
+            <option value="Full Stack" selected>Full Stack Development</option>
+            <option value="Frontend Engineering">Frontend Engineering</option>
+            <option value="Backend Engineering">Backend Engineering</option>
+            <option value="Data Science & AI">Data Science & AI/ML</option>
+            <option value="DevOps & Cloud">DevOps & Cloud</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label>Difficulty</label>
+            <select id="sched-difficulty" class="form-control">
+              <option value="Easy">Easy</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Type</label>
+            <select id="sched-type" class="form-control">
+              <option value="Technical" selected>Technical</option>
+              <option value="Behavioral">Behavioral</option>
+              <option value="HR">HR / Culture</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label>Date & Time</label>
+            <input type="datetime-local" id="sched-datetime" class="form-control" required />
+          </div>
+
+          <div class="form-group">
+            <label>Duration</label>
+            <select id="sched-duration" class="form-control">
+              <option value="30">30 mins</option>
+              <option value="45" selected>45 mins</option>
+              <option value="60">60 mins</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label style="margin-bottom: 0.5rem; display: block;">Automated Reminders</label>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="checkbox" id="sched-rem-24h" checked /> 24 hours before
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="checkbox" id="sched-rem-1h" checked /> 1 hour before
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+              <input type="checkbox" id="sched-rem-15m" checked /> 15 mins before
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="sched-submit-btn" class="btn btn-primary btn-full" style="margin-top: 1rem;">
+          🚀 Confirm & Schedule Session
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- In-App Notification Dropdown / Center Modal -->
+  <div id="notif-dropdown-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 999;" onclick="toggleNotificationCenter(false)"></div>
+  <div id="notif-dropdown-panel" style="display: none; position: fixed; top: 68px; right: 24px; width: 380px; max-width: calc(100vw - 32px); max-height: 520px; background: #0f172a; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 1000; display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02);">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.1rem;">🔔</span>
+        <strong style="font-size: 0.95rem;">Notifications</strong>
+      </div>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" onclick="markAllNotificationsReadAction()">Read All</button>
+        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;" onclick="toggleNotificationCenter(false)">✕</button>
+      </div>
+    </div>
+    <div id="notif-dropdown-list" style="overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px;">
+      <!-- Populated dynamically -->
+    </div>
+    <div style="padding: 0.6rem; text-align: center; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+      <button class="btn btn-outline btn-full" style="font-size: 0.8rem;" onclick="toggleNotificationCenter(false); openNotificationsAndReportsDashboard('notifs');">
+        View All Notifications & Reports →
+      </button>
+    </div>
+  </div>
 
   <!-- Report Detail Modal -->
   <div id="report-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; overflow-y: auto; padding: 2rem 1rem;">

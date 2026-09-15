@@ -1,0 +1,56 @@
+{
+  "session_id": "int_aa446722",
+  "interview_id": null,
+  "candidate_id": null,
+  "total_alerts": 2,
+  "detected_device_counts": {
+    "Mobile Phone": 1,
+    "Remote Control": 1
+  },
+  "first_detection_timestamp": "2026-09-14T20:38:30.951079",
+  "last_detection_timestamp": "2026-09-14T20:38:40.071103",
+  "total_detection_duration_seconds": 9.51,
+  "integrity_status": "Flagged - 2 Prohibited Device Alert(s)",
+  "events": [
+    {
+      "event_id": "dev_evt_b3025f8c51",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_aa446722",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.302,
+      "timestamp": "2026-09-14T20:38:30.951079",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.4313,
+        "y": 0.5563,
+        "width": 0.275,
+        "height": 0.4354
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_eb53022d2e",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_aa446722",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Remote Control",
+      "raw_class": "remote",
+      "confidence": 0.297,
+      "timestamp": "2026-09-14T20:38:36.186077",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.3609,
+        "y": 0.5687,
+        "width": 0.3406,
+        "height": 0.4292
+      },
+      "status": "confirmed"
+    }
+  ],
+  "created_at": "2026-09-14T20:38:12.573797",
+  "updated_at": "2026-09-14T20:41:14.372378"
+}

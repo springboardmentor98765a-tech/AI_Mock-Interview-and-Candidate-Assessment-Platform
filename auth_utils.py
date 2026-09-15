@@ -7,7 +7,7 @@ def generate_jwt(user_id, email):
     payload = {
         "user_id": user_id,
         "email": email,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24) # 1 day validity
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24) # 1 day validity
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 

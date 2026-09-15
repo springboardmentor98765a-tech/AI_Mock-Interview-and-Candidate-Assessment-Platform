@@ -1,0 +1,150 @@
+{
+  "session_id": "int_3d44bfb5",
+  "interview_id": null,
+  "candidate_id": null,
+  "total_alerts": 7,
+  "detected_device_counts": {
+    "Mobile Phone": 7
+  },
+  "first_detection_timestamp": "2026-09-14T18:18:28.880874",
+  "last_detection_timestamp": "2026-09-14T18:20:54.756396",
+  "total_detection_duration_seconds": 20.53,
+  "integrity_status": "Flagged - 7 Prohibited Device Alert(s)",
+  "events": [
+    {
+      "event_id": "dev_evt_63de568456",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.313,
+      "timestamp": "2026-09-14T18:18:28.880874",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.5391,
+        "y": 0.5521,
+        "width": 0.4234,
+        "height": 0.4458
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_f3054545f7",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.29,
+      "timestamp": "2026-09-14T18:18:33.193745",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.6953,
+        "y": 0.7292,
+        "width": 0.2844,
+        "height": 0.2687
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_4abdb3bda2",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.294,
+      "timestamp": "2026-09-14T18:19:40.405096",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.6125,
+        "y": 0.7479,
+        "width": 0.1812,
+        "height": 0.2479
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_b910b8084a",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.354,
+      "timestamp": "2026-09-14T18:20:35.672266",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.6359,
+        "y": 0.8792,
+        "width": 0.0609,
+        "height": 0.1187
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_2ce10ebb07",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.323,
+      "timestamp": "2026-09-14T18:20:47.441899",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.625,
+        "y": 0.8896,
+        "width": 0.0594,
+        "height": 0.1083
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_da8569cf97",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.319,
+      "timestamp": "2026-09-14T18:20:53.744013",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.6391,
+        "y": 0.8896,
+        "width": 0.0531,
+        "height": 0.1083
+      },
+      "status": "confirmed"
+    },
+    {
+      "event_id": "dev_evt_1f4ae4c4c8",
+      "event_type": "PROHIBITED_DEVICE_DETECTED",
+      "session_id": "int_3d44bfb5",
+      "interview_id": null,
+      "candidate_id": null,
+      "detected_object": "Mobile Phone",
+      "raw_class": "cell phone",
+      "confidence": 0.391,
+      "timestamp": "2026-09-14T18:20:54.756396",
+      "duration_seconds": 0.0,
+      "bounding_box": {
+        "x": 0.6438,
+        "y": 0.8854,
+        "width": 0.0641,
+        "height": 0.1125
+      },
+      "status": "confirmed"
+    }
+  ],
+  "created_at": "2026-09-14T18:17:55.384995",
+  "updated_at": "2026-09-14T18:20:54.756468"
+}

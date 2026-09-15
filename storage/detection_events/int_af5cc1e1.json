@@ -1,0 +1,14 @@
+{
+  "session_id": "int_af5cc1e1",
+  "interview_id": null,
+  "candidate_id": null,
+  "total_alerts": 0,
+  "detected_device_counts": {},
+  "first_detection_timestamp": null,
+  "last_detection_timestamp": null,
+  "total_detection_duration_seconds": 0.0,
+  "integrity_status": "Clean - No Prohibited Devices Detected",
+  "events": [],
+  "created_at": "2026-09-14T17:58:49.152144",
+  "updated_at": "2026-09-14T17:59:32.736784"
+}

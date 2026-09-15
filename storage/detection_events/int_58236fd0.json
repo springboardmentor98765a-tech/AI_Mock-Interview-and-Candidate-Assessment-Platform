@@ -1,0 +1,14 @@
+{
+  "session_id": "int_58236fd0",
+  "interview_id": "int_58236fd0",
+  "candidate_id": "user_cand_101",
+  "total_alerts": 0,
+  "detected_device_counts": {},
+  "first_detection_timestamp": null,
+  "last_detection_timestamp": null,
+  "total_detection_duration_seconds": 0.0,
+  "integrity_status": "Clean - No Prohibited Devices Detected",
+  "events": [],
+  "created_at": "2026-09-15T19:51:19.805973",
+  "updated_at": "2026-09-15T19:53:14.240206"
+}

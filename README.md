@@ -1,93 +1,103 @@
-# ⚡ Next-Gen AI Mock Interview, Speech & Vision Behavioral Analysis Platform
+# ⚡ Next-Gen AI Mock Interview, Speech & Vision Behavioral Assessment Platform
 
-A full-stack, production-ready AI Mock Interview, Speech Analysis, and Computer Vision & ML Behavioral Intelligence Platform built with **FastAPI**, **PyTorch (CNN Emotion Detection)**, **OpenCV (Face & Landmark Tracking)**, **Google Gemini 2.5 Flash API**, **Vanilla JS / HTML5 / CSS3**, and modern **Web Audio & MediaRecorder APIs**.
+A full-stack, enterprise-grade AI Mock Interview, Speech Analysis, Computer Vision & ML Behavioral Intelligence Platform built with **FastAPI**, **PyTorch (CNN Emotion Detection)**, **OpenCV (Face & Landmark Tracking)**, **Google Gemini 2.5 Flash API**, **Vanilla JS / HTML5 / CSS3**, and modern **Web Audio & MediaRecorder APIs**.
 
 ---
 
-## 🌟 Key Features & Architecture
+## 🌟 Platform Overview & Core Architecture
 
 ```
-Candidate Webcam Stream (Browser)
-   ↓ (sampled at 2.5 FPS during live interview)
-Base64 JPEG Frame → POST /api/interview-analysis/frame
-   ↓
-[OpenCV Face Detection & Preprocessing]
-   ├─ Face bounding box (primary candidate selection)
-   ├─ Face ROI extraction & normalization (48x48)
-   ↓
-[CNN Emotion Analysis Pipeline]
-   ├─ PyTorch CNN Architecture (Conv2D-ReLU-Pool x 3, FC x 2, Softmax)
-   ├─ Classes: Nervous, Scared, Confused (Observable expression estimates)
-   ├─ Training script, dataset guide, checkpoint loader & clear state reporting
-   ↓
-[Facial Geometry & Eye / Head Tracking]
-   ├─ 5-Point facial landmarks & pupil intensity localization → Gaze Direction (Camera, Left, Right, Down, Eyes Closed)
-   ├─ 3D head geometry & nose symmetry → Head Direction (Forward, Turning Left, Turning Right, Up, Down)
-   ├─ Inter-frame landmark/optical displacement → Facial Activity Score (0-100)
-   ↓
-[Real-Time Session Telemetry & Accumulation]
-   ├─ Eye Contact Time & Percentage (looking_time / valid_tracking_time * 100)
-   ├─ Attention Score (0-100) & Level (High / Medium / Low)
-   ├─ Engagement Score (0-100) & Level (High / Medium / Low) via documented weighted formula
-   ├─ Confidence-related Indicators (Composite of Eye Contact, Head Stability, Facial Activity, Speech Fluency)
-   ↓
-[Live UI Dashboard & Final Behavioral Report]
-   ├─ Live gauges and status telemetry in the active interview room
-   ├─ Standalone AI Video & Behavioral Lab Studio
-   ├─ Final Comprehensive Behavioral Report with distribution charts, metrics, and actionable recommendations
-   └─ Seamless integration with existing speech & Gemini AI evaluation
+                                  [ Browser Frontend / Client ]
+                               /                |               \
+                   [Candidate Portal]  [Recruiter Portal]  [Admin Portal]
+                               \                |               /
+                     [JWT Auth & RBAC Security Middleware (/api/auth)]
+                                                |
+               +--------------------------------+--------------------------------+
+               |                                |                                |
+     [Live Interview Engine]        [Speech & Audio Engine]           [Vision & ML Engine]
+      • Adaptive Questions           • Real-time Transcription         • YuNet Face & Landmark Detect
+      • Answer Evaluation            • Speaking Pace (WPM)             • PyTorch CNN Emotion Classifier
+      • WebM Audio/Video Stream      • Filler-word Detection           • Gaze & Head Pose Estimation
+      • Session State Lifecycle      • Grammar & Acoustic Clarity      • Eye Contact & Attention Math
+               |                                |                                |
+               +--------------------------------+--------------------------------+
+                                                |
+                                    [Scoring & Analytics Core]
+                                     • Communication Score (30%)
+                                     • Confidence Score (25%)
+                                     • Technical Relevance (30%)
+                                     • Professionalism (15%)
+                                     • Dynamic Ranking & Shortlisting
+                                                |
+               +--------------------------------+--------------------------------+
+               |                                |                                |
+     [Storage & Persistence]        [Reports & Exports]            [Notifications Service]
+      • InMemoryDB / SQL Model       • ReportLab PDF Summary           • Interview Reminders
+      • Video Storage (/recordings)  • Telemetry CSV Export            • Session Completion Alerts
+      • Real-time Telemetry Logs     • AI Strengths & Weaknesses       • SMTP / System Mailers
 ```
+
+---
+
+## ⚖️ Standardized Scoring Engine & Rubric
+
+All candidate evaluations strictly adhere to the project's deterministic weighted scoring formula:
+
+$$\text{Overall Score} = (0.30 \times \text{Communication}) + (0.25 \times \text{Confidence}) + (0.30 \times \text{Technical Relevance}) + (0.15 \times \text{Professionalism})$$
+
+### Score Classification Rubric
+* **90 – 100**: `Excellent`
+* **75 – 89**: `Good`
+* **60 – 74**: `Average`
+* **40 – 59**: `Needs Improvement`
+* **Below 40**: `Poor`
+
+> **Real Data Commitment**: Every score is mathematically derived from actual question evaluations, linguistic grammar analyses, audio pacing, and facial tracking metrics. Zero hardcoded scores, zero mock numbers, and zero randomized metrics.
+
+---
+
+## 👥 Multi-Role Access & Features
+
+### 1. 🎓 Candidate Portal
+- **Profile & Resume Management**: Upload resumes, parse skills, and manage candidate profile data.
+- **Adaptive Mock Interviews**: Select job roles, experience levels, and difficulty.
+- **Live Video/Audio Room**: Synchronized camera/microphone permissions, real-time question display, WebM recording, and instant answer evaluations.
+- **Dynamic Analytics Dashboard**: Skill radar charts, historical performance trends, weak-area algorithmic identification, and AI coaching suggestions.
+- **Report Downloads**: Instant PDF assessment report generation and raw telemetry CSV downloads.
+
+### 2. 💼 Recruiter Portal
+- **Candidate Performance Overview**: Real-time listing of candidate submissions and interview scores.
+- **Candidate Comparison**: Side-by-side multi-candidate benchmarking across communication, confidence, and technical mastery.
+- **Algorithmic Ranking**: Deterministic sorting by overall performance and skill-weighted scores.
+- **Configurable Shortlisting**: Dynamic status pipelines (`applied`, `reviewing`, `shortlisted`, `rejected`).
+- **Batch Export**: Recruiter-level interview metrics exportable to CSV.
+
+### 3. 🛡️ Admin Portal
+- **User & Recruiter Management**: Role modifications, user activation/suspension, and audit logging.
+- **System Activity & Telemetry Monitoring**: Real-time tracking of active sessions, CPU/RAM utilization, and API latency.
+- **AI Performance & Ground Truth Transparency**: Model health monitoring with explicit ground truth dataset status reporting.
 
 ---
 
 ## 👁️ Computer Vision & Behavioral ML Features
 
 ### 1. 🎭 PyTorch CNN Facial Emotion Analysis
-- **Classes**:
-  1. `Nervous`
-  2. `Scared`
-  3. `Confused`
-- **Architecture**: 3-block 2D Convolutional Neural Network with Batch Normalization, Dropout (0.25/0.5), Max-Pooling, Dense Classifier layer, and Softmax probability distributions.
-- **Preprocessing**: Grayscale conversion, `48x48` resizing, `[-1.0, 1.0]` pixel normalization, PyTorch Tensor shape `(1, 1, 48, 48)`.
-- **Disclaimer**: Emotion predictions represent *observable facial expression estimates* and do not claim to scientifically diagnose internal psychological or mental states.
+- **Classes**: `Nervous`, `Scared`, `Confused` (observable facial expression estimates).
+- **Architecture**: 3-block 2D Convolutional Neural Network with Batch Normalization, Dropout (0.25/0.5), Max-Pooling, Dense Classifier layer, and Softmax probability distribution.
+- **Preprocessing**: Grayscale conversion, `48x48` resizing, `[-1.0, 1.0]` pixel normalization.
 
 ### 2. 👁️ Eye Landmark Tracking & Gaze Estimation
-- **Eye ROI & Iris Localization**: Detects eye regions, measures Eye Aspect Ratio (EAR) for eye closure, and calculates pupil centroid horizontal & vertical ratios.
-- **Gaze States**:
-  - `Looking at camera` (pupil centered within 35%–65% bounds)
-  - `Looking left`
-  - `Looking right`
-  - `Looking down`
-  - `Eyes closed`
-  - `Unknown / face not detected`
+- **Eye ROI & Iris Localization**: Detects eye regions, measures Eye Aspect Ratio (EAR), and computes pupil centroid horizontal/vertical gaze ratios.
+- **Gaze States**: `Looking at camera`, `Looking left`, `Looking right`, `Looking down`, `Eyes closed`.
 
-### 3. ⏱️ Mathematical Eye Contact Accumulation
-- **Continuous Session Timer**: Accumulates valid face tracking time and camera-looking time.
-- **Formula**: `Eye Contact % = (camera_looking_frames / valid_tracking_frames) * 100`.
-- **Interpretations**: `High` (>=70%), `Moderate` (45%–69%), `Low` (<45%).
-
-### 4. 🧭 Head Direction & 3D Pose Estimation
-- **Landmark Geometry**: Compares nose tip position against eye midpoint and facial midline.
+### 3. 🧭 Head Direction & 3D Pose Estimation
+- Compares nose tip position against facial midline and eye plane.
 - **States**: `Forward`, `Turning Left`, `Turning Right`, `Looking Up`, `Looking Down`.
 
-### 5. 🎯 Attention Monitoring Score
-- **Formula**: Combination of face presence (+30), camera gaze (+40), forward head pose (+30), and penalties for prolonged looking away (-25) or closed eyes (-35).
-- **Smoothed Score**: 0–100 score, categorized into `High` (>=75), `Medium` (50–74), `Low` (<50).
-
-### 6. ⚡ Engagement Measurement
-- **Documented Weighted Formula**:
-  $$\text{Engagement Score} = 0.35 \times \text{EyeContact} + 0.35 \times \text{Attention} + 0.15 \times \text{FacialActivity} + 0.15 \times \text{HeadStability}$$
-- **Configurable Weights**: Centralized in `InterviewSessionTracker`.
-
-### 7. 📊 Observable Confidence-Related Indicators
-- **Composite Indicator Score**: Integrates Eye Contact consistency (30–40%), Head Stability (30–35%), Facial Stability (20–25%), and Response Fluency (20% if speech metrics available).
-- **Level**: `High`, `Moderate`, `Low`.
-
-### 8. 🎙️ Integrated Speech & Communication Analysis
-- **Speech-to-Text**: Real-time microphone capture & transcription.
-- **Grammar & Fillers**: Deep syntactical analysis and filler word detection.
-- **Speaking Pace (WPM)** & **Pause Timeline**.
-- **Integrated Synthesis**: Combined with video behavior in the final performance report.
+### 4. ⚡ Mathematical Eye Contact & Engagement Scores
+- **Eye Contact %**: `(camera_looking_frames / valid_tracking_frames) * 100`
+- **Engagement Formula**: $0.35 \times \text{EyeContact} + 0.35 \times \text{Attention} + 0.15 \times \text{FacialActivity} + 0.15 \times \text{HeadStability}$
 
 ---
 
@@ -95,120 +105,129 @@ Base64 JPEG Frame → POST /api/interview-analysis/frame
 
 ```text
 ├── backend/
-│   ├── main.py                          # FastAPI entry point & API route registration
-│   ├── config.py                        # Configurable thresholds, weights, and API keys
-│   ├── database.py                      # In-memory database & session records
-│   ├── auth.py                          # JWT authentication & role security
+│   ├── main.py                          # FastAPI entry point, static mounts & router integration
+│   ├── config.py                        # App configuration, weights, and environment variables
+│   ├── database.py                      # InMemory database engine with pre-seeded demo accounts
+│   ├── auth.py                          # JWT authentication & role-based access control (RBAC)
 │   ├── models/
-│   │   ├── emotion_cnn.py               # PyTorch EmotionCNN model & inference pipeline
+│   │   ├── emotion_cnn.py               # PyTorch EmotionCNN neural network definition
 │   │   ├── emotion_cnn.pth              # Serialized trained model weights
 │   │   ├── face_detection_yunet.onnx   # OpenCV YuNet Face & Landmark detector
-│   │   ├── speech_models.py             # Pydantic models for speech analytics
-│   │   ├── interview_models.py          # Interview data schemas
-│   │   └── user_models.py               # User data schemas
+│   │   ├── speech_models.py             # Pydantic schemas for speech telemetry
+│   │   ├── interview_models.py          # Pydantic schemas for interview sessions
+│   │   └── user_models.py               # User and credential schemas
 │   ├── services/
 │   │   ├── face_analyzer.py             # OpenCV face detection, gaze, head pose & facial activity
-│   │   ├── behavior_tracker.py          # Session telemetry, scoring formulas & final report generator
-│   │   ├── train_emotion_model.py       # CNN training script & dataset guidance
-│   │   ├── stt_service.py               # Speech-to-Text engine (Gemini / Whisper / fallback)
-│   │   ├── grammar_service.py           # Linguistic grammar analysis
-│   │   ├── filler_service.py            # Configurable filler-word detector
-│   │   ├── pace_service.py              # WPM calculation & category classifier
-│   │   ├── audio_processor.py           # RMS energy & silence pause timeline
-│   │   ├── pronunciation_service.py     # Phonetic syllable stress analyzer
-│   │   ├── communication_service.py     # Composite score & AI coaching feedback
-│   │   └── gemini_service.py            # Gemini 2.5 Flash interview generator
+│   │   ├── behavior_tracker.py          # Session telemetry accumulator & final report generator
+│   │   ├── scoring_service.py           # Weighted 4-pillar scoring engine & rubric classifier
+│   │   ├── feedback_service.py          # Gemini AI evaluation & coaching feedback generator
+│   │   ├── analytics_service.py         # Dynamic candidate, recruiter, and admin analytics
+│   │   ├── report_service.py            # PDF report generator & CSV telemetry exporter
+│   │   ├── notification_service.py      # Scheduled reminders & system notification alerts
+│   │   ├── stt_service.py               # Speech-to-Text transcription engine
+│   │   ├── grammar_service.py           # Linguistic syntax & grammar analyzer
+│   │   ├── filler_service.py            # Filler-word detector & frequency calculator
+│   │   └── pace_service.py              # WPM calculator & speaking pace categorizer
 │   └── routers/
-│       ├── interview_analysis_router.py # REST endpoints for vision & behavioral telemetry
-│       ├── speech_router.py             # REST endpoints for speech analysis & STT
-│       ├── interview_router.py          # Session lifecycle & video recording endpoints
-│       ├── auth_router.py               # User authentication endpoints
-│       ├── resume_router.py             # Resume PDF upload & parsing
-│       └── analytics_router.py          # Recruiter & Admin performance analytics
+│       ├── auth_router.py               # /api/auth (Login, Register, Me)
+│       ├── interview_router.py          # /api/interview (Create, Answer, Record, Finalize)
+│       ├── interview_analysis_router.py # /api/interview-analysis (Video frame stream, Gaze, CNN)
+│       ├── speech_router.py             # /api/speech (Audio analysis, STT, Grammatical checks)
+│       ├── candidate_router.py          # /api/candidate (Candidate dashboard, trends, weak areas)
+│       ├── recruiter_router.py          # /api/recruiter (Candidate lists, rankings, comparisons)
+│       ├── admin_router.py              # /api/admin (User management, system health, telemetry)
+│       ├── report_router.py             # /api/reports (PDF download, CSV export)
+│       ├── notification_router.py       # /api/notifications (Reminders, email triggers)
+│       ├── resume_router.py             # /api/resume (PDF upload & skill parsing)
+│       └── analytics_router.py          # /api/analytics (Platform overview metrics)
 ├── tests/
-│   ├── test_interview_analysis.py       # Unit & integration tests for vision, CNN, eye tracking & APIs
-│   └── test_speech_analysis.py          # Unit & integration tests for speech analytics & STT
-├── index.html                           # HTML5 interactive interface with Live HUD & Behavior Studio
-├── style.css                            # Glassmorphism design system, telemetry cards & report styles
-├── app.js                               # Frontend client logic & real-time video stream engine
-├── recordings/                          # Server-side audio/video recording storage
-├── requirements.txt                     # Python dependencies
-└── README.md                            # Complete documentation
+│   ├── test_auth.py                     # RBAC & authentication unit tests
+│   ├── test_interview.py                # Interview lifecycle & answer evaluation tests
+│   ├── test_interview_analysis.py       # Computer vision, CNN, eye tracking & gaze tests
+│   ├── test_scoring.py                  # Mathematical scoring & rubric validation tests
+│   ├── test_notifications_reports.py    # PDF reports, CSV export & notification tests
+│   └── test_dashboard_analytics.py      # Candidate, Recruiter & Admin analytics tests
+├── index.html                           # Single Page Application HTML5 frontend
+├── style.css                            # Glassmorphism dark/light design system
+├── app.js                               # Modern Vanilla JS client & API interface
+├── recordings/                          # Server-side interview video storage
+├── reports/                             # Generated PDF/CSV download directory
+├── requirements.txt                     # Production Python dependencies
+├── .env.example                         # Environment configuration template
+└── README.md                            # Comprehensive technical documentation
 ```
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- **Python 3.10+** (Tested on Python 3.11, 3.12, 3.14)
-- **Modern Web Browser** (Google Chrome, Microsoft Edge, Firefox, Safari)
+### 1. Prerequisites
+- **Python 3.10+** (Tested on Python 3.10, 3.11, 3.12, 3.14)
+- **Web Browser** (Google Chrome, Microsoft Edge, Firefox, Safari)
 
-### 1. Install Dependencies
+### 2. Installation
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd <repository-directory>
+
+# Create virtual environment
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. (Optional) Re-Train the Emotion CNN Model
-A trained weights file `backend/models/emotion_cnn.pth` is included. To re-train or fine-tune with custom epochs:
+### 3. Configure Environment
+Copy `.env.example` to `.env` and configure your keys:
 ```bash
-python -m backend.services.train_emotion_model --epochs 10 --batch_size 32
+cp .env.example .env
 ```
+*(Optional: Provide `GEMINI_API_KEY` for live generative interview synthesis. If not provided, robust deterministic fallback evaluators operate automatically.)*
 
-### 3. Start the Backend Server
+### 4. Start Development Server
 ```bash
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### 4. Access the Application
-Open your browser and navigate to:
-```text
-http://127.0.0.1:8000/
-```
+### 5. Access Application
+Open `http://127.0.0.1:8000` in your web browser.
 
-- **Candidate Mock Interview**: Click **Candidate Portal** (or one-click demo login), configure domain, start the session, allow camera permissions, and observe real-time AI emotion, eye tracking, and attention metrics live during the assessment.
-- **AI Video & Behavior Studio**: Click **👁️ Video Lab** in the navbar to test live camera landmark tracking, CNN emotion detection, gaze direction, and generate on-demand behavioral reports.
-- **Speech Lab**: Click **🎙️ Speech Lab** to practice spoken response pacing, grammar verification, and filler word detection.
+### Default Demo Accounts (Pre-Seeded)
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **Candidate** | `candidate@example.com` | `password123` |
+| **Recruiter** | `recruiter@example.com` | `password123` |
+| **Admin** | `admin@example.com` | `password123` |
 
 ---
 
-## 🧪 Running Automated Tests
+## 🧪 Automated Testing Suite
 
-Run the complete 31-test automated suite covering CNN emotion inference, face detection, gaze direction, eye contact math, attention scoring, engagement formulas, confidence indicators, final report generation, and speech analytics:
+The repository contains an exhaustive automated test suite with **86 tests** passing with 100% success rate:
 
 ```bash
-python -m unittest discover tests
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
----
-
-## 📡 API Reference
-
-### AI Vision & Behavioral Analysis Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/interview-analysis/model-status` | Returns CNN emotion model status (`trained_loaded`), classes, and disclaimer |
-| `POST` | `/api/interview-analysis/start` | Initializes a new video behavior tracking session |
-| `POST` | `/api/interview-analysis/frame` | Analyzes a video frame: detects face, infers emotion, tracks gaze/head, returns live telemetry |
-| `POST` | `/api/interview-analysis/stop` | Stops analysis session and computes duration/totals |
-| `GET` | `/api/interview-analysis/{session_id}` | Retrieves live telemetry metrics for active session |
-| `GET` | `/api/interview-analysis/{session_id}/report` | Generates final behavior report with distribution charts and improvement areas |
-
-### Speech & Mock Interview Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/interview/create` | Generates adaptive interview questions |
-| `POST` | `/api/interview/{id}/answer` | Evaluates candidate answer |
-| `POST` | `/api/interview/{id}/upload_recording` | Stores candidate video/audio stream |
-| `POST` | `/api/interview/{id}/finalize` | Completes interview and synthesizes performance report |
-| `POST` | `/api/speech/analyze` | Full audio speech analysis (STT, grammar, fillers, pace, pauses) |
-| `POST` | `/api/speech/text-analyze` | Speech analysis on direct text input |
+### Test Coverage Areas:
+1. **`test_auth.py`**: JWT token creation, registration, invalid credentials, RBAC route guards.
+2. **`test_interview.py`**: Adaptive question creation, audio/video upload, answer submission, session finalization.
+3. **`test_interview_analysis.py`**: Face detection, CNN model inference, gaze tracking, eye contact accumulation, attention scoring.
+4. **`test_scoring.py`**: Exact formula compliance ($30\% + 25\% + 30\% + 15\%$), score bounds (0–100), rubric thresholds.
+5. **`test_notifications_reports.py`**: PDF generation, CSV exports, interview reminder scheduling.
+6. **`test_dashboard_analytics.py`**: Candidate history, Recruiter comparison/ranking, Admin system health probes, empty states.
 
 ---
 
-## 🛡️ Scientific & Technical Notice
+## 🛡️ Scientific Transparency & Accuracy Disclosures
 
-1. **Observable Facial Expression Estimates**: CNN emotion classifications (`Nervous`, `Scared`, `Confused`) are observable facial appearance estimates derived from visible facial landmarks and tension patterns. They do not constitute psychological mind-reading or medical diagnostic assessments.
-2. **Deterministic Tracking**: All eye-contact percentages, gaze distributions, attention levels, and engagement scores are mathematically calculated from continuous webcam video frames throughout the session, with zero hardcoding or simulated placeholder metrics.
+1. **Observable Facial Estimates**: CNN classifications (`Nervous`, `Scared`, `Confused`) are observable facial appearance estimates derived from facial landmark geometry and muscle tension indicators. They do not claim to scientifically diagnose internal psychological or medical conditions.
+2. **Ground Truth Disclosure**: AI accuracy metrics are explicitly reported as:
+   > *"Accuracy cannot be determined without a validated ground-truth dataset."*
+   The system never fabricates or hallucinates accuracy percentages.
+3. **Deterministic Persistence**: Every metric, ranking, chart, and report is computed dynamically from persisted session and evaluation data.

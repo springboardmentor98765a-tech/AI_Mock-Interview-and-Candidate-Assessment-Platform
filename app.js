@@ -43,6 +43,47 @@ let state = {
     timerInterval: null,
     elapsedSeconds: 0,
     framesProcessed: 0
+  },
+
+  // Real-Data Dashboard & Analytics State
+  analytics: {
+    filters: {
+      candidate_id: "all",
+      period: "all",
+      domain: "all",
+      difficulty: "all",
+      interview_type: "all",
+      status: "all",
+      search: ""
+    },
+    overview: null,
+    skills: null,
+    weakAreas: null,
+    trends: null,
+    rankings: null,
+    history: null,
+    trendPeriod: "all",
+    historyPage: 1,
+    historyPageSize: 10,
+    historySortBy: "date",
+    historySortOrder: "desc",
+    rankingSortBy: "rank",
+    rankingSortOrder: "asc",
+    searchTimer: null
+  },
+
+  // Real-Data Notifications & Reports State
+  notificationsReports: {
+    activeTab: "upcoming",
+    notifications: [],
+    unreadCount: 0,
+    upcomingInterviews: [],
+    reports: [],
+    performanceSummary: null,
+    performanceTrends: [],
+    emailLogs: [],
+    isLoading: false,
+    pollTimer: null
   }
 };
 
@@ -50,6 +91,7 @@ let state = {
 document.addEventListener("DOMContentLoaded", () => {
   if (state.token) {
     fetchCurrentUser();
+    initNotificationPolling();
   } else {
     updateNavbar();
     navigateTo("landing");
@@ -105,11 +147,20 @@ function updateNavbar() {
     <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-color: var(--accent-success); color: var(--accent-success);" onclick="loadAndDisplayAssessment(state.activeInterview ? state.activeInterview.id : 'int_sample_001')">
       📊 AI Assessment
     </button>
+    <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-color: #6366f1; color: #818cf8;" onclick="openAnalyticsDashboard()">
+      📈 Analytics
+    </button>
+    <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; border-color: #8b5cf6; color: #a78bfa;" onclick="openNotificationsAndReportsDashboard()">
+      🔔 Reports & Alerts
+    </button>
   `;
   if (state.currentUser) {
     const roleBadgeClass = `badge-${state.currentUser.role}`;
     container.innerHTML = `
       ${labsBtn}
+      <button class="notif-bell-btn" onclick="toggleNotificationCenter()" title="Notifications & Session Alerts">
+        🔔 <span id="nav-notif-badge" class="notif-badge-counter" style="${state.notificationsReports.unreadCount > 0 ? '' : 'display:none;'}">${state.notificationsReports.unreadCount}</span>
+      </button>
       <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="routeRoleDashboard()">
         Portal
       </button>
@@ -236,12 +287,15 @@ function routeRoleDashboard() {
   const role = state.currentUser.role;
   if (role === "candidate") {
     navigateTo("candidate");
-    document.getElementById("cand-user-badge").innerText = state.currentUser.full_name;
+    const badge = document.getElementById("cand-user-badge");
+    if (badge) badge.innerText = state.currentUser.full_name;
     fetchMyResume();
+    loadCandidateDashboard();
   } else if (role === "recruiter") {
     navigateTo("recruiter");
     if (state.currentUser.company) {
-      document.getElementById("rec-company-badge").innerText = state.currentUser.company;
+      const recBadge = document.getElementById("rec-company-badge");
+      if (recBadge) recBadge.innerText = state.currentUser.company;
     }
     loadRecruiterDashboard();
   } else if (role === "admin") {
@@ -630,39 +684,46 @@ async function handleResumeSession() {
 
 async function handleEndSession() {
   if (!state.activeInterview) return;
+  const interviewId = state.activeInterview.id;
+  const totalDuration = state.totalElapsedSeconds;
+
   const container = document.getElementById("candidate-interview-section");
   container.innerHTML = `
-    <div class="glass-card" style="text-align: center; padding: 3rem;">
-      <div class="spinner" style="width:40px; height:40px;"></div>
-      <h3 style="margin-top: 1rem;">Finalizing Session & Uploading Recording...</h3>
-      <p>Saving candidate audio/video stream and computing session metrics</p>
+    <div class="glass-card" style="text-align: center; padding: 2.5rem;">
+      <div class="spinner" style="width:36px; height:36px; margin: 0 auto;"></div>
+      <h3 style="margin-top: 1rem;">Generating AI Assessment Results...</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Compiling candidate performance telemetry and scoring metrics</p>
     </div>
   `;
 
   try {
     stopTimer();
     stopVideoAnalysisStream();
-
-    // Finalize video analysis session
-    try {
-      await apiFetch("/api/interview-analysis/stop", {
-        method: "POST",
-        body: JSON.stringify({ session_id: state.activeInterview.id })
-      });
-    } catch (visStopErr) {
-      console.warn("Vision analyzer stop notice:", visStopErr);
-    }
-
-    await stopAndUploadRecording(state.activeInterview.id);
     stopMediaTracks();
 
-    await apiFetch(`/api/interview/${state.activeInterview.id}/session/end`, {
-      method: "POST",
-      body: JSON.stringify({ total_duration: state.totalElapsedSeconds })
-    });
+    // 1. Upload recording asynchronously in background (non-blocking)
+    stopAndUploadRecording(interviewId).catch(err => console.warn("Background upload notice:", err));
+
+    // 2. Stop vision stream & finalize interview concurrently
+    await Promise.allSettled([
+      apiFetch("/api/interview-analysis/stop", {
+        method: "POST",
+        body: JSON.stringify({ session_id: interviewId })
+      }),
+      apiFetch(`/api/interview/${interviewId}/session/end`, {
+        method: "POST",
+        body: JSON.stringify({ total_duration: totalDuration })
+      }),
+      apiFetch(`/api/interview/${interviewId}/finalize`, {
+        method: "POST",
+        body: JSON.stringify({ total_duration: totalDuration })
+      })
+    ]);
 
     state.sessionStatus = "Ended";
-    await handleFinalizeInterview();
+
+    // 3. Immediately transition to and display AI Assessment Report
+    await loadAndDisplayAssessment(interviewId);
   } catch (err) {
     alert(`Error ending session: ${err.message}`);
   }
@@ -768,6 +829,7 @@ function renderActiveInterview() {
 
           <div class="webcam-container">
             <video id="webcam-preview" class="webcam-video" autoplay muted playsinline style="${state.devicePermissionGranted ? 'display:block;' : 'display:none;'}"></video>
+            <canvas id="device-detection-overlay" class="device-detection-canvas-overlay" width="640" height="480"></canvas>
             
             <div id="webcam-placeholder-box" class="webcam-placeholder" style="${state.devicePermissionGranted ? 'display:none;' : 'display:flex;'}">
               <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📷</div>
@@ -779,6 +841,15 @@ function renderActiveInterview() {
                 🎙️ Grant Camera/Mic Permission
               </button>
             </div>
+          </div>
+
+          <!-- Live Real-Time Electronic Device Detection & Red Alert Banner -->
+          <div id="live-device-alert-banner" class="device-alert-banner state-normal">
+            <div class="device-alert-details">
+              <div class="device-alert-title" id="live-device-alert-title">🟢 Monitoring Active</div>
+              <div class="device-alert-subtitle" id="live-device-alert-sub">AI Anti-Cheating & Prohibited Device Monitoring Active</div>
+            </div>
+            <span class="device-meta-badge badge-alert-success" id="live-device-alert-badge">NORMAL</span>
           </div>
 
           <!-- Live Real-Time Computer Vision & Behavioral HUD -->
@@ -2473,14 +2544,14 @@ function startVideoAnalysisStream(sessionId, videoElementId = "webcam-preview") 
 
   if (!state.videoAnalysis.canvas) {
     state.videoAnalysis.canvas = document.createElement("canvas");
-    state.videoAnalysis.canvas.width = 320;
-    state.videoAnalysis.canvas.height = 240;
   }
+  state.videoAnalysis.canvas.width = 640;
+  state.videoAnalysis.canvas.height = 480;
 
   const canvas = state.videoAnalysis.canvas;
   const ctx = canvas.getContext("2d");
 
-  // Sample and stream frames at ~2.5 FPS (every 400ms) without UI freezing
+  // Stream high-definition frames at ~3.3 FPS (every 300ms) for responsive ML & YOLOv5n detection
   state.videoAnalysis.intervalId = setInterval(async () => {
     if (!state.videoAnalysis.isStreaming) return;
     const videoEl = document.getElementById(state.videoAnalysis.targetVideoId);
@@ -2488,7 +2559,7 @@ function startVideoAnalysisStream(sessionId, videoElementId = "webcam-preview") 
 
     try {
       ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       const data = await apiFetch("/api/interview-analysis/frame", {
         method: "POST",
@@ -2503,7 +2574,7 @@ function startVideoAnalysisStream(sessionId, videoElementId = "webcam-preview") 
     } catch (err) {
       console.warn("Frame analysis stream tick error:", err.message);
     }
-  }, 400);
+  }, 300);
 }
 
 function pauseVideoAnalysisStream() {
@@ -2640,6 +2711,116 @@ function updateLiveBehaviorHUD(data) {
   if (facialActivityEl && data.facial_activity_score !== undefined) {
     facialActivityEl.innerText = `${data.facial_activity_score}`;
   }
+
+  // 9. Real-Time Electronic Device Detection & Anti-Cheating Telemetry
+  if (data.device_detection) {
+    updateLiveDeviceDetectionHUD(data.device_detection, "live-device-alert", "device-detection-overlay");
+  }
+}
+
+function updateLiveDeviceDetectionHUD(devData, prefix = "live-device-alert", canvasId = "device-detection-overlay") {
+  const bannerEl = document.getElementById(prefix === "live-device-alert" ? "live-device-alert-banner" : `${prefix}-banner`);
+  const titleEl = document.getElementById(prefix === "live-device-alert" ? "live-device-alert-title" : `${prefix}-title`);
+  const subEl = document.getElementById(prefix === "live-device-alert" ? "live-device-alert-sub" : `${prefix}-sub`);
+  const badgeEl = document.getElementById(prefix === "live-device-alert" ? "live-device-alert-badge" : `${prefix}-badge`);
+  const canvas = document.getElementById(canvasId);
+
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (devData && devData.detected_devices && devData.detected_devices.length > 0) {
+      const cw = canvas.width;
+      const ch = canvas.height;
+
+      devData.detected_devices.forEach(dev => {
+        const box = dev.box || {};
+        const bw = Math.max(20, (box.width || 0.2) * cw);
+        const bh = Math.max(20, (box.height || 0.2) * ch);
+        // Horizontal mirroring to match the flipped webcam video preview
+        const bx = Math.max(0, Math.min(cw - bw, (1.0 - (box.x || 0) - (box.width || 0.2)) * cw));
+        const by = Math.max(0, Math.min(ch - bh, (box.y || 0) * ch));
+        const confPct = Math.round((dev.confidence || 0.85) * 100);
+
+        // Draw bold glowing red bounding box
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#ef4444";
+        ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bx, by, bw, bh, 6);
+        } else {
+          ctx.rect(bx, by, bw, bh);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Label background & text with clear high-contrast badge
+        const labelText = `⚠️ ${dev.object_name} ${confPct}%`;
+        ctx.font = "bold 14px 'Outfit', sans-serif";
+        const textWidth = ctx.measureText(labelText).width;
+
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(bx, Math.max(0, by - 24), textWidth + 14, 24);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(labelText, bx + 7, Math.max(17, by - 7));
+      });
+    }
+  }
+
+  if (!devData) {
+    if (bannerEl) {
+      bannerEl.className = "device-alert-banner state-normal";
+      if (titleEl) titleEl.innerHTML = "🟢 Monitoring Active";
+      if (subEl) subEl.innerText = "AI Anti-Cheating & Prohibited Device Monitoring Active";
+      if (badgeEl) {
+        badgeEl.className = "device-meta-badge badge-alert-success";
+        badgeEl.innerText = "NORMAL";
+      }
+    }
+    return;
+  }
+
+  const alertState = devData.alert_state || "NORMAL";
+  const devices = devData.detected_devices || [];
+
+  // Update Alert Banner
+  if (bannerEl) {
+    if (alertState === "ALERT") {
+      bannerEl.className = "device-alert-banner state-alert";
+      if (titleEl) titleEl.innerHTML = `🔴 <strong>ELECTRONIC DEVICE DETECTED</strong>`;
+
+      if (devices.length > 0) {
+        const devNames = devices.map(d => `${d.object_name} (${Math.round((d.confidence || 0.85) * 100)}%)`).join(" • ");
+        const timeStr = new Date().toLocaleTimeString();
+        if (subEl) subEl.innerHTML = `Prohibited Object Detected: <strong>${devNames}</strong> at ${timeStr}`;
+      } else {
+        if (subEl) subEl.innerText = devData.alert_message || "Prohibited electronic device detected.";
+      }
+
+      if (badgeEl) {
+        badgeEl.className = "device-meta-badge badge-alert-danger";
+        badgeEl.innerText = "ALERT";
+      }
+    } else if (alertState === "WARNING") {
+      bannerEl.className = "device-alert-banner state-warning";
+      if (titleEl) titleEl.innerHTML = `🟡 <strong>Checking Possible Device...</strong>`;
+      if (subEl) subEl.innerText = "Verifying object stability in camera frame...";
+      if (badgeEl) {
+        badgeEl.className = "device-meta-badge badge-alert-warning";
+        badgeEl.innerText = "CHECKING";
+      }
+    } else {
+      bannerEl.className = "device-alert-banner state-normal";
+      if (titleEl) titleEl.innerHTML = "🟢 Monitoring Active";
+      if (subEl) subEl.innerText = "No prohibited devices detected. Camera feed clean.";
+      if (badgeEl) {
+        badgeEl.className = "device-meta-badge badge-alert-success";
+        badgeEl.innerText = "NORMAL";
+      }
+    }
+  }
 }
 
 // ==========================================================================
@@ -2694,8 +2875,8 @@ async function startBehaviorStudioCamera() {
 
     // Frame Analysis Loop
     const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 240;
+    canvas.width = 640;
+    canvas.height = 480;
     const ctx = canvas.getContext("2d");
 
     state.behaviorStudio.intervalId = setInterval(async () => {
@@ -2704,7 +2885,7 @@ async function startBehaviorStudioCamera() {
 
       try {
         ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-        const frameDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        const frameDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
         const data = await apiFetch("/api/interview-analysis/frame", {
           method: "POST",
@@ -2722,7 +2903,7 @@ async function startBehaviorStudioCamera() {
       } catch (err) {
         console.warn("Studio frame error:", err.message);
       }
-    }, 400);
+    }, 300);
 
   } catch (err) {
     alert(`Could not start camera: ${err.message}`);
@@ -2807,7 +2988,8 @@ function resetBehaviorStudioSession() {
     attention: { score: 0, level: "Low" },
     engagement: { score: 0, level: "Low" },
     confidence_indicators: { level: "Moderate", score: 50, indicators: { eye_contact: 0, head_stability: 0, facial_stability: 50 } },
-    facial_activity_score: 0
+    facial_activity_score: 0,
+    device_detection: null
   });
 }
 
@@ -2916,6 +3098,11 @@ function updateBehaviorStudioHUD(data) {
     if (subEye) subEye.innerText = `${inds.eye_contact || 0}%`;
     if (subHead) subHead.innerText = `${inds.head_stability || 0}%`;
     if (subFacial) subFacial.innerText = `${data.facial_activity_score || 0}`;
+  }
+
+  // Electronic Device Detection Telemetry in Studio
+  if (data.device_detection) {
+    updateLiveDeviceDetectionHUD(data.device_detection, "bs-live-device-alert", "bs-device-detection-overlay");
   }
 }
 
@@ -3055,24 +3242,14 @@ async function loadAndDisplayAssessment(interviewId, isRegenerate = false) {
     }
   });
 
-  const advanceStage = (idx) => {
-    if (stageElements[idx]) {
-      stageElements[idx].className = "stage-item active";
-      stageElements[idx].querySelector(".stage-icon").innerText = "⚡";
+  // Quick active state for stages
+  stageElements.forEach((el) => {
+    if (el) {
+      el.className = "stage-item active";
+      const icon = el.querySelector(".stage-icon");
+      if (icon) icon.innerText = "⚡";
     }
-    if (idx > 0 && stageElements[idx - 1]) {
-      stageElements[idx - 1].className = "stage-item completed";
-      stageElements[idx - 1].querySelector(".stage-icon").innerText = "✅";
-    }
-  };
-
-  advanceStage(0);
-  setTimeout(() => advanceStage(1), 300);
-  setTimeout(() => advanceStage(2), 600);
-  setTimeout(() => advanceStage(3), 900);
-  setTimeout(() => advanceStage(4), 1200);
-  setTimeout(() => advanceStage(5), 1500);
-  setTimeout(() => advanceStage(6), 1800);
+  });
 
   const endpoint = isRegenerate
     ? `/api/interview/${interviewId}/assessment/regenerate`
@@ -3089,20 +3266,20 @@ async function loadAndDisplayAssessment(interviewId, isRegenerate = false) {
     stageElements.forEach((el) => {
       if (el) {
         el.className = "stage-item completed";
-        el.querySelector(".stage-icon").innerText = "✅";
+        const icon = el.querySelector(".stage-icon");
+        if (icon) icon.innerText = "✅";
       }
     });
 
     const genTitle = document.getElementById("assess-gen-title");
     if (genTitle) genTitle.innerText = "Assessment Complete 🎉";
 
-    setTimeout(() => {
-      if (genBox) genBox.style.display = "none";
-      if (contentContainer) {
-        contentContainer.style.display = "flex";
-        renderAssessmentDashboard(assessmentData, contentContainer);
-      }
-    }, 500);
+    // Immediate display with zero artificial delay
+    if (genBox) genBox.style.display = "none";
+    if (contentContainer) {
+      contentContainer.style.display = "flex";
+      renderAssessmentDashboard(assessmentData, contentContainer);
+    }
 
   } catch (err) {
     if (genBox) {
@@ -3747,3 +3924,3791 @@ function exportAssessmentJSON() {
   downloadAnchor.click();
   downloadAnchor.remove();
 }
+
+// ==========================================================================
+// 9. Real-Data Dashboard & Analytics Engine (ZERO DUMMY DATA)
+// ==========================================================================
+
+async function openAnalyticsDashboard(targetRole = null) {
+  if (!state.currentUser && !state.token) {
+    showAuthModal('login');
+    return;
+  }
+
+  const role = targetRole || state.currentUser?.role || "candidate";
+  if (role === "candidate") {
+    navigateTo("candidate");
+    switchCandidateTab('overview');
+    loadCandidateDashboard();
+    return;
+  } else if (role === "recruiter") {
+    navigateTo("recruiter");
+    loadRecruiterDashboard();
+    return;
+  } else if (role === "admin") {
+    navigateTo("admin");
+    loadAdminDashboard();
+    return;
+  }
+
+  navigateTo("analytics");
+  await loadAnalyticsDashboard();
+}
+
+async function fetchAnalyticsCandidatesList() {
+  try {
+    const data = await apiFetch("/api/analytics/recruiter");
+    const candSelect = document.getElementById("analytics-filter-candidate");
+    if (candSelect && data.candidates) {
+      candSelect.innerHTML = `<option value="all">All Candidates</option>` +
+        data.candidates.map(c => `<option value="${c.user_id}">${c.name} (${c.email})</option>`).join("");
+    }
+  } catch (err) {
+    console.warn("Could not load candidates dropdown:", err);
+  }
+}
+
+function _buildAnalyticsQueryParams() {
+  const f = state.analytics.filters;
+  const params = new URLSearchParams();
+
+  if (f.candidate_id && f.candidate_id !== "all") params.append("candidate_id", f.candidate_id);
+  if (f.domain && f.domain !== "all") params.append("domain", f.domain);
+  if (f.difficulty && f.difficulty !== "all") params.append("difficulty", f.difficulty);
+  if (f.interview_type && f.interview_type !== "all") params.append("interview_type", f.interview_type);
+  if (f.status && f.status !== "all") params.append("status", f.status);
+  if (f.search && f.search.trim()) params.append("search", f.search.trim());
+  if (f.period && f.period !== "all") params.append("period", f.period);
+
+  return params.toString();
+}
+
+async function loadAnalyticsDashboard() {
+  const qStr = _buildAnalyticsQueryParams();
+  const querySuffix = qStr ? `?${qStr}` : "";
+
+  const kpiContainer = document.getElementById("analytics-kpi-container");
+  if (kpiContainer) {
+    kpiContainer.innerHTML = `<div class="glass-card" style="grid-column: 1/-1; text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Aggregating Real Assessment Telemetry...</p></div>`;
+  }
+
+  try {
+    // Parallel fetch from real calculated endpoints
+    const [overview, skills, weakAreas, trends, history] = await Promise.all([
+      apiFetch(`/api/analytics/overview${querySuffix}`),
+      apiFetch(`/api/analytics/skills${querySuffix}`),
+      apiFetch(`/api/analytics/weak-areas${querySuffix}`),
+      apiFetch(`/api/analytics/trends?period=${state.analytics.trendPeriod}${qStr ? `&${qStr}` : ''}`),
+      apiFetch(`/api/analytics/interviews?page=${state.analytics.historyPage}&page_size=${state.analytics.historyPageSize}&sort_by=${state.analytics.historySortBy}&sort_order=${state.analytics.historySortOrder}${qStr ? `&${qStr}` : ''}`)
+    ]);
+
+    state.analytics.overview = overview;
+    state.analytics.skills = skills;
+    state.analytics.weakAreas = weakAreas;
+    state.analytics.trends = trends;
+    state.analytics.history = history;
+
+    // Render all sub-sections
+    renderAnalyticsKPICards(overview);
+    renderPerformanceTrendsSection(trends);
+    renderSkillAnalyticsSection(skills);
+    renderWeakAreasSection(weakAreas);
+    renderInterviewHistorySection(history);
+
+    // If recruiter or admin, also load rankings
+    const isElevated = state.currentUser?.role === "recruiter" || state.currentUser?.role === "admin";
+    if (isElevated) {
+      const rankings = await apiFetch(`/api/analytics/rankings?sort_by=${state.analytics.rankingSortBy}&sort_order=${state.analytics.rankingSortOrder}${fDomainParam()}`);
+      state.analytics.rankings = rankings;
+      renderCandidateRankingsSection(rankings);
+    }
+  } catch (err) {
+    console.error("Analytics Load Error:", err);
+    if (kpiContainer) {
+      kpiContainer.innerHTML = `
+        <div class="empty-state-box" style="grid-column: 1/-1;">
+          <div class="empty-state-icon">⚠️</div>
+          <h4 class="empty-state-title">Unable to Load Analytics</h4>
+          <p class="empty-state-desc">${err.message || 'Please check network connection and try again.'}</p>
+          <button class="btn btn-outline" style="margin-top:1rem;" onclick="loadAnalyticsDashboard()">Retry</button>
+        </div>
+      `;
+    }
+  }
+}
+
+function fDomainParam() {
+  const d = state.analytics.filters.domain;
+  return (d && d !== "all") ? `&domain=${encodeURIComponent(d)}` : "";
+}
+
+function applyAnalyticsFilters() {
+  const f = state.analytics.filters;
+  const candEl = document.getElementById("analytics-filter-candidate");
+  const periodEl = document.getElementById("analytics-filter-period");
+  const domainEl = document.getElementById("analytics-filter-domain");
+  const diffEl = document.getElementById("analytics-filter-difficulty");
+  const typeEl = document.getElementById("analytics-filter-type");
+  const statusEl = document.getElementById("analytics-filter-status");
+
+  if (candEl) f.candidate_id = candEl.value;
+  if (periodEl) {
+    f.period = periodEl.value;
+    state.analytics.trendPeriod = periodEl.value;
+    updateTrendPeriodButtons(f.period);
+  }
+  if (domainEl) f.domain = domainEl.value;
+  if (diffEl) f.difficulty = diffEl.value;
+  if (typeEl) f.interview_type = typeEl.value;
+  if (statusEl) f.status = statusEl.value;
+
+  state.analytics.historyPage = 1; // reset page to 1 on filter change
+  loadAnalyticsDashboard();
+}
+
+function resetAnalyticsFilters() {
+  state.analytics.filters = {
+    candidate_id: "all",
+    period: "all",
+    domain: "all",
+    difficulty: "all",
+    interview_type: "all",
+    status: "all",
+    search: ""
+  };
+  state.analytics.trendPeriod = "all";
+  state.analytics.historyPage = 1;
+
+  const candEl = document.getElementById("analytics-filter-candidate");
+  const periodEl = document.getElementById("analytics-filter-period");
+  const domainEl = document.getElementById("analytics-filter-domain");
+  const diffEl = document.getElementById("analytics-filter-difficulty");
+  const typeEl = document.getElementById("analytics-filter-type");
+  const statusEl = document.getElementById("analytics-filter-status");
+  const searchEl = document.getElementById("history-search-input");
+
+  if (candEl) candEl.value = "all";
+  if (periodEl) periodEl.value = "all";
+  if (domainEl) domainEl.value = "all";
+  if (diffEl) diffEl.value = "all";
+  if (typeEl) typeEl.value = "all";
+  if (statusEl) statusEl.value = "all";
+  if (searchEl) searchEl.value = "";
+
+  updateTrendPeriodButtons("all");
+  loadAnalyticsDashboard();
+}
+
+function refreshAnalyticsDashboard() {
+  loadAnalyticsDashboard();
+}
+
+// ==========================================================================
+// 9.1 Performance Tracking KPI Cards (Zero Dummy Data)
+// ==========================================================================
+
+function renderAnalyticsKPICards(overview) {
+  const container = document.getElementById("analytics-kpi-container");
+  if (!container) return;
+
+  if (!overview || !overview.has_data) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1/-1;">
+        <div class="empty-state-icon">📋</div>
+        <h4 class="empty-state-title">No Interview Data Available</h4>
+        <p class="empty-state-desc">
+          Complete an interview to generate real-time performance analytics, skill breakdowns, and benchmark trends.
+        </p>
+        <button class="btn btn-primary" style="margin-top:1rem;" onclick="routeRoleDashboard()">
+          🚀 Launch Mock Interview
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  // Improvement pill styling
+  let impHtml = `<span class="kpi-trend-pill kpi-trend-stable">● Stable Baseline</span>`;
+  if (overview.improvement_pct !== null) {
+    if (overview.improvement_pct > 0) {
+      impHtml = `<span class="kpi-trend-pill kpi-trend-up">▲ +${overview.improvement_pct}% Improvement</span>`;
+    } else if (overview.improvement_pct < 0) {
+      impHtml = `<span class="kpi-trend-pill kpi-trend-down">▼ ${overview.improvement_pct}% Dip</span>`;
+    }
+  }
+
+  container.innerHTML = `
+    <!-- Card 1: Sessions Count -->
+    <div class="analytics-kpi-card">
+      <div class="kpi-title">
+        <span>Total Sessions</span>
+        <span style="font-size:1.2rem;">⚡</span>
+      </div>
+      <div class="kpi-value">${overview.completed_interviews} <span style="font-size:1rem; font-weight:normal; color:var(--text-muted);">/ ${overview.total_interviews}</span></div>
+      <div class="kpi-subtext">
+        ${overview.completed_interviews} completed, ${overview.in_progress_interviews} in-progress
+      </div>
+    </div>
+
+    <!-- Card 2: Average Score -->
+    <div class="analytics-kpi-card">
+      <div class="kpi-title">
+        <span>Average Benchmark Score</span>
+        <span style="font-size:1.2rem;">📊</span>
+      </div>
+      <div class="kpi-value" style="color:var(--secondary);">${overview.average_score}%</div>
+      <div class="kpi-subtext" style="display:flex; justify-content:space-between;">
+        <span>High: <strong style="color:var(--accent-success);">${overview.highest_score}%</strong></span>
+        <span>Low: <strong style="color:var(--accent-warning);">${overview.lowest_score}%</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 3: Recent & Improvement -->
+    <div class="analytics-kpi-card">
+      <div class="kpi-title">
+        <span>Latest Performance</span>
+        <span style="font-size:1.2rem;">📈</span>
+      </div>
+      <div class="kpi-value" style="color:var(--primary);">${overview.latest_score !== null ? overview.latest_score + '%' : 'N/A'}</div>
+      <div class="kpi-subtext">
+        ${impHtml}
+      </div>
+    </div>
+
+    <!-- Card 4: Technical & Communication -->
+    <div class="analytics-kpi-card">
+      <div class="kpi-title">
+        <span>Core Pillar Averages</span>
+        <span style="font-size:1.2rem;">🎯</span>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-top:0.35rem;">
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Technical (30%)</div>
+          <div style="font-size:1.15rem; font-weight:700; color:var(--accent-success);">${overview.average_technical_score !== null ? overview.average_technical_score + '%' : 'N/A'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Communication (25%)</div>
+          <div style="font-size:1.15rem; font-weight:700; color:var(--secondary);">${overview.average_communication_score !== null ? overview.average_communication_score + '%' : 'N/A'}</div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-top:0.35rem; padding-top:0.35rem; border-top:1px solid rgba(255,255,255,0.05);">
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Confidence (25%)</div>
+          <div style="font-size:0.95rem; font-weight:600; color:var(--primary);">${overview.average_confidence_score !== null ? overview.average_confidence_score + '%' : 'N/A'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Professionalism (20%)</div>
+          <div style="font-size:0.95rem; font-weight:600; color:var(--accent-warning);">${overview.average_professionalism_score !== null ? overview.average_professionalism_score + '%' : 'N/A'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================================================
+// 9.2 Performance Trends Line Chart (HTML5 Canvas)
+// ==========================================================================
+
+function renderPerformanceTrendsSection(trendsData) {
+  const summaryBar = document.getElementById("trend-summary-bar");
+  const chartWrapper = document.getElementById("trend-chart-wrapper");
+
+  if (!trendsData || !trendsData.has_data || !trendsData.data_points || trendsData.data_points.length === 0) {
+    if (chartWrapper) {
+      chartWrapper.innerHTML = `
+        <div class="empty-state-box" style="padding:2rem 1rem;">
+          <div class="empty-state-icon">📉</div>
+          <h4 class="empty-state-title">Not Enough Historical Data</h4>
+          <p class="empty-state-desc">${trendsData?.message || 'Complete multiple interview sessions to view score trajectory trends over time.'}</p>
+        </div>
+      `;
+    }
+    if (summaryBar) summaryBar.innerHTML = "";
+    return;
+  }
+
+  // Ensure canvas is in DOM
+  if (!document.getElementById("analytics-trend-canvas")) {
+    chartWrapper.innerHTML = `<canvas id="analytics-trend-canvas" width="900" height="280" style="width: 100%; height: 280px;"></canvas>`;
+  }
+
+  // Populate summary bar
+  const ovSum = trendsData.metrics_summary?.overall || {};
+  if (summaryBar) {
+    summaryBar.innerHTML = `
+      <div>Trajectory Trend: <strong style="color:${ovSum.trend_direction === 'Improving' ? 'var(--accent-success)' : (ovSum.trend_direction === 'Declining' ? 'var(--accent-danger)' : 'var(--text-main)')};">${ovSum.trend_direction || 'Stable'}</strong></div>
+      <div>Period Avg: <strong>${ovSum.average || 0}%</strong></div>
+      <div>Period Peak: <strong style="color:var(--accent-success);">${ovSum.highest || 0}%</strong></div>
+      <div>Period Min: <strong style="color:var(--accent-warning);">${ovSum.lowest || 0}%</strong></div>
+      <div>Growth Rate: <strong>${ovSum.improvement_pct !== null ? (ovSum.improvement_pct > 0 ? '+' : '') + ovSum.improvement_pct + '%' : 'N/A'}</strong></div>
+    `;
+  }
+
+  redrawTrendChart();
+}
+
+function updateTrendPeriodButtons(activePeriod) {
+  document.querySelectorAll("#trend-period-buttons .period-btn").forEach(btn => {
+    if (btn.getAttribute("data-period") === activePeriod) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+}
+
+async function switchTrendPeriod(period) {
+  state.analytics.trendPeriod = period;
+  updateTrendPeriodButtons(period);
+  const qStr = _buildAnalyticsQueryParams();
+  try {
+    const trends = await apiFetch(`/api/analytics/trends?period=${period}${qStr ? `&${qStr}` : ''}`);
+    state.analytics.trends = trends;
+    renderPerformanceTrendsSection(trends);
+  } catch (err) {
+    console.error("Failed switching trend period:", err);
+  }
+}
+
+function redrawTrendChart() {
+  const trendsData = state.analytics.trends;
+  if (!trendsData || !trendsData.has_data) return;
+
+  const toggles = {
+    overall: document.getElementById("trend-chk-overall")?.checked ?? true,
+    technical: document.getElementById("trend-chk-technical")?.checked ?? true,
+    communication: document.getElementById("trend-chk-communication")?.checked ?? true,
+    confidence: document.getElementById("trend-chk-confidence")?.checked ?? true
+  };
+
+  drawAnalyticsTrendChart("analytics-trend-canvas", trendsData.data_points, toggles);
+}
+
+function drawAnalyticsTrendChart(canvasId, points, toggles) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  // Handle high-DPI scaling
+  const width = canvas.parentElement.clientWidth || 900;
+  const height = 280;
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const paddingLeft = 45;
+  const paddingRight = 30;
+  const paddingTop = 25;
+  const paddingBottom = 40;
+
+  const plotWidth = width - paddingLeft - paddingRight;
+  const plotHeight = height - paddingTop - paddingBottom;
+
+  // Grid Lines (0%, 25%, 50%, 75%, 100%)
+  const ySteps = [0, 25, 50, 75, 100];
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+  ctx.font = "11px Outfit, sans-serif";
+  ctx.textAlign = "right";
+
+  ySteps.forEach(val => {
+    const y = paddingTop + plotHeight - (val / 100) * plotHeight;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(width - paddingRight, y);
+    ctx.stroke();
+    ctx.fillText(`${val}%`, paddingLeft - 8, y + 4);
+  });
+
+  const n = points.length;
+  if (n === 0) return;
+
+  const getX = (idx) => {
+    if (n === 1) return paddingLeft + plotWidth / 2;
+    return paddingLeft + (idx / (n - 1)) * plotWidth;
+  };
+
+  const getY = (val) => {
+    const clamped = Math.max(0, Math.min(100, val || 0));
+    return paddingTop + plotHeight - (clamped / 100) * plotHeight;
+  };
+
+  // Series definitions
+  const seriesConfig = [
+    { key: "overall_score", color: "#6366f1", label: "Overall", enabled: toggles.overall },
+    { key: "technical_score", color: "#10b981", label: "Technical", enabled: toggles.technical },
+    { key: "communication_score", color: "#06b6d4", label: "Communication", enabled: toggles.communication },
+    { key: "confidence_score", color: "#f59e0b", label: "Confidence", enabled: toggles.confidence }
+  ];
+
+  seriesConfig.forEach(series => {
+    if (!series.enabled) return;
+
+    // Draw Line
+    ctx.beginPath();
+    points.forEach((pt, idx) => {
+      const x = getX(idx);
+      const y = getY(pt[series.key]);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = series.color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Draw Points
+    points.forEach((pt, idx) => {
+      const x = getX(idx);
+      const y = getY(pt[series.key]);
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = series.color;
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  });
+
+  // Draw X Axis Time Labels
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.font = "11px Outfit, sans-serif";
+  ctx.textAlign = "center";
+
+  points.forEach((pt, idx) => {
+    // Stride labels if too many points
+    if (n > 10 && idx % Math.ceil(n / 8) !== 0 && idx !== n - 1) return;
+    const x = getX(idx);
+    ctx.fillText(pt.label || `S${idx + 1}`, x, height - 12);
+  });
+}
+
+// ==========================================================================
+// 9.3 Skill-Wise Analytics & Competency Radar
+// ==========================================================================
+
+function renderSkillAnalyticsSection(skillData) {
+  const radarContainer = document.getElementById("skill-radar-container");
+  const barsContainer = document.getElementById("skill-bars-container");
+
+  if (!skillData || !skillData.has_data || !skillData.skills || skillData.skills.length === 0) {
+    if (radarContainer) {
+      radarContainer.innerHTML = `<div class="empty-state-box" style="padding:1.5rem;"><p class="empty-state-desc">Skill radar geometry will appear after completed assessments.</p></div>`;
+    }
+    if (barsContainer) {
+      barsContainer.innerHTML = `<div class="empty-state-box" style="padding:1.5rem;"><p class="empty-state-desc">No skill measurements recorded yet.</p></div>`;
+    }
+    return;
+  }
+
+  // Draw Radar
+  if (radarContainer) {
+    radarContainer.innerHTML = `<canvas id="analytics-skill-radar-canvas" width="360" height="260" style="max-width: 100%;"></canvas>`;
+    setTimeout(() => {
+      drawAnalyticsSkillRadar("analytics-skill-radar-canvas", skillData.radar_data || {});
+    }, 50);
+  }
+
+  // Render Horizontal Skill Bars
+  if (barsContainer) {
+    barsContainer.innerHTML = skillData.skills.map(s => {
+      const trendBadge = s.trend === "Improving"
+        ? `<span class="badge badge-success" style="font-size:0.65rem; padding:0.1rem 0.35rem;">▲ Up</span>`
+        : (s.trend === "Declining"
+          ? `<span class="badge badge-admin" style="font-size:0.65rem; padding:0.1rem 0.35rem; background:rgba(239,68,68,0.2); color:#fca5a5;">▼ Dip</span>`
+          : `<span class="badge badge-outline" style="font-size:0.65rem; padding:0.1rem 0.35rem;">● Stable</span>`
+        );
+
+      return `
+        <div style="background: rgba(255,255,255,0.02); padding: 0.6rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span style="font-size: 0.85rem; font-weight: 600;">${s.skill_name}</span>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              ${trendBadge}
+              <strong style="font-size: 0.9rem; color: var(--secondary);">${s.current_score}%</strong>
+            </div>
+          </div>
+          <div class="metric-bar" style="height: 6px;">
+            <div class="metric-fill" style="width: ${s.current_score}%; background: linear-gradient(90deg, #6366f1, #06b6d4);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.25rem;">
+            <span>Historical Avg: <strong>${s.average_score}%</strong></span>
+            <span>Assessments: <strong>${s.assessments_count}</strong></span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+}
+
+function drawAnalyticsSkillRadar(canvasId, radarData) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.min(centerX, centerY) - 35;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const keys = Object.keys(radarData);
+  const values = Object.values(radarData);
+  const numAxes = keys.length;
+  if (numAxes < 3) return;
+
+  const angleStep = (Math.PI * 2) / numAxes;
+
+  // Draw concentric polygon grid circles
+  const levels = 4;
+  for (let l = 1; l <= levels; l++) {
+    const r = (radius / levels) * l;
+    ctx.beginPath();
+    for (let i = 0; i < numAxes; i++) {
+      const angle = i * angleStep - Math.PI / 2;
+      const x = centerX + Math.cos(angle) * r;
+      const y = centerY + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Draw axis spokes & labels
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.stroke();
+
+    const labelDist = radius + 18;
+    const lx = centerX + Math.cos(angle) * labelDist;
+    const ly = centerY + Math.sin(angle) * labelDist;
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 10px Outfit, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(keys[i], lx, ly);
+  }
+
+  // 80% Benchmark Polygon
+  ctx.beginPath();
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const r = (radius * 80) / 100;
+    const x = centerX + Math.cos(angle) * r;
+    const y = centerY + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(6, 182, 212, 0.4)";
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Actual Score Polygon
+  ctx.beginPath();
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const valPct = Math.max(10, Math.min(100, values[i]));
+    const r = (radius * valPct) / 100;
+    const x = centerX + Math.cos(angle) * r;
+    const y = centerY + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+
+  const gradient = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, radius);
+  gradient.addColorStop(0, "rgba(99, 102, 241, 0.4)");
+  gradient.addColorStop(1, "rgba(6, 182, 212, 0.15)");
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.strokeStyle = "#6366f1";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Draw Dots
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const valPct = Math.max(10, Math.min(100, values[i]));
+    const r = (radius * valPct) / 100;
+    const x = centerX + Math.cos(angle) * r;
+    const y = centerY + Math.sin(angle) * r;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+// ==========================================================================
+// 9.4 Data-Driven Weak-Area Prediction Engine
+// ==========================================================================
+
+function renderWeakAreasSection(weakData) {
+  const container = document.getElementById("weak-areas-container");
+  if (!container) return;
+
+  if (!weakData || !weakData.has_data || !weakData.weak_areas || weakData.weak_areas.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="padding: 1.5rem;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">✨</div>
+        <h4 class="empty-state-title" style="color: var(--accent-success);">No Critical Weak Areas Detected</h4>
+        <p class="empty-state-desc">${weakData?.message || 'All evaluated skills meet or exceed target benchmark standards.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="weak-areas-grid">
+      ${weakData.weak_areas.map(w => {
+        const isCritical = w.severity === "Critical";
+        const badgeClass = isCritical ? "severity-pill-critical" : "severity-pill-warning";
+        const cardClass = isCritical ? "weak-area-card critical" : "weak-area-card needs-improvement";
+
+        return `
+          <div class="${cardClass}">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <h4 style="color: var(--text-main); font-size: 1.05rem;">${w.skill}</h4>
+                <span class="${badgeClass}">${w.severity}</span>
+              </div>
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                ${w.reason}
+              </p>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm); margin-top: auto;">
+              <div style="font-size: 0.78rem; font-weight: 600; color: var(--secondary); margin-bottom: 0.25rem;">
+                💡 Actionable Improvement:
+              </div>
+              <div style="font-size: 0.82rem; color: var(--text-main); line-height: 1.4;">
+                ${w.recommended_improvement}
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.5rem; padding-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                <span>Current: <strong>${w.current_score}%</strong></span>
+                <span>Avg: <strong>${w.historical_average}%</strong></span>
+                <span>Assessments: <strong>${w.supporting_assessments_count}</strong></span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+// ==========================================================================
+// 9.5 Candidate Ranking Leaderboard (For Recruiter & Admin)
+// ==========================================================================
+
+function renderCandidateRankingsSection(rankingsData) {
+  const tbody = document.getElementById("analytics-ranking-tbody");
+  if (!tbody) return;
+
+  if (!rankingsData || !rankingsData.rankings || rankingsData.rankings.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="12" style="text-align:center; padding:2rem; color:var(--text-muted);">
+          No candidate rankings available yet. Assessments required to formulate rankings.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = rankingsData.rankings.map(c => {
+    let rankBadge = `<span class="rank-circle rank-default">${c.rank}</span>`;
+    if (c.rank === 1) rankBadge = `<span class="rank-circle rank-gold">🥇 1</span>`;
+    else if (c.rank === 2) rankBadge = `<span class="rank-circle rank-silver">🥈 2</span>`;
+    else if (c.rank === 3) rankBadge = `<span class="rank-circle rank-bronze">🥉 3</span>`;
+
+    const statusBadgeClass = c.performance_status === "Top Tier" ? "badge-success" : (c.performance_status === "Strong Contender" ? "badge-candidate" : "badge-outline");
+
+    return `
+      <tr>
+        <td>${rankBadge}</td>
+        <td>
+          <strong>${c.name}</strong>
+          <div style="font-size:0.75rem; color:var(--text-dim);">${c.email}</div>
+        </td>
+        <td><strong style="color:var(--secondary); font-size:1.05rem;">${c.ranking_score}</strong></td>
+        <td><strong>${c.overall_score !== null ? c.overall_score + '%' : 'N/A'}</strong></td>
+        <td>${c.technical_score !== null ? c.technical_score + '%' : 'N/A'}</td>
+        <td>${c.communication_score !== null ? c.communication_score + '%' : 'N/A'}</td>
+        <td>${c.confidence_score !== null ? c.confidence_score + '%' : 'N/A'}</td>
+        <td><span class="badge badge-outline">${c.interview_count}</span></td>
+        <td>
+          ${c.improvement_rate > 0 
+            ? `<span style="color:var(--accent-success); font-weight:600;">+${c.improvement_rate}%</span>` 
+            : `<span style="color:var(--text-dim);">${c.improvement_rate}%</span>`
+          }
+        </td>
+        <td><span class="skill-chip" style="font-size:0.75rem;">${c.strongest_skill}</span></td>
+        <td><span class="badge ${statusBadgeClass}">${c.performance_status}</span></td>
+        <td>
+          <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.55rem;" onclick="filterCandidateInAnalytics('${c.candidate_id}')">
+            📊 Analyze
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function changeRankingSort(sortBy) {
+  state.analytics.rankingSortBy = sortBy;
+  state.analytics.rankingSortOrder = (sortBy === "rank") ? "asc" : "desc";
+  loadAnalyticsDashboard();
+}
+
+function filterCandidateInAnalytics(candidateId) {
+  const candSelect = document.getElementById("analytics-filter-candidate");
+  if (candSelect) {
+    candSelect.value = candidateId;
+  }
+  state.analytics.filters.candidate_id = candidateId;
+  loadAnalyticsDashboard();
+}
+
+// ==========================================================================
+// 9.6 Filterable & Paginated Interview History Table
+// ==========================================================================
+
+function renderInterviewHistorySection(historyData) {
+  const tbody = document.getElementById("analytics-history-tbody");
+  const pageInfo = document.getElementById("history-pagination-info");
+  const currentPageSpan = document.getElementById("history-current-page");
+  const btnPrev = document.getElementById("btn-history-prev");
+  const btnNext = document.getElementById("btn-history-next");
+
+  if (!tbody) return;
+
+  if (!historyData || !historyData.items || historyData.items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" style="text-align:center; padding:2rem; color:var(--text-muted);">
+          No interview records match the selected filter criteria.
+        </td>
+      </tr>
+    `;
+    if (pageInfo) pageInfo.innerText = "0 records found";
+    if (currentPageSpan) currentPageSpan.innerText = "Page 1 of 1";
+    if (btnPrev) btnPrev.disabled = true;
+    if (btnNext) btnNext.disabled = true;
+    return;
+  }
+
+  const p = historyData.pagination;
+  const startNum = (p.page - 1) * p.page_size + 1;
+  const endNum = Math.min(p.total_records, p.page * p.page_size);
+
+  if (pageInfo) pageInfo.innerText = `Showing ${startNum}-${endNum} of ${p.total_records} records`;
+  if (currentPageSpan) currentPageSpan.innerText = `Page ${p.page} of ${p.total_pages}`;
+  if (btnPrev) btnPrev.disabled = !p.has_prev;
+  if (btnNext) btnNext.disabled = !p.has_next;
+
+  tbody.innerHTML = historyData.items.map(item => {
+    const formattedDate = item.date ? new Date(item.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
+    const durationFormatted = formatTimeMMSS(item.duration_seconds || 0);
+    const scoreFormatted = item.overall_score !== null ? `<strong>${item.overall_score}%</strong>` : `<span style="color:var(--text-dim);">N/A</span>`;
+
+    return `
+      <tr>
+        <td><code>${item.interview_id}</code></td>
+        <td><strong>${item.candidate_name}</strong></td>
+        <td style="font-size:0.8rem; color:var(--text-dim);">${formattedDate}</td>
+        <td>
+          <div>${item.domain}</div>
+          <span class="badge badge-outline" style="font-size:0.65rem;">${item.difficulty}</span>
+        </td>
+        <td><span class="badge badge-candidate" style="font-size:0.72rem;">${item.interview_type}</span></td>
+        <td>${item.questions_answered} / ${item.total_questions}</td>
+        <td>${durationFormatted}</td>
+        <td>${scoreFormatted}</td>
+        <td>
+          <span class="badge ${item.status === 'Completed' ? 'badge-success' : 'badge-admin'}">
+            ${item.status}
+          </span>
+        </td>
+        <td>
+          <div style="display: flex; gap: 0.35rem;">
+            <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="viewInterviewBreakdown('${item.interview_id}')">
+              📊 Breakdown
+            </button>
+            <button class="btn btn-primary" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="openReportModal('${item.interview_id}')">
+              📑 Report
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function debounceHistorySearch() {
+  clearTimeout(state.analytics.searchTimer);
+  state.analytics.searchTimer = setTimeout(() => {
+    const val = document.getElementById("history-search-input")?.value || "";
+    state.analytics.filters.search = val;
+    state.analytics.historyPage = 1;
+    loadAnalyticsDashboard();
+  }, 350);
+}
+
+function changeHistorySort(sortVal) {
+  const parts = sortVal.split("_");
+  state.analytics.historySortBy = parts[0];
+  state.analytics.historySortOrder = parts[1] || "desc";
+  loadAnalyticsDashboard();
+}
+
+function goToHistoryPage(delta) {
+  const current = state.analytics.historyPage;
+  const target = Math.max(1, current + delta);
+  state.analytics.historyPage = target;
+  loadAnalyticsDashboard();
+}
+
+// ==========================================================================
+// 9.7 Score Breakdown Report Modal & CSV Exports
+// ==========================================================================
+
+async function viewInterviewBreakdown(interviewId) {
+  const modal = document.getElementById("report-modal-overlay");
+  const content = document.getElementById("report-modal-content");
+  modal.style.display = "block";
+  content.innerHTML = `<div style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Calculating Real Score Breakdown...</p></div>`;
+
+  try {
+    const data = await apiFetch(`/api/analytics/interview/${interviewId}`);
+    
+    if (!data.has_assessment) {
+      content.innerHTML = `
+        <div class="empty-state-box">
+          <div class="empty-state-icon">📝</div>
+          <h4 class="empty-state-title">Assessment Pending</h4>
+          <p class="empty-state-desc">${data.message || 'This interview has not yet generated a finalized scoring assessment.'}</p>
+        </div>
+      `;
+      return;
+    }
+
+    const componentsHtml = (data.weighted_components || []).map(c => `
+      <tr>
+        <td><strong>${c.name}</strong></td>
+        <td><strong>${c.score}%</strong></td>
+        <td>${c.weight_pct}%</td>
+        <td style="color:var(--secondary); font-weight:700;">+${c.contribution} pts</td>
+      </tr>
+    `).join("");
+
+    content.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <span class="badge badge-candidate">${data.domain} • ${data.difficulty} • ${data.type}</span>
+          <h2 style="margin-top:0.35rem;">Score Breakdown: <code>${data.interview_id}</code></h2>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Candidate: <strong>${data.candidate_name}</strong> | Date: ${new Date(data.date).toLocaleString()}</p>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:2.2rem; font-weight:800; color:var(--accent-success);">${data.overall_score}%</div>
+          <span class="badge badge-success">${data.performance_rating} • ${data.recommendation}</span>
+        </div>
+      </div>
+
+      <!-- Weighted Components Table -->
+      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; margin-bottom:1.5rem;">
+        <h4 style="margin-bottom:0.75rem; color:var(--secondary);">📐 Transparent Weighted Score Calculation</h4>
+        <table class="custom-table" style="font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th>Evaluation Pillar</th>
+              <th>Actual Score</th>
+              <th>Configured Weight</th>
+              <th>Contribution to Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${componentsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Strengths & Weaknesses Highlights -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+        <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:1rem; border-radius:var(--radius-md);">
+          <h4 style="color:var(--accent-success); margin-bottom:0.5rem;">🌟 Strongest Skill</h4>
+          <p><strong>${data.strongest_skill?.name}</strong> (${data.strongest_skill?.score}%)</p>
+        </div>
+        <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); padding:1rem; border-radius:var(--radius-md);">
+          <h4 style="color:var(--accent-warning); margin-bottom:0.5rem;">🎯 Targeted Growth Area</h4>
+          <p><strong>${data.weakest_skill?.name}</strong> (${data.weakest_skill?.score}%)</p>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+        <button class="btn btn-outline" onclick="closeReportModal()">Close</button>
+        <button class="btn btn-primary" onclick="loadAndDisplayAssessment('${interviewId}')">Full AI Assessment ➔</button>
+      </div>
+    `;
+  } catch (err) {
+    content.innerHTML = `<p style="color:var(--accent-danger);">Failed to load interview breakdown: ${err.message}</p>`;
+  }
+}
+
+function exportAnalyticsCSV() {
+  const qStr = _buildAnalyticsQueryParams();
+  const exportUrl = `${API_BASE}/api/analytics/export/csv${qStr ? `?${qStr}` : ''}`;
+  
+  const a = document.createElement("a");
+  a.href = exportUrl;
+  if (state.token) {
+    fetch(exportUrl, {
+      headers: { "Authorization": `Bearer ${state.token}` }
+    })
+    .then(res => res.blob())
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = "interview_analytics_export.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    })
+    .catch(err => alert(`CSV Export error: ${err.message}`));
+  }
+}
+
+// ==========================================================================
+// NOTIFICATIONS & REPORTS MODULE (PRODUCTION ZERO DUMMY DATA)
+// ==========================================================================
+
+function initNotificationPolling() {
+  if (state.notificationsReports.pollTimer) {
+    clearInterval(state.notificationsReports.pollTimer);
+  }
+  // Initial unread fetch
+  refreshUnreadBadge();
+  // Poll every 30 seconds
+  state.notificationsReports.pollTimer = setInterval(() => {
+    if (state.token) {
+      refreshUnreadBadge();
+    }
+  }, 30000);
+}
+
+async function refreshUnreadBadge() {
+  try {
+    const data = await apiFetch("/api/notifications/unread-count");
+    state.notificationsReports.unreadCount = data.unread_count || 0;
+    
+    // Update navbar badge
+    const navBadge = document.getElementById("nav-notif-badge");
+    if (navBadge) {
+      navBadge.innerText = state.notificationsReports.unreadCount;
+      navBadge.style.display = state.notificationsReports.unreadCount > 0 ? "inline-block" : "none";
+    }
+
+    const tabBadge = document.getElementById("nr-badge-notif-unread");
+    if (tabBadge) {
+      tabBadge.innerText = state.notificationsReports.unreadCount;
+      tabBadge.style.display = state.notificationsReports.unreadCount > 0 ? "inline-block" : "none";
+    }
+  } catch (err) {
+    // Silent catch on background polling
+  }
+}
+
+function openNotificationsAndReportsDashboard(targetTab = "upcoming") {
+  navigateTo("notifications-reports");
+  switchNRTab(targetTab);
+}
+
+function switchNRTab(tabKey) {
+  state.notificationsReports.activeTab = tabKey;
+  
+  // Update Tab Buttons
+  document.querySelectorAll(".nr-tab-btn").forEach(btn => btn.classList.remove("active"));
+  const activeBtn = document.getElementById(`nr-tab-${tabKey}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  // Update Panels
+  document.querySelectorAll(".nr-tab-panel").forEach(p => p.style.display = "none");
+  const activePanel = document.getElementById(`nr-panel-${tabKey}`);
+  if (activePanel) activePanel.style.display = "block";
+
+  // Load data for specific tab
+  if (tabKey === "upcoming") fetchUpcomingInterviews();
+  else if (tabKey === "reports") fetchReports();
+  else if (tabKey === "performance") fetchPerformanceSummary();
+  else if (tabKey === "notifs") {
+    fetchNotifications();
+    fetchEmailLogs();
+  }
+}
+
+// --------------------------------------------------------------------------
+// 1. UPCOMING INTERVIEWS & REMINDERS
+// --------------------------------------------------------------------------
+
+async function fetchUpcomingInterviews() {
+  const container = document.getElementById("nr-upcoming-list");
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state-box"><div class="spinner" style="margin:0 auto 1rem auto; width:36px; height:36px;"></div><p>Loading upcoming scheduled sessions...</p></div>`;
+
+  try {
+    const data = await apiFetch("/api/interviews/upcoming");
+    state.notificationsReports.upcomingInterviews = data.upcoming_interviews || [];
+    
+    const countBadge = document.getElementById("nr-badge-upcoming-count");
+    if (countBadge) countBadge.innerText = state.notificationsReports.upcomingInterviews.length;
+
+    renderUpcomingInterviews();
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state-box"><p style="color:var(--accent-danger);">Failed to load scheduled interviews: ${err.message}</p></div>`;
+  }
+}
+
+function renderUpcomingInterviews() {
+  const container = document.getElementById("nr-upcoming-list");
+  if (!container) return;
+
+  const interviews = state.notificationsReports.upcomingInterviews;
+  if (!interviews || interviews.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon">📅</div>
+        <h3 class="empty-state-title">No upcoming interviews.</h3>
+        <p class="empty-state-desc">You have no mock interviews scheduled. Click "Schedule New Mock Session" to set up a reminder-enabled practice interview.</p>
+        <button class="btn btn-primary" style="margin-top:1rem;" onclick="showScheduleModal()">➕ Schedule Interview</button>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = interviews.map(intv => {
+    let formattedDate = "Upcoming";
+    let countdownText = "Upcoming";
+    try {
+      const dt = new Date(intv.scheduled_time);
+      formattedDate = dt.toLocaleString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true
+      });
+      
+      const diffMs = dt - new Date();
+      if (diffMs > 0) {
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHrs / 24);
+        countdownText = diffDays > 0 ? `In ${diffDays} day(s)` : `In ${diffHrs} hour(s)`;
+      } else {
+        countdownText = "Ready Now";
+      }
+    } catch (e) {}
+
+    const remindersList = (intv.reminder_preferences || ["24h", "1h", "15m"]).map(r => `
+      <span class="badge badge-candidate" style="font-size:0.75rem;">🔔 ${r} before</span>
+    `).join(" ");
+
+    return `
+      <div class="nr-card">
+        <div>
+          <div class="nr-card-header">
+            <div>
+              <span class="badge badge-candidate">${intv.domain || 'Technical'}</span>
+              <span class="badge badge-outline">${intv.difficulty || 'Medium'}</span>
+            </div>
+            <span class="nr-countdown-badge">${countdownText}</span>
+          </div>
+          <h4 style="margin-bottom:0.4rem; font-size:1.1rem; color:var(--text-main);">${intv.title || 'AI Mock Interview'}</h4>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+            <strong>Type:</strong> ${intv.type || 'Technical'} &nbsp;|&nbsp; <strong>Duration:</strong> ${intv.duration_minutes || 45} mins
+          </p>
+          <div style="background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:1rem; border:1px solid var(--border-color);">
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>🗓️ Date & Time:</strong> ${formattedDate}</div>
+            <div style="font-size:0.85rem; color:var(--text-muted);"><strong>Reminders:</strong> ${remindersList}</div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color);">
+          <button class="btn btn-outline" style="font-size:0.8rem; color:var(--accent-danger); border-color:rgba(239,68,68,0.4);" onclick="cancelScheduledInterviewAction('${intv.id}')">
+            ✕ Cancel
+          </button>
+          <button class="btn btn-primary" style="font-size:0.8rem;" onclick="launchScheduledInterview('${intv.id}', '${intv.domain}', '${intv.difficulty}', '${intv.type}')">
+            ⚡ Start Interview Now
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function showScheduleModal() {
+  const modal = document.getElementById("schedule-modal-overlay");
+  if (modal) {
+    // Set default datetime to tomorrow at 10:00 AM
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    const dateInput = document.getElementById("sched-datetime");
+    if (dateInput) {
+      dateInput.value = tomorrow.toISOString().slice(0, 16);
+    }
+    modal.style.display = "block";
+  }
+}
+
+function closeScheduleModal() {
+  const modal = document.getElementById("schedule-modal-overlay");
+  if (modal) modal.style.display = "none";
+}
+
+async function handleScheduleInterviewSubmit(e) {
+  e.preventDefault();
+  const btn = document.getElementById("sched-submit-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Scheduling...";
+  }
+
+  const title = document.getElementById("sched-title").value;
+  const domain = document.getElementById("sched-domain").value;
+  const difficulty = document.getElementById("sched-difficulty").value;
+  const type = document.getElementById("sched-type").value;
+  const scheduled_time = document.getElementById("sched-datetime").value;
+  const duration_minutes = parseInt(document.getElementById("sched-duration").value) || 45;
+
+  const reminder_preferences = [];
+  if (document.getElementById("sched-rem-24h")?.checked) reminder_preferences.push("24h");
+  if (document.getElementById("sched-rem-1h")?.checked) reminder_preferences.push("1h");
+  if (document.getElementById("sched-rem-15m")?.checked) reminder_preferences.push("15m");
+
+  try {
+    await apiFetch("/api/interviews/schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        title, domain, difficulty, type, scheduled_time, duration_minutes, reminder_preferences
+      })
+    });
+
+    closeScheduleModal();
+    alert("✅ Mock interview scheduled! Reminders and email notifications are active.");
+    fetchUpcomingInterviews();
+    refreshUnreadBadge();
+  } catch (err) {
+    alert(`Failed to schedule interview: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "🚀 Confirm & Schedule Session";
+    }
+  }
+}
+
+async function cancelScheduledInterviewAction(interviewId) {
+  if (!confirm("Are you sure you want to cancel this scheduled mock interview?")) return;
+  try {
+    await apiFetch(`/api/interviews/scheduled/${interviewId}`, { method: "DELETE" });
+    fetchUpcomingInterviews();
+    refreshUnreadBadge();
+  } catch (err) {
+    alert(`Failed to cancel interview: ${err.message}`);
+  }
+}
+
+function launchScheduledInterview(schedId, domain, difficulty, type) {
+  // Pre-fill interview configuration and launch
+  navigateTo("candidate");
+  const domainEl = document.getElementById("int-domain");
+  const diffEl = document.getElementById("int-difficulty");
+  const typeEl = document.getElementById("int-type");
+  if (domainEl) domainEl.value = domain;
+  if (diffEl) diffEl.value = difficulty;
+  if (typeEl) typeEl.value = type;
+  
+  // Trigger generation
+  const fakeEvent = { preventDefault: () => {} };
+  handleStartInterview(fakeEvent);
+}
+
+// --------------------------------------------------------------------------
+// 2. DOWNLOADABLE REPORTS (PDF & CSV)
+// --------------------------------------------------------------------------
+
+async function fetchReports() {
+  const container = document.getElementById("nr-reports-list");
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state-box"><div class="spinner" style="margin:0 auto 1rem auto; width:36px; height:36px;"></div><p>Loading assessment reports...</p></div>`;
+
+  try {
+    // 1. Fetch generated reports
+    const repData = await apiFetch("/api/reports");
+    state.notificationsReports.reports = repData.reports || [];
+
+    // 2. Fetch completed interviews for candidate
+    const intvData = await apiFetch("/api/analytics/interviews?status=Completed&page_size=20");
+    const completedList = intvData.items || [];
+
+    const badgeEl = document.getElementById("nr-badge-reports-count");
+    if (badgeEl) badgeEl.innerText = Math.max(state.notificationsReports.reports.length, completedList.length);
+
+    renderReportsList(completedList);
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state-box"><p style="color:var(--accent-danger);">Failed to load reports: ${err.message}</p></div>`;
+  }
+}
+
+function renderReportsList(completedInterviews) {
+  const container = document.getElementById("nr-reports-list");
+  if (!container) return;
+
+  if (!completedInterviews || completedInterviews.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon">📄</div>
+        <h3 class="empty-state-title">No completed interviews available for reporting.</h3>
+        <p class="empty-state-desc">Once you complete a mock interview session, your official AI score breakdown, downloadable PDF report, and CSV metrics will be available here.</p>
+        <button class="btn btn-primary" style="margin-top:1rem;" onclick="navigateTo('candidate')">⚡ Start Mock Interview</button>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = completedInterviews.map(intv => {
+    const existingReport = state.notificationsReports.reports.find(r => r.interview_id === intv.interview_id || r.interview_id === intv.id);
+    const scoreVal = intv.overall_score || intv.score || (existingReport ? existingReport.overall_score : null);
+    const scoreDisplay = scoreVal !== null ? `${scoreVal}/100` : 'Not available';
+    const recDisplay = intv.recommendation || (existingReport ? existingReport.recommendation : 'Evaluated');
+
+    return `
+      <div class="nr-card">
+        <div>
+          <div class="nr-card-header">
+            <div>
+              <span class="badge badge-candidate">${intv.domain || 'Full Stack'}</span>
+              <span class="badge badge-outline">${intv.difficulty || 'Medium'}</span>
+            </div>
+            <span class="badge badge-success" style="font-size:0.85rem;">Score: ${scoreDisplay}</span>
+          </div>
+          <h4 style="margin-bottom:0.35rem; font-size:1.1rem; color:var(--text-main);">${intv.candidate_name || 'Candidate'} Mock Session</h4>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+            <strong>Session ID:</strong> <code>${intv.interview_id || intv.id}</code> &nbsp;|&nbsp; <strong>Date:</strong> ${(intv.created_at || intv.date || '').slice(0, 10)}
+          </p>
+          <div style="background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:1rem; border:1px solid var(--border-color);">
+            <div style="font-size:0.85rem; margin-bottom:0.25rem;"><strong>Rating / Recommendation:</strong> <span style="color:var(--accent-success);">${recDisplay}</span></div>
+            <div style="font-size:0.85rem; color:var(--text-muted);"><strong>Status:</strong> ${existingReport ? '✅ Official PDF Generated' : '⚡ Ready for PDF Compilation'}</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color);">
+          ${existingReport ? `
+            <button class="btn btn-primary" style="font-size:0.8rem; flex:1;" onclick="downloadPdfReportAction('${existingReport.id}')">
+              📥 Download PDF
+            </button>
+          ` : `
+            <button class="btn btn-primary" style="font-size:0.8rem; flex:1;" onclick="generateReportAction('${intv.interview_id || intv.id}')">
+              ⚡ Generate PDF
+            </button>
+          `}
+          <button class="btn btn-outline" style="font-size:0.8rem;" onclick="downloadCsvReportAction('${intv.interview_id || intv.id}')" title="Export CSV Data">
+            📊 Export CSV
+          </button>
+          <button class="btn btn-outline" style="font-size:0.8rem;" onclick="loadAndDisplayAssessment('${intv.interview_id || intv.id}')" title="View in Dashboard">
+            👁️ Details
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function generateReportAction(interviewId) {
+  try {
+    const res = await apiFetch("/api/reports/generate", {
+      method: "POST",
+      body: JSON.stringify({ interview_id: interviewId })
+    });
+    alert("✅ Official ReportLab PDF generated!");
+    fetchReports();
+    refreshUnreadBadge();
+  } catch (err) {
+    alert(`Failed to generate report: ${err.message}`);
+  }
+}
+
+function downloadPdfReportAction(reportId) {
+  const downloadUrl = `${API_BASE}/api/reports/${reportId}/download`;
+  fetch(downloadUrl, {
+    headers: { "Authorization": `Bearer ${state.token}` }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Failed to download PDF report.");
+    return res.blob();
+  })
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Performance_Report_${reportId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  })
+  .catch(err => alert(`PDF Download Error: ${err.message}`));
+}
+
+function downloadCsvReportAction(interviewOrReportId) {
+  const csvUrl = `${API_BASE}/api/reports/${interviewOrReportId}/csv`;
+  fetch(csvUrl, {
+    headers: { "Authorization": `Bearer ${state.token}` }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Failed to download CSV export.");
+    return res.blob();
+  })
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Assessment_${interviewOrReportId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  })
+  .catch(err => alert(`CSV Export Error: ${err.message}`));
+}
+
+// --------------------------------------------------------------------------
+// 3. DYNAMIC PERFORMANCE SUMMARY (ZERO DUMMY DATA)
+// --------------------------------------------------------------------------
+
+async function fetchPerformanceSummary() {
+  const container = document.getElementById("nr-performance-container");
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state-box"><div class="spinner" style="margin:0 auto 1rem auto; width:36px; height:36px;"></div><p>Calculating performance statistics from database...</p></div>`;
+
+  try {
+    const [summary, trends, skillsData] = await Promise.all([
+      apiFetch("/api/performance/summary"),
+      apiFetch("/api/performance/trends"),
+      apiFetch("/api/performance/skills")
+    ]);
+
+    state.notificationsReports.performanceSummary = summary;
+    state.notificationsReports.performanceTrends = trends.trends || [];
+    renderPerformanceSummaryView(summary, trends.trends || [], skillsData.skills || []);
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state-box"><p style="color:var(--accent-danger);">Failed to load performance summary: ${err.message}</p></div>`;
+  }
+}
+
+function renderPerformanceSummaryView(summary, trends, skills) {
+  const container = document.getElementById("nr-performance-container");
+  if (!container) return;
+
+  if (!summary || !summary.has_data || summary.completed_interviews === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box">
+        <div class="empty-state-icon">📊</div>
+        <h3 class="empty-state-title">No performance data available yet.</h3>
+        <p class="empty-state-desc">Complete your first mock interview to unlock real-data analytics, skill growth benchmarks, and historical trend trajectories.</p>
+        <button class="btn btn-primary" style="margin-top:1rem;" onclick="navigateTo('candidate')">🚀 Launch AI Mock Interview</button>
+      </div>
+    `;
+    return;
+  }
+
+  const cat = summary.category_performance || {};
+  const speech = summary.speech_performance || {};
+
+  const strengthsHtml = (summary.strengths_summary || []).length > 0 
+    ? summary.strengths_summary.map(s => `<div style="background:rgba(16,185,129,0.08); border-left:3px solid #10b981; padding:0.6rem 0.85rem; border-radius:4px; font-size:0.85rem;">✅ ${s}</div>`).join("")
+    : `<p style="font-size:0.85rem; color:var(--text-muted);">Pending further assessments.</p>`;
+
+  const weaknessesHtml = (summary.weaknesses_summary || []).length > 0
+    ? summary.weaknesses_summary.map(w => `<div style="background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; padding:0.6rem 0.85rem; border-radius:4px; font-size:0.85rem;">⚠️ ${w}</div>`).join("")
+    : `<p style="font-size:0.85rem; color:var(--text-muted);">No major weaknesses flagged.</p>`;
+
+  const recommendationsHtml = (summary.recommendations || []).length > 0
+    ? summary.recommendations.map(r => `<div style="background:rgba(99,102,241,0.08); border-left:3px solid #6366f1; padding:0.6rem 0.85rem; border-radius:4px; font-size:0.85rem;">🚀 ${r}</div>`).join("")
+    : `<p style="font-size:0.85rem; color:var(--text-muted);">Maintain consistent practice.</p>`;
+
+  // Trend bars HTML
+  const trendBarsHtml = trends.length > 0 ? `
+    <div style="display:flex; align-items:flex-end; gap:1rem; height:180px; padding:1rem 0; border-bottom:1px solid var(--border-color); overflow-x:auto;">
+      ${trends.map(t => `
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; min-width:60px;">
+          <span style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:0.25rem;">${t.overall_score}%</span>
+          <div style="width:100%; max-width:36px; height:${Math.max(15, (t.overall_score / 100) * 130)}px; background:var(--gradient-brand); border-radius:6px 6px 0 0;"></div>
+          <span style="font-size:0.75rem; color:var(--text-dim); margin-top:0.35rem;">${t.date}</span>
+        </div>
+      `).join("")}
+    </div>
+  ` : `<p style="color:var(--text-muted); font-size:0.85rem;">Single assessment on record.</p>`;
+
+  container.innerHTML = `
+    <!-- Top KPI Grid -->
+    <div class="stats-grid" style="margin-bottom:2rem;">
+      <div class="stat-card">
+        <div>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Average Benchmark Score</p>
+          <div class="stat-value" style="color:var(--primary);">${summary.average_score}%</div>
+        </div>
+        <div style="font-size:2rem;">🎯</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Highest Achieved Score</p>
+          <div class="stat-value" style="color:var(--accent-success);">${summary.highest_score}%</div>
+        </div>
+        <div style="font-size:2rem;">🏆</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Score Improvement (Delta)</p>
+          <div class="stat-value" style="color:${summary.score_improvement >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'};">
+            ${summary.score_improvement >= 0 ? `+${summary.score_improvement}` : summary.score_improvement}%
+          </div>
+        </div>
+        <div style="font-size:2rem;">📈</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Total Mock Sessions</p>
+          <div class="stat-value">${summary.completed_interviews}</div>
+        </div>
+        <div style="font-size:2rem;">✅</div>
+      </div>
+    </div>
+
+    <!-- Middle Row: Pillars & Speech Metrics -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:1.5rem; margin-bottom:2rem;">
+      
+      <!-- Evaluation Pillars -->
+      <div class="glass-card">
+        <h3 style="margin-bottom:1rem;">📊 Multi-Pillar Category Mastery</h3>
+        <div style="display:flex; flex-direction:column; gap:1rem;">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.35rem;">
+              <span>Technical Relevance (30%)</span>
+              <strong>${cat.technical || 0}%</strong>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${cat.technical || 0}%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.35rem;">
+              <span>Communication & Fluidity (30%)</span>
+              <strong>${cat.communication || 0}%</strong>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${cat.communication || 0}%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.35rem;">
+              <span>Confidence & Delivery (25%)</span>
+              <strong>${cat.confidence || 0}%</strong>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${cat.confidence || 0}%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.35rem;">
+              <span>Professionalism & Structure (15%)</span>
+              <strong>${cat.professionalism || 0}%</strong>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${cat.professionalism || 0}%;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speech & Audio Intelligence -->
+      <div class="glass-card">
+        <h3 style="margin-bottom:1rem;">🎙️ Speech & Delivery Intelligence</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div style="background:rgba(255,255,255,0.02); padding:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Grammar Correctness</p>
+            <div style="font-size:1.3rem; font-weight:700; color:#34d399;">${speech.grammar || 0}%</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02); padding:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Pronunciation Clarity</p>
+            <div style="font-size:1.3rem; font-weight:700; color:#38bdf8;">${speech.pronunciation || 0}%</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02); padding:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Speaking Pace (WPM)</p>
+            <div style="font-size:1.3rem; font-weight:700; color:#fbbf24;">${speech.pace_wpm || 0} WPM</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02); padding:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Filler Word Rate</p>
+            <div style="font-size:1.3rem; font-weight:700; color:#a78bfa;">${speech.filler_rate || 0}%</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Historical Progression Trend -->
+    <div class="glass-card" style="margin-bottom:2rem;">
+      <h3 style="margin-bottom:0.5rem;">📈 Score Trajectory Over Time</h3>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">Chronological progression calculated from authentic interview records.</p>
+      ${trendBarsHtml}
+    </div>
+
+    <!-- Insights & Roadmap Row -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
+      <div class="glass-card">
+        <h4 style="margin-bottom:0.75rem; color:var(--accent-success);">🌟 Top Demonstrated Strengths</h4>
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">${strengthsHtml}</div>
+      </div>
+      <div class="glass-card">
+        <h4 style="margin-bottom:0.75rem; color:var(--accent-warning);">🎯 Priority Growth Focus</h4>
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">${weaknessesHtml}</div>
+      </div>
+      <div class="glass-card">
+        <h4 style="margin-bottom:0.75rem; color:var(--primary);">🚀 AI Growth Roadmap</h4>
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">${recommendationsHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+// --------------------------------------------------------------------------
+// 4. IN-APP NOTIFICATIONS & EMAIL AUDIT LOGS
+// --------------------------------------------------------------------------
+
+async function fetchNotifications() {
+  const stream = document.getElementById("nr-notifs-stream");
+  if (!stream) return;
+
+  try {
+    const data = await apiFetch("/api/notifications");
+    state.notificationsReports.notifications = data.notifications || [];
+    state.notificationsReports.unreadCount = data.unread_count || 0;
+    refreshUnreadBadge();
+    renderNotificationsStream();
+  } catch (err) {
+    stream.innerHTML = `<p style="color:var(--accent-danger); font-size:0.85rem;">Failed to load notifications: ${err.message}</p>`;
+  }
+}
+
+function renderNotificationsStream() {
+  const stream = document.getElementById("nr-notifs-stream");
+  if (!stream) return;
+
+  const notifs = state.notificationsReports.notifications;
+  if (!notifs || notifs.length === 0) {
+    stream.innerHTML = `
+      <div class="empty-state-box" style="padding:2rem 1rem;">
+        <div class="empty-state-icon" style="font-size:2rem;">🔔</div>
+        <p style="color:var(--text-muted); font-size:0.9rem;">No notifications yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const iconMap = {
+    reminder: "⏰",
+    session_start: "🚀",
+    session_end: "✅",
+    assessment: "📊",
+    report: "📄",
+    alert: "🔔"
+  };
+
+  stream.innerHTML = notifs.map(n => {
+    const icon = iconMap[n.type] || "🔔";
+    const timeStr = n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now';
+
+    return `
+      <div class="notif-item ${n.is_read ? '' : 'unread'}">
+        <div class="notif-icon-box">${icon}</div>
+        <div class="notif-content">
+          <div class="notif-title-row">
+            <strong style="font-size:0.9rem; color:var(--text-main);">${n.title}</strong>
+            <span class="notif-time">${timeStr}</span>
+          </div>
+          <div class="notif-msg">${n.message}</div>
+          <div class="notif-actions">
+            ${!n.is_read ? `
+              <button class="btn btn-outline notif-btn-xs" onclick="markNotificationReadAction('${n.id}')">✓ Mark Read</button>
+            ` : ''}
+            <button class="btn btn-outline notif-btn-xs" style="color:var(--accent-danger);" onclick="deleteNotificationAction('${n.id}')">✕ Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function markNotificationReadAction(notifId) {
+  try {
+    await apiFetch(`/api/notifications/${notifId}/read`, { method: "PATCH" });
+    fetchNotifications();
+    refreshUnreadBadge();
+  } catch (err) {
+    console.warn("Mark read error:", err);
+  }
+}
+
+async function markAllNotificationsReadAction() {
+  try {
+    await apiFetch("/api/notifications/read-all", { method: "PATCH" });
+    fetchNotifications();
+    refreshUnreadBadge();
+  } catch (err) {
+    console.warn("Mark all read error:", err);
+  }
+}
+
+async function deleteNotificationAction(notifId) {
+  try {
+    await apiFetch(`/api/notifications/${notifId}`, { method: "DELETE" });
+    fetchNotifications();
+    refreshUnreadBadge();
+  } catch (err) {
+    console.warn("Delete notif error:", err);
+  }
+}
+
+async function fetchEmailLogs() {
+  const tbody = document.getElementById("nr-email-logs-tbody");
+  if (!tbody) return;
+
+  try {
+    const data = await apiFetch("/api/email-notifications");
+    state.notificationsReports.emailLogs = data.email_notifications || [];
+    renderEmailLogsTable();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--accent-danger);">Failed to load email logs: ${err.message}</td></tr>`;
+  }
+}
+
+function renderEmailLogsTable() {
+  const tbody = document.getElementById("nr-email-logs-tbody");
+  if (!tbody) return;
+
+  const logs = state.notificationsReports.emailLogs;
+  if (!logs || logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:2rem 1rem;">No email notifications logged yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = logs.map(l => {
+    const statusPill = l.status === "sent" 
+      ? `<span class="badge badge-success" style="font-size:0.75rem;">Sent</span>`
+      : `<span class="badge badge-candidate" style="font-size:0.75rem;">${l.status}</span>`;
+
+    const timeStr = l.sent_at ? l.sent_at.slice(0, 16).replace("T", " ") : "Just now";
+
+    return `
+      <tr>
+        <td><strong>${(l.notification_type || 'Update').replace(/_/g, ' ')}</strong></td>
+        <td><code>${l.recipient_email}</code></td>
+        <td>${statusPill}</td>
+        <td style="color:var(--text-dim); font-size:0.8rem;">${timeStr}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// Notification Dropdown in Navbar
+function toggleNotificationCenter(forceOpen = null) {
+  const overlay = document.getElementById("notif-dropdown-overlay");
+  const panel = document.getElementById("notif-dropdown-panel");
+  if (!overlay || !panel) return;
+
+  const isOpen = panel.style.display === "flex";
+  const nextOpen = forceOpen !== null ? forceOpen : !isOpen;
+
+  if (nextOpen) {
+    overlay.style.display = "block";
+    panel.style.display = "flex";
+    populateQuickDropdownList();
+  } else {
+    overlay.style.display = "none";
+    panel.style.display = "none";
+  }
+}
+
+async function populateQuickDropdownList() {
+  const container = document.getElementById("notif-dropdown-list");
+  if (!container) return;
+  container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted);"><div class="spinner" style="width:24px; height:24px; margin:0 auto 0.5rem auto;"></div>Loading...</div>`;
+
+  try {
+    const data = await apiFetch("/api/notifications");
+    const notifs = data.notifications || [];
+
+    if (notifs.length === 0) {
+      container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.85rem;">No notifications yet.</div>`;
+      return;
+    }
+
+    container.innerHTML = notifs.slice(0, 5).map(n => `
+      <div style="padding:0.6rem 0.75rem; border-radius:4px; background:${n.is_read ? 'transparent' : 'rgba(99,102,241,0.08)'}; border:1px solid var(--border-color); font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+          <strong style="color:var(--text-main); font-size:0.85rem;">${n.title}</strong>
+          <span style="font-size:0.75rem; color:var(--text-dim);">${(n.created_at || '').slice(11, 16)}</span>
+        </div>
+        <p style="margin:0; font-size:0.8rem; color:var(--text-muted);">${n.message}</p>
+      </div>
+    `).join("");
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger); font-size:0.8rem; padding:1rem;">Failed: ${err.message}</p>`;
+  }
+}
+
+// ==========================================================================
+// MODULE 10: DASHBOARD & ANALYTICS CLIENT CONTROLLERS (ZERO DUMMY DATA)
+// ==========================================================================
+
+// State extension for Module 10
+state.candidateDash = {
+  activeTab: 'overview',
+  overview: null,
+  historyPage: 1,
+  historyPageSize: 10,
+  historySortBy: 'date',
+  historySortOrder: 'desc',
+  historySearch: '',
+  searchTimer: null,
+  trendPeriod: 'all',
+  trends: null
+};
+
+state.recruiterDash = {
+  activeTab: 'candidates',
+  overview: null,
+  candidates: [],
+  selectedIds: new Set(),
+  rankingSortBy: 'rank',
+  rankingSortOrder: 'asc',
+  searchTimer: null,
+  shortlistFilters: { min_overall: 75, min_technical: 70, min_communication: 65 }
+};
+
+state.adminDash = {
+  activeTab: 'users',
+  overview: null,
+  users: [],
+  userRoleFilter: 'all',
+  userSearch: '',
+  searchTimer: null,
+  usagePeriod: 'all'
+};
+
+// --------------------------------------------------------------------------
+// 10.1 CANDIDATE DASHBOARD CONTROLLER
+// --------------------------------------------------------------------------
+
+function switchCandidateTab(tabKey) {
+  state.candidateDash.activeTab = tabKey;
+  
+  // Update Tab Buttons
+  document.querySelectorAll(".cand-dash-panel").forEach(p => p.style.display = "none");
+  document.querySelectorAll(".dashboard-subnav .dash-tab-btn").forEach(btn => {
+    if (btn.id.startsWith("cand-tab-")) btn.classList.remove("active");
+  });
+
+  const activeBtn = document.getElementById(`cand-tab-${tabKey}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  const activePanel = document.getElementById(`cand-panel-${tabKey}`);
+  if (activePanel) activePanel.style.display = "block";
+
+  // Dispatch data loader
+  if (tabKey === 'overview') loadCandidateDashboard();
+  else if (tabKey === 'history') fetchCandidateHistory();
+  else if (tabKey === 'skills') fetchCandidateSkills();
+  else if (tabKey === 'weak-areas') fetchCandidateWeakAreas();
+  else if (tabKey === 'trends') fetchCandidateTrends();
+  else if (tabKey === 'feedback') fetchCandidateFeedback();
+  else if (tabKey === 'integrity') fetchCandidateIntegrity();
+  else if (tabKey === 'reports') fetchCandidateReports();
+}
+
+async function loadCandidateDashboard() {
+  const heroContainer = document.getElementById("cand-score-hero-container");
+  const catGrid = document.getElementById("cand-category-grid");
+  const feedbackContainer = document.getElementById("cand-latest-feedback-container");
+
+  if (heroContainer) {
+    heroContainer.innerHTML = `<div class="glass-card" style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Aggregating Real Assessment Telemetry...</p></div>`;
+  }
+
+  try {
+    const data = await apiFetch("/api/candidate/dashboard");
+    state.candidateDash.overview = data;
+
+    renderCandidateHeroScore(data.performance_summary);
+    renderCandidateCategoryBreakdown(data.category_breakdown);
+    renderCandidateFeedbackSnippet(data.latest_feedback, data.performance_summary);
+  } catch (err) {
+    console.error("Failed to load candidate dashboard:", err);
+    if (heroContainer) {
+      heroContainer.innerHTML = `
+        <div class="empty-state-box">
+          <div class="empty-state-icon">⚠️</div>
+          <h4 class="empty-state-title">Unable to Load Dashboard</h4>
+          <p class="empty-state-desc">${err.message || 'Please check network connection.'}</p>
+        </div>
+      `;
+    }
+  }
+}
+
+function renderCandidateHeroScore(summary) {
+  const container = document.getElementById("cand-score-hero-container");
+  if (!container) return;
+
+  if (!summary || !summary.has_data || summary.completed_interviews === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="margin-bottom: 2rem;">
+        <div class="empty-state-icon">📋</div>
+        <h4 class="empty-state-title">No Completed Mock Interviews Yet</h4>
+        <p class="empty-state-desc">
+          Complete your first mock interview session to unlock your Overall Performance Score, Category Mastery Breakdowns, and AI-Driven Coaching Insights.
+        </p>
+        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="switchCandidateTab('practice')">
+          🚀 Launch Practice Mock Interview
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const score = summary.average_score || 0;
+  const rating = summary.rating_level || "Average";
+  const rec = summary.recommendation || "Needs Improvement";
+  const completed = summary.completed_interviews || 0;
+  const highest = summary.highest_score || 0;
+  const delta = summary.score_improvement !== null ? summary.score_improvement : 0;
+
+  let deltaHtml = `<span class="kpi-trend-pill kpi-trend-stable">● Stable Score</span>`;
+  if (delta > 0) {
+    deltaHtml = `<span class="kpi-trend-pill kpi-trend-up">▲ +${delta}% vs Previous</span>`;
+  } else if (delta < 0) {
+    deltaHtml = `<span class="kpi-trend-pill kpi-trend-down">▼ ${delta}% vs Previous</span>`;
+  }
+
+  let ratingBadgeClass = "badge-success";
+  if (rating === "Needs Improvement") ratingBadgeClass = "badge-admin";
+  else if (rating === "Poor") ratingBadgeClass = "badge-admin";
+  else if (rating === "Average") ratingBadgeClass = "badge-candidate";
+
+  container.innerHTML = `
+    <div class="score-hero-card">
+      <div class="score-hero-left">
+        <div class="score-circle-outer">
+          <div class="score-circle-val">${score}</div>
+          <div class="score-circle-lbl">OUT OF 100</div>
+        </div>
+        <div class="score-hero-info">
+          <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.35rem;">
+            <span class="badge ${ratingBadgeClass}">${rating} Tier</span>
+            <span class="badge badge-outline">${rec}</span>
+          </div>
+          <h2 style="margin:0 0 0.25rem 0; font-size:1.6rem; color:var(--text-main);">Overall AI Performance Score</h2>
+          <p style="margin:0; font-size:0.85rem; color:var(--text-muted);">
+            Weighted aggregation across <strong>${completed}</strong> completed interview session${completed > 1 ? 's' : ''}.
+          </p>
+          <div style="margin-top:0.75rem;">${deltaHtml}</div>
+        </div>
+      </div>
+      <div class="score-hero-right">
+        <div class="score-quick-stat">
+          <span class="lbl">Completed Sessions</span>
+          <span class="val">${completed}</span>
+        </div>
+        <div class="score-quick-stat">
+          <span class="lbl">Peak Score</span>
+          <span class="val" style="color:var(--accent-success);">${highest}%</span>
+        </div>
+        <div class="score-quick-stat">
+          <span class="lbl">Formula Breakdown</span>
+          <span class="val" style="font-size:0.8rem; color:var(--secondary);">Comm 30% | Conf 25% | Tech 30% | Prof 15%</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCandidateCategoryBreakdown(categories) {
+  const container = document.getElementById("cand-category-grid");
+  if (!container) return;
+
+  if (!categories) {
+    container.innerHTML = `<div class="empty-state-box" style="grid-column:1/-1;"><p>No category breakdown available.</p></div>`;
+    return;
+  }
+
+  const pillars = [
+    { key: "communication", name: "Communication & Clarity", weight: "30%", icon: "🎙️", color: "#06b6d4", score: categories.communication },
+    { key: "confidence", name: "Confidence & Poise", weight: "25%", icon: "👁️", color: "#f59e0b", score: categories.confidence },
+    { key: "technical", name: "Technical Relevance", weight: "30%", icon: "💻", color: "#10b981", score: categories.technical },
+    { key: "professionalism", name: "Professionalism & Structure", weight: "15%", icon: "👔", color: "#8b5cf6", score: categories.professionalism }
+  ];
+
+  container.innerHTML = pillars.map(p => {
+    const val = p.score !== null ? p.score : 0;
+    const isNA = p.score === null;
+    return `
+      <div class="cat-score-card">
+        <div class="cat-card-header">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.2rem;">${p.icon}</span>
+            <div>
+              <h4 style="margin:0; font-size:0.95rem; color:var(--text-main);">${p.name}</h4>
+              <span style="font-size:0.75rem; color:var(--text-dim);">Weight: ${p.weight}</span>
+            </div>
+          </div>
+          <span class="cat-score-num" style="color:${p.color};">${isNA ? 'N/A' : val + '%'}</span>
+        </div>
+        <div class="cat-progress-bar">
+          <div class="cat-progress-fill" style="width:${val}%; background:${p.color};"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-dim); margin-top:0.35rem;">
+          <span>Target: 75%</span>
+          <span>${val >= 75 ? '✅ Benchmark Met' : '⚠️ Action Needed'}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCandidateFeedbackSnippet(feedback, summary) {
+  const container = document.getElementById("cand-latest-feedback-container");
+  if (!container) return;
+
+  if (!feedback || !feedback.has_feedback) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const strengthsList = (feedback.strengths || []).map(s => `
+    <div style="background:rgba(16,185,129,0.08); border-left:3px solid #10b981; padding:0.5rem 0.75rem; border-radius:4px; font-size:0.85rem; margin-bottom:0.35rem;">
+      ✅ ${s}
+    </div>
+  `).join("") || '<p style="font-size:0.85rem; color:var(--text-muted);">Demonstrated consistent effort across answers.</p>';
+
+  const weaknessesList = (feedback.areas_for_improvement || []).map(w => `
+    <div style="background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; padding:0.5rem 0.75rem; border-radius:4px; font-size:0.85rem; margin-bottom:0.35rem;">
+      ⚠️ ${w}
+    </div>
+  `).join("") || '<p style="font-size:0.85rem; color:var(--text-muted);">No critical deficiencies detected.</p>';
+
+  container.innerHTML = `
+    <div class="glass-card" style="margin-top: 1.75rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+        <div>
+          <h3 style="color:var(--secondary); margin:0;">💬 Latest AI Performance Feedback & Coaching</h3>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin:0.2rem 0 0 0;">Synthesized directly from your most recent mock interview</p>
+        </div>
+        <button class="btn btn-outline" style="font-size:0.8rem;" onclick="switchCandidateTab('feedback')">View Full Feedback & Roadmap →</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:1.25rem;">
+        <div>
+          <h4 style="color:var(--accent-success); font-size:0.9rem; margin-bottom:0.5rem;">🌟 Key Strengths</h4>
+          ${strengthsList}
+        </div>
+        <div>
+          <h4 style="color:var(--accent-warning); font-size:0.9rem; margin-bottom:0.5rem;">🎯 Areas for Targeted Improvement</h4>
+          ${weaknessesList}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Candidate History
+async function fetchCandidateHistory() {
+  const tbody = document.getElementById("cand-history-tbody");
+  const pageInfo = document.getElementById("cand-history-page-info");
+  const currentPageSpan = document.getElementById("cand-page-current");
+  const btnPrev = document.getElementById("cand-btn-prev");
+  const btnNext = document.getElementById("cand-btn-next");
+
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Loading interview history...</p></td></tr>`;
+
+  const p = state.candidateDash;
+  const q = new URLSearchParams({
+    page: p.historyPage,
+    page_size: p.historyPageSize,
+    sort_by: p.historySortBy,
+    sort_order: p.historySortOrder
+  });
+  if (p.historySearch.trim()) q.append("search", p.historySearch.trim());
+
+  try {
+    const data = await apiFetch(`/api/candidate/interviews?${q.toString()}`);
+    const items = data.items || [];
+    const pag = data.pagination || { total_records: 0, page: 1, total_pages: 1, has_prev: false, has_next: false };
+
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-muted);">No interview sessions recorded.</td></tr>`;
+      if (pageInfo) pageInfo.innerText = "0 records found";
+      if (currentPageSpan) currentPageSpan.innerText = "Page 1 of 1";
+      if (btnPrev) btnPrev.disabled = true;
+      if (btnNext) btnNext.disabled = true;
+      return;
+    }
+
+    const startNum = (pag.page - 1) * pag.page_size + 1;
+    const endNum = Math.min(pag.total_records, pag.page * pag.page_size);
+    if (pageInfo) pageInfo.innerText = `Showing ${startNum}-${endNum} of ${pag.total_records} records`;
+    if (currentPageSpan) currentPageSpan.innerText = `Page ${pag.page} of ${pag.total_pages}`;
+    if (btnPrev) btnPrev.disabled = !pag.has_prev;
+    if (btnNext) btnNext.disabled = !pag.has_next;
+
+    tbody.innerHTML = items.map(item => {
+      const formattedDate = item.date ? new Date(item.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+      const durationFormatted = formatTimeMMSS(item.duration_seconds || 0);
+      const scoreFormatted = item.overall_score !== null ? `<strong>${item.overall_score}%</strong>` : `<span style="color:var(--text-dim);">N/A</span>`;
+
+      return `
+        <tr>
+          <td><code>${item.interview_id}</code></td>
+          <td><strong>${item.domain}</strong></td>
+          <td style="font-size:0.8rem; color:var(--text-dim);">${formattedDate}</td>
+          <td><span class="badge badge-outline" style="font-size:0.75rem;">${item.difficulty}</span></td>
+          <td>${item.questions_answered} / ${item.total_questions}</td>
+          <td>${durationFormatted}</td>
+          <td>${scoreFormatted}</td>
+          <td><span class="badge badge-candidate" style="font-size:0.75rem;">${item.performance_level}</span></td>
+          <td>
+            <span class="badge ${item.status === 'Completed' ? 'badge-success' : 'badge-admin'}">
+              ${item.status}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex; gap:0.35rem;">
+              <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="viewInterviewBreakdown('${item.interview_id}')">
+                📊 Breakdown
+              </button>
+              <button class="btn btn-primary" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="loadAndDisplayAssessment('${item.interview_id}')">
+                📑 Details
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--accent-danger);">Failed to load history: ${err.message}</td></tr>`;
+  }
+}
+
+function debounceCandidateHistorySearch() {
+  clearTimeout(state.candidateDash.searchTimer);
+  state.candidateDash.searchTimer = setTimeout(() => {
+    state.candidateDash.historySearch = document.getElementById("cand-history-search")?.value || "";
+    state.candidateDash.historyPage = 1;
+    fetchCandidateHistory();
+  }, 350);
+}
+
+function changeCandidateHistorySort(val) {
+  const parts = val.split("_");
+  state.candidateDash.historySortBy = parts[0];
+  state.candidateDash.historySortOrder = parts[1] || "desc";
+  state.candidateDash.historyPage = 1;
+  fetchCandidateHistory();
+}
+
+function goToCandidateHistoryPage(delta) {
+  state.candidateDash.historyPage = Math.max(1, state.candidateDash.historyPage + delta);
+  fetchCandidateHistory();
+}
+
+// Candidate Skills
+async function fetchCandidateSkills() {
+  const radarBox = document.getElementById("cand-skill-radar-box");
+  const barsBox = document.getElementById("cand-skill-bars-box");
+
+  if (barsBox) barsBox.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/candidate/skills");
+    if (!data.has_data || !data.skills || data.skills.length === 0) {
+      if (radarBox) radarBox.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No skill telemetry recorded. Complete an interview to generate radar geometry.</p></div>`;
+      if (barsBox) barsBox.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No skills assessed yet.</p></div>`;
+      return;
+    }
+
+    if (radarBox) {
+      radarBox.innerHTML = `<canvas id="cand-skill-radar-canvas" width="360" height="260" style="max-width:100%;"></canvas>`;
+      setTimeout(() => drawCandidateSkillRadar("cand-skill-radar-canvas", data.radar_data || {}), 50);
+    }
+
+    if (barsBox) {
+      barsBox.innerHTML = data.skills.map(s => `
+        <div style="background:rgba(255,255,255,0.02); padding:0.6rem 0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+            <span style="font-size:0.85rem; font-weight:600;">${s.skill_name}</span>
+            <span style="font-size:0.9rem; font-weight:700; color:var(--secondary);">${s.current_score}%</span>
+          </div>
+          <div class="metric-bar" style="height:6px;">
+            <div class="metric-fill" style="width:${s.current_score}%; background:linear-gradient(90deg, #6366f1, #06b6d4);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-dim); margin-top:0.25rem;">
+            <span>Historical Avg: <strong>${s.average_score}%</strong></span>
+            <span>Assessments: <strong>${s.assessments_count}</strong></span>
+          </div>
+        </div>
+      `).join("");
+    }
+  } catch (err) {
+    if (barsBox) barsBox.innerHTML = `<p style="color:var(--accent-danger);">Failed to load skills: ${err.message}</p>`;
+  }
+}
+
+function drawCandidateSkillRadar(canvasId, radarData) {
+  drawAnalyticsSkillRadar(canvasId, radarData);
+}
+
+// Candidate Weak Areas
+async function fetchCandidateWeakAreas() {
+  const container = document.getElementById("cand-weak-areas-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/candidate/performance");
+    const weakAreas = data.weak_areas || [];
+
+    if (weakAreas.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state-box" style="padding:2rem;">
+          <div style="font-size:2rem; margin-bottom:0.5rem;">✨</div>
+          <h4 class="empty-state-title" style="color:var(--accent-success);">No Critical Weak Areas Detected</h4>
+          <p class="empty-state-desc">All evaluated skills are currently meeting or exceeding benchmark thresholds (&gt;75%).</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="weak-areas-grid">
+        ${weakAreas.map(w => {
+          const isCritical = w.severity === "Critical" || w.current_score < 60;
+          const badgeClass = isCritical ? "severity-pill-critical" : "severity-pill-warning";
+          const cardClass = isCritical ? "weak-area-card critical" : "weak-area-card needs-improvement";
+
+          return `
+            <div class="${cardClass}">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                <h4 style="color:var(--text-main); font-size:1.05rem; margin:0;">${w.skill}</h4>
+                <span class="${badgeClass}">${isCritical ? 'Critical (<60%)' : 'Needs Work (60-74%)'}</span>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                ${w.reason}
+              </p>
+              <div style="background:rgba(0,0,0,0.25); padding:0.75rem; border-radius:var(--radius-sm); margin-top:auto;">
+                <div style="font-size:0.78rem; font-weight:600; color:var(--secondary); margin-bottom:0.25rem;">
+                  💡 Actionable Improvement:
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-main); line-height:1.4;">
+                  ${w.recommended_improvement}
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-dim); margin-top:0.5rem; padding-top:0.35rem; border-top:1px solid rgba(255,255,255,0.05);">
+                  <span>Score: <strong>${w.current_score}%</strong></span>
+                  <span>Avg: <strong>${w.historical_average}%</strong></span>
+                  <span>Assessments: <strong>${w.supporting_assessments_count}</strong></span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Failed to load weak areas: ${err.message}</p>`;
+  }
+}
+
+// Candidate Trends
+async function fetchCandidateTrends() {
+  const summaryBar = document.getElementById("cand-trend-summary-bar");
+  const chartWrapper = document.getElementById("cand-trend-wrapper");
+
+  try {
+    const data = await apiFetch(`/api/candidate/trends?period=${state.candidateDash.trendPeriod}`);
+    state.candidateDash.trends = data;
+
+    if (!data.has_data || !data.data_points || data.data_points.length === 0) {
+      if (chartWrapper) {
+        chartWrapper.innerHTML = `
+          <div class="empty-state-box" style="padding:2rem 1rem;">
+            <div class="empty-state-icon">📉</div>
+            <h4 class="empty-state-title">Not Enough Historical Data</h4>
+            <p class="empty-state-desc">${data.message || 'Complete multiple interview sessions to view score trajectory trends over time.'}</p>
+          </div>
+        `;
+      }
+      if (summaryBar) summaryBar.innerHTML = "";
+      return;
+    }
+
+    if (!document.getElementById("cand-trend-canvas")) {
+      chartWrapper.innerHTML = `<canvas id="cand-trend-canvas" width="900" height="280" style="width: 100%; height: 280px;"></canvas>`;
+    }
+
+    const ovSum = data.metrics_summary?.overall || {};
+    if (summaryBar) {
+      summaryBar.innerHTML = `
+        <div>Trajectory: <strong style="color:${ovSum.trend_direction === 'Improving' ? 'var(--accent-success)' : (ovSum.trend_direction === 'Declining' ? 'var(--accent-danger)' : 'var(--text-main)')};">${ovSum.trend_direction || 'Stable'}</strong></div>
+        <div>Period Avg: <strong>${ovSum.average || 0}%</strong></div>
+        <div>Peak Score: <strong style="color:var(--accent-success);">${ovSum.highest || 0}%</strong></div>
+        <div>Low Score: <strong style="color:var(--accent-warning);">${ovSum.lowest || 0}%</strong></div>
+        <div>Growth Delta: <strong>${ovSum.improvement_pct !== null ? (ovSum.improvement_pct > 0 ? '+' : '') + ovSum.improvement_pct + '%' : 'N/A'}</strong></div>
+      `;
+    }
+
+    redrawCandTrendChart();
+  } catch (err) {
+    if (chartWrapper) chartWrapper.innerHTML = `<p style="color:var(--accent-danger);">Failed to load trends: ${err.message}</p>`;
+  }
+}
+
+function switchCandTrendPeriod(period) {
+  state.candidateDash.trendPeriod = period;
+  document.querySelectorAll("#cand-trend-periods .period-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-period") === period);
+  });
+  fetchCandidateTrends();
+}
+
+function redrawCandTrendChart() {
+  const trendsData = state.candidateDash.trends;
+  if (!trendsData || !trendsData.has_data) return;
+
+  const toggles = {
+    overall: document.getElementById("cand-chk-overall")?.checked ?? true,
+    technical: document.getElementById("cand-chk-technical")?.checked ?? true,
+    communication: document.getElementById("cand-chk-communication")?.checked ?? true,
+    confidence: document.getElementById("cand-chk-confidence")?.checked ?? true
+  };
+
+  drawAnalyticsTrendChart("cand-trend-canvas", trendsData.data_points, toggles);
+}
+
+// Candidate Feedback Tab
+async function fetchCandidateFeedback() {
+  const box = document.getElementById("cand-full-feedback-box");
+  if (!box) return;
+  box.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/candidate/feedback");
+    if (!data.has_feedback) {
+      box.innerHTML = `
+        <div class="empty-state-box">
+          <div class="empty-state-icon">💬</div>
+          <h4 class="empty-state-title">No Feedback Available</h4>
+          <p class="empty-state-desc">Complete a mock interview to receive personalized AI evaluation and coaching feedback.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const deltaStr = data.score_improvement_delta !== null
+      ? (data.score_improvement_delta >= 0 ? `+${data.score_improvement_delta}% Improvement` : `${data.score_improvement_delta}% Dip`)
+      : 'Baseline Established';
+
+    const strengths = (data.strengths || []).map(s => `
+      <div style="background:rgba(16,185,129,0.08); border-left:3px solid #10b981; padding:0.75rem 1rem; border-radius:4px; font-size:0.9rem; margin-bottom:0.5rem;">
+        ✅ <strong>Strength:</strong> ${s}
+      </div>
+    `).join("");
+
+    const weaknesses = (data.weaknesses || []).map(w => `
+      <div style="background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; padding:0.75rem 1rem; border-radius:4px; font-size:0.9rem; margin-bottom:0.5rem;">
+        ⚠️ <strong>Growth Focus:</strong> ${w}
+      </div>
+    `).join("");
+
+    const recs = (data.recommendations || []).map(r => `
+      <div style="background:rgba(99,102,241,0.08); border-left:3px solid #6366f1; padding:0.75rem 1rem; border-radius:4px; font-size:0.9rem; margin-bottom:0.5rem;">
+        🚀 <strong>Action Item:</strong> ${r}
+      </div>
+    `).join("");
+
+    box.innerHTML = `
+      <div class="glass-card" style="margin-bottom:1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+          <div>
+            <span class="badge badge-candidate">AI Coaching Telemetry</span>
+            <h2 style="margin:0.25rem 0 0 0;">Comprehensive Assessment Feedback</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 0 0;">Derived from real evaluation pipeline evidence</p>
+          </div>
+          <div style="text-align:right;">
+            <span class="badge badge-success" style="font-size:0.9rem;">${deltaStr}</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
+          <div>
+            <h4 style="color:var(--accent-success); margin-bottom:0.75rem;">🌟 Verified Strengths</h4>
+            ${strengths}
+          </div>
+          <div>
+            <h4 style="color:var(--accent-warning); margin-bottom:0.75rem;">🎯 Areas for Improvement</h4>
+            ${weaknesses}
+          </div>
+          <div>
+            <h4 style="color:var(--primary); margin-bottom:0.75rem;">🚀 Recommended Practice Action Items</h4>
+            ${recs}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    box.innerHTML = `<p style="color:var(--accent-danger);">Failed to load feedback: ${err.message}</p>`;
+  }
+}
+
+// Candidate Reports Tab
+async function fetchCandidateReports() {
+  const container = document.getElementById("cand-reports-list-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/candidate/interviews?status=Completed&page_size=20");
+    const items = data.items || [];
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state-box" style="grid-column:1/-1;">
+          <div class="empty-state-icon">📄</div>
+          <h4 class="empty-state-title">No Completed Interviews for Reports</h4>
+          <p class="empty-state-desc">Complete a mock interview to generate official PDF reports and exportable CSV data.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = items.map(intv => `
+      <div class="nr-card">
+        <div>
+          <div class="nr-card-header">
+            <div>
+              <span class="badge badge-candidate">${intv.domain}</span>
+              <span class="badge badge-outline">${intv.difficulty}</span>
+            </div>
+            <span class="badge badge-success">Score: ${intv.overall_score || 0}%</span>
+          </div>
+          <h4 style="margin-bottom:0.35rem; font-size:1.1rem;">${intv.domain} Mock Assessment</h4>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.75rem;">
+            ID: <code>${intv.interview_id}</code> | Date: ${intv.date ? intv.date.slice(0,10) : 'N/A'}
+          </p>
+          <div style="background:rgba(0,0,0,0.2); padding:0.65rem; border-radius:var(--radius-sm); margin-bottom:0.75rem; font-size:0.85rem;">
+            Performance Tier: <strong style="color:var(--secondary);">${intv.performance_level}</strong>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color);">
+          <button class="btn btn-primary" style="font-size:0.8rem; flex:1;" onclick="generateReportAction('${intv.interview_id}')">
+            ⚡ Download PDF Report
+          </button>
+          <button class="btn btn-outline" style="font-size:0.8rem;" onclick="downloadCsvReportAction('${intv.interview_id}')">
+            📊 Export CSV
+          </button>
+          <button class="btn btn-outline" style="font-size:0.8rem;" onclick="loadAndDisplayAssessment('${intv.interview_id}')">
+            👁️ Full Results
+          </button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Failed to load reports: ${err.message}</p>`;
+  }
+}
+
+// --------------------------------------------------------------------------
+// 10.2 RECRUITER DASHBOARD CONTROLLER
+// --------------------------------------------------------------------------
+
+function switchRecruiterTab(tabKey) {
+  state.recruiterDash.activeTab = tabKey;
+
+  document.querySelectorAll(".rec-dash-panel").forEach(p => p.style.display = "none");
+  document.querySelectorAll(".dashboard-subnav .dash-tab-btn").forEach(btn => {
+    if (btn.id.startsWith("rec-tab-")) btn.classList.remove("active");
+  });
+
+  const activeBtn = document.getElementById(`rec-tab-${tabKey}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  const activePanel = document.getElementById(`rec-panel-${tabKey}`);
+  if (activePanel) activePanel.style.display = "block";
+
+  if (tabKey === 'candidates') loadRecruiterDashboard();
+  else if (tabKey === 'comparison') renderRecruiterComparisonTab();
+  else if (tabKey === 'ranking') fetchRecruiterRankings();
+  else if (tabKey === 'skills') fetchRecruiterSkills();
+  else if (tabKey === 'shortlisting') updateShortlistingThresholds();
+  else if (tabKey === 'integrity') fetchRecruiterIntegrity();
+  else if (tabKey === 'trends') fetchRecruiterTrends();
+}
+
+async function loadRecruiterDashboard() {
+  const tbody = document.getElementById("rec-candidates-tbody");
+  if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Loading authorized candidate records...</p></td></tr>`;
+
+  try {
+    const data = await apiFetch("/api/recruiter/dashboard");
+    state.recruiterDash.overview = data;
+    state.recruiterDash.candidates = data.candidates || [];
+
+    // Update KPI counters
+    const kpis = data.kpis || {};
+    const elTot = document.getElementById("rec-stat-total");
+    const elComp = document.getElementById("rec-stat-completed");
+    const elAvg = document.getElementById("rec-stat-avg");
+    if (elTot) elTot.innerText = kpis.total_candidates || 0;
+    if (elComp) elComp.innerText = kpis.total_interviews_completed || 0;
+    if (elAvg) elAvg.innerText = (kpis.average_benchmark_score || 0) + "%";
+
+    renderRecruiterCandidatesTable(state.recruiterDash.candidates);
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--accent-danger);">Failed to load recruiter data: ${err.message}</td></tr>`;
+  }
+}
+
+function renderRecruiterCandidatesTable(candidates) {
+  const tbody = document.getElementById("rec-candidates-tbody");
+  if (!tbody) return;
+
+  if (!candidates || candidates.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="11" style="text-align:center; padding:2rem; color:var(--text-muted);">
+          No candidate assessments recorded in your authorized roster.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = candidates.map(c => {
+    const isChecked = state.recruiterDash.selectedIds.has(c.candidate_id);
+    const skillsChips = (c.resume_skills || []).slice(0, 3).map(s => `<span class="skill-chip" style="font-size:0.7rem;">${s}</span>`).join(" ");
+    const latestDateFormatted = c.latest_interview_date ? c.latest_interview_date.slice(0, 10) : 'N/A';
+
+    return `
+      <tr>
+        <td>
+          <input type="checkbox" class="rec-cand-checkbox" value="${c.candidate_id}" ${isChecked ? 'checked' : ''} onchange="toggleCandidateSelection('${c.candidate_id}', this.checked)" />
+        </td>
+        <td>
+          <strong>${c.name}</strong>
+          <div style="font-size:0.75rem; color:var(--text-dim);">${c.email}</div>
+        </td>
+        <td>${skillsChips || '<span style="color:var(--text-dim); font-size:0.75rem;">None</span>'}</td>
+        <td><span class="badge badge-outline">${c.interview_count}</span></td>
+        <td style="font-size:0.8rem; color:var(--text-dim);">${latestDateFormatted}</td>
+        <td><strong>${c.latest_score !== null ? c.latest_score + '%' : 'N/A'}</strong></td>
+        <td><strong style="color:var(--secondary);">${c.average_score !== null ? c.average_score + '%' : 'N/A'}</strong></td>
+        <td><span class="skill-chip" style="font-size:0.72rem; color:#10b981;">${c.strongest_skill || 'N/A'}</span></td>
+        <td><span class="skill-chip" style="font-size:0.72rem; color:#f59e0b;">${c.weakest_skill || 'N/A'}</span></td>
+        <td>
+          <span class="badge ${c.performance_status === 'Top Tier' ? 'badge-success' : 'badge-candidate'}">
+            ${c.performance_status}
+          </span>
+        </td>
+        <td>
+          <div style="display:flex; gap:0.35rem;">
+            <button class="btn btn-primary" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="openCandidateDossierModal('${c.candidate_id}')">
+              🎓 Dossier
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function debounceRecruiterCandidateSearch() {
+  clearTimeout(state.recruiterDash.searchTimer);
+  state.recruiterDash.searchTimer = setTimeout(() => {
+    const q = (document.getElementById("rec-candidate-search")?.value || "").toLowerCase().trim();
+    const filtered = (state.recruiterDash.candidates || []).filter(c => 
+      c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+    );
+    renderRecruiterCandidatesTable(filtered);
+  }, 250);
+}
+
+function toggleCandidateSelection(candId, checked) {
+  if (checked) {
+    state.recruiterDash.selectedIds.add(candId);
+  } else {
+    state.recruiterDash.selectedIds.delete(candId);
+  }
+}
+
+function toggleSelectAllCandidates(checked) {
+  (state.recruiterDash.candidates || []).forEach(c => {
+    if (checked) state.recruiterDash.selectedIds.add(c.candidate_id);
+    else state.recruiterDash.selectedIds.delete(c.candidate_id);
+  });
+  document.querySelectorAll(".rec-cand-checkbox").forEach(cb => cb.checked = checked);
+}
+
+function triggerCandidateComparisonFromOverview() {
+  if (state.recruiterDash.selectedIds.size < 2) {
+    alert("Please select at least 2 candidates using the checkboxes to compare.");
+    return;
+  }
+  switchRecruiterTab('comparison');
+}
+
+// Multi-Candidate Comparison Tool
+async function renderRecruiterComparisonTab() {
+  const selectorContainer = document.getElementById("rec-comparison-selector-container");
+  const resultsContainer = document.getElementById("rec-comparison-results-container");
+
+  const candidates = state.recruiterDash.candidates || [];
+  if (selectorContainer) {
+    selectorContainer.innerHTML = candidates.map(c => {
+      const isSelected = state.recruiterDash.selectedIds.has(c.candidate_id);
+      return `
+        <label style="display:inline-flex; align-items:center; gap:0.35rem; background:rgba(255,255,255,0.03); padding:0.3rem 0.6rem; border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:0.8rem; cursor:pointer;">
+          <input type="checkbox" value="${c.candidate_id}" ${isSelected ? 'checked' : ''} onchange="toggleComparisonCandidate('${c.candidate_id}', this.checked)" />
+          <span>${c.name}</span>
+        </label>
+      `;
+    }).join("");
+  }
+
+  const selectedIds = Array.from(state.recruiterDash.selectedIds);
+  if (selectedIds.length < 2) {
+    if (resultsContainer) {
+      resultsContainer.innerHTML = `
+        <div class="empty-state-box">
+          <div class="empty-state-icon">⚖️</div>
+          <h4 class="empty-state-title">Select at Least 2 Candidates to Compare</h4>
+          <p class="empty-state-desc">Choose candidates above to generate a side-by-side benchmark comparison matrix, radar overlays, and pillar breakdowns.</p>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  if (resultsContainer) resultsContainer.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const q = selectedIds.map(id => `candidate_ids=${encodeURIComponent(id)}`).join("&");
+    const data = await apiFetch(`/api/recruiter/comparison?${q}`);
+    const compCands = data.candidates || [];
+
+    if (compCands.length === 0) {
+      resultsContainer.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No assessment records found for selected candidates.</p></div>`;
+      return;
+    }
+
+    const cardsHtml = compCands.map(c => `
+      <div class="comparison-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+          <div>
+            <h4 style="margin:0; font-size:1.1rem; color:var(--text-main);">${c.name}</h4>
+            <div style="font-size:0.75rem; color:var(--text-dim);">${c.email}</div>
+          </div>
+          <span class="badge badge-candidate">${c.performance_status}</span>
+        </div>
+
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:1rem;">
+          <div style="font-size:2rem; font-weight:800; color:var(--secondary);">${c.overall_score || 0}%</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Overall Avg</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.85rem;">
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+              <span>Technical (30%)</span>
+              <strong>${c.category_scores?.technical || 0}%</strong>
+            </div>
+            <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${c.category_scores?.technical || 0}%; background:#10b981;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+              <span>Communication (30%)</span>
+              <strong>${c.category_scores?.communication || 0}%</strong>
+            </div>
+            <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${c.category_scores?.communication || 0}%; background:#06b6d4;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+              <span>Confidence (25%)</span>
+              <strong>${c.category_scores?.confidence || 0}%</strong>
+            </div>
+            <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${c.category_scores?.confidence || 0}%; background:#f59e0b;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+              <span>Professionalism (15%)</span>
+              <strong>${c.category_scores?.professionalism || 0}%</strong>
+            </div>
+            <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${c.category_scores?.professionalism || 0}%; background:#8b5cf6;"></div></div>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color); font-size:0.8rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
+            <span style="color:var(--text-dim);">Strongest:</span>
+            <strong style="color:#10b981;">${c.strongest_skill || 'N/A'}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-dim);">Target Area:</span>
+            <strong style="color:#f59e0b;">${c.weakest_skill || 'N/A'}</strong>
+          </div>
+        </div>
+      </div>
+    `).join("");
+
+    resultsContainer.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:2rem;">
+        ${cardsHtml}
+      </div>
+    `;
+  } catch (err) {
+    resultsContainer.innerHTML = `<p style="color:var(--accent-danger);">Comparison error: ${err.message}</p>`;
+  }
+}
+
+function toggleComparisonCandidate(candId, checked) {
+  toggleCandidateSelection(candId, checked);
+  renderRecruiterComparisonTab();
+}
+
+// Candidate Dossier Modal
+async function openCandidateDossierModal(candId) {
+  const modal = document.getElementById("candidate-dossier-modal");
+  const title = document.getElementById("dossier-cand-name");
+  const content = document.getElementById("dossier-modal-content");
+  modal.style.display = "block";
+  content.innerHTML = `<div class="spinner" style="margin:3rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch(`/api/recruiter/candidates/${candId}`);
+    const cand = data.candidate || {};
+    const perf = data.performance_summary || {};
+    const cat = data.category_breakdown || {};
+    const history = data.interviews || [];
+    const skills = data.skills || [];
+
+    if (title) title.innerText = `${cand.name} — Candidate Dossier`;
+
+    const skillsChips = skills.map(s => `
+      <span class="skill-chip" style="font-size:0.8rem;">${s.skill_name}: <strong>${s.current_score}%</strong></span>
+    `).join(" ") || '<span style="color:var(--text-dim);">No specific skill records</span>';
+
+    const historyRows = history.map(h => `
+      <tr>
+        <td><code>${h.interview_id}</code></td>
+        <td>${h.domain}</td>
+        <td>${h.difficulty}</td>
+        <td><strong>${h.overall_score || 0}%</strong></td>
+        <td><span class="badge badge-candidate">${h.performance_level}</span></td>
+        <td>${h.date ? h.date.slice(0, 10) : 'N/A'}</td>
+      </tr>
+    `).join("");
+
+    content.innerHTML = `
+      <!-- Top Overview Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+        <div>
+          <h2 style="margin:0 0 0.25rem 0;">${cand.name}</h2>
+          <div style="font-size:0.85rem; color:var(--text-muted);">${cand.email} | Role: Candidate</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:2rem; font-weight:800; color:var(--secondary);">${perf.average_score || 0}%</div>
+          <span class="badge badge-success">${perf.rating_level || 'Average'} Tier</span>
+        </div>
+      </div>
+
+      <!-- Pillars Grid -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+        <div class="cat-score-card">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Technical (30%)</div>
+          <div style="font-size:1.4rem; font-weight:700; color:#10b981;">${cat.technical !== null ? cat.technical + '%' : 'N/A'}</div>
+        </div>
+        <div class="cat-score-card">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Communication (30%)</div>
+          <div style="font-size:1.4rem; font-weight:700; color:#06b6d4;">${cat.communication !== null ? cat.communication + '%' : 'N/A'}</div>
+        </div>
+        <div class="cat-score-card">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Confidence (25%)</div>
+          <div style="font-size:1.4rem; font-weight:700; color:#f59e0b;">${cat.confidence !== null ? cat.confidence + '%' : 'N/A'}</div>
+        </div>
+        <div class="cat-score-card">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Professionalism (15%)</div>
+          <div style="font-size:1.4rem; font-weight:700; color:#8b5cf6;">${cat.professionalism !== null ? cat.professionalism + '%' : 'N/A'}</div>
+        </div>
+      </div>
+
+      <!-- Skills Taxonomy -->
+      <div style="margin-bottom:1.5rem;">
+        <h4 style="margin-bottom:0.5rem; color:var(--secondary);">🎯 Demonstrated Skills Taxonomy</h4>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          ${skillsChips}
+        </div>
+      </div>
+
+      <!-- Interview History -->
+      <div>
+        <h4 style="margin-bottom:0.5rem;">📑 Completed Mock Interview Sessions</h4>
+        <div style="overflow-x:auto;">
+          <table class="custom-table" style="font-size:0.85rem;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Domain</th>
+                <th>Difficulty</th>
+                <th>Overall Score</th>
+                <th>Rating Level</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historyRows || '<tr><td colspan="6" style="text-align:center;">No sessions found.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    content.innerHTML = `<p style="color:var(--accent-danger);">Failed to load candidate dossier: ${err.message}</p>`;
+  }
+}
+
+function closeCandidateDossierModal() {
+  const modal = document.getElementById("candidate-dossier-modal");
+  if (modal) modal.style.display = "none";
+}
+
+// Recruiter Rankings
+async function fetchRecruiterRankings() {
+  const tbody = document.getElementById("rec-ranking-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Computing deterministic rankings...</p></td></tr>`;
+
+  try {
+    const data = await apiFetch(`/api/recruiter/ranking?sort_by=${state.recruiterDash.rankingSortBy}&sort_order=${state.recruiterDash.rankingSortOrder}`);
+    const rankings = data.rankings || [];
+
+    if (rankings.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--text-muted);">No candidate assessments available to generate rankings.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rankings.map(c => {
+      let rankBadge = `<span class="rank-circle rank-default">${c.rank}</span>`;
+      if (c.rank === 1) rankBadge = `<span class="rank-circle rank-gold">🥇 1</span>`;
+      else if (c.rank === 2) rankBadge = `<span class="rank-circle rank-silver">🥈 2</span>`;
+      else if (c.rank === 3) rankBadge = `<span class="rank-circle rank-bronze">🥉 3</span>`;
+
+      return `
+        <tr>
+          <td>${rankBadge}</td>
+          <td>
+            <strong>${c.name}</strong>
+            <div style="font-size:0.75rem; color:var(--text-dim);">${c.email}</div>
+          </td>
+          <td><strong style="color:var(--secondary); font-size:1.1rem;">${c.ranking_score}</strong></td>
+          <td><strong>${c.overall_score !== null ? c.overall_score + '%' : 'N/A'}</strong></td>
+          <td>${c.technical_score !== null ? c.technical_score + '%' : 'N/A'}</td>
+          <td>${c.communication_score !== null ? c.communication_score + '%' : 'N/A'}</td>
+          <td>${c.confidence_score !== null ? c.confidence_score + '%' : 'N/A'}</td>
+          <td><span class="badge badge-outline">${c.interview_count}</span></td>
+          <td><span class="skill-chip" style="font-size:0.75rem;">${c.strongest_skill}</span></td>
+          <td><span class="badge ${c.performance_status === 'Top Tier' ? 'badge-success' : 'badge-candidate'}">${c.performance_status}</span></td>
+          <td>
+            <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="openCandidateDossierModal('${c.candidate_id}')">
+              🎓 Dossier
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--accent-danger);">Ranking error: ${err.message}</td></tr>`;
+  }
+}
+
+function changeRecruiterRankingSort(val) {
+  state.recruiterDash.rankingSortBy = val;
+  state.recruiterDash.rankingSortOrder = (val === 'rank') ? 'asc' : 'desc';
+  fetchRecruiterRankings();
+}
+
+// Recruiter Group Skills
+async function fetchRecruiterSkills() {
+  const container = document.getElementById("rec-skills-grid-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/recruiter/skills");
+    const skills = data.skills || [];
+
+    if (skills.length === 0) {
+      container.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No skill assessments recorded across candidates.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+        ${skills.map(s => `
+          <div style="background:rgba(255,255,255,0.02); padding:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+              <strong style="font-size:0.95rem;">${s.skill_name}</strong>
+              <span style="font-size:1.05rem; font-weight:700; color:var(--secondary);">${s.current_score}%</span>
+            </div>
+            <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${s.current_score}%; background:linear-gradient(90deg, #6366f1, #06b6d4);"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-dim); margin-top:0.35rem;">
+              <span>Historical Avg: ${s.average_score}%</span>
+              <span>Total Assessments: ${s.assessments_count}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Skills error: ${err.message}</p>`;
+  }
+}
+
+// Recruiter Shortlisting Insights
+async function updateShortlistingThresholds() {
+  const minOv = parseInt(document.getElementById("slider-min-overall")?.value || 75);
+  const minTech = parseInt(document.getElementById("slider-min-tech")?.value || 70);
+  const minComm = parseInt(document.getElementById("slider-min-comm")?.value || 65);
+
+  const valOv = document.getElementById("val-min-overall");
+  const valTech = document.getElementById("val-min-tech");
+  const valComm = document.getElementById("val-min-comm");
+  if (valOv) valOv.innerText = `${minOv}%`;
+  if (valTech) valTech.innerText = `${minTech}%`;
+  if (valComm) valComm.innerText = `${minComm}%`;
+
+  const container = document.getElementById("rec-shortlisting-results-container");
+  if (!container) return;
+
+  try {
+    const q = new URLSearchParams({
+      min_overall: minOv,
+      min_technical: minTech,
+      min_communication: minComm
+    });
+    const data = await apiFetch(`/api/recruiter/shortlisting?${q.toString()}`);
+    const cands = data.shortlist_recommendations || [];
+
+    if (cands.length === 0) {
+      container.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No candidates evaluated yet.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem;">
+        ${cands.map(c => {
+          const isRec = c.is_recommended;
+          const reasonsHtml = (c.reasons || []).map(r => `
+            <div style="font-size:0.8rem; margin-bottom:0.25rem; color:${isRec ? '#34d399' : '#fca5a5'};">
+              ${isRec ? '✓' : '✗'} ${r}
+            </div>
+          `).join("");
+
+          return `
+            <div class="glass-card" style="border-left: 4px solid ${isRec ? 'var(--accent-success)' : 'var(--accent-warning)'};">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                <div>
+                  <h4 style="margin:0; font-size:1.05rem;">${c.candidate_name}</h4>
+                  <div style="font-size:0.75rem; color:var(--text-dim);">${c.candidate_email}</div>
+                </div>
+                <span class="${isRec ? 'shortlist-badge-recommended' : 'shortlist-badge-pending'}">
+                  ${isRec ? '🌟 Shortlist' : '⏳ Review'}
+                </span>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; margin:0.75rem 0; padding:0.5rem; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); font-size:0.85rem;">
+                <span>Overall: <strong>${c.overall_score || 0}%</strong></span>
+                <span>Tech: <strong>${c.technical_score || 0}%</strong></span>
+                <span>Comm: <strong>${c.communication_score || 0}%</strong></span>
+              </div>
+
+              <div style="background:rgba(255,255,255,0.02); padding:0.6rem; border-radius:var(--radius-sm); margin-bottom:0.75rem;">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.35rem;">Benchmark Evidence:</div>
+                ${reasonsHtml}
+              </div>
+
+              <button class="btn btn-outline btn-full" style="font-size:0.8rem;" onclick="openCandidateDossierModal('${c.candidate_id}')">
+                🎓 Open Dossier
+              </button>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Shortlisting error: ${err.message}</p>`;
+  }
+}
+
+// Recruiter Group Trends
+async function fetchRecruiterTrends() {
+  const chartWrapper = document.getElementById("rec-trends-chart-wrapper");
+  if (!chartWrapper) return;
+
+  try {
+    const data = await apiFetch("/api/recruiter/trends");
+    if (!data.has_data || !data.data_points || data.data_points.length === 0) {
+      chartWrapper.innerHTML = `<div class="empty-state-box"><p class="empty-state-desc">No historical candidate cohort trends available.</p></div>`;
+      return;
+    }
+
+    if (!document.getElementById("rec-trend-canvas")) {
+      chartWrapper.innerHTML = `<canvas id="rec-trend-canvas" width="900" height="280" style="width: 100%; height: 280px;"></canvas>`;
+    }
+
+    drawAnalyticsTrendChart("rec-trend-canvas", data.data_points, { overall: true, technical: true, communication: true, confidence: true });
+  } catch (err) {
+    chartWrapper.innerHTML = `<p style="color:var(--accent-danger);">Trends error: ${err.message}</p>`;
+  }
+}
+
+// --------------------------------------------------------------------------
+// 10.3 ADMIN DASHBOARD CONTROLLER
+// --------------------------------------------------------------------------
+
+function switchAdminTab(tabKey) {
+  state.adminDash.activeTab = tabKey;
+
+  document.querySelectorAll(".admin-dash-panel").forEach(p => p.style.display = "none");
+  document.querySelectorAll(".dashboard-subnav .dash-tab-btn").forEach(btn => {
+    if (btn.id.startsWith("admin-tab-")) btn.classList.remove("active");
+  });
+
+  const activeBtn = document.getElementById(`admin-tab-${tabKey}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  const activePanel = document.getElementById(`admin-panel-${tabKey}`);
+  if (activePanel) activePanel.style.display = "block";
+
+  if (tabKey === 'users') fetchAdminUsers();
+  else if (tabKey === 'interviews') fetchAdminInterviewActivity();
+  else if (tabKey === 'ai') fetchAdminAiMonitoring();
+  else if (tabKey === 'device-detection') fetchAdminDeviceDetection();
+  else if (tabKey === 'health') fetchAdminSystemHealth();
+  else if (tabKey === 'usage') filterAdminUsage('all');
+}
+
+async function loadAdminDashboard() {
+  // Update admin KPI cards and load users
+  try {
+    const [dashData, healthData] = await Promise.all([
+      apiFetch("/api/admin/dashboard"),
+      apiFetch("/api/admin/system-health")
+    ]);
+
+    state.adminDash.overview = dashData;
+    const stats = dashData.system_stats || {};
+
+    const elUsers = document.getElementById("admin-stat-users");
+    const elRes = document.getElementById("admin-stat-resumes");
+    const elInt = document.getElementById("admin-stat-interviews");
+    const elHealth = document.getElementById("admin-stat-health");
+
+    if (elUsers) elUsers.innerText = stats.total_users || 0;
+    if (elRes) elRes.innerText = stats.total_resumes_parsed || 0;
+    if (elInt) elInt.innerText = stats.total_interviews_conducted || 0;
+    if (elHealth) {
+      elHealth.innerText = healthData.status || "Healthy";
+      elHealth.style.color = healthData.status === "Healthy" ? "var(--accent-success)" : "var(--accent-warning)";
+    }
+
+    fetchAdminUsers();
+  } catch (err) {
+    console.error("Failed to load admin dashboard:", err);
+  }
+}
+
+// Admin Users Directory
+async function fetchAdminUsers() {
+  const tbody = document.getElementById("admin-users-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;">Loading user directory...</p></td></tr>`;
+
+  const q = new URLSearchParams();
+  if (state.adminDash.userRoleFilter !== 'all') q.append("role", state.adminDash.userRoleFilter);
+  if (state.adminDash.userSearch.trim()) q.append("search", state.adminDash.userSearch.trim());
+
+  try {
+    const data = await apiFetch(`/api/admin/users?${q.toString()}`);
+    const users = data.users || [];
+    state.adminDash.users = users;
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No users found matching search criteria.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+      const isActive = u.status === 'active';
+      const statusPill = isActive
+        ? `<span class="health-status-healthy">● Active</span>`
+        : `<span class="health-status-degraded">● Suspended</span>`;
+
+      return `
+        <tr>
+          <td><code>${u.id}</code></td>
+          <td>
+            <strong>${u.full_name}</strong>
+            <div style="font-size:0.75rem; color:var(--text-dim);">${u.email}</div>
+          </td>
+          <td>
+            <select class="form-control" style="width:auto; font-size:0.8rem; padding:0.2rem 0.4rem;" onchange="updateUserRoleAction('${u.id}', this.value)">
+              <option value="candidate" ${u.role === 'candidate' ? 'selected' : ''}>Candidate</option>
+              <option value="recruiter" ${u.role === 'recruiter' ? 'selected' : ''}>Recruiter</option>
+              <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+            </select>
+          </td>
+          <td>${statusPill}</td>
+          <td style="font-size:0.8rem; color:var(--text-dim);">${u.created_at ? u.created_at.slice(0, 10) : 'N/A'}</td>
+          <td>
+            <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem; color:${isActive ? 'var(--accent-warning)' : 'var(--accent-success)'};" onclick="toggleUserStatusAction('${u.id}', '${u.status}')">
+              ${isActive ? '⏸️ Suspend' : '▶️ Activate'}
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--accent-danger);">Users error: ${err.message}</td></tr>`;
+  }
+}
+
+function debounceAdminUserSearch() {
+  clearTimeout(state.adminDash.searchTimer);
+  state.adminDash.searchTimer = setTimeout(() => {
+    state.adminDash.userSearch = document.getElementById("admin-user-search")?.value || "";
+    fetchAdminUsers();
+  }, 250);
+}
+
+function filterAdminUsers() {
+  state.adminDash.userRoleFilter = document.getElementById("admin-role-filter")?.value || "all";
+  fetchAdminUsers();
+}
+
+async function toggleUserStatusAction(userId, currentStatus) {
+  const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
+  try {
+    await apiFetch(`/api/admin/users/${userId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: nextStatus })
+    });
+    fetchAdminUsers();
+  } catch (err) {
+    alert(`Failed to update status: ${err.message}`);
+  }
+}
+
+async function updateUserRoleAction(userId, newRole) {
+  try {
+    await apiFetch(`/api/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role: newRole })
+    });
+    fetchAdminUsers();
+  } catch (err) {
+    alert(`Failed to update role: ${err.message}`);
+  }
+}
+
+// Admin Interview Activity Monitoring
+async function fetchAdminInterviewActivity() {
+  const container = document.getElementById("admin-interview-activity-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/admin/interviews");
+    const domainDist = data.domain_distribution || {};
+    const diffDist = data.difficulty_breakdown || {};
+    const recent = data.recent_interviews || [];
+
+    const domainHtml = Object.entries(domainDist).map(([dom, count]) => `
+      <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+        <span>${dom}</span>
+        <strong style="color:var(--secondary); font-size:1.1rem;">${count}</strong>
+      </div>
+    `).join("") || '<p style="color:var(--text-dim);">No domain data recorded</p>';
+
+    const diffHtml = Object.entries(diffDist).map(([diff, count]) => `
+      <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+        <span>${diff}</span>
+        <strong style="color:var(--primary); font-size:1.1rem;">${count}</strong>
+      </div>
+    `).join("") || '<p style="color:var(--text-dim);">No difficulty data recorded</p>';
+
+    const recentRows = recent.map(r => `
+      <tr>
+        <td><code>${r.interview_id}</code></td>
+        <td><strong>${r.candidate_name}</strong></td>
+        <td>${r.domain}</td>
+        <td>${r.difficulty}</td>
+        <td><strong>${r.overall_score !== null ? r.overall_score + '%' : 'N/A'}</strong></td>
+        <td><span class="badge ${r.status === 'Completed' ? 'badge-success' : 'badge-admin'}">${r.status}</span></td>
+        <td style="font-size:0.8rem; color:var(--text-dim);">${r.date ? r.date.slice(0, 10) : 'N/A'}</td>
+      </tr>
+    `).join("");
+
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem; margin-bottom:2rem;">
+        <div class="glass-card">
+          <h3 style="color:var(--secondary); margin-bottom:1rem;">📊 Domain / Track Distribution</h3>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">${domainHtml}</div>
+        </div>
+        <div class="glass-card">
+          <h3 style="color:var(--primary); margin-bottom:1rem;">🎯 Difficulty Tier Distribution</h3>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">${diffHtml}</div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <h3 style="margin-bottom:1rem;">📑 Recent Interview Activity Telemetry</h3>
+        <div style="overflow-x:auto;">
+          <table class="custom-table" style="font-size:0.85rem;">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Candidate</th>
+                <th>Domain</th>
+                <th>Difficulty</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recentRows || '<tr><td colspan="7" style="text-align:center;">No recent activity logs.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Activity error: ${err.message}</p>`;
+  }
+}
+
+// Admin AI Pipeline Monitoring
+async function fetchAdminAiMonitoring() {
+  const container = document.getElementById("admin-ai-monitoring-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/admin/ai-monitoring");
+    const m = data.metrics || {};
+    const disclaimer = data.disclaimer || "AI accuracy: Not available — no validated ground-truth dataset configured.";
+
+    container.innerHTML = `
+      <!-- Telemetry Cards -->
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">AI Evaluation Runs</p>
+            <div class="stat-value" style="color:var(--primary);">${m.total_evaluations || 0}</div>
+          </div>
+          <div style="font-size:2rem;">🤖</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Average Latency</p>
+            <div class="stat-value" style="color:var(--secondary);">${m.average_latency_seconds || 0}s</div>
+          </div>
+          <div style="font-size:2rem;">⚡</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Tokens Consumed</p>
+            <div class="stat-value" style="color:var(--accent-success);">${m.total_tokens_consumed || 0}</div>
+          </div>
+          <div style="font-size:2rem;">🔢</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Pipeline Error Rate</p>
+            <div class="stat-value" style="color:${(m.error_rate_pct || 0) > 0 ? 'var(--accent-danger)' : 'var(--accent-success)'};">${m.error_rate_pct || 0}%</div>
+          </div>
+          <div style="font-size:2rem;">🛡️</div>
+        </div>
+      </div>
+
+      <!-- Disclaimer & Accuracy Audit Box -->
+      <div class="glass-card" style="margin-bottom:1.5rem; border-left: 4px solid var(--secondary);">
+        <h4 style="color:var(--secondary); margin-bottom:0.35rem;">ℹ️ AI Accuracy Ground-Truth Telemetry Disclaimer</h4>
+        <p style="margin:0; font-size:0.85rem; color:var(--text-main); line-height:1.5;">
+          ${disclaimer}
+        </p>
+      </div>
+
+      <!-- Models & Latency Table -->
+      <div class="glass-card">
+        <h3 style="margin-bottom:1rem;">Active LLM & Multimodal Pipelines</h3>
+        <div style="overflow-x:auto;">
+          <table class="custom-table" style="font-size:0.85rem;">
+            <thead>
+              <tr>
+                <th>Model / Pipeline</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Avg Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>gemini-2.5-flash</code></td>
+                <td>Adaptive Question Generation & Real-Time Rubric Scoring</td>
+                <td><span class="badge badge-success">● Active</span></td>
+                <td>${m.average_latency_seconds || 1.4}s</td>
+              </tr>
+              <tr>
+                <td><code>WebSpeech STT + Custom NLP</code></td>
+                <td>Speech-to-Text, WPM, Filler Rate & Grammar Analysis</td>
+                <td><span class="badge badge-success">● Active</span></td>
+                <td>&lt;100ms</td>
+              </tr>
+              <tr>
+                <td><code>CNN Emotion & Gaze Tracker</code></td>
+                <td>Real-time Facial Expressions, Gaze Vector & Attention Poise</td>
+                <td><span class="badge badge-success">● Active</span></td>
+                <td>~33ms (30 FPS)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">AI Monitoring error: ${err.message}</p>`;
+  }
+}
+
+// Admin System Health Diagnostics
+async function fetchAdminSystemHealth() {
+  const container = document.getElementById("admin-health-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/admin/system-health");
+    const comps = data.components || {};
+
+    const statusMap = {
+      Healthy: "health-status-healthy",
+      Degraded: "health-status-degraded",
+      Unhealthy: "health-status-unhealthy"
+    };
+
+    container.innerHTML = `
+      <div class="glass-card" style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <h2 style="margin:0 0 0.25rem 0;">System Health State: <span style="color:${data.status === 'Healthy' ? 'var(--accent-success)' : 'var(--accent-warning)'};">${data.status}</span></h2>
+          <div style="font-size:0.85rem; color:var(--text-muted);">Timestamp: ${data.timestamp} | Diagnostic Latency: ${data.response_latency_ms}ms</div>
+        </div>
+        <button class="btn btn-outline" style="border-color:var(--accent-success); color:var(--accent-success);" onclick="fetchAdminSystemHealth()">
+          🔄 Re-run Diagnostics
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem;">
+        <!-- Process & Memory -->
+        <div class="glass-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h4 style="margin:0;">🖥️ Backend & Memory</h4>
+            <span class="${statusMap[comps.backend_process?.status] || 'health-status-healthy'}">${comps.backend_process?.status || 'Healthy'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">${comps.backend_process?.details || 'Process operational'}</div>
+          <div style="font-size:0.8rem; color:var(--text-dim);">
+            Memory Usage: <strong>${comps.memory_usage?.details || 'Nominal'}</strong>
+          </div>
+        </div>
+
+        <!-- Database -->
+        <div class="glass-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h4 style="margin:0;">🗄️ In-Memory DB</h4>
+            <span class="${statusMap[comps.database_connectivity?.status] || 'health-status-healthy'}">${comps.database_connectivity?.status || 'Healthy'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">${comps.database_connectivity?.details || 'Connected'}</div>
+        </div>
+
+        <!-- Storage -->
+        <div class="glass-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h4 style="margin:0;">💾 Storage Subsystem</h4>
+            <span class="${statusMap[comps.storage_directory?.status] || 'health-status-healthy'}">${comps.storage_directory?.status || 'Healthy'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">${comps.storage_directory?.details || 'Read/Write available'}</div>
+        </div>
+
+        <!-- Gemini API -->
+        <div class="glass-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h4 style="margin:0;">✨ Google Gemini API</h4>
+            <span class="${statusMap[comps.gemini_api?.status] || 'health-status-healthy'}">${comps.gemini_api?.status || 'Healthy'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">${comps.gemini_api?.details || 'Configured and reachable'}</div>
+        </div>
+
+        <!-- Error Rate -->
+        <div class="glass-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h4 style="margin:0;">🛡️ System Error Rate</h4>
+            <span class="${statusMap[comps.error_rate?.status] || 'health-status-healthy'}">${comps.error_rate?.status || 'Healthy'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">${comps.error_rate?.details || '0% errors recorded'}</div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">System health error: ${err.message}</p>`;
+  }
+}
+
+// Admin Usage Analytics
+async function filterAdminUsage(period) {
+  state.adminDash.usagePeriod = period;
+  document.querySelectorAll("#admin-usage-periods .period-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-period") === period);
+  });
+
+  const container = document.getElementById("admin-usage-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch(`/api/admin/usage-analytics?period=${period}`);
+    const sum = data.summary || {};
+
+    container.innerHTML = `
+      <div class="stats-grid" style="margin-bottom:2rem;">
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Active Period Users</p>
+            <div class="stat-value" style="color:var(--primary);">${sum.active_users || 0}</div>
+          </div>
+          <div style="font-size:2rem;">👥</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Total Mock Sessions</p>
+            <div class="stat-value" style="color:var(--secondary);">${sum.total_interviews || 0}</div>
+          </div>
+          <div style="font-size:2rem;">⚡</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Completed Assessments</p>
+            <div class="stat-value" style="color:var(--accent-success);">${sum.completed_interviews || 0}</div>
+          </div>
+          <div style="font-size:2rem;">✅</div>
+        </div>
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Total Generated Reports</p>
+            <div class="stat-value" style="color:var(--accent-warning);">${sum.reports_generated || 0}</div>
+          </div>
+          <div style="font-size:2rem;">📄</div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <h3 style="margin-bottom:0.75rem;">Adoption & Engagement Summary</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+          The platform has facilitated <strong>${sum.completed_interviews || 0}</strong> completed mock interview assessments with <strong>${sum.reports_generated || 0}</strong> downloadable PDF/CSV reports compiled from authentic user sessions.
+        </p>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Usage analytics error: ${err.message}</p>`;
+  }
+}
+
+// ==========================================================================
+// 11. Electronic Device Detection & Anti-Cheating Telemetry Handlers
+// ==========================================================================
+
+// Candidate Integrity Tab
+async function fetchCandidateIntegrity() {
+  const container = document.getElementById("cand-integrity-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/candidate/interviews?status=Completed&page_size=20");
+    const items = data.items || [];
+
+    // Fetch detection summaries for completed sessions
+    const sessionDetails = await Promise.all(
+      items.map(async (item) => {
+        try {
+          const sumData = await apiFetch(`/api/interviews/${item.id}/detection-summary`);
+          return { item, summary: sumData };
+        } catch {
+          return {
+            item,
+            summary: {
+              session_id: item.id,
+              total_alerts: 0,
+              detected_device_counts: {},
+              integrity_status: "Clean - No Prohibited Devices Detected",
+              events: []
+            }
+          };
+        }
+      })
+    );
+
+    let totalAlerts = 0;
+    sessionDetails.forEach(s => {
+      totalAlerts += (s.summary?.total_alerts || 0);
+    });
+
+    const cleanCount = sessionDetails.filter(s => (s.summary?.total_alerts || 0) === 0).length;
+    const cleanPct = sessionDetails.length > 0 ? Math.round((cleanCount / sessionDetails.length) * 100) : 100;
+
+    const rowsHtml = sessionDetails.map(({ item, summary }) => {
+      const alerts = summary.total_alerts || 0;
+      const counts = summary.detected_device_counts || {};
+      const devList = Object.keys(counts).map(k => `${k} (${counts[k]})`).join(", ") || "None";
+      const isClean = alerts === 0;
+
+      return `
+        <tr>
+          <td><code>${item.id}</code></td>
+          <td><strong>${item.domain || 'Full Stack'}</strong></td>
+          <td>${item.created_at ? item.created_at.slice(0, 10) : 'N/A'}</td>
+          <td>
+            <span class="${isClean ? 'integrity-badge-clean' : 'integrity-badge-flagged'}">
+              ${isClean ? '● Clean (0 Alerts)' : `● Flagged (${alerts} Alert${alerts > 1 ? 's' : ''})`}
+            </span>
+          </td>
+          <td>${devList}</td>
+          <td>
+            <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="viewSessionDetectionEventsModal('${item.id}')">
+              🔍 View Telemetry
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    container.innerHTML = `
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Sessions Monitored</p>
+            <div class="stat-value" style="color:var(--primary);">${sessionDetails.length}</div>
+          </div>
+          <div style="font-size:2rem;">📹</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Session Integrity Rate</p>
+            <div class="stat-value" style="color:var(--accent-success);">${cleanPct}%</div>
+          </div>
+          <div style="font-size:2rem;">🛡️</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Prohibited Device Alerts</p>
+            <div class="stat-value" style="color:${totalAlerts > 0 ? 'var(--accent-danger)' : 'var(--accent-success)'};">${totalAlerts}</div>
+          </div>
+          <div style="font-size:2rem;">${totalAlerts > 0 ? '⚠️' : '✅'}</div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem;">
+          <div>
+            <h3 style="color:var(--secondary); margin-bottom:0.25rem;">🛡️ Real-Time Device Monitoring Records</h3>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Authentic computer-vision object detection telemetry collected during live mock interviews</p>
+          </div>
+          <span class="badge badge-candidate">YOLOv5n DNN Verified</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Interview ID</th>
+                <th>Domain</th>
+                <th>Date</th>
+                <th>Integrity Status</th>
+                <th>Detected Devices</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No completed sessions available.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Integrity records error: ${err.message}</p>`;
+  }
+}
+
+// Recruiter Integrity Tab
+async function fetchRecruiterIntegrity() {
+  const container = document.getElementById("rec-integrity-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const data = await apiFetch("/api/recruiter/dashboard");
+    const candidates = data.candidates || [];
+
+    const rowsHtml = candidates.map(c => {
+      const alerts = c.device_alerts_count || 0;
+      const isClean = alerts === 0;
+
+      return `
+        <tr>
+          <td>
+            <strong>${c.name}</strong>
+            <div style="font-size:0.75rem; color:var(--text-dim);">${c.email}</div>
+          </td>
+          <td><span class="badge badge-outline">${c.interview_count}</span></td>
+          <td>${c.latest_interview ? c.latest_interview.slice(0, 10) : 'N/A'}</td>
+          <td>
+            <span class="${isClean ? 'integrity-badge-clean' : 'integrity-badge-flagged'}">
+              ${isClean ? '● Clean (0 Alerts)' : `● Flagged (${alerts} Alert${alerts > 1 ? 's' : ''})`}
+            </span>
+          </td>
+          <td><strong>${c.average_score !== null ? c.average_score + '%' : 'N/A'}</strong></td>
+          <td>
+            <button class="btn btn-outline" style="font-size:0.75rem; padding:0.25rem 0.5rem;" onclick="openCandidateDossierModal('${c.candidate_id}')">
+              🎓 View Dossier & Integrity
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    container.innerHTML = `
+      <div class="glass-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem;">
+          <div>
+            <h3 style="color:var(--secondary); margin-bottom:0.25rem;">🛡️ Anti-Cheating & Candidate Integrity Roster</h3>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Real-time device monitoring flags and session integrity verified via computer vision</p>
+          </div>
+          <button class="btn btn-outline" style="font-size:0.85rem;" onclick="fetchRecruiterIntegrity()">🔄 Refresh</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Sessions</th>
+                <th>Latest Date</th>
+                <th>Integrity Status</th>
+                <th>Average Score</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No candidate records found.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Recruiter integrity error: ${err.message}</p>`;
+  }
+}
+
+// Admin Device Detection AI Tab
+async function fetchAdminDeviceDetection() {
+  const container = document.getElementById("admin-device-detection-container");
+  if (!container) return;
+  container.innerHTML = `<div class="spinner" style="margin:2rem auto;"></div>`;
+
+  try {
+    const [analytics, modelStatus] = await Promise.all([
+      apiFetch("/api/detection/analytics"),
+      apiFetch("/api/detection/model-status")
+    ]);
+
+    const breakdown = analytics.device_breakdown || {};
+    const breakdownPills = Object.keys(breakdown).length > 0
+      ? Object.keys(breakdown).map(k => `
+          <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); padding:0.6rem 1rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
+            <span>📱 <strong>${k}</strong></span>
+            <span class="badge badge-alert-danger">${breakdown[k]} detections</span>
+          </div>
+        `).join("")
+      : `<div style="color:var(--accent-success); font-size:0.9rem;">✅ Clean: 0 prohibited electronic devices detected across monitored sessions.</div>`;
+
+    container.innerHTML = `
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">YOLOv5n Model Status</p>
+            <div class="stat-value" style="color:var(--accent-success); font-size:1.2rem;">${modelStatus.status || 'Operational'}</div>
+          </div>
+          <div style="font-size:2rem;">🤖</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Monitored Sessions</p>
+            <div class="stat-value" style="color:var(--primary);">${analytics.total_monitored_sessions || 0}</div>
+          </div>
+          <div style="font-size:2rem;">📹</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Clean Sessions</p>
+            <div class="stat-value" style="color:var(--accent-success);">${analytics.clean_sessions || 0}</div>
+          </div>
+          <div style="font-size:2rem;">🛡️</div>
+        </div>
+
+        <div class="stat-card">
+          <div>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Total Prohibited Device Alerts</p>
+            <div class="stat-value" style="color:${(analytics.total_prohibited_device_alerts || 0) > 0 ? 'var(--accent-danger)' : 'var(--accent-success)'};">${analytics.total_prohibited_device_alerts || 0}</div>
+          </div>
+          <div style="font-size:2rem;">${(analytics.total_prohibited_device_alerts || 0) > 0 ? '⚠️' : '✅'}</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+        <div class="glass-card">
+          <h3 style="color:var(--secondary); margin-bottom:0.75rem;">⚙️ Model Pipeline Configuration</h3>
+          <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.85rem;">
+            <div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border-color);">
+              <span style="color:var(--text-muted);">Model Engine</span>
+              <strong>${modelStatus.model_name || 'YOLOv5n ONNX'}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border-color);">
+              <span style="color:var(--text-muted);">Inference Backend</span>
+              <strong>${modelStatus.device_backend || 'OpenCV DNN'}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border-color);">
+              <span style="color:var(--text-muted);">Confidence Threshold</span>
+              <strong>${modelStatus.confidence_threshold * 100}%</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border-color);">
+              <span style="color:var(--text-muted);">Confirmation Frames</span>
+              <strong>${modelStatus.confirmation_frames} consecutive frames</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:0.4rem 0;">
+              <span style="color:var(--text-muted);">Clear Delay</span>
+              <strong>${modelStatus.clear_delay_seconds}s (anti-flicker)</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <h3 style="color:var(--secondary); margin-bottom:0.75rem;">📱 Detected Prohibited Devices Breakdown</h3>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.75rem;">Aggregated authentic device detection events across all recorded interview sessions:</p>
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            ${breakdownPills}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--accent-danger);">Device detection admin error: ${err.message}</p>`;
+  }
+}
+
+// Detection Events Modal Viewer
+async function viewSessionDetectionEventsModal(sessionId) {
+  try {
+    const data = await apiFetch(`/api/interviews/${sessionId}/detection-events`);
+    const events = data.events || [];
+
+    const modalId = "detection-events-viewer-modal";
+    let modalEl = document.getElementById(modalId);
+    if (!modalEl) {
+      modalEl = document.createElement("div");
+      modalEl.id = modalId;
+      modalEl.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); z-index:1100; overflow-y:auto; padding:2rem 1rem; display:flex; align-items:center; justify-content:center;";
+      document.body.appendChild(modalEl);
+    }
+
+    const eventsHtml = events.length > 0
+      ? events.map(e => {
+          const time = e.timestamp ? e.timestamp.slice(11, 19) : 'N/A';
+          const conf = Math.round((e.confidence || 0.8) * 100);
+          return `
+            <div class="device-detection-event-row">
+              <div>
+                <strong>🔴 ${e.detected_object}</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">Confidence: ${conf}%</span>
+              </div>
+              <div style="font-family:monospace; color:var(--text-dim);">${time}</div>
+            </div>
+          `;
+        }).join("")
+      : `<p style="color:var(--accent-success); font-size:0.9rem;">✅ Clean Session — No prohibited electronic devices were detected.</p>`;
+
+    modalEl.innerHTML = `
+      <div class="glass-card" style="max-width:600px; width:100%; background:#0f172a; border:1px solid var(--border-color);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+          <h3 style="margin:0; color:var(--secondary);">🛡️ Session Detection Telemetry</h3>
+          <button class="btn btn-outline" style="font-size:0.8rem; padding:0.25rem 0.6rem;" onclick="document.getElementById('${modalId}').style.display='none'">✕ Close</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+          Interview Session ID: <code>${sessionId}</code>
+        </p>
+
+        <div class="device-detection-timeline">
+          ${eventsHtml}
+        </div>
+      </div>
+    `;
+    modalEl.style.display = "flex";
+  } catch (err) {
+    alert(`Failed to fetch detection events: ${err.message}`);
+  }
+}
+
+
