@@ -1,0 +1,28 @@
+/* ================================
+   SMART HIRE AI - GLOBAL CSS
+   ================================ */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  background: #fffaff;
+}
+
+* {
+  box-sizing: border-box;
+}

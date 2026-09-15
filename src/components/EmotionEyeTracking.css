@@ -1,0 +1,296 @@
+/* =========================================================
+   EMOTION & EYE TRACKING
+   SmartHire AI
+   ========================================================= */
+
+.emotion-eye-container {
+  width: 100%;
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    #fff4fa 0%,
+    #f5f0ff 100%
+  );
+  border: 1px solid rgba(214, 190, 235, 0.55);
+  box-shadow: 0 8px 25px rgba(150, 120, 180, 0.08);
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.emotion-eye-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.emotion-eye-header h3 {
+  margin: 0 0 5px;
+  color: #3e3150;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.emotion-eye-header p {
+  margin: 0;
+  color: #756b80;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.vision-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vision-status.ready {
+  color: #496548;
+  background: #edf8ed;
+  border: 1px solid #cce7cc;
+}
+
+.vision-status.loading {
+  color: #75627f;
+  background: #f3eef8;
+  border: 1px solid #ded2e8;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #9c88aa;
+}
+
+.vision-status.ready .status-dot {
+  background: #6ca76c;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.vision-error {
+  margin-bottom: 15px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff0f2;
+  border: 1px solid #f1c9d0;
+  color: #8b4654;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   METRICS GRID
+   ========================================================= */
+
+.vision-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* =========================================================
+   INDIVIDUAL METRIC
+   ========================================================= */
+
+.vision-metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(225, 211, 232, 0.8);
+  box-sizing: border-box;
+}
+
+.metric-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #f7e8f5;
+  font-size: 18px;
+}
+
+.metric-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.metric-content > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #766b80;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.metric-content strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #4a3b57;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.metric-content strong.excellent {
+  color: #527a55;
+}
+
+.metric-content strong.good {
+  color: #6c687d;
+}
+
+.metric-content strong.average {
+  color: #927348;
+}
+
+.metric-content strong.low {
+  color: #9a5a62;
+}
+
+/* =========================================================
+   PROGRESS BAR
+   ========================================================= */
+
+.metric-bar {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #eee7f1;
+}
+
+.metric-bar > div {
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #e7b8d8,
+    #cbb8e8
+  );
+  transition: width 0.35s ease;
+}
+
+/* =========================================================
+   EXPRESSION
+   ========================================================= */
+
+.expression-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(225, 211, 232, 0.8);
+}
+
+.expression-box span {
+  color: #766b80;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.expression-box strong {
+  color: #5a4568;
+  font-size: 13px;
+}
+
+/* =========================================================
+   NOTE
+   ========================================================= */
+
+.vision-note {
+  margin-top: 13px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: rgba(250, 247, 252, 0.9);
+  color: #817686;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .emotion-eye-container {
+    padding: 16px;
+  }
+
+  .emotion-eye-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vision-status {
+    align-self: flex-start;
+  }
+
+  .vision-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 450px) {
+  .emotion-eye-container {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .emotion-eye-header h3 {
+    font-size: 17px;
+  }
+
+  .emotion-eye-header p {
+    font-size: 12px;
+  }
+
+  .vision-metric {
+    padding: 11px;
+  }
+
+  .metric-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    font-size: 16px;
+  }
+
+  .metric-content strong {
+    font-size: 14px;
+  }
+}
