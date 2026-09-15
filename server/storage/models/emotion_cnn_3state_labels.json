@@ -1,0 +1,20 @@
+{
+  "classes": [
+    "fear_cluster",
+    "confidence",
+    "confused"
+  ],
+  "mirror": {
+    "fear_cluster": {
+      "nervousness": 0.5,
+      "fear": 0.5
+    }
+  },
+  "input": [
+    48,
+    48,
+    1
+  ],
+  "scale": "raw_gray_0_255",
+  "seed": 42
+}
