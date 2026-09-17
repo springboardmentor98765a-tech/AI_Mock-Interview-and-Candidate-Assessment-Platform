@@ -1041,6 +1041,12 @@ table td:has(> button) { text-align: right; }
   max-width: 480px;
   width: 100%;
   text-align: center;
+  /* The finish/report screen (score + breakdown + feedback + behavior +
+     communication sections) is often taller than the viewport — without
+     this, content just overflows past the screen edges with no way to
+     scroll to it. */
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 .prestart-box h2 { font-family: var(--font-display); margin-bottom: 6px; }
 .prestart-track { color: var(--signal-dark); font-weight: 600; margin-bottom: 18px; }

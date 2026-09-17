@@ -3,12 +3,12 @@
 // Talks to the Express/JWT/OAuth backend in /backend
 // ============================================================
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://ai-interview-backend-production-4dac.up.railway.app/api';
 
 // Module 3 (AI Interview Generation, candidate feedback view, question
 // TTS) is served by the Python/FastAPI service in /backend-python —
 // it shares the same database and JWT secret as the Node backend above.
-const PY_API_BASE_URL = 'http://localhost:8001/api';
+const PY_API_BASE_URL = 'https://aimock-interview-production.up.railway.app/api';
 
 const DASHBOARD_BY_ROLE = {
   candidate: 'candidate.html',
@@ -509,8 +509,75 @@ async function initAdminDashboard() {
     loadAdminSettingsUI(),
     loadActivityLog(),
     loadAiStatus(),
+    loadAiPerformance(),
+    loadPlatformUsage(),
+    loadSystemHealth(),
     loadNotificationsInto('adminNotifications'),
   ]);
+}
+
+// ---------------- Module 10: AI performance monitoring ----------------
+async function loadAiPerformance() {
+  try {
+    const p = await apiFetchPy('/admin/ai/performance');
+    setStat('statAiScoredPct', p.ai_scored_pct !== null && p.ai_scored_pct !== undefined ? `${p.ai_scored_pct}%` : '—');
+    setStat('statAiScoredCount', p.ai_scored_count);
+    setStat('statSimScoredCount', p.simulator_scored_count);
+    setStat('statAvgScoreAi', p.average_score_ai !== null && p.average_score_ai !== undefined ? p.average_score_ai : '—');
+
+    const list = document.getElementById('aiProviderUsageList');
+    if (list) {
+      const entries = Object.entries(p.provider_usage || {});
+      list.innerHTML = entries.length
+        ? entries.map(([provider, count]) => `<li style="padding:4px 0;border-bottom:1px solid var(--line);"><strong>${provider}</strong>: ${count} interview${count === 1 ? '' : 's'}</li>`).join('')
+        : '<li>No AI-scored interviews yet.</li>';
+    }
+  } catch (err) {
+    console.error('Failed to load AI performance:', err);
+  }
+}
+
+// ---------------- Module 10: Platform usage analytics ----------------
+async function loadPlatformUsage() {
+  try {
+    const u = await apiFetchPy('/admin/system/usage');
+    setStat('statUsageInterviewsOnline', u.interviews_online);
+    setStat('statUsageInterviewsOffline', u.interviews_offline);
+    setStat('statUsageRecordings', u.interviews_with_recording);
+    setStat('statUsageCoding', u.coding_submissions);
+    setStat('statUsageTemplates', u.interview_templates);
+    setStat('statUsageResumes', u.resumes_uploaded);
+    setStat('statUsageNotifications', u.notifications_sent);
+    setStat('statUsageGenCoding', u.generated_coding_questions);
+  } catch (err) {
+    console.error('Failed to load platform usage:', err);
+  }
+}
+
+// ---------------- Module 10: System health ----------------
+function formatUptime(seconds) {
+  if (!seconds && seconds !== 0) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+async function loadSystemHealth() {
+  try {
+    const h = await apiFetchPy('/admin/system/health');
+    const statusEl = document.getElementById('healthStatus');
+    if (statusEl) {
+      statusEl.textContent = h.status === 'ok' ? '🟢 OK' : '🟠 Degraded';
+    }
+    const dbEl = document.getElementById('healthDatabase');
+    if (dbEl) dbEl.textContent = h.database === 'ok' ? '🟢 Connected' : '🔴 Error';
+    setStat('healthUptime', formatUptime(h.uptime_seconds));
+    setStat('healthRecordings', `${h.recordings_count} files (${h.recordings_mb} MB)`);
+    setStat('healthTtsCache', `${h.tts_cache_files} files (${h.tts_cache_mb} MB)`);
+    setStat('healthActivity24h', `${h.activity_last_24h} events`);
+  } catch (err) {
+    console.error('Failed to load system health:', err);
+  }
 }
 
 // ---------------- Module 1: Admin "Monitor system activities" ----------------
@@ -1800,8 +1867,69 @@ async function initRecruiterDashboard() {
     loadSchedule('recruiterScheduleBody', 'today'),
     loadJobs(),
     loadInterviewTemplates(),
+    loadCandidateRankings(),
+    loadShortlistInsights(),
     loadNotificationsInto('recruiterNotifications'),
   ]);
+}
+
+// ---------------- Module 10: Candidate ranking metrics ----------------
+async function loadCandidateRankings() {
+  const link = document.getElementById('rankingsCsvLink');
+  if (link) {
+    link.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const token = getToken();
+        const res = await fetch(`${PY_API_BASE_URL}/analytics/staff/rankings/csv`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'candidate_rankings.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        showToast('Could not download rankings CSV.', 'error');
+      }
+    };
+  }
+
+  try {
+    const rankings = await apiFetchPy('/analytics/staff/rankings');
+    renderTableRows('recruiterRankingsBody', rankings, 5, (r) => `
+      <tr>
+        <td>#${r.rank}</td>
+        <td>${r.full_name}<br><span style="font-size:0.8rem;color:var(--ink-soft)">${r.email}</span></td>
+        <td>${r.average_score}%</td>
+        <td>${r.completed_count}</td>
+        <td>${r.best_score !== null && r.best_score !== undefined ? `${r.best_score}%` : '—'}</td>
+      </tr>`);
+  } catch (err) {
+    console.error('Failed to load candidate rankings:', err);
+  }
+}
+
+// ---------------- Module 10: Shortlisting insights ----------------
+async function loadShortlistInsights() {
+  try {
+    const shortlist = await apiFetchPy('/analytics/staff/shortlist');
+    const container = document.getElementById('shortlistInsightsList');
+    if (!container) return;
+    if (!shortlist.length) {
+      container.innerHTML = '<p>No candidates clear the shortlisting bar yet.</p>';
+      return;
+    }
+    container.innerHTML = shortlist.map((s) => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--line);">
+        <strong>${s.full_name}</strong> — ${s.average_score}% avg over ${s.completed_count} interview${s.completed_count === 1 ? '' : 's'}
+        <p style="margin:4px 0 0;font-size:0.85rem;color:var(--ink-soft)">${s.insight}</p>
+      </div>`).join('');
+  } catch (err) {
+    console.error('Failed to load shortlist insights:', err);
+  }
 }
 
 async function loadJobs() {

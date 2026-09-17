@@ -89,6 +89,23 @@ class Interview(Base):
     behavior_confidence_label = Column(String(10))
     behavior_dominant_emotion = Column(String(30))
 
+    # Module 9 — Notifications & Reports. Set the first (and only) time
+    # POST /api/notifications/reminders/run sends a reminder for this
+    # session, so a repeat scan within the reminder window never spams
+    # the candidate with duplicate reminders for the same interview.
+    reminder_sent_at = Column(TIMESTAMP)
+
+    # Module 10 — Admin "AI performance monitoring". scoring_source is
+    # "ai" when a real LLM provider actually scored this interview
+    # (PATCH /{id}/finish with substantive answers + a reachable
+    # provider), "simulator" otherwise (POST /start, PATCH /attend —
+    # always simulator by design — or /finish when every provider
+    # failed / there was nothing to grade). scoring_provider names
+    # which provider answered ("ollama"/"gemini"/"openai"/"grok"),
+    # null when scoring_source is "simulator".
+    scoring_source = Column(String(10))
+    scoring_provider = Column(String(20))
+
     @property
     def has_recording(self) -> bool:
         return bool(self.recording_path)

@@ -8,7 +8,7 @@
 
     <title>Recruiter Dashboard</title>
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -56,7 +56,7 @@
 
 <div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Click to change your photo">
 
-<img id="userAvatarImg" src="images/profile.png" alt="Recruiter">
+<img id="userAvatarImg" src="/images/profile.png" alt="Recruiter">
 
 <span class="avatar-edit-badge">&#9998;</span>
 
@@ -346,6 +346,36 @@ Job Openings
 
 </table>
 
+<!-- Candidate Rankings (Module 10 — recruiter "Candidate ranking") -->
+
+<h2 style="margin-top:30px;display:flex;align-items:center;justify-content:space-between;">
+<span>🏆 Candidate Rankings</span>
+<a id="rankingsCsvLink" href="#" style="font-size:0.8rem;">⬇ Download CSV</a>
+</h2>
+
+<table>
+<thead>
+<tr>
+<th>Rank</th>
+<th>Candidate</th>
+<th>Avg Score</th>
+<th>Completed</th>
+<th>Best Score</th>
+</tr>
+</thead>
+<tbody id="recruiterRankingsBody">
+<tr><td class="table-loading" colspan="5">Loading rankings…</td></tr>
+</tbody>
+</table>
+
+<!-- Shortlisting Insights (Module 10 — recruiter "Shortlisting insights") -->
+
+<h2 style="margin-top:30px;">🎯 Shortlisting Insights</h2>
+
+<div id="shortlistInsightsList" class="dashboard-card">
+<p class="table-loading">Loading shortlist…</p>
+</div>
+
 <!-- Hiring Analytics -->
 
 <h2 style="margin-top:30px;">
@@ -440,7 +470,7 @@ Fetching latest notifications.
 
 </footer>
 
-<script src="js/script.js"></script>
+<script src="/js/script.js"></script>
 
 </body>
 

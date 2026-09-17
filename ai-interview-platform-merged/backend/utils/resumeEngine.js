@@ -40,17 +40,17 @@ const TECH_DICTIONARY = {
 };
 
 const DEGREE_KEYWORDS = [
-  { pattern: /ph\.?d\.?|doctor of philosophy/i, label: 'Ph.D.' },
-  { pattern: /m\.?tech\.?|master of technology/i, label: 'M.Tech' },
-  { pattern: /m\.?b\.?a\.?|master of business administration/i, label: 'MBA' },
-  { pattern: /m\.?s\.?c?\.?\b|master of science/i, label: 'M.Sc / M.S.' },
-  { pattern: /m\.?c\.?a\.?|master of computer applications/i, label: 'MCA' },
-  { pattern: /b\.?tech\.?|bachelor of technology/i, label: 'B.Tech' },
-  { pattern: /b\.?e\.?\b|bachelor of engineering/i, label: 'B.E.' },
-  { pattern: /b\.?c\.?a\.?|bachelor of computer applications/i, label: 'BCA' },
-  { pattern: /b\.?s\.?c?\.?\b|bachelor of science/i, label: 'B.Sc / B.S.' },
-  { pattern: /b\.?com\.?|bachelor of commerce/i, label: 'B.Com' },
-  { pattern: /diploma/i, label: 'Diploma' },
+  { pattern: /\bph\.?\s?d\.?\b|doctor of philosophy/i, label: 'Ph.D.' },
+  { pattern: /\bm\.?\s?tech\.?\b|master of technology/i, label: 'M.Tech' },
+  { pattern: /\bm\.?\s?c\.?\s?a\.?\b|master of computer applications/i, label: 'MCA' },
+  { pattern: /\bm\.?\s?b\.?\s?a\.?\b|master of business administration/i, label: 'MBA' },
+  { pattern: /\bm\.?\s?sc\.?\b|\bm\.?\s?s\.?\b(?!c)|master of science/i, label: 'M.Sc / M.S.' },
+  { pattern: /\bb\.?\s?tech\.?\b|bachelor of technology/i, label: 'B.Tech' },
+  { pattern: /\bb\.?\s?c\.?\s?a\.?\b|bachelor of computer applications/i, label: 'BCA' },
+  { pattern: /\bb\.?\s?e\.?\b|bachelor of engineering/i, label: 'B.E.' },
+  { pattern: /\bb\.?\s?sc\.?\b|\bb\.?\s?s\.?\b(?!c)|bachelor of science/i, label: 'B.Sc / B.S.' },
+  { pattern: /\bb\.?\s?com\.?\b|bachelor of commerce/i, label: 'B.Com' },
+  { pattern: /\bdiploma\b/i, label: 'Diploma' },
   { pattern: /high school|senior secondary|12th|hsc/i, label: 'High School' },
 ];
 
@@ -106,31 +106,67 @@ function parseExperience(text) {
     years = parseFloat(explicitMatch[1]);
   }
 
+  const monthList = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const monthIndex = (raw) => {
+    const m = (raw || '').slice(0, 3).toLowerCase();
+    const idx = monthList.indexOf(m);
+    return idx === -1 ? null : idx;
+  };
   const monthNames = 'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December';
   const dateRangeRe = new RegExp(
     `((?:${monthNames})\\.?\\s*\\d{4}|\\d{4})\\s*(?:-|–|to)\\s*((?:${monthNames})\\.?\\s*\\d{4}|Present|Current|\\d{4})`,
     'gi'
   );
 
+  // Scope date-range scanning to an Experience/Employment section when one
+  // exists, so degree years (Education) and project dates aren't counted
+  // as work experience.
+  const nextSectionNames = 'education|skills|projects|certifications|achievements|publications|awards|languages|interests|references|summary|objective';
+  const expSectionMatch = text.match(
+    new RegExp(`\\b(work experience|employment history|professional experience|experience)\\b[\\s\\S]{0,3000}?(?=\\n\\s*(?:${nextSectionNames})\\s*\\n|$)`, 'i')
+  );
+  let scopedText;
+  if (expSectionMatch) {
+    scopedText = expSectionMatch[0];
+  } else {
+    // No explicit Experience section at all (common for freshers whose
+    // resume is mostly Education + Projects). Rather than falling back to
+    // the *whole* document — which would re-introduce the bug of counting
+    // degree years as work experience — strip out the Education section
+    // specifically before scanning what's left.
+    const eduSectionMatch = text.match(
+      new RegExp(`\\beducation\\b[\\s\\S]{0,1200}?(?=\\n\\s*(?:${nextSectionNames})\\s*\\n|$)`, 'i')
+    );
+    scopedText = eduSectionMatch
+      ? text.slice(0, eduSectionMatch.index) + text.slice(eduSectionMatch.index + eduSectionMatch[0].length)
+      : text;
+  }
+
   const entries = [];
   let totalMonths = 0;
   let match;
-  while ((match = dateRangeRe.exec(text)) !== null) {
-    const startYearMatch = match[1].match(/\d{4}/);
+  while ((match = dateRangeRe.exec(scopedText)) !== null) {
+    const startRaw = match[1];
     const endRaw = match[2];
+    const startYearMatch = startRaw.match(/\d{4}/);
     const startYear = startYearMatch ? parseInt(startYearMatch[0], 10) : null;
-    const isCurrent = /present|current/i.test(endRaw);
-    const endYearMatch = endRaw.match(/\d{4}/);
-    const endYear = isCurrent ? new Date().getFullYear() : endYearMatch ? parseInt(endYearMatch[0], 10) : null;
+    const startMonth = monthIndex(startRaw) ?? 0; // default to Jan if only a year was given
 
-    if (startYear && endYear && endYear >= startYear) {
-      totalMonths += (endYear - startYear) * 12;
+    const isCurrent = /present|current/i.test(endRaw);
+    const now = new Date();
+    const endYearMatch = endRaw.match(/\d{4}/);
+    const endYear = isCurrent ? now.getFullYear() : endYearMatch ? parseInt(endYearMatch[0], 10) : null;
+    const endMonth = isCurrent ? now.getMonth() : (monthIndex(endRaw) ?? 11); // default to Dec if only a year was given
+
+    if (startYear && endYear) {
+      const months = (endYear - startYear) * 12 + (endMonth - startMonth);
+      if (months >= 0) totalMonths += months;
     }
 
     // Try to pull a role/company line immediately preceding this date range.
-    const lineStart = text.lastIndexOf('\n', match.index);
+    const lineStart = scopedText.lastIndexOf('\n', match.index);
     const contextStart = Math.max(0, lineStart - 120);
-    const context = text.slice(contextStart, match.index).trim();
+    const context = scopedText.slice(contextStart, match.index).trim();
     const lastLine = context.split(/\n/).filter(Boolean).pop() || '';
 
     entries.push({

@@ -8,7 +8,7 @@
 
 <title>Admin Dashboard</title>
 
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="/css/style.css">
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -56,7 +56,7 @@
 
 <div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Click to change your photo">
 
-<img id="userAvatarImg" src="images/profile.png" alt="Admin">
+<img id="userAvatarImg" src="/images/profile.png" alt="Admin">
 
 <span class="avatar-edit-badge">&#9998;</span>
 
@@ -469,6 +469,77 @@ what's configured, plus one safe platform-wide switch.
 
 </div>
 
+<!-- AI Performance Monitoring (Module 10 — admin "AI performance monitoring") -->
+
+<h2 style="margin-top:30px;">
+
+📈 AI Performance Monitoring
+
+</h2>
+
+<div class="dashboard-card">
+<div class="stats-grid" style="margin-bottom:16px;">
+<div class="stat-box"><h2 id="statAiScoredPct">—</h2><p>Scored by AI</p></div>
+<div class="stat-box"><h2 id="statAiScoredCount">—</h2><p>AI-scored interviews</p></div>
+<div class="stat-box"><h2 id="statSimScoredCount">—</h2><p>Simulator-scored</p></div>
+<div class="stat-box"><h2 id="statAvgScoreAi">—</h2><p>Avg score (AI)</p></div>
+</div>
+<h4 style="margin-bottom:8px;">Provider usage breakdown</h4>
+<ul id="aiProviderUsageList" style="list-style:none;padding:0;margin:0;font-size:0.9rem;">
+<li class="table-loading">Loading…</li>
+</ul>
+</div>
+
+<!-- Platform Usage Analytics (Module 10 — admin "Platform usage analytics") -->
+
+<h2 style="margin-top:30px;">
+
+📊 Platform Usage Analytics
+
+</h2>
+
+<div class="dashboard-card">
+<div class="stats-grid">
+<div class="stat-box"><h2 id="statUsageInterviewsOnline">—</h2><p>Online interviews</p></div>
+<div class="stat-box"><h2 id="statUsageInterviewsOffline">—</h2><p>Offline interviews</p></div>
+<div class="stat-box"><h2 id="statUsageRecordings">—</h2><p>With recording</p></div>
+<div class="stat-box"><h2 id="statUsageCoding">—</h2><p>Coding submissions</p></div>
+<div class="stat-box"><h2 id="statUsageTemplates">—</h2><p>Interview templates</p></div>
+<div class="stat-box"><h2 id="statUsageResumes">—</h2><p>Resumes uploaded</p></div>
+<div class="stat-box"><h2 id="statUsageNotifications">—</h2><p>Notifications sent</p></div>
+<div class="stat-box"><h2 id="statUsageGenCoding">—</h2><p>AI coding questions</p></div>
+</div>
+</div>
+
+<!-- System Health (Module 10 — admin "System activity/health reports") -->
+
+<h2 style="margin-top:30px;">
+
+💓 System Health
+
+</h2>
+
+<div class="dashboard-card" style="max-width:520px;">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+<strong>Service status</strong><span id="healthStatus">—</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+<strong>Database</strong><span id="healthDatabase">—</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+<strong>Uptime</strong><span id="healthUptime">—</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+<strong>Recordings storage</strong><span id="healthRecordings">—</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+<strong>TTS cache</strong><span id="healthTtsCache">—</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+<strong>Activity (last 24h)</strong><span id="healthActivity24h">—</span>
+</div>
+</div>
+
 <!-- Activity Log (Module 1 — Monitor system activities) -->
 
 <h2 id="activityLog" style="margin-top:30px;">
@@ -535,7 +606,7 @@ Fetching latest notifications.
 
 </footer>
 
-<script src="js/script.js"></script>
+<script src="/js/script.js"></script>
 
 </body>
 

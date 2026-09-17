@@ -19,6 +19,12 @@ router.patch('/change-password', authenticateJWT, changePassword);
 router.get(
   '/google',
   (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(503).json({
+        message: 'Google login is not configured. Please use email and password login.',
+      });
+    }
+
     const allowedState = ['candidate', 'recruiter', 'coach'].includes(req.query.role)
       ? req.query.role
       : 'candidate';
@@ -33,7 +39,14 @@ router.get(
 // Step 2: Google redirects back here.
 router.get(
   '/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: '/login.html' }),
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(503).json({
+        message: 'Google login is not configured. Please use email and password login.',
+      });
+    }
+    return passport.authenticate('google', { session: false, failureRedirect: '/login.html' })(req, res, next);
+  },
   googleCallback
 );
 

@@ -8,11 +8,17 @@ side by side against one source of truth.
 """
 import os
 from pathlib import Path
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+# Module 10 — admin "System health": when this process started, for a
+# simple uptime figure on GET /api/admin/system/health. Module-level so
+# it's set exactly once, at import time (process start).
+SERVICE_STARTED_AT = datetime.now(timezone.utc)
 
 PORT = int(os.getenv("PY_PORT", "8001"))
 
@@ -96,3 +102,32 @@ GROK_API_KEY = os.getenv("GROK_API_KEY", "").strip()
 GROK_MODEL = os.getenv("GROK_MODEL", "grok-2-latest")
 
 AI_REQUEST_TIMEOUT = float(os.getenv("AI_REQUEST_TIMEOUT", "20"))
+
+# ============================================================
+# Module 9 — Notifications & Reports: email delivery
+# ------------------------------------------------------------
+# Optional. With EMAIL_ENABLED unset/false (the default), or any
+# required SMTP_* value missing, app/email_engine.send_email() just
+# logs and returns False — nothing else in the service depends on
+# email being configured (same graceful-degrade pattern as the TTS
+# engine's gTTS -> pyttsx3 fallback).
+# ============================================================
+EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "false").strip().lower() == "true"
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() == "true"
+EMAIL_FROM = os.getenv("EMAIL_FROM", "").strip()
+
+# Module 9 — Interview reminders: how far ahead of a scheduled
+# interview POST /api/notifications/reminders/run will send a
+# one-time reminder for it (see Interview.reminder_sent_at).
+REMINDER_WINDOW_HOURS = int(os.getenv("REMINDER_WINDOW_HOURS", "24"))
+
+# Optional shared secret so an external scheduler (cron, GitHub
+# Actions, Windows Task Scheduler, etc.) can call
+# POST /api/notifications/reminders/run without a staff JWT, since
+# this service has no built-in scheduler of its own. Leave unset to
+# require staff/admin auth only.
+CRON_SECRET = os.getenv("CRON_SECRET", "").strip()

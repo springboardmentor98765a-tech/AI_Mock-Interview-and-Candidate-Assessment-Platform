@@ -52,6 +52,69 @@ management, candidate feedback view, and question text-to-speech.**
   This service never runs migrations; the Node service's schema.sql
   remains the single source of truth.
 - **Postman Collection** — `postman_collection.json`.
+- **Module 8 — Dashboard & Analytics** *(new)* — `app/routers/analytics.py`.
+  Builds on the existing `GET /api/interviews/me/stats` (candidate) and
+  `GET /api/interviews/staff/overview` (staff) counts with:
+  - `GET /api/analytics/me/trend` — score-over-time chart data
+  - `GET /api/analytics/me/skills` — skill-wise averages + trend direction
+  - `GET /api/analytics/me/weak-areas` — lowest-scoring categories + a
+    canned practice suggestion for each
+  - `GET /api/analytics/me/breakdown` — per-interview score breakdown list
+  - `GET /api/analytics/me/summary` — all of the above combined, for a
+    single dashboard widget
+  - `GET /api/analytics/staff/rankings` (+ `/rankings/csv`) — candidate
+    leaderboard by average score
+  - `GET /api/analytics/staff/skills` / `GET /api/analytics/staff/trend` —
+    platform-wide skill analytics and a weekly score trend
+- **Module 9 — Notifications & Reports** *(new)* — `app/routers/notifications.py`
+  + `app/email_engine.py`. On top of the shared `notifications` table
+  (Node's `GET /api/notifications/me` still works unchanged):
+  - `GET /api/notifications/me` (now paginated + `?unread_only=`),
+    `GET /api/notifications/me/unread-count`,
+    `PATCH /api/notifications/{id}/read`, `PATCH /api/notifications/me/read-all`
+  - `POST /api/notifications/reminders/run` — **interview reminders**.
+    Scans scheduled interviews starting within `REMINDER_WINDOW_HOURS`
+    and sends a one-time in-app + **email** reminder for each. This
+    service has no built-in scheduler, so call this periodically from
+    a staff/admin session, or externally via cron with the
+    `X-Cron-Secret` header (see `CRON_SECRET` below).
+  - **Session alerts** — `POST /api/interviews/{id}/violation` (Module 6)
+    now also notifies admins when a live session's proctoring flags hit
+    3 and 5.
+  - `GET /api/notifications/me/summary/pdf` — a **downloadable
+    performance-summary report** aggregating every completed interview
+    (overall stats, skill averages, recent trend, weakest area), next
+    to the existing per-interview `GET /api/interviews/{id}/report/pdf`.
+- **Module 10 — Recruiter Dashboard** *(new)*, in `app/routers/analytics.py`:
+  - `GET /api/analytics/staff/candidates/{id}/profile` — **candidate
+    profiles & reports**: identity + latest resume snapshot (read-only
+    reflection of Node's `resumes` table) + score summary + skill
+    breakdown + weak areas + recent interviews, combined.
+  - `GET /api/analytics/staff/compare?candidate_ids=1,2,3` —
+    **candidate comparison**: side-by-side average score and per-skill
+    averages for 2-10 hand-picked candidates.
+  - `GET /api/analytics/staff/shortlist?min_score=75` —
+    **shortlisting insights**: candidates clearing a score bar
+    (optionally filtered to a `?domain=` they've practiced), ranked by
+    average score, each with a one-line rationale built from their
+    strongest/weakest scored category.
+- **Module 10 — Admin Dashboard** *(new)*:
+  - `GET /api/admin/ai/performance` (`app/routers/admin_ai.py`) —
+    **AI performance monitoring**: real usage data (how many completed
+    interviews were actually scored by a live LLM vs the offline
+    simulator, which provider answered each time, and the average
+    score for each path) — the factual counterpart to the existing
+    `GET /api/admin/ai/status`, which only reports configured keys.
+  - `GET /api/admin/system/usage` (`app/routers/admin_system.py`) —
+    **platform usage analytics** for the features this service owns
+    (coding practice submissions/questions, interview templates,
+    resumes uploaded, notifications sent/unread, online vs offline and
+    recorded interview counts) — pairs with Node's broader
+    `GET /api/admin/analytics`.
+  - `GET /api/admin/system/health` — **system health report**: DB
+    connectivity, process uptime, recordings/TTS-cache disk usage, and
+    activity in the last 24h — pairs with Node's
+    `GET /api/admin/activity` (the append-only activity log itself).
 
 ## Setup
 
@@ -117,6 +180,40 @@ AI_PROVIDER_ORDER=ollama,gemini,openai,grok
 Reorder or shorten the chain freely, e.g. `AI_PROVIDER_ORDER=gemini,openai`
 to skip Ollama entirely, or `AI_PROVIDER_ORDER=ollama` to stay 100%
 local/free.
+
+## Email setup (Module 9 — interview reminders)
+
+Optional. Leave `EMAIL_ENABLED=false` (the default) and reminders/alerts
+still get created as in-app notifications; `app/email_engine.py` just
+logs and skips the email step, the same way TTS falls back to pyttsx3
+when gTTS can't reach the network.
+
+```
+EMAIL_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@example.com
+SMTP_PASSWORD=your_app_password
+SMTP_USE_TLS=true
+EMAIL_FROM=you@example.com
+```
+
+For Gmail, `SMTP_PASSWORD` needs to be a 16-character
+[App Password](https://myaccount.google.com/apppasswords), not your
+normal login password (Google blocks plain-password SMTP logins).
+
+To actually get reminders sent on a schedule, point a cron job (or
+GitHub Actions scheduled workflow, Windows Task Scheduler, etc.) at:
+
+```bash
+curl -X POST http://localhost:8001/api/notifications/reminders/run \
+  -H "X-Cron-Secret: $CRON_SECRET"
+```
+
+Set `CRON_SECRET` in `.env` to any random string, matching whatever the
+scheduler sends. Without a `CRON_SECRET`, a staff/admin JWT is required
+instead (a "Send reminders now" button in the UI can call this the same
+way).
 
 ## Live proctored interview session
 

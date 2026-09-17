@@ -170,6 +170,35 @@ def compute_score(
     else is available for a category (e.g. AI totally down AND no
     webcam/answer data — should be rare, but the report must always
     render something)."""
+    answered_count = sum(1 for a in answers if (a.answer_text or "").strip())
+
+    # A candidate who submitted zero substantive answers must not be
+    # scored via the random offline simulator — that fallback exists for
+    # "AI is unavailable but a real attempt was made", not "nothing was
+    # answered at all". Score this as a real 0%, not a plausible-looking
+    # random number in the 60-97 range.
+    if answered_count == 0:
+        no_answer_feedback = {
+            "strengths": [],
+            "weaknesses": ["No answers were submitted for this interview."],
+            "improvements": ["Complete the interview and answer each question to receive a real assessment."],
+            "practice_recommendations": ["Retake this interview and answer at least the questions you're confident about."],
+            "learning_resources": [],
+        }
+        return {
+            "score": 0,
+            "skill_communication": 0,
+            "skill_confidence": 0,
+            "skill_technical": 0,
+            "skill_professionalism": 0,
+            "skill_problem_solving": 0,
+            "rating_label": "Poor",
+            "ai_feedback": "No answers were submitted, so no meaningful assessment could be made.",
+            "feedback": no_answer_feedback,
+            "scoring_source": "no_answers",
+            "scoring_provider": None,
+        }
+
     det_communication = _communication_score_from_answers(answers)
     det_professionalism = _professionalism_score(proctoring_violations, answers)
     det_confidence = _confidence_score_from_behavior(behavior_metrics)
@@ -199,4 +228,11 @@ def compute_score(
         "rating_label": rating_label(overall),
         "ai_feedback": ai_result.get("ai_feedback") or fallback.get("ai_feedback"),
         "feedback": feedback,
+        # Module 10 — admin "AI performance monitoring": did a real LLM
+        # provider score this interview, or did every provider fail /
+        # was there no substantive answer text to score (in which case
+        # the deterministic + fallback path above still produces a
+        # report, but it's honest to call it "simulator", not "AI").
+        "scoring_source": "ai" if ai_result else "simulator",
+        "scoring_provider": ai_result.get("scoring_provider"),
     }

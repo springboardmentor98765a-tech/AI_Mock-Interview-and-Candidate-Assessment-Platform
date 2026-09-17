@@ -16,11 +16,14 @@ regression, not a feature). What it DOES give an admin:
 """
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import config
 from app.database import get_db
+from app.models import Interview
 from app.platform_settings import ai_scoring_disabled
+from app.schemas import AiPerformanceOut
 from app.security import CurrentUser, require_roles
 
 router = APIRouter(prefix="/api/admin/ai", tags=["admin-ai-config"])
@@ -80,3 +83,45 @@ def set_ai_scoring(
     )
     db.commit()
     return _build_ai_status(db)
+
+
+# =================================================================
+# Module 10 — Admin "AI performance monitoring": real usage data
+# (how often a live LLM actually scored an interview vs the offline
+# simulator, which provider answered, and whether AI-scored sessions
+# trend higher/lower than simulator-scored ones) — a factual
+# complement to GET /status, which only reports configured keys.
+# =================================================================
+@router.get("/performance", response_model=AiPerformanceOut)
+def get_ai_performance(db: Session = Depends(get_db), _: CurrentUser = Depends(require_roles("admin"))):
+    scored = db.query(Interview).filter(Interview.status == "completed", Interview.score.isnot(None))
+
+    total = scored.count()
+    ai_count = scored.filter(Interview.scoring_source == "ai").count()
+    simulator_count = scored.filter(Interview.scoring_source == "simulator").count()
+
+    provider_rows = (
+        db.query(Interview.scoring_provider, func.count(Interview.id))
+        .filter(Interview.scoring_source == "ai", Interview.scoring_provider.isnot(None))
+        .group_by(Interview.scoring_provider)
+        .all()
+    )
+    provider_usage = {name: count for name, count in provider_rows}
+
+    def avg_for(source: str):
+        val = (
+            db.query(func.avg(Interview.score))
+            .filter(Interview.status == "completed", Interview.score.isnot(None), Interview.scoring_source == source)
+            .scalar()
+        )
+        return round(val) if val is not None else None
+
+    return AiPerformanceOut(
+        total_scored=total,
+        ai_scored_count=ai_count,
+        simulator_scored_count=simulator_count,
+        ai_scored_pct=round((ai_count / total) * 100) if total else 0,
+        provider_usage=provider_usage,
+        average_score_ai=avg_for("ai"),
+        average_score_simulator=avg_for("simulator"),
+    )

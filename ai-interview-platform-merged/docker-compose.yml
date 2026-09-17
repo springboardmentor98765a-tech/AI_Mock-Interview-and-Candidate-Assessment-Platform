@@ -1,0 +1,103 @@
+# ============================================================
+# One-command local/deployment stack for the AI Mock Interview
+# Platform: Postgres + Node auth/API + Python AI service +
+# static frontend (nginx).
+#
+# Usage:
+#   1. Copy backend/.env.example -> backend/.env and fill in real
+#      values (JWT_SECRET, Google OAuth, AI provider keys, etc).
+#   2. Copy backend-python/.env.example -> backend-python/.env
+#      and make sure JWT_SECRET matches backend/.env exactly.
+#   3. Copy .env.example (this folder) -> .env and set DB_USER /
+#      DB_PASSWORD / DB_NAME once. This is the ONLY place that
+#      controls the actual Postgres container's credentials — the
+#      `environment:` block below forces backend and backend-python
+#      to use these same values too, overriding whatever DB_* lines
+#      are sitting in their own .env files, so all three services are
+#      always talking about the same database with the same password.
+#      (DB_USER/DB_PASSWORD/DB_NAME inside backend/.env and
+#      backend-python/.env are effectively ignored under Docker for
+#      this reason — only used when running those services outside
+#      Docker.)
+#   4. docker compose up --build
+#
+# Frontend:      http://localhost:5500
+# Node API:      http://localhost:5000
+# Python AI API: http://localhost:8001
+# ============================================================
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-ai_interview_platform}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Postgres's official image automatically runs any .sql file found
+      # here, but ONLY the very first time the volume is initialized —
+      # this is what was missing before, causing "relation does not
+      # exist" errors on a fresh `docker compose up`. If you change
+      # schema.sql later, you must `docker compose down -v` first for
+      # it to re-run (see schema-changes note in DEPLOYMENT.md).
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-ai_interview_platform}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - backend_uploads:/app/uploads
+
+  backend-python:
+    build: ./backend-python
+    restart: unless-stopped
+    env_file:
+      - ./backend-python/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-ai_interview_platform}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    volumes:
+      - py_tts_cache:/app/tts_cache
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - backend-python
+    ports:
+      - "5500:80"
+
+volumes:
+  pgdata:
+  backend_uploads:
+  py_tts_cache:

@@ -14,19 +14,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import FRONTEND_ORIGINS
-from app.routers import admin_ai, coding, interviews, templates
+from app.routers import admin_ai, admin_system, analytics, coding, interviews, notifications, templates
 
 app = FastAPI(
     title="AI Interview Platform — Module 3 (Python)",
-    description="AI Interview Generation, candidate feedback view, and question text-to-speech.",
+    description=(
+        "AI Interview Generation, candidate feedback view, question text-to-speech, "
+        "plus Module 8 (Dashboard & Analytics) and Module 9 (Notifications & Reports)."
+    ),
     version="1.0.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
-    allow_credentials=True,
+    allow_origin_regex=r".*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -35,6 +38,9 @@ app.include_router(templates.router)
 app.include_router(interviews.router)
 app.include_router(coding.router)
 app.include_router(admin_ai.router)
+app.include_router(admin_system.router)
+app.include_router(analytics.router)
+app.include_router(notifications.router)
 
 
 @app.get("/")

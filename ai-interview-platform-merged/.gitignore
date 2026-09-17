@@ -1,0 +1,5 @@
+﻿.vercel
+backend/.env
+backend/uploads/
+backend-python/recordings/
+backend-python/tts_cache/

@@ -1,4 +1,6 @@
-
+-- ============================================================
+-- AI Mock Interview Platform — Database Schema
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS users (
     id              SERIAL PRIMARY KEY,
@@ -20,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_provider ON users (auth_provider, provider_id);
 
-
+-- Keep updated_at fresh on every row change
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -35,6 +37,13 @@ CREATE TRIGGER trg_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 
+-- ============================================================
+-- Interviews — every mock interview a candidate takes (instant
+-- AI-scored sessions) or books (future scheduled sessions).
+-- Feeds candidate.html (history/stats), coach.html (assigned
+-- candidates + today's schedule) and recruiter.html (recent
+-- candidates + today's schedule).
+-- ============================================================
 CREATE TABLE IF NOT EXISTS interviews (
     id                     SERIAL PRIMARY KEY,
     candidate_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -60,19 +69,36 @@ CREATE INDEX IF NOT EXISTS idx_interviews_candidate ON interviews (candidate_id)
 CREATE INDEX IF NOT EXISTS idx_interviews_status ON interviews (status);
 CREATE INDEX IF NOT EXISTS idx_interviews_scheduled_at ON interviews (scheduled_at);
 
-
+-- Module 3 additions: domain customization + difficulty selection for
+-- AI-generated interview sessions. Safe to re-run on an existing DB.
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS domain VARCHAR(100);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS difficulty VARCHAR(10) NOT NULL DEFAULT 'medium'
     CHECK (difficulty IN ('easy', 'medium', 'hard'));
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS question_count INTEGER NOT NULL DEFAULT 0;
 
-
+-- Proctoring: running count of tab-switch / fullscreen-exit / no-face /
+-- multi-face / look-away warnings raised during a live AI interview
+-- session. Written by POST /api/interviews/:id/violation (Python service).
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS proctoring_violations INTEGER NOT NULL DEFAULT 0;
 
-
+-- Interview session recording (webcam + mic, .webm) — auto-recorded
+-- during a live proctored session, viewable by the candidate and by
+-- staff (coach/recruiter/admin). NULL until POST
+-- /api/interviews/:id/recording (Python service) finishes uploading.
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS recording_path VARCHAR(255);
 
-
+-- Module 7 — AI Feedback & Scoring. skill_professionalism joins the
+-- existing skill_communication/skill_technical/skill_confidence columns
+-- as the 4th weighted category (Communication 30%, Confidence 25%,
+-- Technical Relevance = skill_technical 30%, Professionalism 15%).
+-- feedback_json holds the structured 5-part breakdown (strengths/
+-- weaknesses/improvements/practice_recommendations/learning_resources);
+-- ai_feedback stays as the short free-text summary for backward
+-- compatibility with existing report/PDF/modal code.
+-- behavior_* columns store the Module 6 webcam-analytics snapshot the
+-- frontend sends at finish time (proctored sessions only — null for
+-- interviews with no webcam data), kept for admin analytics/audit
+-- rather than only ever existing transiently in the browser.
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS skill_professionalism INTEGER;
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS rating_label VARCHAR(20);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS feedback_json TEXT;
@@ -82,7 +108,26 @@ ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_attention_level VARCHAR
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_confidence_label VARCHAR(10);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS behavior_dominant_emotion VARCHAR(30);
 
+-- Module 9 — Notifications & Reports. Set once
+-- POST /api/notifications/reminders/run (Python service) sends this
+-- session's one-time "upcoming interview" reminder, so a later scan
+-- within the same reminder window doesn't send it again.
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP;
 
+-- Module 10 — Admin "AI performance monitoring". Records whether this
+-- interview was actually scored by a real LLM provider ('ai') or by
+-- the offline simulator ('simulator' — always true for /start and
+-- /attend by design; only /finish's live-session flow ever calls a
+-- provider), and which provider answered when it was 'ai'.
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS scoring_source VARCHAR(10);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS scoring_provider VARCHAR(20);
+
+-- ============================================================
+-- Interview Questions — AI-generated questions belonging to an
+-- interview session (Module 3: AI Interview Generation). Each
+-- session can mix categories (HR / Technical / Behavioral /
+-- Aptitude) at a chosen difficulty, ordered by sequence_no.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS interview_questions (
     id             SERIAL PRIMARY KEY,
     interview_id   INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
@@ -97,7 +142,13 @@ CREATE TABLE IF NOT EXISTS interview_questions (
 
 CREATE INDEX IF NOT EXISTS idx_interview_questions_interview ON interview_questions (interview_id);
 
-
+-- ============================================================
+-- Interview Answers — the candidate's typed-or-voice-transcribed
+-- answer to each generated question in a live session (one row per
+-- question, upserted as they move through the interview). Feeds the
+-- real LLM-based scoring in POST/PATCH /api/interviews/:id/finish;
+-- falls back to the simulator in question_bank.py when empty.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS interview_answers (
     id                  SERIAL PRIMARY KEY,
     interview_id        INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
@@ -112,7 +163,13 @@ CREATE TABLE IF NOT EXISTS interview_answers (
 CREATE INDEX IF NOT EXISTS idx_interview_answers_interview ON interview_answers (interview_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_interview_answers_question ON interview_answers (question_id);
 
-
+-- Module 5 — Speech-to-Text & Communication Analysis. Computed once per
+-- answer in POST /api/interviews/:id/answers (Python service), from the
+-- transcript text (filler words, grammar) and from timing/voice-recognition
+-- signals already captured client-side (pace, pronunciation proxy).
+-- See backend-python/app/communication_analysis.py for the honest scope
+-- of each metric — pronunciation_score is speech-recognition confidence,
+-- not true phonetic pronunciation scoring.
 ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_word_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS filler_words_found TEXT; -- JSON list, e.g. ["um","like"]
 ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS grammar_issue_count INTEGER NOT NULL DEFAULT 0;
@@ -121,7 +178,17 @@ ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS speech_wpm INTEGER;      
 ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS voice_confidence REAL;           -- 0-1, avg Web Speech API confidence, voice answers only
 ALTER TABLE interview_answers ADD COLUMN IF NOT EXISTS pronunciation_score INTEGER;     -- 0-100, derived from voice_confidence
 
-
+-- ============================================================
+-- Notifications — small activity feed shown on every dashboard.
+-- Either targeted at one user (user_id) or broadcast to a whole
+-- role (role), e.g. "New candidate applied" for all recruiters.
+--
+-- Module 9 — Notifications & Reports builds read/unread management
+-- (PATCH .../read, .../me/read-all), interview reminders and
+-- proctoring "session alert" broadcasts on top of this same table —
+-- see backend-python/app/routers/notifications.py. No schema change
+-- was needed for that on top of what Module 1 already created here.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS notifications (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -136,7 +203,10 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications (role);
 
-
+-- ============================================================
+-- Job openings — managed by recruiters, feeds the "Job Openings"
+-- card and open-positions count on recruiter.html.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS job_openings (
     id           SERIAL PRIMARY KEY,
     title        VARCHAR(150) NOT NULL,
@@ -149,7 +219,13 @@ CREATE TABLE IF NOT EXISTS job_openings (
 
 CREATE INDEX IF NOT EXISTS idx_job_openings_status ON job_openings (is_open);
 
-
+-- ============================================================
+-- Resumes — Module 2: Resume Upload & Skill Extraction. Each
+-- upload is parsed once at upload time and the extracted structured
+-- data is cached here so dashboards never have to re-parse the PDF.
+-- A candidate may upload more than once; the most recent row (by
+-- created_at) is treated as their "current" resume.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS resumes (
     id                 SERIAL PRIMARY KEY,
     candidate_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -166,7 +242,9 @@ CREATE TABLE IF NOT EXISTS resumes (
     created_at         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-
+-- ATS-friendliness score (0-100) + the specific formatting/content
+-- issues found, e.g. "no email found", "missing skills section".
+-- Computed by backend/utils/resumeEngine.js#scoreAts() at upload time.
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_score INTEGER CHECK (ats_score BETWEEN 0 AND 100);
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_feedback JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type VARCHAR(10); -- "pdf" | "image"
@@ -174,7 +252,15 @@ ALTER TABLE resumes ADD COLUMN IF NOT EXISTS file_type VARCHAR(10); -- "pdf" | "
 CREATE INDEX IF NOT EXISTS idx_resumes_candidate ON resumes (candidate_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_created_at ON resumes (created_at);
 
-
+-- ============================================================
+-- Coding Submissions — standalone "Coding Practice" page (separate
+-- from the scored live-interview flow above). Each row is one graded
+-- attempt: the candidate's role locks their language, their code is
+-- run against a curated problem's stdin/stdout test cases by the
+-- Python judge (app/judge.py), and the pass/fail counts + score here
+-- are purely algorithmic — never AI-judged. Powers the submission
+-- history table and the PDF/Excel score-list export.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS coding_submissions (
     id              SERIAL PRIMARY KEY,
     candidate_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -192,7 +278,14 @@ CREATE TABLE IF NOT EXISTS coding_submissions (
 CREATE INDEX IF NOT EXISTS idx_coding_submissions_candidate ON coding_submissions (candidate_id);
 CREATE INDEX IF NOT EXISTS idx_coding_submissions_created_at ON coding_submissions (created_at);
 
-
+-- ============================================================
+-- Coding Practice — AI-generated questions (Gemini). Each row is one
+-- freshly generated problem (title/prompt/starter_code/test_cases),
+-- persisted so a later POST /api/coding/submit can look up the exact
+-- test cases it was generated with and grade against them. Test cases
+-- are only ever compared server-side (app/judge.py) — never sent back
+-- to the browser, so a candidate can't read them from the network tab.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS generated_coding_questions (
     id              VARCHAR(64) PRIMARY KEY,        -- uuid4 hex
     candidate_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -209,7 +302,15 @@ CREATE TABLE IF NOT EXISTS generated_coding_questions (
 
 CREATE INDEX IF NOT EXISTS idx_generated_coding_questions_candidate ON generated_coding_questions (candidate_id);
 
-
+-- ============================================================
+-- Module 1 — Admin "Monitor system activities". A lightweight,
+-- append-only log of notable events across both backends (this table
+-- is written to directly by both the Node service and the Python
+-- service — see backend/utils/activityLog.js and
+-- backend-python/app/activity_log.py). Not a full audit trail of every
+-- request, just the events an admin would actually want visibility
+-- into: registrations, logins, interview completions, admin actions.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS activity_log (
     id              SERIAL PRIMARY KEY,
     actor_user_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -221,7 +322,12 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
 CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log (created_at DESC);
 
-
+-- ============================================================
+-- Module 1 — Recruiter "Create interview templates". A named preset
+-- for the fields already used by POST /api/interviews/generate — picking
+-- one just pre-fills that form, it doesn't change how interviews are
+-- generated or scored. See backend-python/app/routers/templates.py.
+-- ============================================================
 CREATE TABLE IF NOT EXISTS interview_templates (
     id              SERIAL PRIMARY KEY,
     created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -235,3 +341,8 @@ CREATE TABLE IF NOT EXISTS interview_templates (
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- ============================================================
+-- Seed a default admin (matches the "Default Admin Login" shown
+-- on login.html). Password is hashed at app-start via seed.js,
+-- NOT stored in plaintext here.
+-- ============================================================

@@ -209,14 +209,24 @@ _PROVIDER_FN = {
 def _call_llm_chain(prompt: str) -> Optional[str]:
     """Tries each configured provider in order; returns the first
     non-empty response. None if every provider in the chain failed."""
+    text, _provider = _call_llm_chain_with_provider(prompt)
+    return text
+
+
+def _call_llm_chain_with_provider(prompt: str) -> tuple[Optional[str], Optional[str]]:
+    """Same fallback chain as _call_llm_chain, but also returns which
+    provider actually answered (or None if every provider failed) —
+    used by score_interview_llm so Module 10's admin \"AI performance
+    monitoring\" can report real per-provider usage, not just which
+    keys are configured."""
     for provider in config.AI_PROVIDER_ORDER:
         fn = _PROVIDER_FN.get(provider)
         if fn is None:
             continue
         result = fn(prompt)
         if result:
-            return result
-    return None
+            return result, provider
+    return None, None
 
 
 # =================================================================
@@ -447,7 +457,7 @@ def score_interview_llm(interview_type: str, qa_pairs: list[dict]) -> Optional[d
         "}}\n\n"
         f"Transcript:\n{transcript}"
     )
-    raw = _call_llm_chain(prompt)
+    raw, provider = _call_llm_chain_with_provider(prompt)
     parsed = _extract_json_object(raw) if raw else None
     if not isinstance(parsed, dict):
         return None
@@ -462,6 +472,7 @@ def score_interview_llm(interview_type: str, qa_pairs: list[dict]) -> Optional[d
             "skill_professionalism": _clamp(parsed.get("skill_professionalism"), 0, 100),
             "ai_feedback": str(parsed.get("ai_feedback") or "").strip()
             or "The AI grader scored your answers but did not return written feedback.",
+            "scoring_provider": provider,
         }
     except (TypeError, ValueError):
         return None

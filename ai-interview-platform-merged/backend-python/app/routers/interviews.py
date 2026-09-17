@@ -170,6 +170,7 @@ def start_interview(
         rating_label=assessment["rating_label"],
         ai_feedback=assessment["ai_feedback"],
         feedback_json=json.dumps(assessment["feedback"]),
+        scoring_source="simulator",  # /start is always instant-simulator scoring by design
         scheduled_at=now,
         completed_at=now,
     )
@@ -433,6 +434,7 @@ def attend_interview(interview_id: int, db: Session = Depends(get_db), user: Cur
     interview.rating_label = assessment["rating_label"]
     interview.ai_feedback = assessment["ai_feedback"]
     interview.feedback_json = json.dumps(assessment["feedback"])
+    interview.scoring_source = "simulator"  # /attend is always instant-simulator scoring by design
     interview.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(interview)
@@ -542,6 +544,23 @@ def log_proctoring_violation(
     interview.proctoring_violations = (interview.proctoring_violations or 0) + 1
     db.commit()
     db.refresh(interview)
+
+    # Module 9 — session alerts: let staff know a live session is
+    # showing repeated proctoring flags, in case a human wants to
+    # review it once the recording/report is available. Fired once at
+    # the "getting concerning" mark and once more at the auto-submit
+    # threshold, not on every single violation.
+    if interview.proctoring_violations in (3, 5):
+        notify(
+            db,
+            role="admin",
+            title="Proctoring Alert",
+            message=(
+                f'Interview #{interview.id} ("{interview.interview_type}") has '
+                f"{interview.proctoring_violations} proctoring flags."
+            ),
+        )
+
     return ViolationOut(violations=interview.proctoring_violations, auto_submit=interview.proctoring_violations >= 5)
 
 
@@ -611,6 +630,8 @@ def finish_interview(
     interview.rating_label = assessment["rating_label"]
     interview.ai_feedback = assessment["ai_feedback"]
     interview.feedback_json = json.dumps(assessment["feedback"])
+    interview.scoring_source = assessment["scoring_source"]
+    interview.scoring_provider = assessment["scoring_provider"]
     if behavior_metrics:
         interview.behavior_eye_contact_pct = behavior_metrics.get("eyeContactPct")
         interview.behavior_engagement_pct = behavior_metrics.get("engagementPct")

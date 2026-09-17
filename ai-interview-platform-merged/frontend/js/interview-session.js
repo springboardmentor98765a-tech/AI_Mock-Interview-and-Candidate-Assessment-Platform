@@ -33,6 +33,7 @@ let noFaceStreak = 0;
 // recording rather than blocking the candidate.
 let mediaRecorder = null;
 let recordedChunks = [];
+let recordingUploadError = null;
 
 // --- Module 5: voice recognition confidence per question, used as a
 // pronunciation/clarity proxy (see backend/communication_analysis.py) ---
@@ -338,7 +339,7 @@ async function finishInterview() {
   const recordingBlob = await stopInterviewRecording();
   stopWebcamTracks(); // turn the camera off right away — proctoring listeners (incl. the
                        // leave-page guard) stay armed until the /finish call below settles
-  uploadInterviewRecording(recordingBlob); // fire-and-forget — never blocks scoring/finish
+  await uploadInterviewRecording(recordingBlob);
 
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
@@ -363,7 +364,9 @@ async function finishInterview() {
       body: JSON.stringify(finishBody),
     });
     document.getElementById('finishHeading').textContent = '✅ Interview complete';
-    document.getElementById('finishSubtext').textContent = `"${result.interview_type}" — report ready.`;
+    document.getElementById('finishSubtext').textContent = recordingUploadError
+      ? `"${result.interview_type}" — report ready. ${recordingUploadError}`
+      : `"${result.interview_type}" — report ready.`;
     document.getElementById('finishScoreBox').style.display = 'block';
     document.getElementById('finishScoreCircle').textContent = `${result.score}%`;
     document.getElementById('finishRatingLabel').textContent = result.rating_label || '';
@@ -714,7 +717,12 @@ function stopInterviewRecording() {
 }
 
 async function uploadInterviewRecording(blob) {
-  if (!blob) return;
+  recordingUploadError = null;
+  if (!blob) {
+    recordingUploadError = 'No video was captured. Check that your browser supports recording and that camera and microphone access were granted.';
+    console.warn(recordingUploadError);
+    return false;
+  }
   try {
     const formData = new FormData();
     formData.append('file', blob, 'interview.webm');
@@ -725,12 +733,26 @@ async function uploadInterviewRecording(blob) {
       body: formData,
     });
     if (!res.ok) {
-      console.warn('Recording upload failed with status', res.status);
+      let message = `Recording upload failed (server returned ${res.status}).`;
+      try {
+        const body = await res.json();
+        if (body && body.detail) message = `Recording upload failed: ${body.detail}`;
+      } catch (_) {
+        // The server may return a non-JSON proxy error page.
+      }
+      recordingUploadError = message;
+      console.warn(message);
+      showToast(`${message} Your interview answers were still saved.`, 'error');
+      return false;
     }
+    return true;
   } catch (err) {
     // Never block the finish flow on an upload failure — the interview
     // score/answers already saved are what matters most.
+    recordingUploadError = 'Recording upload could not reach the server.';
     console.warn('Recording upload error:', err);
+    showToast(`${recordingUploadError} Your interview answers were still saved.`, 'error');
+    return false;
   }
 }
 
