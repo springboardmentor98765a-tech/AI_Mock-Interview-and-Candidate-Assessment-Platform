@@ -454,34 +454,4 @@ SmartHire/
 
 ---
 
-## 🔒 Security & Privacy
 
-- **Data Privacy**: Candidate webcam frames are processed in-memory for real-time telemetry extraction and are not retained unless recruiter recording is explicitly enabled.
-- **Evidence-Based Terminology**: The behavioral ML engine deliberately avoids pseudoscience or invasive claims; all metrics reflect factual observations (*e.g., eye gaze stability, response pacing, vocal hesitation*).
-- **Environment Isolation**: Production secrets and database credentials remain strictly managed via environment variables.
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for more details.
-
----
-
-<div align="center">
-  <b>Built with ❤️ by <a href="https://github.com/Satyamsin004">Satyam Singh</a> and the SmartHire Team</b>
-  <br>
-  <sub>Empowering fair, unbiased, and intelligent hiring worldwide.</sub>
-</div>
